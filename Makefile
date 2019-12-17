@@ -15,7 +15,7 @@ TARGET_GOARCH=amd64
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 
-build: gofmt golint govet
+build: gofmt golint
 	@echo "Building operator binary"
 	mkdir -p build/_output/bin
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/performance-addon-operators ./cmd/manager
