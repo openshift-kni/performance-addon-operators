@@ -1,0 +1,24 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+
+aliases:
+  performance-reviewers:
+    - karmab
+    - davidvossel
+    - MarSik
+    - simon3z
+    - fedepaol
+    - SchSeba
+    - fromanirh
+    - cynepco3hahue
+    - slintes
+    - vladikr
+    - yanirq
+  performance-approvers:
+    - karmab
+    - davidvossel
+    - MarSik
+    - simon3z
+    - fedepaol
+    - SchSeba
+    - fromanirh
+    - cynepco3hahue
