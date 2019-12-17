@@ -11,17 +11,17 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/openshift/v1alpha1.CpuPerformanceProfile":       schema_pkg_apis_openshift_v1alpha1_CpuPerformanceProfile(ref),
-		"./pkg/apis/openshift/v1alpha1.CpuPerformanceProfileSpec":   schema_pkg_apis_openshift_v1alpha1_CpuPerformanceProfileSpec(ref),
-		"./pkg/apis/openshift/v1alpha1.CpuPerformanceProfileStatus": schema_pkg_apis_openshift_v1alpha1_CpuPerformanceProfileStatus(ref),
+		"./pkg/apis/openshift/v1alpha1.CPUPerformanceProfile":       schema_pkg_apis_openshift_v1alpha1_CPUPerformanceProfile(ref),
+		"./pkg/apis/openshift/v1alpha1.CPUPerformanceProfileSpec":   schema_pkg_apis_openshift_v1alpha1_CPUPerformanceProfileSpec(ref),
+		"./pkg/apis/openshift/v1alpha1.CPUPerformanceProfileStatus": schema_pkg_apis_openshift_v1alpha1_CPUPerformanceProfileStatus(ref),
 	}
 }
 
-func schema_pkg_apis_openshift_v1alpha1_CpuPerformanceProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_openshift_v1alpha1_CPUPerformanceProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CpuPerformanceProfile is the Schema for the cpuperformanceprofiles API",
+				Description: "CPUPerformanceProfile is the Schema for the cpuperformanceprofiles API",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -45,38 +45,38 @@ func schema_pkg_apis_openshift_v1alpha1_CpuPerformanceProfile(ref common.Referen
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/openshift/v1alpha1.CpuPerformanceProfileSpec"),
+							Ref: ref("./pkg/apis/openshift/v1alpha1.CPUPerformanceProfileSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/openshift/v1alpha1.CpuPerformanceProfileStatus"),
+							Ref: ref("./pkg/apis/openshift/v1alpha1.CPUPerformanceProfileStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/openshift/v1alpha1.CpuPerformanceProfileSpec", "./pkg/apis/openshift/v1alpha1.CpuPerformanceProfileStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/openshift/v1alpha1.CPUPerformanceProfileSpec", "./pkg/apis/openshift/v1alpha1.CPUPerformanceProfileStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_openshift_v1alpha1_CpuPerformanceProfileSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_openshift_v1alpha1_CPUPerformanceProfileSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CpuPerformanceProfileSpec defines the desired state of CpuPerformanceProfile",
+				Description: "CPUPerformanceProfileSpec defines the desired state of CPUPerformanceProfile",
 				Type:        []string{"object"},
 			},
 		},
 	}
 }
 
-func schema_pkg_apis_openshift_v1alpha1_CpuPerformanceProfileStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_openshift_v1alpha1_CPUPerformanceProfileStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CpuPerformanceProfileStatus defines the observed state of CpuPerformanceProfile",
+				Description: "CPUPerformanceProfileStatus defines the observed state of CPUPerformanceProfile",
 				Type:        []string{"object"},
 			},
 		},
