@@ -1,13 +1,9 @@
-
 export FEATURES?=mcp performance sctp
 
 .PHONY: deps-update
 deps-update:
 	go mod tidy && \
 	go mod vendor
-
-ginkgo:
-	go get github.com/onsi/ginkgo/ginkgo
 
 .PHONY: functests
 functests: ginkgo
