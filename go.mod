@@ -4,6 +4,8 @@ go 1.13
 
 require (
 	github.com/go-openapi/spec v0.19.0
+	github.com/onsi/ginkgo v1.10.3
+	github.com/onsi/gomega v1.5.0
 	github.com/operator-framework/operator-sdk v0.12.0
 	github.com/spf13/pflag v1.0.3
 	k8s.io/api v0.0.0
