@@ -1,15 +1,17 @@
-FROM fedora:30 as build-tools
+FROM fedora:31
 ENV GOPATH /go
 ENV GOBIN /go/bin
 ENV GOCACHE /go/.cache
+ENV PATH=$PATH:$GOPATH/bin
+ENV GOVERSION golang-1.13.5-1.fc31
 ARG GO_PACKAGE_PATH=github.com/openshift-kni/performance-addon-operators
 
 # rpms required for building and running test suites
 RUN dnf -y install \
-    golang \
+    $GOVERSION \
     make \
     tar \
-    findutils \
+    gettext \
     && dnf clean all
 
 # get required golang tools and OC client
@@ -19,9 +21,8 @@ RUN go get github.com/onsi/ginkgo/ginkgo && \
     export latest_oc_client_version=$(curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/ 2>/dev/null | grep -o \"openshift-client-linux-4.*tar.gz\" | tr -d \") && \
     curl -JL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/${latest_oc_client_version} -o oc.tar.gz && \
     tar -xzvf oc.tar.gz && \
-    mv oc /usr/bin/oc
-
-ENV PATH=$PATH:$GOPATH/bin
+    mv oc /usr/local/bin/oc && \
+    rm -f oc.tar.gz
 
 RUN export TMP_BIN=$(mktemp -d) && \
     mv $GOBIN/* $TMP_BIN/ && \
