@@ -1,6 +1,10 @@
 
 export FEATURES?=mcp performance sctp
 
+.PHONY: build
+build:
+	GOFLAGS=-mod=vendor go build ./...
+
 .PHONY: deps-update
 deps-update:
 	go mod tidy && \
