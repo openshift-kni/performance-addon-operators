@@ -55,8 +55,14 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - openshift.io
+  - performance.openshift.io
   resources:
   - '*'
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

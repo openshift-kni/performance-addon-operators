@@ -3,8 +3,10 @@ package cpuperformanceprofile
 import (
 	"context"
 
-	openshiftv1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/openshift/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
+	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,16 +48,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource CPUPerformanceProfile
-	err = c.Watch(&source.Kind{Type: &openshiftv1alpha1.CPUPerformanceProfile{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &performancev1alpha1.CPUPerformanceProfile{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner CPUPerformanceProfile
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	// Watch for changes to secondary resources and requeue the owner CPUPerformanceProfile
+	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfig{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &openshiftv1alpha1.CPUPerformanceProfile{},
+		OwnerType:    &performancev1alpha1.CPUPerformanceProfile{},
 	})
 	if err != nil {
 		return err
@@ -87,7 +89,7 @@ func (r *ReconcileCPUPerformanceProfile) Reconcile(request reconcile.Request) (r
 	reqLogger.Info("Reconciling CPUPerformanceProfile")
 
 	// Fetch the CPUPerformanceProfile instance
-	instance := &openshiftv1alpha1.CPUPerformanceProfile{}
+	instance := &performancev1alpha1.CPUPerformanceProfile{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -100,54 +102,50 @@ func (r *ReconcileCPUPerformanceProfile) Reconcile(request reconcile.Request) (r
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(instance)
+	// Define a new MC object
+	// TODO this is just an example for adding the MCO dependency for now!
+	mc := newMachineConfigForCR(instance)
 
 	// Set CPUPerformanceProfile instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, mc, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	// Check if this MC already exists
+	found := &mcov1.MachineConfig{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: mc.Name, Namespace: ""}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
+		reqLogger.Info("Creating a new MachineConfig", "MachineConfig.Name", mc.Name)
+		err = r.client.Create(context.TODO(), mc)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 
-		// Pod created successfully - don't requeue
+		// MC created successfully - don't requeue
 		return reconcile.Result{}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	// MC already exists - don't requeue
+	reqLogger.Info("Skip reconcile: MachineConfig already exists", "MachineConfig.Name", found.Name)
 	return reconcile.Result{}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *openshiftv1alpha1.CPUPerformanceProfile) *corev1.Pod {
+func newMachineConfigForCR(cr *performancev1alpha1.CPUPerformanceProfile) *mcov1.MachineConfig {
 	labels := map[string]string{
 		"app": cr.Name,
 	}
-	return &corev1.Pod{
+	return &mcov1.MachineConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
+			Name:   cr.Name + "-performance-machine-config",
+			Labels: labels,
 		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
+		Spec: mcov1.MachineConfigSpec{
+			//OSImageURL:      "",
+			//Config:          types2.Config{},
+			//KernelArguments: nil,
+			//FIPS:            false,
 		},
 	}
 }
