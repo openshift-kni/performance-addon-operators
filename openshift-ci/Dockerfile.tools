@@ -12,6 +12,7 @@ RUN dnf -y install \
     make \
     tar \
     gettext \
+    which \
     && dnf clean all
 
 # get required golang tools and OC client
