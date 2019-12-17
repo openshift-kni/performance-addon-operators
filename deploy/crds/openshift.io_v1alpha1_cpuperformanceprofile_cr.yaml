@@ -1,0 +1,7 @@
+apiVersion: openshift.io/v1alpha1
+kind: CpuPerformanceProfile
+metadata:
+  name: example-cpuperformanceprofile
+spec:
+  # Add fields here
+  size: 3
