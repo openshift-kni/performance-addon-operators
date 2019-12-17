@@ -1,0 +1,9 @@
+FROM registry.access.redhat.com/ubi7/ubi-minimal:latest
+LABEL com.redhat.delivery.appregistry=true
+
+ENV LANG=en_US.utf8
+
+COPY performance-addon-operators /usr/local/bin/performance-addon-operators
+USER 1001
+
+ENTRYPOINT [ "/usr/local/bin/performance-addon-operators" ]

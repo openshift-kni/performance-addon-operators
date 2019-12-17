@@ -26,7 +26,7 @@ var log = logf.Log.WithName("controller_cpuperformanceprofile")
 * business logic.  Delete these comments after modifying this file.*
  */
 
-// Add creates a new CpuPerformanceProfile Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new CPUPerformanceProfile Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
@@ -34,7 +34,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileCpuPerformanceProfile{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileCPUPerformanceProfile{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -45,17 +45,17 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// Watch for changes to primary resource CpuPerformanceProfile
-	err = c.Watch(&source.Kind{Type: &openshiftv1alpha1.CpuPerformanceProfile{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to primary resource CPUPerformanceProfile
+	err = c.Watch(&source.Kind{Type: &openshiftv1alpha1.CPUPerformanceProfile{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner CpuPerformanceProfile
+	// Watch for changes to secondary resource Pods and requeue the owner CPUPerformanceProfile
 	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &openshiftv1alpha1.CpuPerformanceProfile{},
+		OwnerType:    &openshiftv1alpha1.CPUPerformanceProfile{},
 	})
 	if err != nil {
 		return err
@@ -64,30 +64,30 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// blank assignment to verify that ReconcileCpuPerformanceProfile implements reconcile.Reconciler
-var _ reconcile.Reconciler = &ReconcileCpuPerformanceProfile{}
+// blank assignment to verify that ReconcileCPUPerformanceProfile implements reconcile.Reconciler
+var _ reconcile.Reconciler = &ReconcileCPUPerformanceProfile{}
 
-// ReconcileCpuPerformanceProfile reconciles a CpuPerformanceProfile object
-type ReconcileCpuPerformanceProfile struct {
+// ReconcileCPUPerformanceProfile reconciles a CPUPerformanceProfile object
+type ReconcileCPUPerformanceProfile struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a CpuPerformanceProfile object and makes changes based on the state read
-// and what is in the CpuPerformanceProfile.Spec
+// Reconcile reads that state of the cluster for a CPUPerformanceProfile object and makes changes based on the state read
+// and what is in the CPUPerformanceProfile.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
 // a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileCpuPerformanceProfile) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCPUPerformanceProfile) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling CpuPerformanceProfile")
+	reqLogger.Info("Reconciling CPUPerformanceProfile")
 
-	// Fetch the CpuPerformanceProfile instance
-	instance := &openshiftv1alpha1.CpuPerformanceProfile{}
+	// Fetch the CPUPerformanceProfile instance
+	instance := &openshiftv1alpha1.CPUPerformanceProfile{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -103,7 +103,7 @@ func (r *ReconcileCpuPerformanceProfile) Reconcile(request reconcile.Request) (r
 	// Define a new Pod object
 	pod := newPodForCR(instance)
 
-	// Set CpuPerformanceProfile instance as the owner and controller
+	// Set CPUPerformanceProfile instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -130,7 +130,7 @@ func (r *ReconcileCpuPerformanceProfile) Reconcile(request reconcile.Request) (r
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *openshiftv1alpha1.CpuPerformanceProfile) *corev1.Pod {
+func newPodForCR(cr *openshiftv1alpha1.CPUPerformanceProfile) *corev1.Pod {
 	labels := map[string]string{
 		"app": cr.Name,
 	}
