@@ -24,14 +24,9 @@ deps-update:
 	go mod tidy && \
 	go mod vendor
 
-ginkgo:
-	go install github.com/onsi/ginkgo/ginkgo
-
-functests: ginkgo
-	FOCUS=$$(echo $(FEATURES) | tr ' ' '|') && \
-	echo "Focusing on $$FOCUS" && \
-	GOFLAGS=-mod=vendor ginkgo --focus=$$FOCUS functests -- -junit /tmp/artifacts/unit_report.xml
-	#TODO - copy in functional test suite
+functests:
+	@echo "Running Functional Tests"
+	hack/run-functests.sh
 
 unittests:
 	# functests are marked with "// +build !unittests" and will be skipped
