@@ -13,6 +13,14 @@ export FEATURES?=mcp performance sctp
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
 
+CACHE_DIR="_cache"
+TOOLS_DIR="$(CACHE_DIR)/tools"
+
+OPERATOR_SDK_VERSION="v0.12.0"
+OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
+OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
+OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
+
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 
@@ -20,6 +28,17 @@ build: gofmt golint
 	@echo "Building operator binary"
 	mkdir -p build/_output/bin
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/performance-addon-operators ./cmd/manager
+
+operator-sdk:
+	@if [ ! -x "$(OPERATOR_SDK)" ]; then\
+		echo "Downloading operator-sdk $(OPERATOR_SDK_VERSION)";\
+		mkdir -p $(TOOLS_DIR);\
+		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/$(OPERATOR_SDK_BIN) -o $(OPERATOR_SDK);\
+		chmod +x $(OPERATOR_SDK);\
+	else\
+		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
+	fi
+
 
 deps-update:
 	go mod tidy && \
