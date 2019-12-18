@@ -8,7 +8,9 @@ export FEATURES?=mcp performance sctp
 	gofmt \
 	golint \
 	govet \
-	deploy
+	deploy \
+	generate \
+	verify-generate \
 
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
@@ -16,7 +18,7 @@ TARGET_GOARCH=amd64
 CACHE_DIR="_cache"
 TOOLS_DIR="$(CACHE_DIR)/tools"
 
-OPERATOR_SDK_VERSION="v0.12.0"
+OPERATOR_SDK_VERSION="v0.13.0"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
@@ -69,3 +71,13 @@ govet:
 	@echo "Running go vet"
 	go vet github.com/openshift-kni/performance-addon-operators/...
 
+generate: operator-sdk
+	@echo Updating generated files
+	@echo
+	@$(OPERATOR_SDK) generate k8s
+	@echo
+	@$(OPERATOR_SDK) generate openapi
+
+verify-generate: update-generate
+	@echo "Verifying generated code"
+	hack/verify-generated.sh
