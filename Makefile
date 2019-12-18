@@ -7,7 +7,8 @@ export FEATURES?=mcp performance sctp
 	unittests \
 	gofmt \
 	golint \
-	govet
+	govet \
+	deploy
 
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
@@ -23,6 +24,10 @@ build: gofmt golint
 deps-update:
 	go mod tidy && \
 	go mod vendor
+
+deploy:
+	@echo "Deploying features $$FEATURES"
+	# TODO - add deploy logic here
 
 functests:
 	@echo "Running Functional Tests"
