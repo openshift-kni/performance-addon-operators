@@ -54,7 +54,9 @@ functests:
 	@echo "Running Functional Tests"
 	hack/run-functests.sh
 
-unittests:
+unittests: verify-generate
+	# TODO - eventually remove verify-generate here and have a prow job just
+	# to execute verify generation logic.
 	# functests are marked with "// +build !unittests" and will be skipped
 	GOFLAGS=-mod=vendor go test -v --tags unittests ./...
 	#TODO - copy in unit tests
