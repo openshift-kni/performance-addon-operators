@@ -185,7 +185,7 @@ type MachineConfigSpec struct {
 
 	KernelArguments []string `json:"kernelArguments"`
 
-	FIPS bool `json:"fips"`
+	Fips bool `json:"fips"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

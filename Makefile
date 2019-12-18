@@ -74,10 +74,10 @@ govet:
 generate: operator-sdk
 	@echo Updating generated files
 	@echo
-	@$(OPERATOR_SDK) generate k8s
+	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate k8s
 	@echo
-	@$(OPERATOR_SDK) generate openapi
+	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate crds
 
-verify-generate: update-generate
+verify-generate: generate
 	@echo "Verifying generated code"
 	hack/verify-generated.sh

@@ -3,6 +3,7 @@ module github.com/openshift-kni/performance-addon-operators
 go 1.13
 
 require (
+	github.com/ajeddeloh/go-json v0.0.0-20170920214419-6a2fe990e083 // indirect
 	github.com/coreos/ignition v0.34.0 // indirect
 	github.com/onsi/ginkgo v1.10.3
 	github.com/onsi/gomega v1.7.0
@@ -17,6 +18,7 @@ require (
 	k8s.io/api v0.17.0
 	k8s.io/apimachinery v0.17.0
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
 	sigs.k8s.io/controller-runtime v0.4.0
 )
 
@@ -49,5 +51,5 @@ replace (
 // Other pinned deps
 replace (
 	github.com/go-log/log => github.com/go-log/log v0.1.0
-	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.1-0.20191216124541-4838fbc6e7fc //latest commit on release-4.4 as of today (2019-12-17)
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20191111211345-a27ff30ebf09
 )
