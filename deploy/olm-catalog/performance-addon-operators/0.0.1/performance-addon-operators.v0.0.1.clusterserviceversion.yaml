@@ -1,0 +1,143 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "performance.openshift.io/v1alpha1",
+          "kind": "CPUPerformanceProfile",
+          "metadata": {
+            "name": "example-cpuperformanceprofile"
+          },
+          "spec": {
+            "size": 3
+          }
+        }
+      ]
+    capabilities: Basic Install
+  name: performance-addon-operators.v0.0.1
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: CPUPerformanceProfile is the Schema for the cpuperformanceprofiles
+        API
+      kind: CPUPerformanceProfile
+      name: cpuperformanceprofiles.performance.openshift.io
+      version: v1alpha1
+  description: Placeholder description
+  displayName: Performance Addon Operators
+  install:
+    spec:
+      deployments:
+      - name: performance-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: performance-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                name: performance-operator
+            spec:
+              containers:
+              - command:
+                - performance-operator
+                env:
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: performance-operator
+                image: REPLACE_IMAGE
+                imagePullPolicy: Always
+                name: performance-operator
+                resources: {}
+              serviceAccountName: performance-operator
+      permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - services/finalizers
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - get
+          - create
+        - apiGroups:
+          - apps
+          resourceNames:
+          - performance-operator
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - get
+        - apiGroups:
+          - apps
+          resources:
+          - replicasets
+          - deployments
+          verbs:
+          - get
+        - apiGroups:
+          - performance.openshift.io
+          resources:
+          - '*'
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        serviceAccountName: performance-operator
+    strategy: deployment
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  maturity: alpha
+  provider: {}
+  version: 0.0.1

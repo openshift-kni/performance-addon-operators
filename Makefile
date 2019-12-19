@@ -11,7 +11,17 @@ export FEATURES?=mcp performance sctp
 	deploy \
 	generate \
 	verify-generate \
-	ci-job
+	ci-job \
+	build-containers \
+	operator-container \
+	registry-container \
+	generate-latest-dev-csv
+
+
+IMAGE_BUILD_CMD ?= "docker"
+IMAGE_REGISTRY ?= "quay.io"
+REGISTRY_NAMESPACE ?= ""
+IMAGE_TAG ?= "latest"
 
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
@@ -24,6 +34,14 @@ OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
+REGISTRY_IMAGE_NAME="performance-addon-operators-registry"
+OPERATOR_IMAGE_NAME="performance-addon-operators"
+
+FULL_OPERATOR_IMAGE="$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
+FULL_REGISTRY_IMAGE="${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
+
+OPERATOR_DEV_CSV="0.0.1"
+
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 
@@ -31,6 +49,24 @@ build: gofmt golint
 	@echo "Building operator binary"
 	mkdir -p build/_output/bin
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/performance-addon-operators ./cmd/manager
+
+build-containers: registry-container operator-container
+
+operator-container: build
+	@echo "Building the performance-addon-operators image"
+	@if [ -z "$(REGISTRY_NAMESPACE)" ]; then\
+		echo "REGISTRY_NAMESPACE env-var must be set to your $(IMAGE_REGISTRY) namespace";\
+		exit 1;\
+	fi
+	$(IMAGE_BUILD_CMD) build --no-cache -f build/Dockerfile -t $(FULL_OPERATOR_IMAGE) build/
+
+registry-container: generate-latest-dev-csv
+	@echo "Building the performance-addon-operatorsregistry image"
+	$(IMAGE_BUILD_CMD) build --no-cache -t "$(FULL_REGISTRY_IMAGE)" -f deploy/Dockerfile .
+
+push-containers:
+	$(IMAGE_BUILD_CMD) push $(FULL_OPERATOR_IMAGE)
+	$(IMAGE_BUILD_CMD) push $(FULL_REGISTRY_IMAGE)
 
 operator-sdk:
 	@if [ ! -x "$(OPERATOR_SDK)" ]; then\
@@ -42,6 +78,14 @@ operator-sdk:
 		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
 	fi
 
+generate-latest-dev-csv: operator-sdk
+	@echo Generating developer csv
+	@echo
+	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) olm-catalog gen-csv --csv-version=$(OPERATOR_DEV_CSV)
+	sed -i 's/replaces\:.*//g' deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/performance-addon-operators.v0.0.1.clusterserviceversion.yaml
+	@echo
+	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate crds
+	cp deploy/crds/*crd.yaml deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/
 
 deps-update:
 	go mod tidy && \
