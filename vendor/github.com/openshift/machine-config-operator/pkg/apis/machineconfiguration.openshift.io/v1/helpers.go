@@ -24,7 +24,7 @@ func MergeMachineConfigs(configs []*MachineConfig, osImageURL string) *MachineCo
 	outIgn := configs[0].Spec.Config
 	for idx := 1; idx < len(configs); idx++ {
 		// if any of the config has FIPS enabled, it'll be set
-		if configs[idx].Spec.FIPS {
+		if configs[idx].Spec.Fips {
 			fips = true
 		}
 		outIgn = ign.Append(outIgn, configs[idx].Spec.Config)
@@ -39,7 +39,7 @@ func MergeMachineConfigs(configs []*MachineConfig, osImageURL string) *MachineCo
 			OSImageURL:      osImageURL,
 			KernelArguments: kargs,
 			Config:          outIgn,
-			FIPS:            fips,
+			Fips:            fips,
 		},
 	}
 }
