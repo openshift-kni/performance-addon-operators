@@ -11,6 +11,7 @@ export FEATURES?=mcp performance sctp
 	deploy \
 	generate \
 	verify-generate \
+	ci-job
 
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
@@ -54,9 +55,7 @@ functests:
 	@echo "Running Functional Tests"
 	hack/run-functests.sh
 
-unittests: verify-generate
-	# TODO - eventually remove verify-generate here and have a prow job just
-	# to execute verify generation logic.
+unittests:
 	# functests are marked with "// +build !unittests" and will be skipped
 	GOFLAGS=-mod=vendor go test -v --tags unittests ./...
 	#TODO - copy in unit tests
@@ -83,3 +82,5 @@ generate: operator-sdk
 verify-generate: generate
 	@echo "Verifying generated code"
 	hack/verify-generated.sh
+
+ci-job: gofmt golint govet verify-generate build unittests
