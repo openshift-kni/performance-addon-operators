@@ -15,7 +15,8 @@ export FEATURES?=mcp performance sctp
 	build-containers \
 	operator-container \
 	registry-container \
-	generate-latest-dev-csv
+	generate-latest-dev-csv \
+	test-cluster-setup
 
 
 IMAGE_BUILD_CMD ?= "docker"
@@ -128,3 +129,7 @@ verify-generate: generate
 	hack/verify-generated.sh
 
 ci-job: gofmt golint govet verify-generate build unittests
+
+test-cluster-setup:
+	@echo "Setting up the test cluster"
+	hack/setup_test_cluster.sh
