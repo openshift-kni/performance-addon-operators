@@ -3,14 +3,13 @@ module github.com/openshift-kni/performance-addon-operators
 go 1.13
 
 require (
-	github.com/ajeddeloh/go-json v0.0.0-20170920214419-6a2fe990e083 // indirect
 	github.com/coreos/ignition v0.34.0 // indirect
 	github.com/onsi/ginkgo v1.10.3
-	github.com/onsi/gomega v1.7.0
+	github.com/onsi/gomega v1.7.1
+	github.com/openshift-kni/baremetal-deploy/features v0.0.0-20191220103943-7bba9449adf6
 	github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible
 	github.com/operator-framework/operator-sdk v0.13.0
 	github.com/spf13/pflag v1.0.5
-	github.com/vincent-petithory/dataurl v0.0.0-20191104211930-d1553a71de50 // indirect
 	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
 	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
@@ -24,6 +23,7 @@ require (
 
 // Pinned to kubernetes-1.17.0
 replace (
+	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.0-20191213153440-ca88a545b320
 	k8s.io/api => k8s.io/api v0.17.0
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.17.0
