@@ -1,5 +1,7 @@
 FROM quay.io/openshift/origin-operator-registry:latest
 
+ARG OPENSHIFT_BUILD_NAMESPACE
+
 COPY deploy/olm-catalog /registry/performance-addon-operators-catalog
 
 # replaces performance-addon-operators image with the one built by openshift ci

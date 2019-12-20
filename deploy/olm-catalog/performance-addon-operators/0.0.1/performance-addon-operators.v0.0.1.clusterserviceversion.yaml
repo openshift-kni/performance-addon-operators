@@ -27,6 +27,7 @@ spec:
       kind: CPUPerformanceProfile
       name: cpuperformanceprofiles.performance.openshift.io
       version: v1alpha1
+      displayName: placeholder
   description: Placeholder description
   displayName: Performance Addon Operators
   install:

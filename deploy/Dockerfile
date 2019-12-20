@@ -1,5 +1,7 @@
 FROM quay.io/openshift/origin-operator-registry:latest
 
+ARG FULL_OPERATOR_IMAGE
+
 COPY deploy/olm-catalog /registry/performance-addon-operators-catalog
 
 # replaces performance-addon-operators image with the one matching our build

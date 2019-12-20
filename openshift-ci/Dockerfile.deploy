@@ -3,7 +3,7 @@ LABEL com.redhat.delivery.appregistry=true
 
 ENV LANG=en_US.utf8
 
-COPY performance-addon-operators /usr/local/bin/performance-addon-operators
+COPY performance-addon-operators /usr/local/bin/performance-operator
 USER 1001
 
 ENTRYPOINT [ "/usr/local/bin/performance-addon-operators" ]
