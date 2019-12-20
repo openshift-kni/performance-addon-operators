@@ -9,6 +9,8 @@ export FEATURES?=mcp performance sctp
 	golint \
 	govet \
 	deploy \
+	cluster-deploy \
+	cluster-clean \
 	generate \
 	verify-generate \
 	ci-job \
@@ -62,7 +64,7 @@ operator-container: build
 
 registry-container: generate-latest-dev-csv
 	@echo "Building the performance-addon-operatorsregistry image"
-	$(IMAGE_BUILD_CMD) build --no-cache -t "$(FULL_REGISTRY_IMAGE)" -f deploy/Dockerfile .
+	$(IMAGE_BUILD_CMD) build --no-cache -t "$(FULL_REGISTRY_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)" -f deploy/Dockerfile .
 
 push-containers:
 	$(IMAGE_BUILD_CMD) push $(FULL_OPERATOR_IMAGE)
@@ -82,7 +84,12 @@ generate-latest-dev-csv: operator-sdk
 	@echo Generating developer csv
 	@echo
 	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) olm-catalog gen-csv --csv-version=$(OPERATOR_DEV_CSV)
+	# removing replaces field which breaks CSV validation
 	sed -i 's/replaces\:.*//g' deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/performance-addon-operators.v0.0.1.clusterserviceversion.yaml
+	# adding temporariy required displayName field
+	sed -i '/version\: v1alpha1/a displayName\: placeholder' deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/performance-addon-operators.v0.0.1.clusterserviceversion.yaml
+	sed -i 's/^displayName\: placeholder/      displayName\: placeholder/g' deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/performance-addon-operators.v0.0.1.clusterserviceversion.yaml
+
 	@echo
 	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate crds
 	cp deploy/crds/*crd.yaml deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/
@@ -91,9 +98,16 @@ deps-update:
 	go mod tidy && \
 	go mod vendor
 
-deploy:
-	@echo "Deploying features $$FEATURES"
-	# TODO - add deploy logic here
+deploy: cluster-deploy
+	# TODO - deprecated, will be removed soon in favor of cluster-deploy
+
+cluster-deploy:
+	@echo "Deploying operator"
+	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/deploy.sh
+
+cluster-clean:
+	@echo "Deleting operator"
+	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/clean-deploy.sh
 
 functests:
 	@echo "Running Functional Tests"
