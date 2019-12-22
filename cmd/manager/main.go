@@ -7,24 +7,25 @@ import (
 	"os"
 	"runtime"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
-
 	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller"
 	"github.com/openshift-kni/performance-addon-operators/version"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
-	"github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"github.com/operator-framework/operator-sdk/pkg/metrics"
 	"github.com/operator-framework/operator-sdk/pkg/restmapper"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
+
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -82,19 +83,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx := context.TODO()
-	// Become the leader before proceeding
-	err = leader.Become(ctx, "performance-operator-lock")
-	if err != nil {
-		log.Error(err, "")
-		os.Exit(1)
-	}
-
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{
-		Namespace:          namespace,
-		MapperProvider:     restmapper.NewDynamicRESTMapper,
-		MetricsBindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
+		LeaderElection:          true,
+		LeaderElectionID:        "performance-addon-operators",
+		LeaderElectionNamespace: namespace,
+		Namespace:               namespace,
+		MapperProvider:          restmapper.NewDynamicRESTMapper,
+		MetricsBindAddress:      fmt.Sprintf("%s:%d", metricsHost, metricsPort),
 	})
 	if err != nil {
 		log.Error(err, "")
@@ -125,7 +121,7 @@ func main() {
 		{Port: operatorMetricsPort, Name: metrics.CRPortName, Protocol: v1.ProtocolTCP, TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: operatorMetricsPort}},
 	}
 	// Create Service object to expose the metrics port(s).
-	service, err := metrics.CreateMetricsService(ctx, cfg, servicePorts)
+	service, err := metrics.CreateMetricsService(context.TODO(), cfg, servicePorts)
 	if err != nil {
 		log.Info("Could not create metrics Service", "error", err.Error())
 	}
