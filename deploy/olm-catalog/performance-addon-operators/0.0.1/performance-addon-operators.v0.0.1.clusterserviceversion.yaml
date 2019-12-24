@@ -2,19 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: |-
-      [
-        {
-          "apiVersion": "performance.openshift.io/v1alpha1",
-          "kind": "CPUPerformanceProfile",
-          "metadata": {
-            "name": "example-cpuperformanceprofile"
-          },
-          "spec": {
-            "size": 3
-          }
-        }
-      ]
+    alm-examples: '[]'
     capabilities: Basic Install
   name: performance-addon-operators.v0.0.1
   namespace: placeholder
@@ -24,6 +12,7 @@ spec:
     owned:
     - description: CPUPerformanceProfile is the Schema for the cpuperformanceprofiles
         API
+      displayName: placeholder
       kind: CPUPerformanceProfile
       name: cpuperformanceprofiles.performance.openshift.io
       version: v1alpha1
@@ -120,6 +109,7 @@ spec:
           - performance.openshift.io
           resources:
           - '*'
+          - performanceprofiles
           verbs:
           - create
           - delete

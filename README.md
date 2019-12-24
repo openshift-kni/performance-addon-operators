@@ -10,30 +10,30 @@ For now there is 1 operator, the "Performance Operator". It was created using th
 
 It will offer several APIs:
 
-### CPUPerformanceProfile
+### PerformanceProfile
 
-The `CPUPerformanceProfile` offers high level options for applying various performance tunings. 
+The `PerformanceProfile` offers high level options for applying various performance tunings.
 The API and its controller was created with:
 
-```
-$ operator-sdk add api --api-version=performance.openshift.io/v1alpha1 --kind=CPUPerformanceProfile
-$ operator-sdk add controller --api-version=performance.openshift.io/v1alpha1 --kind=CPUPerformanceProfile
+```bash
+operator-sdk add api --api-version=performance.openshift.io/v1alpha1 --kind=PerformanceProfile
+operator-sdk add controller --api-version=performance.openshift.io/v1alpha1 --kind=PerformanceProfile
 ```
 
 TODO: further implement and explain this API
 
 ### more APIs to come
 
-# Testing
+## Testing
 
-## Unit tests
+### Unit tests
 
 TODO
 
-## Func tests
+### Func tests
 
-The functional tests are located in `/functests`. They can be executed with `make functests`. 
+The functional tests are located in `/functests`. They can be executed with `make functests`.
 
-# How to contribute
+## How to contribute
 
 See [CONTRIBUTING](CONTRIBUTING.md) for some guidelines.

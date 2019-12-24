@@ -1,7 +1,7 @@
 apiVersion: performance.openshift.io/v1alpha1
-kind: CPUPerformanceProfile
+kind: PerformanceProfile
 metadata:
-  name: example-cpuperformanceprofile
+  name: example-performanceprofile
 spec:
   # Add fields here
   size: 3
