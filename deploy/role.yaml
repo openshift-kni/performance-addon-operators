@@ -58,6 +58,7 @@ rules:
   - performance.openshift.io
   resources:
   - '*'
+  - performanceprofiles
   verbs:
   - create
   - delete
