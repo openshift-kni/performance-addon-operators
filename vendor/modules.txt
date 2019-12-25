@@ -160,9 +160,12 @@ github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 # github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible => github.com/openshift/api v0.0.0-20191220175332-378bec237e34
 github.com/openshift/api/config/v1
-# github.com/openshift/client-go v0.0.0-20191001081553-3b0e988f8cb0 => github.com/openshift/client-go v0.0.0-20191205152420-9faca5198b4f
+# github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298 => github.com/openshift/client-go v0.0.0-20191205152420-9faca5198b4f
 github.com/openshift/client-go/config/clientset/versioned/typed/config/v1
 github.com/openshift/client-go/config/clientset/versioned/scheme
+# github.com/openshift/cluster-node-tuning-operator v0.0.0-00010101000000-000000000000 => github.com/openshift/cluster-node-tuning-operator v0.0.0-20191217222311-500135cb8754
+github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1
+github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned
 # github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible => github.com/openshift/machine-config-operator v0.0.0-20191220033234-347a7a09e869
 github.com/openshift/machine-config-operator/pkg/generated/clientset/versioned/typed/machineconfiguration.openshift.io/v1
 github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1

@@ -44,9 +44,9 @@ type HugePages struct {
 // HugePage defines the number of allocated huge pages of the specific size.
 type HugePage struct {
 	// Size defines huge page size, maps to the 'hugepagesz' kernel boot parameter.
-	Size *HugePageSize `json:"size,omitempty"`
+	Size HugePageSize `json:"size,omitempty"`
 	// Count defines amount of huge pages, maps to the 'hugepages' kernel boot parameter.
-	Count *int32 `json:"count,omitempty"`
+	Count int32 `json:"count,omitempty"`
 }
 
 // RealTimeKernel defines the set of parameters relevant for the real time kernel.

@@ -11,7 +11,8 @@ require (
 	github.com/onsi/ginkgo v1.10.3
 	github.com/onsi/gomega v1.7.0
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
-	github.com/openshift/client-go v0.0.0-20191001081553-3b0e988f8cb0
+	github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
+	github.com/openshift/cluster-node-tuning-operator v0.0.0-00010101000000-000000000000
 	github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible
 	github.com/operator-framework/operator-sdk v0.13.0
 	github.com/spf13/pflag v1.0.5
@@ -60,6 +61,7 @@ replace (
 	github.com/go-log/log => github.com/go-log/log v0.1.0
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20191220175332-378bec237e34 // release-4.4
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191205152420-9faca5198b4f // release-4.4
+	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20191217222311-500135cb8754 // release-4.4
 	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.0-20191220033234-347a7a09e869 // release-4.4
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
 )
