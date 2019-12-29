@@ -3,15 +3,17 @@ package performanceprofile
 import (
 	"context"
 
-	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	configv1 "github.com/openshift/api/config/v1"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -54,9 +56,44 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner PerformanceProfile
+	// Watch for changes to machine configs owned by our controller
 	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfig{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &performancev1alpha1.PerformanceProfile{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to kubelet configs owned by our controller
+	err = c.Watch(&source.Kind{Type: &mcov1.KubeletConfig{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &performancev1alpha1.PerformanceProfile{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to machine config pools owned by our controller
+	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfigPool{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &performancev1alpha1.PerformanceProfile{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to feature gates owned by our controller
+	err = c.Watch(&source.Kind{Type: &configv1.FeatureGate{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &performancev1alpha1.PerformanceProfile{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to tuned owned by our controller
+	err = c.Watch(&source.Kind{Type: &tunedv1.Tuned{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &performancev1alpha1.PerformanceProfile{},
 	})
