@@ -2,29 +2,33 @@ package performanceprofile
 
 import (
 	"context"
+	"fmt"
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/featuregate"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfigpool"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var log = logf.Log.WithName("controller_performanceprofile")
+const finalizer = "foreground-deletion"
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -123,8 +127,7 @@ type ReconcilePerformanceProfile struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling PerformanceProfile")
+	klog.Info("Reconciling PerformanceProfile")
 
 	// Fetch the PerformanceProfile instance
 	instance := &performancev1alpha1.PerformanceProfile{}
@@ -140,54 +143,230 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(instance)
-
-	// Set PerformanceProfile instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
-		if err != nil {
+	if instance.DeletionTimestamp != nil {
+		// delete components
+		if err := r.deleteComponents(); err != nil {
+			klog.Errorf("failed to delete components: %v", err)
 			return reconcile.Result{}, err
 		}
 
-		// Pod created successfully - don't requeue
+		// remove finalizer
+		if hasFinalizer(instance, finalizer) {
+			removeFinalizer(instance, finalizer)
+			if err := r.client.Update(context.TODO(), instance); err != nil {
+				return reconcile.Result{}, err
+			}
+
+			return reconcile.Result{}, nil
+		}
+	}
+	// TODO: we need to check if all under performance profiles values != nil
+	// first we need to decide if each of values required and we should move the check into validation webhook
+	// for now let's assume that all parameters needed for assets scrips are required
+	if err := r.verifyPerformanceProfileParameters(instance); err != nil {
+		// we do not want to reconcile again in case of error, because a user will need to update the PerformanceProfile anyway
+		klog.Errorf("failed to reconcile: %v", err)
 		return reconcile.Result{}, nil
-	} else if err != nil {
+	}
+
+	// add finalizer
+	if !hasFinalizer(instance, finalizer) {
+		instance.Finalizers = append(instance.Finalizers, finalizer)
+		if err := r.client.Update(context.TODO(), instance); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		// we exit reconcile loop because we will have additional update reconcile
+		return reconcile.Result{}, nil
+	}
+
+	// apply components
+	if err := r.applyComponents(instance); err != nil {
+		klog.Errorf("failed to deploy components: %v", err)
 		return reconcile.Result{}, err
 	}
 
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	// TODO: we need to update the status
+
 	return reconcile.Result{}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *performancev1alpha1.PerformanceProfile) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
+func (r *ReconcilePerformanceProfile) applyComponents(performanceProfile *performancev1alpha1.PerformanceProfile) error {
+	// deploy machine config pool
+	mcp := machineconfigpool.NewPerformance(performanceProfile.Spec.NodeSelector)
+	if err := controllerutil.SetControllerReference(performanceProfile, mcp, r.scheme); err != nil {
+		return err
 	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
+	if err := r.createOrUpdateMachineConfigPool(mcp); err != nil {
+		return err
 	}
+
+	// pause machine config pool
+	if err := r.pauseMachineConfigPool(mcp.Name, true); err != nil {
+		return err
+	}
+
+	// deploy machine config
+	data := &machineconfig.Data{
+		HugePages:       performanceProfile.Spec.HugePages,
+		IsolatedCPUs:    performanceProfile.Spec.CPU.Isolated,
+		NonIsolatedCpus: performanceProfile.Spec.CPU.NonIsolated,
+		RTRepoURL:       *performanceProfile.Spec.RealTimeKernel.RepoURL,
+	}
+	mc, err := machineconfig.NewPerformance(components.AssetsDir, data)
+	if err != nil {
+		return err
+	}
+
+	if err := controllerutil.SetControllerReference(performanceProfile, mc, r.scheme); err != nil {
+		return err
+	}
+
+	if err := r.createOrUpdateMachineConfig(mc); err != nil {
+		return err
+	}
+
+	// deploy kubelet config
+	kc := kubeletconfig.NewPerformance(performanceProfile.Spec.CPU.Reserved)
+	if err := controllerutil.SetControllerReference(performanceProfile, kc, r.scheme); err != nil {
+		return err
+	}
+	if err := r.createOrUpdateKubeletConfig(kc); err != nil {
+		return err
+	}
+
+	// deploy feature gate
+	fg := featuregate.NewLatencySensitive()
+	if err := controllerutil.SetControllerReference(performanceProfile, fg, r.scheme); err != nil {
+		return err
+	}
+	if err := r.createOrUpdateFeatureGate(fg); err != nil {
+		return err
+	}
+
+	// deploy network latency tuned
+	networkLatencyTuned, err := tuned.NewNetworkLatency(components.AssetsDir)
+	if err != nil {
+		return err
+	}
+
+	if err := controllerutil.SetControllerReference(performanceProfile, networkLatencyTuned, r.scheme); err != nil {
+		return err
+	}
+
+	if err := r.createOrUpdateTuned(networkLatencyTuned); err != nil {
+		return err
+	}
+
+	// deploy real time kernel tuned
+	realTimeKernelTuned, err := tuned.NewWorkerRealTimeKernel(
+		components.AssetsDir,
+		performanceProfile.Spec.NodeSelector,
+		performanceProfile.Spec.CPU.Isolated,
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := controllerutil.SetControllerReference(performanceProfile, realTimeKernelTuned, r.scheme); err != nil {
+		return err
+	}
+
+	if err := r.createOrUpdateTuned(realTimeKernelTuned); err != nil {
+		return err
+	}
+
+	// unpause machine config pool
+	return r.pauseMachineConfigPool(mcp.Name, false)
+}
+
+func (r *ReconcilePerformanceProfile) pauseMachineConfigPool(mcpName string, pause bool) error {
+	// TODO: in case if we will change nodeSelector to the machineConfigPoolSelector under the API,
+	// we will need to fetch the name of the machine config pool on runtime
+	updatedMcp, err := r.getMachineConfigPool(mcpName)
+	if errors.IsNotFound(err) {
+		klog.Warning("failed to set pause, the machine config pool does not exist, probably it was deleted")
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+	if err != nil {
+		return err
+	}
+
+	updatedMcp.Spec.Paused = pause
+	return r.client.Update(context.TODO(), updatedMcp)
+}
+
+func (r *ReconcilePerformanceProfile) verifyPerformanceProfileParameters(performanceProfile *performancev1alpha1.PerformanceProfile) error {
+	if performanceProfile.Spec.CPU == nil {
+		return fmt.Errorf("you should provide CPU section")
+	}
+
+	if performanceProfile.Spec.CPU.Isolated == nil {
+		return fmt.Errorf("you should provide isolated CPU set")
+	}
+
+	if performanceProfile.Spec.CPU.NonIsolated == nil {
+		return fmt.Errorf("you should provide non isolated CPU set")
+	}
+
+	if performanceProfile.Spec.RealTimeKernel == nil {
+		return fmt.Errorf("you should provide real time kernel section")
+	}
+
+	if performanceProfile.Spec.RealTimeKernel.RepoURL == nil {
+		return fmt.Errorf("you should provide real time kernel repository URL")
+	}
+	return nil
+}
+
+func (r *ReconcilePerformanceProfile) deleteComponents() error {
+	if err := r.pauseMachineConfigPool(components.RoleWorkerPerformance, true); err != nil {
+		return err
+	}
+
+	if err := r.deleteTuned(components.ProfileNameWorkerRT, components.NamespaceNodeTuningOperator); err != nil {
+		return err
+	}
+
+	if err := r.deleteTuned(components.ProfileNameNetworkLatency, components.NamespaceNodeTuningOperator); err != nil {
+		return err
+	}
+
+	if err := r.deleteFeatureGate(components.FeatureGateLatencySensetiveName); err != nil {
+		return err
+	}
+
+	if err := r.deleteKubeletConfig(components.RoleWorkerPerformance); err != nil {
+		return err
+	}
+
+	if err := r.deleteMachineConfig(components.RoleWorkerPerformance); err != nil {
+		return err
+	}
+
+	return r.deleteMachineConfigPool(components.RoleWorkerPerformance)
+}
+
+func hasFinalizer(profile *performancev1alpha1.PerformanceProfile, finalizer string) bool {
+	for _, f := range profile.Finalizers {
+		if f == finalizer {
+			return true
+		}
+	}
+	return false
+}
+
+func removeFinalizer(profile *performancev1alpha1.PerformanceProfile, finalizer string) {
+	finalizers := []string{}
+	for _, f := range profile.Finalizers {
+		if f == finalizer {
+			continue
+		}
+		finalizers = append(finalizers, f)
+	}
+	profile.Finalizers = finalizers
 }
