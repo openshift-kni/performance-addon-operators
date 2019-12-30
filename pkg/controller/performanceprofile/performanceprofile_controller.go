@@ -3,6 +3,7 @@ package performanceprofile
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
@@ -15,6 +16,7 @@ import (
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
@@ -22,8 +24,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -43,7 +47,11 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcilePerformanceProfile{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcilePerformanceProfile{
+		client:    mgr.GetClient(),
+		scheme:    mgr.GetScheme(),
+		assetsDir: components.AssetsDir,
+	}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -60,11 +68,36 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// we want to initate reconcile loop only on change under labels or spec of the object
+	p := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.MetaOld == nil {
+				klog.Error("Update event has no old metadata")
+				return false
+			}
+			if e.ObjectOld == nil {
+				klog.Error("Update event has no old runtime object to update")
+				return false
+			}
+			if e.ObjectNew == nil {
+				klog.Error("Update event has no new runtime object for update")
+				return false
+			}
+			if e.MetaNew == nil {
+				klog.Error("Update event has no new metadata")
+				return false
+			}
+
+			return e.MetaNew.GetGeneration() != e.MetaOld.GetGeneration() ||
+				!apiequality.Semantic.DeepEqual(e.MetaNew.GetLabels(), e.MetaOld.GetLabels())
+		},
+	}
+
 	// Watch for changes to machine configs owned by our controller
 	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfig{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &performancev1alpha1.PerformanceProfile{},
-	})
+	}, p)
 	if err != nil {
 		return err
 	}
@@ -73,16 +106,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	err = c.Watch(&source.Kind{Type: &mcov1.KubeletConfig{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &performancev1alpha1.PerformanceProfile{},
-	})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to machine config pools owned by our controller
-	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfigPool{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &performancev1alpha1.PerformanceProfile{},
-	})
+	}, p)
 	if err != nil {
 		return err
 	}
@@ -91,7 +115,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	err = c.Watch(&source.Kind{Type: &configv1.FeatureGate{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &performancev1alpha1.PerformanceProfile{},
-	})
+	}, p)
 	if err != nil {
 		return err
 	}
@@ -100,7 +124,47 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	err = c.Watch(&source.Kind{Type: &tunedv1.Tuned{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &performancev1alpha1.PerformanceProfile{},
-	})
+	}, p)
+	if err != nil {
+		return err
+	}
+
+	// we do not want initiate reconcile loop on the pause of machine config pool
+	mcpPredicates := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.MetaOld == nil {
+				klog.Error("Update event has no old metadata")
+				return false
+			}
+			if e.ObjectOld == nil {
+				klog.Error("Update event has no old runtime object to update")
+				return false
+			}
+			if e.ObjectNew == nil {
+				klog.Error("Update event has no new runtime object for update")
+				return false
+			}
+			if e.MetaNew == nil {
+				klog.Error("Update event has no new metadata")
+				return false
+			}
+
+			mcpNew := e.ObjectOld.(*mcov1.MachineConfigPool)
+			mcpOld := e.ObjectNew.(*mcov1.MachineConfigPool)
+
+			mcpNew.Spec.Paused = mcpOld.Spec.Paused
+			mcpNew.Spec.Configuration = mcpOld.Spec.Configuration
+
+			return !reflect.DeepEqual(mcpOld.Spec, mcpNew.Spec) ||
+				!apiequality.Semantic.DeepEqual(e.MetaNew.GetLabels(), e.MetaOld.GetLabels())
+		},
+	}
+
+	// Watch for changes to machine config pools owned by our controller
+	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfigPool{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &performancev1alpha1.PerformanceProfile{},
+	}, mcpPredicates)
 	if err != nil {
 		return err
 	}
@@ -115,8 +179,9 @@ var _ reconcile.Reconciler = &ReconcilePerformanceProfile{}
 type ReconcilePerformanceProfile struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
+	client    client.Client
+	scheme    *runtime.Scheme
+	assetsDir string
 }
 
 // Reconcile reads that state of the cluster for a PerformanceProfile object and makes changes based on the state read
@@ -145,7 +210,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 
 	if instance.DeletionTimestamp != nil {
 		// delete components
-		if err := r.deleteComponents(); err != nil {
+		if err := r.deleteComponents(instance); err != nil {
 			klog.Errorf("failed to delete components: %v", err)
 			return reconcile.Result{}, err
 		}
@@ -160,6 +225,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 			return reconcile.Result{}, nil
 		}
 	}
+
 	// TODO: we need to check if all under performance profiles values != nil
 	// first we need to decide if each of values required and we should move the check into validation webhook
 	// for now let's assume that all parameters needed for assets scrips are required
@@ -191,10 +257,10 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcilePerformanceProfile) applyComponents(performanceProfile *performancev1alpha1.PerformanceProfile) error {
+func (r *ReconcilePerformanceProfile) applyComponents(profle *performancev1alpha1.PerformanceProfile) error {
 	// deploy machine config pool
-	mcp := machineconfigpool.NewPerformance(performanceProfile.Spec.NodeSelector)
-	if err := controllerutil.SetControllerReference(performanceProfile, mcp, r.scheme); err != nil {
+	mcp := machineconfigpool.NewPerformance(profle)
+	if err := controllerutil.SetControllerReference(profle, mcp, r.scheme); err != nil {
 		return err
 	}
 	if err := r.createOrUpdateMachineConfigPool(mcp); err != nil {
@@ -207,18 +273,12 @@ func (r *ReconcilePerformanceProfile) applyComponents(performanceProfile *perfor
 	}
 
 	// deploy machine config
-	data := &machineconfig.Data{
-		HugePages:       performanceProfile.Spec.HugePages,
-		IsolatedCPUs:    performanceProfile.Spec.CPU.Isolated,
-		NonIsolatedCpus: performanceProfile.Spec.CPU.NonIsolated,
-		RTRepoURL:       *performanceProfile.Spec.RealTimeKernel.RepoURL,
-	}
-	mc, err := machineconfig.NewPerformance(components.AssetsDir, data)
+	mc, err := machineconfig.NewPerformance(r.assetsDir, profle)
 	if err != nil {
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(performanceProfile, mc, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profle, mc, r.scheme); err != nil {
 		return err
 	}
 
@@ -227,8 +287,8 @@ func (r *ReconcilePerformanceProfile) applyComponents(performanceProfile *perfor
 	}
 
 	// deploy kubelet config
-	kc := kubeletconfig.NewPerformance(performanceProfile.Spec.CPU.Reserved)
-	if err := controllerutil.SetControllerReference(performanceProfile, kc, r.scheme); err != nil {
+	kc := kubeletconfig.NewPerformance(profle)
+	if err := controllerutil.SetControllerReference(profle, kc, r.scheme); err != nil {
 		return err
 	}
 	if err := r.createOrUpdateKubeletConfig(kc); err != nil {
@@ -237,7 +297,7 @@ func (r *ReconcilePerformanceProfile) applyComponents(performanceProfile *perfor
 
 	// deploy feature gate
 	fg := featuregate.NewLatencySensitive()
-	if err := controllerutil.SetControllerReference(performanceProfile, fg, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profle, fg, r.scheme); err != nil {
 		return err
 	}
 	if err := r.createOrUpdateFeatureGate(fg); err != nil {
@@ -245,12 +305,12 @@ func (r *ReconcilePerformanceProfile) applyComponents(performanceProfile *perfor
 	}
 
 	// deploy network latency tuned
-	networkLatencyTuned, err := tuned.NewNetworkLatency(components.AssetsDir)
+	networkLatencyTuned, err := tuned.NewNetworkLatency(r.assetsDir)
 	if err != nil {
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(performanceProfile, networkLatencyTuned, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profle, networkLatencyTuned, r.scheme); err != nil {
 		return err
 	}
 
@@ -259,16 +319,12 @@ func (r *ReconcilePerformanceProfile) applyComponents(performanceProfile *perfor
 	}
 
 	// deploy real time kernel tuned
-	realTimeKernelTuned, err := tuned.NewWorkerRealTimeKernel(
-		components.AssetsDir,
-		performanceProfile.Spec.NodeSelector,
-		performanceProfile.Spec.CPU.Isolated,
-	)
+	realTimeKernelTuned, err := tuned.NewWorkerRealTimeKernel(r.assetsDir, profle)
 	if err != nil {
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(performanceProfile, realTimeKernelTuned, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profle, realTimeKernelTuned, r.scheme); err != nil {
 		return err
 	}
 
@@ -323,12 +379,14 @@ func (r *ReconcilePerformanceProfile) verifyPerformanceProfileParameters(perform
 	return nil
 }
 
-func (r *ReconcilePerformanceProfile) deleteComponents() error {
-	if err := r.pauseMachineConfigPool(components.RoleWorkerPerformance, true); err != nil {
+func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alpha1.PerformanceProfile) error {
+	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+	if err := r.pauseMachineConfigPool(name, true); err != nil {
 		return err
 	}
 
-	if err := r.deleteTuned(components.ProfileNameWorkerRT, components.NamespaceNodeTuningOperator); err != nil {
+	tunedName := components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
+	if err := r.deleteTuned(tunedName, components.NamespaceNodeTuningOperator); err != nil {
 		return err
 	}
 
@@ -340,15 +398,15 @@ func (r *ReconcilePerformanceProfile) deleteComponents() error {
 		return err
 	}
 
-	if err := r.deleteKubeletConfig(components.RoleWorkerPerformance); err != nil {
+	if err := r.deleteKubeletConfig(name); err != nil {
 		return err
 	}
 
-	if err := r.deleteMachineConfig(components.RoleWorkerPerformance); err != nil {
+	if err := r.deleteMachineConfig(name); err != nil {
 		return err
 	}
 
-	return r.deleteMachineConfigPool(components.RoleWorkerPerformance)
+	return r.deleteMachineConfigPool(name)
 }
 
 func hasFinalizer(profile *performancev1alpha1.PerformanceProfile, finalizer string) bool {
