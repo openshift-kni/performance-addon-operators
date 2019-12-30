@@ -1,0 +1,285 @@
+package performanceprofile
+
+import (
+	"context"
+	"reflect"
+
+	configv1 "github.com/openshift/api/config/v1"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+)
+
+func mergeMaps(src map[string]string, dst map[string]string) {
+	for k, v := range src {
+		// NOTE: it will override destination values
+		dst[k] = v
+	}
+}
+
+// TODO: we should merge all create, get and delete methods
+
+func (r *ReconcilePerformanceProfile) getMachineConfigPool(name string) (*mcov1.MachineConfigPool, error) {
+	mcp := &mcov1.MachineConfigPool{}
+	key := types.NamespacedName{
+		Name:      name,
+		Namespace: metav1.NamespaceNone,
+	}
+	if err := r.client.Get(context.TODO(), key, mcp); err != nil {
+		return nil, err
+	}
+	return mcp, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateMachineConfigPool(mcp *mcov1.MachineConfigPool) error {
+	existing, err := r.getMachineConfigPool(mcp.Name)
+	if errors.IsNotFound(err) {
+		if err := r.client.Create(context.TODO(), mcp); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	mutated := existing.DeepCopy()
+
+	mergeMaps(mcp.Annotations, mutated.Annotations)
+	mergeMaps(mcp.Labels, mutated.Labels)
+
+	mutated.Spec = mcp.Spec
+
+	// do not update the pause and configuration fields
+	mutated.Spec.Paused = existing.Spec.Paused
+	mutated.Spec.Configuration = existing.Spec.Configuration
+
+	// we do not need to update if it no change between mutated and existing object
+	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
+		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
+		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil
+	}
+
+	return r.client.Update(context.TODO(), mutated)
+}
+
+func (r *ReconcilePerformanceProfile) deleteMachineConfigPool(name string) error {
+	mcp, err := r.getMachineConfigPool(name)
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return r.client.Delete(context.TODO(), mcp)
+}
+
+func (r *ReconcilePerformanceProfile) getMachineConfig(name string) (*mcov1.MachineConfig, error) {
+	mc := &mcov1.MachineConfig{}
+	key := types.NamespacedName{
+		Name:      name,
+		Namespace: metav1.NamespaceNone,
+	}
+	if err := r.client.Get(context.TODO(), key, mc); err != nil {
+		return nil, err
+	}
+	return mc, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateMachineConfig(mc *mcov1.MachineConfig) error {
+	existing, err := r.getMachineConfig(mc.Name)
+	if errors.IsNotFound(err) {
+		if err := r.client.Create(context.TODO(), mc); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	mutated := existing.DeepCopy()
+	mergeMaps(mc.Annotations, mutated.Annotations)
+	mergeMaps(mc.Labels, mutated.Labels)
+	mutated.Spec = mc.Spec
+
+	// we do not need to update if it no change between mutated and existing object
+	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
+		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
+		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil
+	}
+
+	return r.client.Update(context.TODO(), mutated)
+}
+
+func (r *ReconcilePerformanceProfile) deleteMachineConfig(name string) error {
+	mc, err := r.getMachineConfig(name)
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return r.client.Delete(context.TODO(), mc)
+}
+
+func (r *ReconcilePerformanceProfile) getKubeletConfig(name string) (*mcov1.KubeletConfig, error) {
+	kc := &mcov1.KubeletConfig{}
+	key := types.NamespacedName{
+		Name:      name,
+		Namespace: metav1.NamespaceNone,
+	}
+	if err := r.client.Get(context.TODO(), key, kc); err != nil {
+		return nil, err
+	}
+	return kc, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateKubeletConfig(kc *mcov1.KubeletConfig) error {
+	existing, err := r.getKubeletConfig(kc.Name)
+	if errors.IsNotFound(err) {
+		if err := r.client.Create(context.TODO(), kc); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	mutated := existing.DeepCopy()
+	mergeMaps(kc.Annotations, mutated.Annotations)
+	mergeMaps(kc.Labels, mutated.Labels)
+	mutated.Spec = kc.Spec
+
+	// we do not need to update if it no change between mutated and existing object
+	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
+		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
+		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil
+	}
+
+	return r.client.Update(context.TODO(), mutated)
+}
+
+func (r *ReconcilePerformanceProfile) deleteKubeletConfig(name string) error {
+	kc, err := r.getKubeletConfig(name)
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return r.client.Delete(context.TODO(), kc)
+}
+
+func (r *ReconcilePerformanceProfile) getFeatureGate(name string) (*configv1.FeatureGate, error) {
+	fg := &configv1.FeatureGate{}
+	key := types.NamespacedName{
+		Name:      name,
+		Namespace: metav1.NamespaceNone,
+	}
+	if err := r.client.Get(context.TODO(), key, fg); err != nil {
+		return nil, err
+	}
+	return fg, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateFeatureGate(fg *configv1.FeatureGate) error {
+	existing, err := r.getFeatureGate(fg.Name)
+	if errors.IsNotFound(err) {
+		if err := r.client.Create(context.TODO(), fg); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	mutated := existing.DeepCopy()
+	mergeMaps(fg.Annotations, mutated.Annotations)
+	mergeMaps(fg.Labels, mutated.Labels)
+	mutated.Spec = fg.Spec
+
+	// we do not need to update if it no change between mutated and existing object
+	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
+		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
+		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil
+	}
+
+	return r.client.Update(context.TODO(), mutated)
+}
+
+func (r *ReconcilePerformanceProfile) deleteFeatureGate(name string) error {
+	fg, err := r.getFeatureGate(name)
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return r.client.Delete(context.TODO(), fg)
+}
+
+func (r *ReconcilePerformanceProfile) getTuned(name string, namespace string) (*tunedv1.Tuned, error) {
+	tuned := &tunedv1.Tuned{}
+	key := types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}
+	if err := r.client.Get(context.TODO(), key, tuned); err != nil {
+		return nil, err
+	}
+	return tuned, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned) error {
+	existing, err := r.getTuned(tuned.Name, tuned.Namespace)
+	if errors.IsNotFound(err) {
+		if err := r.client.Create(context.TODO(), tuned); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	mutated := existing.DeepCopy()
+	mergeMaps(tuned.Annotations, mutated.Annotations)
+	mergeMaps(tuned.Labels, mutated.Labels)
+	mutated.Spec = tuned.Spec
+
+	// we do not need to update if it no change between mutated and existing object
+	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
+		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
+		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil
+	}
+
+	return r.client.Update(context.TODO(), mutated)
+}
+
+func (r *ReconcilePerformanceProfile) deleteTuned(name string, namespace string) error {
+	tuned, err := r.getTuned(name, namespace)
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return r.client.Delete(context.TODO(), tuned)
+}
