@@ -70,8 +70,8 @@ func main() {
 	}
 
 	// we have two namespaces that we need to watch
-	// 1. tuned namespace
-	// 2. None namespace
+	// 1. tuned namespace - for tuned resources
+	// 2. None namespace - for cluster wide resources
 	namespaces := []string{
 		components.NamespaceNodeTuningOperator,
 		metav1.NamespaceNone,

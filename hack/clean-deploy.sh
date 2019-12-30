@@ -32,3 +32,5 @@ spec:
   publisher: Red Hat
   sourceType: grpc
 EOF
+
+$OC_TOOL -n openshift-performance-addon delete csv --all

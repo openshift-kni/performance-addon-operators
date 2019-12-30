@@ -1,7 +1,40 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: performance-operator
+rules:
+- apiGroups:
+  - performance.openshift.io
+  resources:
+  - performanceprofiles
+  verbs:
+  - '*'
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - featuregates
+  verbs:
+  - '*'
+- apiGroups:
+  - machineconfiguration.openshift.io
+  resources:
+  - machineconfigs
+  - machineconfigpools
+  - kubeletconfigs
+  verbs:
+  - '*'
+- apiGroups:
+  - tuned.openshift.io
+  resources:
+  - tuneds
+  verbs:
+  - '*'
+
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  creationTimestamp: null
   name: performance-operator
 rules:
 - apiGroups:
@@ -10,11 +43,8 @@ rules:
   - pods
   - services
   - services/finalizers
-  - endpoints
-  - persistentvolumeclaims
-  - events
   - configmaps
-  - secrets
+  - events
   verbs:
   - '*'
 - apiGroups:
@@ -27,13 +57,6 @@ rules:
   verbs:
   - '*'
 - apiGroups:
-  - monitoring.coreos.com
-  resources:
-  - servicemonitors
-  verbs:
-  - get
-  - create
-- apiGroups:
   - apps
   resourceNames:
   - performance-operator
@@ -42,28 +65,8 @@ rules:
   verbs:
   - update
 - apiGroups:
-  - ""
+  - monitoring.coreos.com
   resources:
-  - pods
+  - servicemonitors
   verbs:
-  - get
-- apiGroups:
-  - apps
-  resources:
-  - replicasets
-  - deployments
-  verbs:
-  - get
-- apiGroups:
-  - performance.openshift.io
-  resources:
   - '*'
-  - performanceprofiles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
