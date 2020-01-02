@@ -51,8 +51,8 @@ type HugePage struct {
 
 // RealTimeKernel defines the set of parameters relevant for the real time kernel.
 type RealTimeKernel struct {
-	// Enabled enables real time kernel on relevant nodes.
-	Enabled *bool `json:"enabled,omitempty"`
+	// RepoURL defines the URL to the repository with real time kernel packages
+	RepoURL *string `json:"repoURL,omitempty"`
 }
 
 // PerformanceProfileStatus defines the observed state of PerformanceProfile.
