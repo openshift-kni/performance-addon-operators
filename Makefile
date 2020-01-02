@@ -115,9 +115,7 @@ functests:
 	hack/run-functests.sh
 
 unittests:
-	# functests are marked with "// +build !unittests" and will be skipped
-	GOFLAGS=-mod=vendor go test -v --tags unittests ./...
-	#TODO - copy in unit tests
+	GOFLAGS=-mod=vendor go test -v ./pkg/...
 
 gofmt:
 	@echo "Running gofmt"
