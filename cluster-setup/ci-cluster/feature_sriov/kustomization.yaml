@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases:
+  - ../../base/feature_sriov
+patches:
+  - sriov-subscription.yaml
+resources:
+  - 10-sriov-daemonset.yaml
+  - 11-sriov-networknodepolicy.yaml
+  - 12-sriov-network.yaml
+  - 20-sriov-testing-namespace.yaml
+  - 21-sriov-testing-deployment.yaml

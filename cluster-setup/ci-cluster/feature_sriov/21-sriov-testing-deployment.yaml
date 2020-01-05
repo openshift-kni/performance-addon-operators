@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sriov-test
+  namespace: sriov-testing
+  labels:
+    app: sriov-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sriov-test
+  template:
+    metadata:
+      labels:
+        app: sriov-test
+      annotations:
+        k8s.v1.cni.cncf.io/networks: "sriov-testing/sriov-network"
+    spec:
+      containers:
+      - image: gcr.io/hello-minikube-zero-install/hello-node
+        name: hello-node
+        ports:
+        - containerPort: 8080
