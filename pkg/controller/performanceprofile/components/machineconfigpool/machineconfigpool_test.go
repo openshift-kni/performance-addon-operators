@@ -13,7 +13,7 @@ import (
 const expectedMachineConfigSelectorValues = `
       values:
       - worker
-      - worker-performance-test
+      - performance-test
 `
 
 var _ = Describe("Machine Config Pool", func() {

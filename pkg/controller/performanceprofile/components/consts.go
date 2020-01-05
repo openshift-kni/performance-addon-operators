@@ -12,7 +12,9 @@ const (
 	// RoleWorker defines the worker role
 	RoleWorker = "worker"
 	// RoleWorkerPerformance defines the worker role for performance sensitive workflows
-	RoleWorkerPerformance = "worker-performance"
+	// RoleWorkerPerformance = "worker-performance"
+	// Use shorter role name, see https://bugzilla.redhat.com/show_bug.cgi?id=1787907
+	RoleWorkerPerformance = "performance"
 )
 
 const (
