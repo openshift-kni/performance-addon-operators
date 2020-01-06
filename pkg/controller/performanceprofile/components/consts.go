@@ -12,8 +12,8 @@ const (
 	// RoleWorker defines the worker role
 	RoleWorker = "worker"
 	// RoleWorkerPerformance defines the worker role for performance sensitive workflows
+	// TODO: change it back to longer name once https://bugzilla.redhat.com/show_bug.cgi?id=1787907 fixed
 	// RoleWorkerPerformance = "worker-performance"
-	// Use shorter role name, see https://bugzilla.redhat.com/show_bug.cgi?id=1787907
 	RoleWorkerPerformance = "performance"
 )
 
@@ -28,5 +28,7 @@ const (
 
 const (
 	// FeatureGateLatencySensetiveName defines the latency sensetive feature gate name
-	FeatureGateLatencySensetiveName = "latency-sensetive"
+	// TOOD: uncomment once https://bugzilla.redhat.com/show_bug.cgi?id=1788061 fixed
+	// FeatureGateLatencySensetiveName = "latency-sensetive"
+	FeatureGateLatencySensetiveName = "cluster"
 )

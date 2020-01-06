@@ -297,9 +297,10 @@ func (r *ReconcilePerformanceProfile) applyComponents(profle *performancev1alpha
 
 	// deploy feature gate
 	fg := featuregate.NewLatencySensitive()
-	if err := controllerutil.SetControllerReference(profle, fg, r.scheme); err != nil {
-		return err
-	}
+	// TOOD: uncomment once https://bugzilla.redhat.com/show_bug.cgi?id=1788061 fixed
+	// if err := controllerutil.SetControllerReference(profle, fg, r.scheme); err != nil {
+	// 	return err
+	// }
 	if err := r.createOrUpdateFeatureGate(fg); err != nil {
 		return err
 	}
@@ -394,9 +395,10 @@ func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alp
 		return err
 	}
 
-	if err := r.deleteFeatureGate(components.FeatureGateLatencySensetiveName); err != nil {
-		return err
-	}
+	// TOOD: uncomment once https://bugzilla.redhat.com/show_bug.cgi?id=1788061 fixed
+	// if err := r.deleteFeatureGate(components.FeatureGateLatencySensetiveName); err != nil {
+	// 	return err
+	// }
 
 	if err := r.deleteKubeletConfig(name); err != nil {
 		return err

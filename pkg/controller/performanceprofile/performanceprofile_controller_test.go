@@ -187,9 +187,10 @@ var _ = Describe("Controller", func() {
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 
 			// verify feature gate deletion
-			key.Name = components.FeatureGateLatencySensetiveName
-			err = r.client.Get(context.TODO(), key, fg)
-			Expect(errors.IsNotFound(err)).To(Equal(true))
+			// TOOD: uncomment once https://bugzilla.redhat.com/show_bug.cgi?id=1788061 fixed
+			// key.Name = components.FeatureGateLatencySensetiveName
+			// err = r.client.Get(context.TODO(), key, fg)
+			// Expect(errors.IsNotFound(err)).To(Equal(true))
 
 			// verify tuned latency deletion
 			key.Name = components.ProfileNameNetworkLatency
