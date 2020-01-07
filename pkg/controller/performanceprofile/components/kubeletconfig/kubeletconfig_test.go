@@ -19,7 +19,7 @@ var _ = Describe("Kubelet Config", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		manifest := string(y)
-		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", components.LableMachineConfigPoolRole, components.RoleWorkerPerformance)))
+		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", components.LabelMachineConfigPoolRole, components.RoleWorkerPerformance)))
 		Expect(manifest).To(ContainSubstring("reservedSystemCPUs: 0-3"))
 		Expect(manifest).To(ContainSubstring("topologyManagerPolicy: best-effort"))
 		Expect(manifest).To(ContainSubstring("cpuManagerPolicy: static"))

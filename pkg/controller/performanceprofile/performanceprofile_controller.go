@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sync"
+	"time"
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
@@ -129,7 +131,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// we do not want initiate reconcile loop on the pause of machine config pool
+	// we do not want initiate reconcile loop on the configuration or pause fields update
 	mcpPredicates := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if e.MetaOld == nil {
@@ -149,13 +151,14 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 				return false
 			}
 
-			mcpNew := e.ObjectOld.(*mcov1.MachineConfigPool)
-			mcpOld := e.ObjectNew.(*mcov1.MachineConfigPool)
+			mcpOld := e.ObjectOld.(*mcov1.MachineConfigPool)
+			mcpNew := e.ObjectNew.(*mcov1.MachineConfigPool)
+			mcpNewCopy := mcpNew.DeepCopy()
 
-			mcpNew.Spec.Paused = mcpOld.Spec.Paused
-			mcpNew.Spec.Configuration = mcpOld.Spec.Configuration
+			mcpNewCopy.Spec.Paused = mcpOld.Spec.Paused
+			mcpNewCopy.Spec.Configuration = mcpOld.Spec.Configuration
 
-			return !reflect.DeepEqual(mcpOld.Spec, mcpNew.Spec) ||
+			return !reflect.DeepEqual(mcpOld.Spec, mcpNewCopy.Spec) ||
 				!apiequality.Semantic.DeepEqual(e.MetaNew.GetLabels(), e.MetaOld.GetLabels())
 		},
 	}
@@ -182,6 +185,7 @@ type ReconcilePerformanceProfile struct {
 	client    client.Client
 	scheme    *runtime.Scheme
 	assetsDir string
+	pauseLock sync.Mutex
 }
 
 // Reconcile reads that state of the cluster for a PerformanceProfile object and makes changes based on the state read
@@ -215,6 +219,10 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
+		if r.isComponentsExist(instance) {
+			return reconcile.Result{Requeue: true, RequeueAfter: time.Minute}, nil
+		}
+
 		// remove finalizer
 		if hasFinalizer(instance, finalizer) {
 			removeFinalizer(instance, finalizer)
@@ -229,7 +237,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	// TODO: we need to check if all under performance profiles values != nil
 	// first we need to decide if each of values required and we should move the check into validation webhook
 	// for now let's assume that all parameters needed for assets scrips are required
-	if err := r.verifyPerformanceProfileParameters(instance); err != nil {
+	if err := r.validatePerformanceProfileParameters(instance); err != nil {
 		// we do not want to reconcile again in case of error, because a user will need to update the PerformanceProfile anyway
 		klog.Errorf("failed to reconcile: %v", err)
 		return reconcile.Result{}, nil
@@ -247,6 +255,8 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	}
 
 	// apply components
+	r.pauseLock.Lock()
+	defer r.pauseLock.Unlock()
 	if err := r.applyComponents(instance); err != nil {
 		klog.Errorf("failed to deploy components: %v", err)
 		return reconcile.Result{}, err
@@ -257,10 +267,10 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcilePerformanceProfile) applyComponents(profle *performancev1alpha1.PerformanceProfile) error {
+func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alpha1.PerformanceProfile) error {
 	// deploy machine config pool
-	mcp := machineconfigpool.NewPerformance(profle)
-	if err := controllerutil.SetControllerReference(profle, mcp, r.scheme); err != nil {
+	mcp := machineconfigpool.NewPerformance(profile)
+	if err := controllerutil.SetControllerReference(profile, mcp, r.scheme); err != nil {
 		return err
 	}
 	if err := r.createOrUpdateMachineConfigPool(mcp); err != nil {
@@ -273,12 +283,12 @@ func (r *ReconcilePerformanceProfile) applyComponents(profle *performancev1alpha
 	}
 
 	// deploy machine config
-	mc, err := machineconfig.NewPerformance(r.assetsDir, profle)
+	mc, err := machineconfig.NewPerformance(r.assetsDir, profile)
 	if err != nil {
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(profle, mc, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profile, mc, r.scheme); err != nil {
 		return err
 	}
 
@@ -286,22 +296,25 @@ func (r *ReconcilePerformanceProfile) applyComponents(profle *performancev1alpha
 		return err
 	}
 
-	// deploy kubelet config
-	kc := kubeletconfig.NewPerformance(profle)
-	if err := controllerutil.SetControllerReference(profle, kc, r.scheme); err != nil {
-		return err
-	}
-	if err := r.createOrUpdateKubeletConfig(kc); err != nil {
-		return err
-	}
-
 	// deploy feature gate
+	// feature gate resource should be updated before KubeletConfig creation, otherwise
+	// we will lack TopologyManager feature gate under the kubelet configuration
+	// see - https://bugzilla.redhat.com/show_bug.cgi?id=1788061#c3
 	fg := featuregate.NewLatencySensitive()
 	// TOOD: uncomment once https://bugzilla.redhat.com/show_bug.cgi?id=1788061 fixed
-	// if err := controllerutil.SetControllerReference(profle, fg, r.scheme); err != nil {
+	// if err := controllerutil.SetControllerReference(profile, fg, r.scheme); err != nil {
 	// 	return err
 	// }
 	if err := r.createOrUpdateFeatureGate(fg); err != nil {
+		return err
+	}
+
+	// deploy kubelet config
+	kc := kubeletconfig.NewPerformance(profile)
+	if err := controllerutil.SetControllerReference(profile, kc, r.scheme); err != nil {
+		return err
+	}
+	if err := r.createOrUpdateKubeletConfig(kc); err != nil {
 		return err
 	}
 
@@ -311,7 +324,7 @@ func (r *ReconcilePerformanceProfile) applyComponents(profle *performancev1alpha
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(profle, networkLatencyTuned, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profile, networkLatencyTuned, r.scheme); err != nil {
 		return err
 	}
 
@@ -320,12 +333,12 @@ func (r *ReconcilePerformanceProfile) applyComponents(profle *performancev1alpha
 	}
 
 	// deploy real time kernel tuned
-	realTimeKernelTuned, err := tuned.NewWorkerRealTimeKernel(r.assetsDir, profle)
+	realTimeKernelTuned, err := tuned.NewWorkerRealTimeKernel(r.assetsDir, profile)
 	if err != nil {
 		return err
 	}
 
-	if err := controllerutil.SetControllerReference(profle, realTimeKernelTuned, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profile, realTimeKernelTuned, r.scheme); err != nil {
 		return err
 	}
 
@@ -349,15 +362,12 @@ func (r *ReconcilePerformanceProfile) pauseMachineConfigPool(mcpName string, pau
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 
 	updatedMcp.Spec.Paused = pause
 	return r.client.Update(context.TODO(), updatedMcp)
 }
 
-func (r *ReconcilePerformanceProfile) verifyPerformanceProfileParameters(performanceProfile *performancev1alpha1.PerformanceProfile) error {
+func (r *ReconcilePerformanceProfile) validatePerformanceProfileParameters(performanceProfile *performancev1alpha1.PerformanceProfile) error {
 	if performanceProfile.Spec.CPU == nil {
 		return fmt.Errorf("you should provide CPU section")
 	}
@@ -409,6 +419,31 @@ func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alp
 	}
 
 	return r.deleteMachineConfigPool(name)
+}
+
+func (r *ReconcilePerformanceProfile) isComponentsExist(profile *performancev1alpha1.PerformanceProfile) bool {
+	tunedName := components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
+	if _, err := r.getTuned(tunedName, components.NamespaceNodeTuningOperator); !errors.IsNotFound(err) {
+		return true
+	}
+
+	if _, err := r.getTuned(components.ProfileNameNetworkLatency, components.NamespaceNodeTuningOperator); !errors.IsNotFound(err) {
+		return true
+	}
+
+	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+	if _, err := r.getKubeletConfig(name); !errors.IsNotFound(err) {
+		return true
+	}
+
+	if _, err := r.getMachineConfig(name); !errors.IsNotFound(err) {
+		return true
+	}
+
+	if _, err := r.getMachineConfigPool(name); !errors.IsNotFound(err) {
+		return true
+	}
+	return false
 }
 
 func hasFinalizer(profile *performancev1alpha1.PerformanceProfile, finalizer string) bool {

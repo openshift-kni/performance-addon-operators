@@ -53,7 +53,7 @@ func NewPerformance(profile *performancev1alpha1.PerformanceProfile) *machinecon
 		Spec: machineconfigv1.KubeletConfigSpec{
 			MachineConfigPoolSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					components.LableMachineConfigPoolRole: name,
+					components.LabelMachineConfigPoolRole: name,
 				},
 			},
 			KubeletConfig: &runtime.RawExtension{

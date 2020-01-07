@@ -19,7 +19,7 @@ func NewPerformance(profile *performancev1alpha1.PerformanceProfile) *machinecon
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
-				components.LableMachineConfigPoolRole: name,
+				components.LabelMachineConfigPoolRole: name,
 			},
 		},
 		Spec: machineconfigv1.MachineConfigPoolSpec{

@@ -7,8 +7,8 @@ const (
 const (
 	// LabelMachineConfigurationRole defines the label for machine configuration role
 	LabelMachineConfigurationRole = "machineconfiguration.openshift.io/role"
-	// LableMachineConfigPoolRole defines the label for machine config pool role
-	LableMachineConfigPoolRole = "machineconfigpool.openshift.io/role"
+	// LabelMachineConfigPoolRole defines the label for machine config pool role
+	LabelMachineConfigPoolRole = "machineconfigpool.openshift.io/role"
 	// RoleWorker defines the worker role
 	RoleWorker = "worker"
 	// RoleWorkerPerformance defines the worker role for performance sensitive workflows
@@ -29,6 +29,6 @@ const (
 const (
 	// FeatureGateLatencySensetiveName defines the latency sensetive feature gate name
 	// TOOD: uncomment once https://bugzilla.redhat.com/show_bug.cgi?id=1788061 fixed
-	// FeatureGateLatencySensetiveName = "latency-sensetive"
+	// FeatureGateLatencySensetiveName = "latency-sensitive"
 	FeatureGateLatencySensetiveName = "cluster"
 )

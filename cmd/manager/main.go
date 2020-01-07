@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"runtime"
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
@@ -65,8 +64,7 @@ func main() {
 
 	namespace, err := k8sutil.GetWatchNamespace()
 	if err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
+		klog.Exit(err.Error())
 	}
 
 	// we have two namespaces that we need to watch
@@ -80,8 +78,7 @@ func main() {
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
 	if err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
+		klog.Exit(err.Error())
 	}
 
 	// Create a new Cmd to provide shared dependencies and start components
@@ -95,37 +92,31 @@ func main() {
 		MetricsBindAddress:      fmt.Sprintf("%s:%d", metricsHost, metricsPort),
 	})
 	if err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
+		klog.Exit(err.Error())
 	}
 
 	klog.Info("Registering Components.")
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
+		klog.Exit(err.Error())
 	}
 
 	if err := configv1.AddToScheme(mgr.GetScheme()); err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
+		klog.Exit(err.Error())
 	}
 
 	if err := mcov1.AddToScheme(mgr.GetScheme()); err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
+		klog.Exit(err.Error())
 	}
 
 	if err := tunedv1.AddToScheme(mgr.GetScheme()); err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
+		klog.Exit(err.Error())
 	}
 
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
+		klog.Exit(err.Error())
 	}
 
 	if err = serveCRMetrics(cfg); err != nil {
@@ -160,8 +151,7 @@ func main() {
 
 	// Start the Cmd
 	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		klog.Errorf("Manager exited with non-zero code: %v", err)
-		os.Exit(1)
+		klog.Exitf("Manager exited with non-zero code: %v", err)
 	}
 }
 
