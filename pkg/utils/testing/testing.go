@@ -52,6 +52,9 @@ func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile 
 			RealTimeKernel: &performancev1alpha1.RealTimeKernel{
 				RepoURL: pointer.StringPtr(RepoURL),
 			},
+			NodeSelector: map[string]string{
+				"test": "test",
+			},
 		},
 	}
 }

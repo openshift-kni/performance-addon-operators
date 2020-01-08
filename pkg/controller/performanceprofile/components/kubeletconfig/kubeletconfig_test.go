@@ -13,7 +13,8 @@ import (
 var _ = Describe("Kubelet Config", func() {
 	It("should generate yaml with expected parameters", func() {
 		profile := testutils.NewPerformanceProfile("test")
-		kc := NewPerformance(profile)
+		kc, err := New(profile)
+		Expect(err).ToNot(HaveOccurred())
 
 		y, err := yaml.Marshal(kc)
 		Expect(err).ToNot(HaveOccurred())

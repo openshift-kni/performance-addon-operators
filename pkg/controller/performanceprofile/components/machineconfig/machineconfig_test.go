@@ -96,7 +96,7 @@ var _ = Describe("Machine Config", func() {
 			Count: 1024,
 			Size:  "2M",
 		})
-		mc, err := NewPerformance(testAssetsDir, profile)
+		mc, err := New(testAssetsDir, profile)
 		Expect(err).ToNot(HaveOccurred())
 
 		y, err := yaml.Marshal(mc)

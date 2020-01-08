@@ -95,11 +95,15 @@ func NewWorkerRealTimeKernel(assetsDir string, profile *performancev1alpha1.Perf
 	sort.Strings(sortedKeys)
 
 	priority := uint64(30)
+	copyNodeSelector := map[string]string{}
+	for k, v := range profile.Spec.NodeSelector {
+		copyNodeSelector[k] = v
+	}
 	recommends := []tunedv1.TunedRecommend{
 		{
 			Profile:  &name,
 			Priority: &priority,
-			Match:    getProfileMatches(sortedKeys, profile.Spec.NodeSelector),
+			Match:    getProfileMatches(sortedKeys, copyNodeSelector),
 		},
 	}
 	return new(name, profiles, recommends), nil

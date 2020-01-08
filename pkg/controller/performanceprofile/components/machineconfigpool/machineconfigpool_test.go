@@ -20,7 +20,7 @@ var _ = Describe("Machine Config Pool", func() {
 	It("should generate yaml with expected parameters", func() {
 		profile := testutils.NewPerformanceProfile("test")
 		profile.Spec.NodeSelector = map[string]string{"test": "test"}
-		mcp := NewPerformance(profile)
+		mcp := New(profile)
 
 		y, err := yaml.Marshal(mcp)
 		Expect(err).ToNot(HaveOccurred())

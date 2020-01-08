@@ -64,76 +64,197 @@ var _ = Describe("Controller", func() {
 		Expect(hasFinalizer(updatedProfile, finalizer)).To(Equal(true))
 	})
 
-	It("should verify scripts required parameters", func() {
-		profile.Finalizers = append(profile.Finalizers, finalizer)
-		profile.Spec.CPU.Isolated = nil
-		r := newFakeReconciler(profile)
+	Context("with profile with finalizer", func() {
+		BeforeEach(func() {
+			profile.Finalizers = append(profile.Finalizers, finalizer)
+		})
 
-		// we do not return error, because we do not want to reconcile again, and just print error under the log,
-		// once we will have validation webhook, this test will not be relevant anymore
-		result, err := r.Reconcile(request)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(result).To(Equal(reconcile.Result{}))
+		It("should verify scripts required parameters", func() {
+			profile.Spec.CPU.Isolated = nil
+			r := newFakeReconciler(profile)
 
-		// verify that no components created by the controller
-		mcp := &mcov1.MachineConfigPool{}
-		key := types.NamespacedName{
-			Name:      components.GetComponentName(profile.Name, components.RoleWorkerPerformance),
-			Namespace: metav1.NamespaceNone,
-		}
-		err = r.client.Get(context.TODO(), key, mcp)
-		Expect(errors.IsNotFound(err)).To(Equal(true))
-	})
+			// we do not return error, because we do not want to reconcile again, and just print error under the log,
+			// once we will have validation webhook, this test will not be relevant anymore
+			result, err := r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{}))
 
-	It("should create all needed components", func() {
-		profile.Finalizers = append(profile.Finalizers, finalizer)
-		profile.Spec.NodeSelector = map[string]string{"test": "test"}
-		r := newFakeReconciler(profile)
+			// verify that no components created by the controller
+			mcp := &mcov1.MachineConfigPool{}
+			key := types.NamespacedName{
+				Name:      components.GetComponentName(profile.Name, components.RoleWorkerPerformance),
+				Namespace: metav1.NamespaceNone,
+			}
+			err = r.client.Get(context.TODO(), key, mcp)
+			Expect(errors.IsNotFound(err)).To(Equal(true))
+		})
 
-		result, err := r.Reconcile(request)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(result).To(Equal(reconcile.Result{}))
+		It("should create and pause machine config pool of first reconcile loop", func() {
+			r := newFakeReconciler(profile)
 
-		// verify that controller created all components
-		name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
-		key := types.NamespacedName{
-			Name:      name,
-			Namespace: metav1.NamespaceNone,
-		}
+			result, err := r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
 
-		// verify MachineConfigPool creation
-		mcp := &mcov1.MachineConfigPool{}
-		err = r.client.Get(context.TODO(), key, mcp)
-		Expect(err).ToNot(HaveOccurred())
+			name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+			key := types.NamespacedName{
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+			}
 
-		// verify MachineConfig creation
-		mc := &mcov1.MachineConfig{}
-		err = r.client.Get(context.TODO(), key, mc)
-		Expect(err).ToNot(HaveOccurred())
+			// verify MachineConfigPool creation
+			mcp := &mcov1.MachineConfigPool{}
+			err = r.client.Get(context.TODO(), key, mcp)
+			Expect(err).ToNot(HaveOccurred())
 
-		// verify KubeletConfig creation
-		kc := &mcov1.KubeletConfig{}
-		err = r.client.Get(context.TODO(), key, kc)
-		Expect(err).ToNot(HaveOccurred())
+			// verify MachineConfigPool paused field
+			Expect(mcp.Spec.Paused).To(BeTrue())
+		})
 
-		// verify FeatureGate creation
-		fg := &configv1.FeatureGate{}
-		key.Name = components.FeatureGateLatencySensetiveName
-		err = r.client.Get(context.TODO(), key, fg)
-		Expect(err).ToNot(HaveOccurred())
+		It("should create all other resources except KubeletConfig on second reconcile loop", func() {
+			r := newFakeReconciler(profile)
 
-		// verify tuned LatencySensitive creation
-		tunedLatency := &tunedv1.Tuned{}
-		key.Name = components.ProfileNameNetworkLatency
-		key.Namespace = components.NamespaceNodeTuningOperator
-		err = r.client.Get(context.TODO(), key, tunedLatency)
-		Expect(err).ToNot(HaveOccurred())
+			result, err := r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
 
-		// verify tuned tuned real-time kernel creation
-		tunedRTKernel := &tunedv1.Tuned{}
-		key.Name = components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
-		err = r.client.Get(context.TODO(), key, tunedRTKernel)
-		Expect(err).ToNot(HaveOccurred())
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+			key := types.NamespacedName{
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+			}
+
+			// verify MachineConfig creation
+			mc := &mcov1.MachineConfig{}
+			err = r.client.Get(context.TODO(), key, mc)
+			Expect(err).ToNot(HaveOccurred())
+
+			// verify that KubeletConfig wasn't created
+			kc := &mcov1.KubeletConfig{}
+			err = r.client.Get(context.TODO(), key, kc)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+
+			// verify FeatureGate creation
+			fg := &configv1.FeatureGate{}
+			key.Name = components.FeatureGateLatencySensetiveName
+			err = r.client.Get(context.TODO(), key, fg)
+			Expect(err).ToNot(HaveOccurred())
+
+			// verify tuned LatencySensitive creation
+			tunedLatency := &tunedv1.Tuned{}
+			key.Name = components.ProfileNameNetworkLatency
+			key.Namespace = components.NamespaceNodeTuningOperator
+			err = r.client.Get(context.TODO(), key, tunedLatency)
+			Expect(err).ToNot(HaveOccurred())
+
+			// verify tuned tuned real-time kernel creation
+			tunedRTKernel := &tunedv1.Tuned{}
+			key.Name = components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
+			err = r.client.Get(context.TODO(), key, tunedRTKernel)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should create KubeletConfig on third reconcile loop", func() {
+			r := newFakeReconciler(profile)
+
+			result, err := r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+			key := types.NamespacedName{
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+			}
+
+			// verify KubeletConfig creation
+			kc := &mcov1.KubeletConfig{}
+			err = r.client.Get(context.TODO(), key, kc)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should unpause machine config pool on fourth reconcile loop", func() {
+			r := newFakeReconciler(profile)
+
+			result, err := r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+			key := types.NamespacedName{
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+			}
+			mcp := &mcov1.MachineConfigPool{}
+			err = r.client.Get(context.TODO(), key, mcp)
+			Expect(err).ToNot(HaveOccurred())
+
+			// verify MachineConfigPool paused field
+			Expect(mcp.Spec.Paused).To(BeFalse())
+		})
+
+		It("should do nothing on fifth reconcile loop", func() {
+			r := newFakeReconciler(profile)
+
+			result, err := r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{}))
+		})
+
+		Context("with existing MachineConfigPool", func() {
+			var mcp *mcov1.MachineConfigPool
+
+			BeforeEach(func() {
+				mcp = machineconfigpool.New(profile)
+			})
+
+			It("should pause on first reconcile loop", func() {
+				r := newFakeReconciler(profile, mcp)
+				result, err := r.Reconcile(request)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+			})
+		})
 	})
 
 	Context("with profile with deletion timestamp", func() {
@@ -141,18 +262,40 @@ var _ = Describe("Controller", func() {
 			profile.DeletionTimestamp = &metav1.Time{
 				Time: time.Now(),
 			}
+			profile.Finalizers = append(profile.Finalizers, finalizer)
 		})
 
-		It("should remove all components and remove the finalizer", func() {
-			profile.Finalizers = append(profile.Finalizers, finalizer)
-			profile.Spec.NodeSelector = map[string]string{"test": "test"}
+		It("should pause machine config pool of first reconcile loop", func() {
+			mcp := machineconfigpool.New(profile)
 
-			mcp := machineconfigpool.NewPerformance(profile)
+			r := newFakeReconciler(profile, mcp)
+			result, err := r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
 
-			mc, err := machineconfig.NewPerformance(assetsDir, profile)
+			name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+			key := types.NamespacedName{
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+			}
+
+			mcpUpdated := &mcov1.MachineConfigPool{}
+			err = r.client.Get(context.TODO(), key, mcpUpdated)
 			Expect(err).ToNot(HaveOccurred())
 
-			kc := kubeletconfig.NewPerformance(profile)
+			// verify MachineConfigPool paused field
+			Expect(mcpUpdated.Spec.Paused).To(BeTrue())
+		})
+
+		It("should remove all components and remove the finalizer on second reconcile loop", func() {
+
+			mcp := machineconfigpool.New(profile)
+
+			mc, err := machineconfig.New(assetsDir, profile)
+			Expect(err).ToNot(HaveOccurred())
+
+			kc, err := kubeletconfig.New(profile)
+			Expect(err).ToNot(HaveOccurred())
 
 			fg := featuregate.NewLatencySensitive()
 
@@ -164,6 +307,10 @@ var _ = Describe("Controller", func() {
 
 			r := newFakeReconciler(profile, mcp, mc, kc, fg, tunedLatency, tunedRTKernel)
 			result, err := r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			result, err = r.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(reconcile.Result{}))
 

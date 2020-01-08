@@ -2,6 +2,7 @@ package performanceprofile
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -12,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
+	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 )
 
 func mergeMaps(src map[string]string, dst map[string]string) {
@@ -35,9 +38,40 @@ func (r *ReconcilePerformanceProfile) getMachineConfigPool(name string) (*mcov1.
 	return mcp, nil
 }
 
-func (r *ReconcilePerformanceProfile) createOrUpdateMachineConfigPool(mcp *mcov1.MachineConfigPool) error {
+func (r *ReconcilePerformanceProfile) getMutatedMachineConfigPool(mcp *mcov1.MachineConfigPool) (*mcov1.MachineConfigPool, error) {
 	existing, err := r.getMachineConfigPool(mcp.Name)
 	if errors.IsNotFound(err) {
+		return mcp, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	mutated := existing.DeepCopy()
+
+	mergeMaps(mcp.Annotations, mutated.Annotations)
+	mergeMaps(mcp.Labels, mutated.Labels)
+
+	mutated.Spec = mcp.Spec
+
+	// does not update the configuration field
+	mutated.Spec.Configuration = existing.Spec.Configuration
+
+	// we do not need to update if it no change between mutated and existing object
+	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
+		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
+		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil, nil
+	}
+
+	return mutated, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateMachineConfigPool(mcp *mcov1.MachineConfigPool) error {
+	_, err := r.getMachineConfigPool(mcp.Name)
+	if errors.IsNotFound(err) {
+		klog.Infof("Create machine-config-pool %q", mcp.Name)
 		if err := r.client.Create(context.TODO(), mcp); err != nil {
 			return err
 		}
@@ -48,25 +82,8 @@ func (r *ReconcilePerformanceProfile) createOrUpdateMachineConfigPool(mcp *mcov1
 		return err
 	}
 
-	mutated := existing.DeepCopy()
-
-	mergeMaps(mcp.Annotations, mutated.Annotations)
-	mergeMaps(mcp.Labels, mutated.Labels)
-
-	mutated.Spec = mcp.Spec
-
-	// do not update the pause and configuration fields
-	mutated.Spec.Paused = existing.Spec.Paused
-	mutated.Spec.Configuration = existing.Spec.Configuration
-
-	// we do not need to update if it no change between mutated and existing object
-	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
-		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
-		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
-		return nil
-	}
-
-	return r.client.Update(context.TODO(), mutated)
+	klog.Infof("Update machine-config-pool %q", mcp.Name)
+	return r.client.Update(context.TODO(), mcp)
 }
 
 func (r *ReconcilePerformanceProfile) deleteMachineConfigPool(name string) error {
@@ -92,17 +109,14 @@ func (r *ReconcilePerformanceProfile) getMachineConfig(name string) (*mcov1.Mach
 	return mc, nil
 }
 
-func (r *ReconcilePerformanceProfile) createOrUpdateMachineConfig(mc *mcov1.MachineConfig) error {
+func (r *ReconcilePerformanceProfile) getMutatedMachineConfig(mc *mcov1.MachineConfig) (*mcov1.MachineConfig, error) {
 	existing, err := r.getMachineConfig(mc.Name)
 	if errors.IsNotFound(err) {
-		if err := r.client.Create(context.TODO(), mc); err != nil {
-			return err
-		}
-		return nil
+		return mc, nil
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	mutated := existing.DeepCopy()
@@ -114,10 +128,28 @@ func (r *ReconcilePerformanceProfile) createOrUpdateMachineConfig(mc *mcov1.Mach
 	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
 		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
 		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil, nil
+	}
+
+	return mutated, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateMachineConfig(mc *mcov1.MachineConfig) error {
+	_, err := r.getMachineConfig(mc.Name)
+	if errors.IsNotFound(err) {
+		klog.Infof("Create machine-config %q", mc.Name)
+		if err := r.client.Create(context.TODO(), mc); err != nil {
+			return err
+		}
 		return nil
 	}
 
-	return r.client.Update(context.TODO(), mutated)
+	if err != nil {
+		return err
+	}
+
+	klog.Infof("Update machine-config %q", mc.Name)
+	return r.client.Update(context.TODO(), mc)
 }
 
 func (r *ReconcilePerformanceProfile) deleteMachineConfig(name string) error {
@@ -143,9 +175,48 @@ func (r *ReconcilePerformanceProfile) getKubeletConfig(name string) (*mcov1.Kube
 	return kc, nil
 }
 
-func (r *ReconcilePerformanceProfile) createOrUpdateKubeletConfig(kc *mcov1.KubeletConfig) error {
+func (r *ReconcilePerformanceProfile) getMutatedKubeletConfig(kc *mcov1.KubeletConfig) (*mcov1.KubeletConfig, error) {
 	existing, err := r.getKubeletConfig(kc.Name)
 	if errors.IsNotFound(err) {
+		return kc, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	mutated := existing.DeepCopy()
+	mergeMaps(kc.Annotations, mutated.Annotations)
+	mergeMaps(kc.Labels, mutated.Labels)
+	mutated.Spec = kc.Spec
+
+	existingKubeletConfig := &kubeletconfigv1beta1.KubeletConfiguration{}
+	err = json.Unmarshal(existing.Spec.KubeletConfig.Raw, existingKubeletConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	mutatedKubeletConfig := &kubeletconfigv1beta1.KubeletConfiguration{}
+	err = json.Unmarshal(mutated.Spec.KubeletConfig.Raw, mutatedKubeletConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// we do not need to update if it no change between mutated and existing object
+	if apiequality.Semantic.DeepEqual(existingKubeletConfig, mutatedKubeletConfig) &&
+		apiequality.Semantic.DeepEqual(existing.Spec.MachineConfigPoolSelector, mutated.Spec.MachineConfigPoolSelector) &&
+		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
+		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil, nil
+	}
+
+	return mutated, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateKubeletConfig(kc *mcov1.KubeletConfig) error {
+	_, err := r.getKubeletConfig(kc.Name)
+	if errors.IsNotFound(err) {
+		klog.Infof("Create kubelet-config %q", kc.Name)
 		if err := r.client.Create(context.TODO(), kc); err != nil {
 			return err
 		}
@@ -156,19 +227,8 @@ func (r *ReconcilePerformanceProfile) createOrUpdateKubeletConfig(kc *mcov1.Kube
 		return err
 	}
 
-	mutated := existing.DeepCopy()
-	mergeMaps(kc.Annotations, mutated.Annotations)
-	mergeMaps(kc.Labels, mutated.Labels)
-	mutated.Spec = kc.Spec
-
-	// we do not need to update if it no change between mutated and existing object
-	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
-		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
-		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
-		return nil
-	}
-
-	return r.client.Update(context.TODO(), mutated)
+	klog.Infof("Update kubelet-config %q", kc.Name)
+	return r.client.Update(context.TODO(), kc)
 }
 
 func (r *ReconcilePerformanceProfile) deleteKubeletConfig(name string) error {
@@ -194,17 +254,14 @@ func (r *ReconcilePerformanceProfile) getFeatureGate(name string) (*configv1.Fea
 	return fg, nil
 }
 
-func (r *ReconcilePerformanceProfile) createOrUpdateFeatureGate(fg *configv1.FeatureGate) error {
+func (r *ReconcilePerformanceProfile) getMutatedFeatureGate(fg *configv1.FeatureGate) (*configv1.FeatureGate, error) {
 	existing, err := r.getFeatureGate(fg.Name)
 	if errors.IsNotFound(err) {
-		if err := r.client.Create(context.TODO(), fg); err != nil {
-			return err
-		}
-		return nil
+		return fg, nil
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	mutated := existing.DeepCopy()
@@ -216,10 +273,28 @@ func (r *ReconcilePerformanceProfile) createOrUpdateFeatureGate(fg *configv1.Fea
 	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
 		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
 		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil, nil
+	}
+
+	return mutated, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateFeatureGate(fg *configv1.FeatureGate) error {
+	_, err := r.getFeatureGate(fg.Name)
+	if errors.IsNotFound(err) {
+		klog.Infof("Create feature-gate %q", fg.Name)
+		if err := r.client.Create(context.TODO(), fg); err != nil {
+			return err
+		}
 		return nil
 	}
 
-	return r.client.Update(context.TODO(), mutated)
+	if err != nil {
+		return err
+	}
+
+	klog.Infof("Update feature-gate %q", fg.Name)
+	return r.client.Update(context.TODO(), fg)
 }
 
 func (r *ReconcilePerformanceProfile) deleteFeatureGate(name string) error {
@@ -245,9 +320,35 @@ func (r *ReconcilePerformanceProfile) getTuned(name string, namespace string) (*
 	return tuned, nil
 }
 
-func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned) error {
+func (r *ReconcilePerformanceProfile) getMutatedTuned(tuned *tunedv1.Tuned) (*tunedv1.Tuned, error) {
 	existing, err := r.getTuned(tuned.Name, tuned.Namespace)
 	if errors.IsNotFound(err) {
+		return tuned, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	mutated := existing.DeepCopy()
+	mergeMaps(tuned.Annotations, mutated.Annotations)
+	mergeMaps(tuned.Labels, mutated.Labels)
+	mutated.Spec = tuned.Spec
+
+	// we do not need to update if it no change between mutated and existing object
+	if apiequality.Semantic.DeepEqual(existing.Spec, mutated.Spec) &&
+		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
+		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil, nil
+	}
+
+	return mutated, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned) error {
+	_, err := r.getTuned(tuned.Name, tuned.Namespace)
+	if errors.IsNotFound(err) {
+		klog.Infof("Create tuned %q under the namespace %q", tuned.Name, tuned.Namespace)
 		if err := r.client.Create(context.TODO(), tuned); err != nil {
 			return err
 		}
@@ -258,19 +359,8 @@ func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned) 
 		return err
 	}
 
-	mutated := existing.DeepCopy()
-	mergeMaps(tuned.Annotations, mutated.Annotations)
-	mergeMaps(tuned.Labels, mutated.Labels)
-	mutated.Spec = tuned.Spec
-
-	// we do not need to update if it no change between mutated and existing object
-	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
-		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
-		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
-		return nil
-	}
-
-	return r.client.Update(context.TODO(), mutated)
+	klog.Infof("Update tuned %q under the namespace %q", tuned.Name, tuned.Namespace)
+	return r.client.Update(context.TODO(), tuned)
 }
 
 func (r *ReconcilePerformanceProfile) deleteTuned(name string, namespace string) error {
