@@ -22,7 +22,6 @@ const expectedSystemdUnits = `
           Before=pre-boot-tuning.service
 
           [Service]
-          Environment=RT_REPO_URL=https://test.test
           Type=oneshot
           RemainAfterExit=true
           ExecStart=/usr/local/bin/rt-kernel.sh
@@ -33,7 +32,7 @@ const expectedSystemdUnits = `
         name: rt-kernel.service
       - contents: |
           [Unit]
-          Description=Reboot initiated by rt-kernel and pre-boot-tuning
+          Description=Preboot tuning patch
           Wants=rt-kernel.service
           After=rt-kernel.service
           Before=kubelet.service

@@ -447,13 +447,6 @@ func (r *ReconcilePerformanceProfile) validatePerformanceProfileParameters(perfo
 		return fmt.Errorf("you should provide non isolated CPU set")
 	}
 
-	if performanceProfile.Spec.RealTimeKernel == nil {
-		return fmt.Errorf("you should provide real time kernel section")
-	}
-
-	if performanceProfile.Spec.RealTimeKernel.RepoURL == nil {
-		return fmt.Errorf("you should provide real time kernel repository URL")
-	}
 	return nil
 }
 

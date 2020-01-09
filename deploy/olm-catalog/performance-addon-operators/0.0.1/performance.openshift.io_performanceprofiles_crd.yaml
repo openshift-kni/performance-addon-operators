@@ -84,10 +84,10 @@ spec:
               description: RealTimeKernel defines set of real time kernel related
                 parameters.
               properties:
-                repoURL:
-                  description: RepoURL defines the URL to the repository with real
-                    time kernel packages
-                  type: string
+                enabled:
+                  description: Enabled defines if the real time kernel packages should
+                    be installed
+                  type: boolean
               type: object
           type: object
         status:
