@@ -6,12 +6,12 @@ set -e
 OC_TOOL="${OC_TOOL:-oc}"
 
 # Override the image name when this is invoked from openshift ci                               
-if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then                                                   
+if [ -n "${OPENSHIFT_BUILD_NAMESPACE}" ]; then                                                   
         FULL_REGISTRY_IMAGE="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:performance-addon-operators-registry"
         echo "Openshift CI detected, deploying using image $FULL_REGISTRY_IMAGE"                   
 fi   
 
-$OC_TOOL apply -f - <<EOF
+${OC_TOOL} apply -f - <<EOF
 ---
 apiVersion: v1
 kind: Namespace
@@ -22,7 +22,7 @@ metadata:
 spec: {}
 EOF
 
-$OC_TOOL apply -f - <<EOF
+${OC_TOOL} apply -f - <<EOF
 ---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
@@ -34,7 +34,7 @@ spec:
   - openshift-performance-addon
 EOF
   
-$OC_TOOL apply -f - <<EOF
+${OC_TOOL} apply -f - <<EOF
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
@@ -51,7 +51,7 @@ spec:
   sourceType: grpc
 EOF
 
-$OC_TOOL apply -f - <<EOF
+${OC_TOOL} apply -f - <<EOF
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
@@ -64,3 +64,12 @@ spec:
   sourceNamespace: openshift-marketplace
 EOF
 
+# Wait for performance-addon-operator deployment to be ready
+until ${OC_TOOL} -n openshift-performance-addon get deploy/performance-operator; do
+    echo "[INFO]: get performance-operator deployment"
+    sleep 10
+done
+${OC_TOOL} -n openshift-performance-addon wait deploy/performance-operator --for condition=Available --timeout 5m
+
+# Deploy performance-profile custom resource
+${KUSTOMIZE} build cluster-setup/ci-cluster/performance/ | envsubst | ${OC_TOOL} apply -f -

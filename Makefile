@@ -18,8 +18,8 @@ export FEATURES?=mcp performance sctp
 	operator-container \
 	registry-container \
 	generate-latest-dev-csv \
-	test-cluster-setup
-
+	test-cluster-setup \
+	kustomize
 
 IMAGE_BUILD_CMD ?= "docker"
 IMAGE_REGISTRY ?= "quay.io"
@@ -31,6 +31,12 @@ TARGET_GOARCH=amd64
 
 CACHE_DIR="_cache"
 TOOLS_DIR="$(CACHE_DIR)/tools"
+
+KUSTOMIZE_VERSION="v3.5.3"
+KUSTOMIZE_PLATFORM ?= "linux_amd64"
+KUSTOMIZE_BIN="kustomize"
+KUSTOMIZE_TAR="$(KUSTOMIZE_BIN)_$(KUSTOMIZE_VERSION)_$(KUSTOMIZE_PLATFORM).tar.gz"
+KUSTOMIZE="$(TOOLS_DIR)/$(KUSTOMIZE_BIN)"
 
 OPERATOR_SDK_VERSION="v0.13.0"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
@@ -102,9 +108,9 @@ deps-update:
 deploy: cluster-deploy
 	# TODO - deprecated, will be removed soon in favor of cluster-deploy
 
-cluster-deploy:
+cluster-deploy: kustomize
 	@echo "Deploying operator"
-	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/deploy.sh
+	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) KUSTOMIZE=$(KUSTOMIZE) hack/deploy.sh
 
 cluster-clean:
 	@echo "Deleting operator"
@@ -145,3 +151,15 @@ ci-job: gofmt golint govet verify-generate build unittests
 test-cluster-setup:
 	@echo "Setting up the test cluster"
 	hack/setup_test_cluster.sh
+
+kustomize:
+	@if [ ! -x "$(KUSTOMIZE)" ]; then\
+		echo "Downloading kustomize $(KUSTOMIZE_VERSION)";\
+		mkdir -p $(TOOLS_DIR);\
+		curl -JL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$(KUSTOMIZE_VERSION)/$(KUSTOMIZE_TAR) -o $(TOOLS_DIR)/$(KUSTOMIZE_TAR);\
+		tar -xvf $(TOOLS_DIR)/$(KUSTOMIZE_TAR) -C $(TOOLS_DIR);\
+		rm -rf $(TOOLS_DIR)/$(KUSTOMIZE_TAR);\
+		chmod +x $(KUSTOMIZE);\
+	else\
+		echo "Using kustomize cached at $(KUSTOMIZE)";\
+	fi

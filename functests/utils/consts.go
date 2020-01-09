@@ -10,6 +10,8 @@ const (
 )
 
 const (
+	// RoleWorker contains the worker role
+	RoleWorker = "worker"
 	// RoleWorkerRT contains the worker-rt role
 	RoleWorkerRT = "worker-rt"
 )
