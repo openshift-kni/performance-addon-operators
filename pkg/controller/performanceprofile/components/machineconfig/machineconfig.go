@@ -56,8 +56,8 @@ const (
 	environmentNonIsolatedCpus = "NON_ISOLATED_CPUS"
 )
 
-// NewPerformance returns new machine configuration object for performance sensetive workflows
-func NewPerformance(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.MachineConfig, error) {
+// New returns new machine configuration object for performance sensetive workflows
+func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.MachineConfig, error) {
 	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
 	mc := &machineconfigv1.MachineConfig{
 		TypeMeta: metav1.TypeMeta{

@@ -3,5 +3,16 @@ kind: PerformanceProfile
 metadata:
   name: example-performanceprofile
 spec:
-  # Add fields here
-  size: 3
+  cpu:
+    isolated: "2-3"
+    nonIsolated: "0"
+    reserved: "0-1"
+  hugepages:
+    defaultHugepagesSize: "1G"
+    pages:
+    - size: "1G"
+      count: 2
+  realTimeKernel:
+    repoURL: "http://download-node-02.eng.bos.redhat.com/rhel-8/nightly/RHEL-8/latest-RHEL-8.1.1/compose/RT/x86_64/os"
+  nodeSelector:
+    node-role.kubernetes.io/performance: ""

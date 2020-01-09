@@ -8,8 +8,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// NewPerformance returns new machine config pool for performance sensitive workflows
-func NewPerformance(profile *performancev1alpha1.PerformanceProfile) *machineconfigv1.MachineConfigPool {
+// New returns new machine config pool for performance sensitive workflows
+func New(profile *performancev1alpha1.PerformanceProfile) *machineconfigv1.MachineConfigPool {
 	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
 	return &machineconfigv1.MachineConfigPool{
 		TypeMeta: metav1.TypeMeta{
@@ -19,7 +19,7 @@ func NewPerformance(profile *performancev1alpha1.PerformanceProfile) *machinecon
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
-				components.LableMachineConfigPoolRole: name,
+				components.LabelMachineConfigPoolRole: name,
 			},
 		},
 		Spec: machineconfigv1.MachineConfigPoolSpec{

@@ -1,6 +1,7 @@
 package kubeletconfig
 
 import (
+	"encoding/json"
 	"time"
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
@@ -21,8 +22,8 @@ const (
 	topologyManagerPolicyBestEffort = "best-effort"
 )
 
-// NewPerformance returns new KubeletConfig object for performance sensetive workflows
-func NewPerformance(profile *performancev1alpha1.PerformanceProfile) *machineconfigv1.KubeletConfig {
+// New returns new KubeletConfig object for performance sensetive workflows
+func New(profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.KubeletConfig, error) {
 	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
 	kubeletConfig := &kubeletconfigv1beta1.KubeletConfiguration{
 		CPUManagerPolicy:          cpuManagerPolicyStatic,
@@ -42,6 +43,11 @@ func NewPerformance(profile *performancev1alpha1.PerformanceProfile) *machinecon
 		kubeletConfig.ReservedSystemCPUs = string(*profile.Spec.CPU.Reserved)
 	}
 
+	raw, err := json.Marshal(kubeletConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	return &machineconfigv1.KubeletConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: machineconfigv1.GroupVersion.String(),
@@ -53,12 +59,12 @@ func NewPerformance(profile *performancev1alpha1.PerformanceProfile) *machinecon
 		Spec: machineconfigv1.KubeletConfigSpec{
 			MachineConfigPoolSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					components.LableMachineConfigPoolRole: name,
+					components.LabelMachineConfigPoolRole: name,
 				},
 			},
 			KubeletConfig: &runtime.RawExtension{
-				Object: kubeletConfig,
+				Raw: raw,
 			},
 		},
-	}
+	}, nil
 }

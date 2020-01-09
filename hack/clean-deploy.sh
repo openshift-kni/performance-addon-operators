@@ -3,18 +3,7 @@
 # expect oc to be in PATH by default
 OC_TOOL="${OC_TOOL:-oc}"
 
-$OC_TOOL delete -f - <<EOF
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: performance-addon-operators-subscription
-  namespace: openshift-performance-addon
-spec:
-  channel: alpha
-  name: performance-addon-operators
-  source: performance-addon-operators-catalogsource
-  sourceNamespace: openshift-marketplace
-EOF
+$OC_TOOL delete ns openshift-performance-addon
 
 $OC_TOOL delete -f - <<EOF
 ---

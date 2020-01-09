@@ -13,13 +13,14 @@ import (
 var _ = Describe("Kubelet Config", func() {
 	It("should generate yaml with expected parameters", func() {
 		profile := testutils.NewPerformanceProfile("test")
-		kc := NewPerformance(profile)
+		kc, err := New(profile)
+		Expect(err).ToNot(HaveOccurred())
 
 		y, err := yaml.Marshal(kc)
 		Expect(err).ToNot(HaveOccurred())
 
 		manifest := string(y)
-		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", components.LableMachineConfigPoolRole, components.RoleWorkerPerformance)))
+		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", components.LabelMachineConfigPoolRole, components.RoleWorkerPerformance)))
 		Expect(manifest).To(ContainSubstring("reservedSystemCPUs: 0-3"))
 		Expect(manifest).To(ContainSubstring("topologyManagerPolicy: best-effort"))
 		Expect(manifest).To(ContainSubstring("cpuManagerPolicy: static"))

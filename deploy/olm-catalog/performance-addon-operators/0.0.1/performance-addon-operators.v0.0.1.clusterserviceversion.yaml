@@ -2,7 +2,38 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: '[]'
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "performance.openshift.io/v1alpha1",
+          "kind": "PerformanceProfile",
+          "metadata": {
+            "name": "example-performanceprofile"
+          },
+          "spec": {
+            "cpu": {
+              "isolated": "2-3",
+              "nonIsolated": "0",
+              "reserved": "0-1"
+            },
+            "hugepages": {
+              "defaultHugepagesSize": "1G",
+              "pages": [
+                {
+                  "count": 2,
+                  "size": "1G"
+                }
+              ]
+            },
+            "nodeSelector": {
+              "node-role.kubernetes.io/performance": ""
+            },
+            "realTimeKernel": {
+              "repoURL": "http://download-node-02.eng.bos.redhat.com/rhel-8/nightly/RHEL-8/latest-RHEL-8.1.1/compose/RT/x86_64/os"
+            }
+          }
+        }
+      ]
     capabilities: Basic Install
   name: performance-addon-operators.v0.0.1
   namespace: placeholder
@@ -10,17 +41,45 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: CPUPerformanceProfile is the Schema for the cpuperformanceprofiles
-        API
-      displayName: placeholder
-      kind: CPUPerformanceProfile
-      name: cpuperformanceprofiles.performance.openshift.io
+    - description: PerformanceProfile is the Schema for the performanceprofiles API.
+      kind: PerformanceProfile
+      name: performanceprofiles.performance.openshift.io
       version: v1alpha1
       displayName: placeholder
   description: Placeholder description
   displayName: Performance Addon Operators
   install:
     spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - performance.openshift.io
+          resources:
+          - performanceprofiles
+          - performanceprofiles/finalizers
+          verbs:
+          - '*'
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - featuregates
+          verbs:
+          - '*'
+        - apiGroups:
+          - machineconfiguration.openshift.io
+          resources:
+          - machineconfigs
+          - machineconfigpools
+          - kubeletconfigs
+          verbs:
+          - '*'
+        - apiGroups:
+          - tuned.openshift.io
+          resources:
+          - tuneds
+          verbs:
+          - '*'
+        serviceAccountName: performance-operator
       deployments:
       - name: performance-operator
         spec:
@@ -61,11 +120,8 @@ spec:
           - pods
           - services
           - services/finalizers
-          - endpoints
-          - persistentvolumeclaims
-          - events
           - configmaps
-          - secrets
+          - events
           verbs:
           - '*'
         - apiGroups:
@@ -78,13 +134,6 @@ spec:
           verbs:
           - '*'
         - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - servicemonitors
-          verbs:
-          - get
-          - create
-        - apiGroups:
           - apps
           resourceNames:
           - performance-operator
@@ -93,31 +142,11 @@ spec:
           verbs:
           - update
         - apiGroups:
-          - ""
+          - monitoring.coreos.com
           resources:
-          - pods
+          - servicemonitors
           verbs:
-          - get
-        - apiGroups:
-          - apps
-          resources:
-          - replicasets
-          - deployments
-          verbs:
-          - get
-        - apiGroups:
-          - performance.openshift.io
-          resources:
           - '*'
-          - performanceprofiles
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
         serviceAccountName: performance-operator
     strategy: deployment
   installModes:

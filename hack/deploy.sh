@@ -30,9 +30,6 @@ metadata:
   name: openshift-performance-addon-operatorgroup
   namespace: openshift-performance-addon
 spec:
-  serviceAccount:
-    metadata:
-      creationTimestamp: null
   targetNamespaces:
   - openshift-performance-addon
 EOF
