@@ -52,7 +52,6 @@ const (
 )
 
 const (
-	environmentRTRepoURL       = "RT_REPO_URL"
 	environmentNonIsolatedCpus = "NON_ISOLATED_CPUS"
 )
 
@@ -73,7 +72,7 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 		Spec: machineconfigv1.MachineConfigSpec{},
 	}
 
-	ignitionConfig, err := getIgnitionConfig(assetsDir, *profile.Spec.RealTimeKernel.RepoURL, profile.Spec.CPU.NonIsolated)
+	ignitionConfig, err := getIgnitionConfig(assetsDir, profile)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +117,8 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 	return kargs
 }
 
-func getIgnitionConfig(assetsDir string, rtRepoURL string, nonIsolatedCpus *performancev1alpha1.CPUSet) (*igntypes.Config, error) {
+func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*igntypes.Config, error) {
+
 	mode := 0700
 	ignitionConfig := &igntypes.Config{
 		Ignition: igntypes.Ignition{
@@ -149,11 +149,12 @@ func getIgnitionConfig(assetsDir string, rtRepoURL string, nonIsolatedCpus *perf
 		})
 	}
 
-	rtKernelService, err := getSystemdContent(getRTKernelUnitOptions(rtRepoURL))
+	rtKernelService, err := getSystemdContent(getRTKernelUnitOptions())
 	if err != nil {
 		return nil, err
 	}
 
+	nonIsolatedCpus := profile.Spec.CPU.NonIsolated
 	preBootTuningService, err := getSystemdContent(
 		getPreBootTuningUnitOptions(string(*nonIsolatedCpus)),
 	)
@@ -166,11 +167,15 @@ func getIgnitionConfig(assetsDir string, rtRepoURL string, nonIsolatedCpus *perf
 		return nil, err
 	}
 
+	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
+		profile.Spec.RealTimeKernel.Enabled != nil &&
+		*profile.Spec.RealTimeKernel.Enabled
+
 	ignitionConfig.Systemd = igntypes.Systemd{
 		Units: []igntypes.Unit{
 			{
 				Contents: rtKernelService,
-				Enabled:  pointer.BoolPtr(true),
+				Enabled:  &enableRTKernel,
 				Name:     getSystemdService(rtKernel),
 			},
 			{
@@ -209,7 +214,7 @@ func getSystemdContent(options []*unit.UnitOption) (string, error) {
 	return string(outBytes), nil
 }
 
-func getRTKernelUnitOptions(rtRepoURL string) []*unit.UnitOption {
+func getRTKernelUnitOptions() []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
@@ -222,8 +227,6 @@ func getRTKernelUnitOptions(rtRepoURL string) []*unit.UnitOption {
 		unit.NewUnitOption(systemdSectionUnit, systemdBefore, systemdServiceKubelet),
 		unit.NewUnitOption(systemdSectionUnit, systemdBefore, getSystemdService(preBootTuning)),
 		// [Service]
-		// Environment
-		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentRTRepoURL, rtRepoURL)),
 		// Type
 		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
 		// RemainAfterExit
@@ -264,7 +267,7 @@ func getPreBootTuningUnitOptions(nonIsolatedCpus string) []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
-		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Reboot initiated by rt-kernel and pre-boot-tuning"),
+		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Preboot tuning patch"),
 		// Wants
 		unit.NewUnitOption(systemdSectionUnit, systemdWants, getSystemdService(rtKernel)),
 		// After

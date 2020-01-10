@@ -54,7 +54,7 @@ OPERATOR_DEV_CSV="0.0.1"
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 
-build: gofmt golint
+build: gofmt golint govet
 	@echo "Building operator binary"
 	mkdir -p build/_output/bin
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/performance-addon-operators ./cmd/manager
@@ -111,6 +111,10 @@ deploy: cluster-deploy
 cluster-deploy: kustomize
 	@echo "Deploying operator"
 	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) KUSTOMIZE=$(KUSTOMIZE) hack/deploy.sh
+
+cluster-label-worker-rt:
+	@echo "Adding worker-rt label to worker nodes"
+	hack/label-worker-rt.sh
 
 cluster-clean:
 	@echo "Deleting operator"

@@ -17,8 +17,6 @@ const (
 	NonIsolateCPUs = performancev1alpha1.CPUSet("2-3")
 	// ReservedCPUs defines the reserved CPU set used for tests
 	ReservedCPUs = performancev1alpha1.CPUSet("0-3")
-	// RepoURL defines the real-time kernel repository URL used for tests
-	RepoURL = "https://test.test"
 )
 
 // NewPerformanceProfile returns new performance profile object that used for tests
@@ -50,7 +48,7 @@ func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile 
 				},
 			},
 			RealTimeKernel: &performancev1alpha1.RealTimeKernel{
-				RepoURL: pointer.StringPtr(RepoURL),
+				Enabled: pointer.BoolPtr(true),
 			},
 			NodeSelector: map[string]string{
 				"test": "test",
