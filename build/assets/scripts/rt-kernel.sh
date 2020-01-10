@@ -3,10 +3,23 @@
 ######################################################################################
 ## NOTE:                                                                            ##
 ## THIS IS A TEMPORARY WORKAROUND UNTIL THIS FEATURE IS AVAILABLE VIA MACHINECONFIG ##
-## IT ONLY WORKS WITH RT KERNEL VERSION 4.*                                         ##
+## SEE MCO WIP PR: https://github.com/openshift/machine-config-operator/pull/1330   ##
+## IT ONLY WORKS ON OCP 4.4 AND WITH KERNEL VERSIONS 4.*                            ##
 ######################################################################################
 
 set -euo pipefail
+
+# What we are doing here:
+#
+# - The installer's bootstrap node installs an "old" os bootimage on cluster nodes, which is just new enough to be able
+#     to do everything which is needed on first boot
+# - Then the MCO installs a newer version of the os ("early pivot"). That one is delivered via container image. See the
+#     "machine-os-content" image of OCP
+# - With RHCOS version 44 (so OCP 4.4, what the operator is aiming at) the image contains the RT kernel RPMs. They were
+#     just put into the root directory of the image
+# - So what we do here (borrowed from MCO code): mount the image (which is not possible directly, so create (but don't
+#     run) a container from it) which contains the os version which is currently booted, and install the RPMs from the
+#     mount path.
 
 echo "Mounting OS image"
 
