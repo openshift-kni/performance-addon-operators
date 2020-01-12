@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -57,9 +59,20 @@ type RealTimeKernel struct {
 
 // PerformanceProfileStatus defines the observed state of PerformanceProfile.
 type PerformanceProfileStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+	// MachineCount represents the total number of machines targeted by the performance profile.
+	MachineCount int32 `json:"machineCount"`
+
+	// UpdatedMachineCount represents the total number of machines that updated with parameters from the performance profile
+	// and ready for action.
+	UpdatedMachineCount int32 `json:"updatedMachineCount"`
+
+	// UnavailableMachineCount represents the total number of unavailable (non-ready) machines targeted by performance profile.
+	// A node is marked unavailable if it is in updating state or NodeReady condition is false.
+	UnavailableMachineCount int32 `json:"unavailableMachineCount"`
+
+	// conditions represents the latest available observations of current state.
+	// +optional
+	Conditions []conditionsv1.Condition `json:"conditions,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
