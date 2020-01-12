@@ -158,6 +158,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			mcpNewCopy.Spec.Configuration = mcpOld.Spec.Configuration
 
 			return !reflect.DeepEqual(mcpOld.Spec, mcpNewCopy.Spec) ||
+				!reflect.DeepEqual(mcpOld.Status, mcpNewCopy.Status) ||
 				!apiequality.Semantic.DeepEqual(e.MetaNew.GetLabels(), e.MetaOld.GetLabels())
 		},
 	}
@@ -252,15 +253,6 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		}
 	}
 
-	// TODO: we need to check if all under performance profiles values != nil
-	// first we need to decide if each of values required and we should move the check into validation webhook
-	// for now let's assume that all parameters needed for assets scrips are required
-	if err := r.validatePerformanceProfileParameters(instance); err != nil {
-		// we do not want to reconcile again in case of error, because a user will need to update the PerformanceProfile anyway
-		klog.Errorf("failed to reconcile: %v", err)
-		return reconcile.Result{}, nil
-	}
-
 	// add finalizer
 	if !hasFinalizer(instance, finalizer) {
 		instance.Finalizers = append(instance.Finalizers, finalizer)
@@ -272,14 +264,41 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
+	// TODO: we need to check if all under performance profiles values != nil
+	// first we need to decide if each of values required and we should move the check into validation webhook
+	// for now let's assume that all parameters needed for assets scrips are required
+	if err := r.validatePerformanceProfileParameters(instance); err != nil {
+		klog.Errorf("failed to reconcile: %v", err)
+		conditions := r.getDegradedConditions(conditionReasonValidationFailed, err.Error())
+		if err := r.updateStatus(instance, conditions); err != nil {
+			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+			return reconcile.Result{}, err
+		}
+		// we do not want to reconcile again in case of error, because a user will need to update the PerformanceProfile anyway
+		return reconcile.Result{}, nil
+	}
+
 	// apply components
 	result, err := r.applyComponents(instance)
 	if err != nil {
-		klog.Errorf("failed to deploy components: %v", err)
+		klog.Errorf("failed to deploy performance profile %q components: %v", instance.Name, err)
+		conditions := r.getDegradedConditions(conditionReasonComponentsCreationFailed, err.Error())
+		if err := r.updateStatus(instance, conditions); err != nil {
+			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+			return reconcile.Result{}, err
+		}
 		return reconcile.Result{}, err
 	}
 
-	// TODO: we need to update the status
+	if err := r.updateStatus(instance, nil); err != nil {
+		klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+		// we still want to requeue after some, also in case of error, to avoid chance of multiple reboots
+		if result != nil {
+			return *result, nil
+		}
+
+		return reconcile.Result{}, err
+	}
 
 	if result != nil {
 		return *result, nil
