@@ -9,6 +9,7 @@ rules:
   resources:
   - performanceprofiles
   - performanceprofiles/finalizers
+  - performanceprofiles/status
   verbs:
   - '*'
 - apiGroups:

@@ -57,6 +57,7 @@ spec:
           resources:
           - performanceprofiles
           - performanceprofiles/finalizers
+          - performanceprofiles/status
           verbs:
           - '*'
         - apiGroups:
