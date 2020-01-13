@@ -166,6 +166,8 @@ github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1
 github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned
 # github.com/openshift/custom-resource-status v0.0.0-20190822192428-e62f2f3b79f3
 github.com/openshift/custom-resource-status/conditions/v1
+github.com/openshift/cluster-node-tuning-operator/pkg/generated/clientset/versioned/scheme
+github.com/openshift/cluster-node-tuning-operator/pkg/generated/clientset/versioned/typed/tuned/v1
 # github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible => github.com/openshift/machine-config-operator v0.0.0-20191220033234-347a7a09e869
 github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1
 github.com/openshift/machine-config-operator/pkg/generated/clientset/versioned/typed/machineconfiguration.openshift.io/v1
