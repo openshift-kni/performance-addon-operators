@@ -5,13 +5,10 @@ import (
 	"time"
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/featuregate"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
-
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
-
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
-
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfigpool"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,8 +17,10 @@ import (
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -69,7 +68,7 @@ var _ = Describe("Controller", func() {
 			profile.Finalizers = append(profile.Finalizers, finalizer)
 		})
 
-		It("should verify scripts required parameters", func() {
+		It("should validate scripts required parameters", func() {
 			profile.Spec.CPU.Isolated = nil
 			r := newFakeReconciler(profile)
 
@@ -79,12 +78,23 @@ var _ = Describe("Controller", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(reconcile.Result{}))
 
-			// verify that no components created by the controller
-			mcp := &mcov1.MachineConfigPool{}
+			updatedProfile := &performancev1alpha1.PerformanceProfile{}
 			key := types.NamespacedName{
-				Name:      components.GetComponentName(profile.Name, components.RoleWorkerPerformance),
+				Name:      profile.Name,
 				Namespace: metav1.NamespaceNone,
 			}
+			Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+
+			// verify profile conditions
+			degradeCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionDegraded)
+			Expect(degradeCondition).ToNot(BeNil())
+			Expect(degradeCondition.Status).To(Equal(corev1.ConditionTrue))
+			Expect(degradeCondition.Reason).To(Equal(conditionReasonValidationFailed))
+			Expect(degradeCondition.Message).To(Equal("you should provide isolated CPU set"))
+
+			// verify that no components created by the controller
+			mcp := &mcov1.MachineConfigPool{}
+			key.Name = components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
 			err = r.client.Get(context.TODO(), key, mcp)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 		})
@@ -254,6 +264,47 @@ var _ = Describe("Controller", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
 			})
+
+			It("should update the profile status", func() {
+				now := time.Now()
+
+				// update machine-config-pool status
+				mcp.Status.MachineCount = 5
+				mcp.Status.UpdatedMachineCount = 3
+				mcp.Status.UnavailableMachineCount = 2
+				mcp.Status.Conditions = []mcov1.MachineConfigPoolCondition{
+					*createMachineConfigPoolCondition(mcov1.MachineConfigPoolUpdated, corev1.ConditionFalse, &now),
+					*createMachineConfigPoolCondition(mcov1.MachineConfigPoolUpdating, corev1.ConditionTrue, &now),
+					*createMachineConfigPoolCondition(mcov1.MachineConfigPoolDegraded, corev1.ConditionFalse, &now),
+					*createMachineConfigPoolCondition(mcov1.MachineConfigPoolNodeDegraded, corev1.ConditionFalse, &now),
+					*createMachineConfigPoolCondition(mcov1.MachineConfigPoolRenderDegraded, corev1.ConditionFalse, &now),
+				}
+
+				r := newFakeReconciler(profile, mcp)
+				result, err := r.Reconcile(request)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+				updatedProfile := &performancev1alpha1.PerformanceProfile{}
+				key := types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: metav1.NamespaceNone,
+				}
+				Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+
+				// verify performance profile status
+				Expect(updatedProfile.Status.MachineCount).To(Equal(int32(5)))
+				Expect(updatedProfile.Status.UpdatedMachineCount).To(Equal(int32(3)))
+				Expect(updatedProfile.Status.UnavailableMachineCount).To(Equal(int32(2)))
+				Expect(len(updatedProfile.Status.Conditions)).To(Equal(4))
+
+				// verify profile conditions
+				progressingCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionProgressing)
+				Expect(progressingCondition).ToNot(BeNil())
+				Expect(progressingCondition.Status).To(Equal(corev1.ConditionTrue))
+				Expect(progressingCondition.Reason).To(Equal("test"))
+				Expect(progressingCondition.Message).To(Equal("test"))
+			})
 		})
 	})
 
@@ -288,7 +339,6 @@ var _ = Describe("Controller", func() {
 		})
 
 		It("should remove all components and remove the finalizer on second reconcile loop", func() {
-
 			mcp := machineconfigpool.New(profile)
 
 			mc, err := machineconfig.New(assetsDir, profile)
@@ -368,5 +418,19 @@ func newFakeReconciler(initObjects ...runtime.Object) *ReconcilePerformanceProfi
 		client:    fakeClient,
 		scheme:    scheme.Scheme,
 		assetsDir: assetsDir,
+	}
+}
+
+func createMachineConfigPoolCondition(
+	conditionType mcov1.MachineConfigPoolConditionType,
+	conditionStatus corev1.ConditionStatus,
+	timestamp *time.Time,
+) *mcov1.MachineConfigPoolCondition {
+	return &mcov1.MachineConfigPoolCondition{
+		LastTransitionTime: metav1.Time{Time: *timestamp},
+		Message:            "test",
+		Reason:             "test",
+		Status:             conditionStatus,
+		Type:               conditionType,
 	}
 }
