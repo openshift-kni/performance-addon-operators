@@ -92,6 +92,57 @@ spec:
           type: object
         status:
           description: PerformanceProfileStatus defines the observed state of PerformanceProfile.
+          properties:
+            conditions:
+              description: conditions represents the latest available observations
+                of current state.
+              items:
+                description: Condition represents the state of the operator's reconciliation
+                  functionality.
+                properties:
+                  lastHeartbeatTime:
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    description: ConditionType is the state of the operator's reconciliation
+                      functionality.
+                    type: string
+                required:
+                - status
+                - type
+                type: object
+              type: array
+            machineCount:
+              description: MachineCount represents the total number of machines targeted
+                by the performance profile.
+              format: int32
+              type: integer
+            unavailableMachineCount:
+              description: UnavailableMachineCount represents the total number of
+                unavailable (non-ready) machines targeted by performance profile.
+                A node is marked unavailable if it is in updating state or NodeReady
+                condition is false.
+              format: int32
+              type: integer
+            updatedMachineCount:
+              description: UpdatedMachineCount represents the total number of machines
+                that updated with parameters from the performance profile and ready
+                for action.
+              format: int32
+              type: integer
+          required:
+          - machineCount
+          - unavailableMachineCount
+          - updatedMachineCount
           type: object
       type: object
   version: v1alpha1
