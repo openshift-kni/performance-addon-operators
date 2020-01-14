@@ -13,6 +13,7 @@ require (
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-00010101000000-000000000000
+	github.com/openshift/custom-resource-status v0.0.0-20190822192428-e62f2f3b79f3
 	github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible
 	github.com/operator-framework/operator-sdk v0.13.0
 	github.com/spf13/pflag v1.0.5
