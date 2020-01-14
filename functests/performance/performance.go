@@ -68,7 +68,7 @@ var _ = Describe("performance", func() {
 			fg, err := testclient.Client.FeatureGates().Get(components.FeatureGateLatencySensetiveName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			lsStr := string(ocv1.LatencySensitive)
-			By("Checking whether FetureSet is configured as " + lsStr)
+			By("Checking whether FeatureSet is configured as " + lsStr)
 			Expect(string(fg.Spec.FeatureSet)).Should(Equal(lsStr), "FeauterSet is not set to "+lsStr)
 		})
 	})
@@ -98,10 +98,7 @@ var _ = Describe("performance", func() {
 	Context("Network latency parameters adjusted by the Node Tuning Operator", func() {
 		It("Should contain configuration injected through the openshift-node-network-latency profile", func() {
 			sysctlMap := map[string]string{
-				"net.core.busy_read":              "50",
-				"net.core.busy_poll":              "50",
 				"net.ipv4.tcp_fastopen":           "3",
-				"kernel.numa_balancing":           "0",
 				"kernel.sched_min_granularity_ns": "10000000",
 				"vm.dirty_ratio":                  "10",
 				"vm.dirty_background_ratio":       "3",
