@@ -3,5 +3,9 @@ kind: PerformanceProfile
 metadata:
   name: ci
 spec:
+  machineConfigLabels:
+    machineconfiguration.openshift.io/role: worker-rt
+  machineConfigPoolSelector:
+    machineconfiguration.openshift.io/role: worker-rt
   nodeSelector:
     node-role.kubernetes.io/worker-rt: ""

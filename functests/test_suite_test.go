@@ -52,7 +52,7 @@ var _ = BeforeSuite(func() {
 	_, err := testclient.Client.Namespaces().Create(ns)
 	Expect(err).ToNot(HaveOccurred())
 
-	// lable one of workers nodes with worker RT label
+	// label one of workers nodes with worker RT label
 	workerNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorker)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(workerNodes).ToNot(BeEmpty())

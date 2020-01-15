@@ -1,0 +1,13 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: performance-addon-operator-catalogsource
+  namespace: openshift-marketplace
+spec:
+  displayName: Openshift Performance Addon Operator
+  icon:
+    base64data: ""
+    mediatype: ""
+  image: ${FULL_REGISTRY_IMAGE}
+  publisher: Red Hat
+  sourceType: grpc

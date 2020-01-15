@@ -1,6 +1,3 @@
-
-export FEATURES?=mcp performance sctp
-
 .PHONY: build \
 	deps-update \
 	functests \
