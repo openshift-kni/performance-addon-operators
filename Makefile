@@ -155,10 +155,6 @@ verify-generate: generate
 
 ci-job: gofmt golint govet verify-generate build unittests
 
-test-cluster-setup:
-	@echo "Setting up the test cluster"
-	hack/setup_test_cluster.sh
-
 kustomize:
 	@if [ ! -x "$(KUSTOMIZE)" ]; then\
 		echo "Downloading kustomize $(KUSTOMIZE_VERSION)";\
