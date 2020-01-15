@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 )
 
@@ -102,7 +101,9 @@ var _ = Describe("Machine Config", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		manifest := string(y)
-		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", components.LabelMachineConfigurationRole, components.RoleWorkerPerformance)))
+
+		labelKey, labelValue := testutils.GetFirstKeyAndValue(profile.Spec.MachineConfigLabels)
+		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
 		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
 		Expect(manifest).To(ContainSubstring(expectedBootArguments))
 	})

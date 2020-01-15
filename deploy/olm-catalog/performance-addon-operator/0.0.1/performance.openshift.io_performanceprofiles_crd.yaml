@@ -74,11 +74,27 @@ spec:
                     type: object
                   type: array
               type: object
+            machineConfigLabels:
+              additionalProperties:
+                type: string
+              description: MachineConfigLabels defines the labels to add to the MachineConfigs
+                the operator creates. They have to be used as MachineConfigSelector
+                in the MachineConfigPool which targets this performance profile.
+              type: object
+            machineConfigPoolSelector:
+              additionalProperties:
+                type: string
+              description: MachineConfigPoolSelector defines the MachineConfigPool
+                labels to use in the MachineConfigPoolSelector of resources like KubeletConfigs
+                created by the operator.
+              type: object
             nodeSelector:
               additionalProperties:
                 type: string
-              description: NodeSelector is a selector which must be true for the performance
-                profile to fit on a node.
+              description: NodeSelector defines the Node labels to use in the NodeSelectors
+                of resources like Tuned created by the operator. They most likely
+                should, but do not need to match the node labels in the NodeSelector
+                of the MachineConfigPool which targets this performance profile.
               type: object
             realTimeKernel:
               description: RealTimeKernel defines set of real time kernel related
@@ -97,60 +113,30 @@ spec:
               description: conditions represents the latest available observations
                 of current state.
               items:
-                description: PerformanceProfileCondition contains condition information
-                  for an PerformanceProfile.
+                description: Condition represents the state of the operator's reconciliation
+                  functionality.
                 properties:
+                  lastHeartbeatTime:
+                    format: date-time
+                    type: string
                   lastTransitionTime:
-                    description: LastTransitionTime is the timestamp corresponding
-                      to the last status change of this condition.
                     format: date-time
                     type: string
                   message:
-                    description: Message is a human readable description of the details
-                      of the last transition, complementing reason.
                     type: string
                   reason:
-                    description: Reason is a brief machine readable explanation for
-                      the condition's last transition.
                     type: string
                   status:
-                    description: Status of the condition, one of ('True', 'False',
-                      'Unknown').
                     type: string
                   type:
-                    description: Type of the condition, currently ('Done', 'Updating',
-                      'Failed').
+                    description: ConditionType is the state of the operator's reconciliation
+                      functionality.
                     type: string
                 required:
-                - lastTransitionTime
-                - message
-                - reason
                 - status
                 - type
                 type: object
               type: array
-            machineCount:
-              description: MachineCount represents the total number of machines targeted
-                by the performance profile.
-              format: int32
-              type: integer
-            unavailableMachineCount:
-              description: UnavailableMachineCount represents the total number of
-                unavailable (non-ready) machines targeted by performance profile.
-                A node is marked unavailable if it is in updating state or NodeReady
-                condition is false.
-              format: int32
-              type: integer
-            updatedMachineCount:
-              description: UpdatedMachineCount represents the total number of machines
-                that updated with parameters from the performance profile and ready
-                for action.
-              format: int32
-              type: integer
-          required:
-          - machineCount
-          - unavailableMachineCount
-          - updatedMachineCount
           type: object
       type: object
   version: v1alpha1

@@ -50,9 +50,25 @@ func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile 
 			RealTimeKernel: &performancev1alpha1.RealTimeKernel{
 				Enabled: pointer.BoolPtr(true),
 			},
+			MachineConfigLabels: map[string]string{
+				"mclKey": "mclValue",
+			},
+			MachineConfigPoolSelector: map[string]string{
+				"mcpkey": "mcpValue",
+			},
 			NodeSelector: map[string]string{
-				"test": "test",
+				"nodekey": "nodeValue",
 			},
 		},
 	}
+}
+
+// GetFirstKeyAndValue return the first key / value pair of a map
+func GetFirstKeyAndValue(m map[string]string) (key, value string) {
+	for k, v := range m {
+		key = k
+		value = v
+		break
+	}
+	return
 }

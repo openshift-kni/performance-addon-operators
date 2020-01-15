@@ -57,17 +57,15 @@ const (
 
 // New returns new machine configuration object for performance sensetive workflows
 func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.MachineConfig, error) {
-	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	mc := &machineconfigv1.MachineConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: machineconfigv1.GroupVersion.String(),
 			Kind:       "MachineConfig",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				components.LabelMachineConfigurationRole: name,
-			},
+			Name:   name,
+			Labels: profile.Spec.MachineConfigLabels,
 		},
 		Spec: machineconfigv1.MachineConfigSpec{},
 	}

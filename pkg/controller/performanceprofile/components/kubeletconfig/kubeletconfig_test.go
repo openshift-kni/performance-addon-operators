@@ -6,7 +6,6 @@ import (
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 )
 
@@ -20,7 +19,9 @@ var _ = Describe("Kubelet Config", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		manifest := string(y)
-		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", components.LabelMachineConfigPoolRole, components.RoleWorkerPerformance)))
+
+		selectorKey, selectorValue := testutils.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
+		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", selectorKey, selectorValue)))
 		Expect(manifest).To(ContainSubstring("reservedSystemCPUs: 0-3"))
 		Expect(manifest).To(ContainSubstring("topologyManagerPolicy: best-effort"))
 		Expect(manifest).To(ContainSubstring("cpuManagerPolicy: static"))

@@ -24,7 +24,7 @@ const (
 
 // New returns new KubeletConfig object for performance sensetive workflows
 func New(profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.KubeletConfig, error) {
-	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	kubeletConfig := &kubeletconfigv1beta1.KubeletConfiguration{
 		CPUManagerPolicy:          cpuManagerPolicyStatic,
 		CPUManagerReconcilePeriod: metav1.Duration{Duration: 5 * time.Second},
@@ -58,9 +58,7 @@ func New(profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.Kube
 		},
 		Spec: machineconfigv1.KubeletConfigSpec{
 			MachineConfigPoolSelector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					components.LabelMachineConfigPoolRole: name,
-				},
+				MatchLabels: profile.Spec.MachineConfigPoolSelector,
 			},
 			KubeletConfig: &runtime.RawExtension{
 				Raw: raw,
