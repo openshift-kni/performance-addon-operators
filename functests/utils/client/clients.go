@@ -5,8 +5,8 @@ import (
 
 	"github.com/golang/glog"
 	clientconfigv1 "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
+	tunedClient "github.com/openshift/cluster-node-tuning-operator/pkg/generated/clientset/versioned/typed/tuned/v1"
 	clientmachineconfigv1 "github.com/openshift/machine-config-operator/pkg/generated/clientset/versioned/typed/machineconfiguration.openshift.io/v1"
-
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -24,6 +24,7 @@ type ClientSet struct {
 	corev1client.CoreV1Interface
 	clientconfigv1.ConfigV1Interface
 	clientmachineconfigv1.MachineconfigurationV1Interface
+	tunedClient.TunedV1Interface
 }
 
 // New returns a *ClientBuilder with the given kubeconfig.
@@ -50,6 +51,7 @@ func New(kubeconfig string) *ClientSet {
 	clientSet.CoreV1Interface = corev1client.NewForConfigOrDie(config)
 	clientSet.ConfigV1Interface = clientconfigv1.NewForConfigOrDie(config)
 	clientSet.MachineconfigurationV1Interface = clientmachineconfigv1.NewForConfigOrDie(config)
+	clientSet.TunedV1Interface = tunedClient.NewForConfigOrDie(config)
 
 	return clientSet
 }
