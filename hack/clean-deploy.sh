@@ -12,10 +12,10 @@ $OC_TOOL delete -f - <<EOF
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
-  name: performance-addon-operators-catalogsource
+  name: performance-addon-operator-catalogsource
   namespace: openshift-marketplace
 spec:
-  displayName: Openshift Performance Addon Operators
+  displayName: Openshift Performance Addon Operator
   icon:
     base64data: ""
     mediatype: ""

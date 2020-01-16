@@ -80,14 +80,14 @@ Verify the install by checking the csv is posted.
 
 ```
 $ oc get csv --all-namespaces | grep performance-addon
-openshift-performance-addon            performance-addon-operators.v0.0.1   Performance Addon Operators   0.0.1                InstallReady
+openshift-performance-addon            performance-addon-operator.v0.0.1   Performance Addon Operator   0.0.1                InstallReady
 ```
 
 That the catalog container is online.
 
 ```
 $ oc get pods --all-namespaces | grep performance
-openshift-marketplace            performance-addon-operators-catalogsource-87bjk    1/1     Running   0     2m
+openshift-marketplace            performance-addon-operator-catalogsource-87bjk     1/1     Running   0     2m
 openshift-performance-addon      performance-operator-6ff4977f8b-ljk42              1/1     Running   0    19s
 ```
 

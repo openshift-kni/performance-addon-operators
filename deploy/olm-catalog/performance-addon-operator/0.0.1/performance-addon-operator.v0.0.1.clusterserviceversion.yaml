@@ -35,7 +35,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-  name: performance-addon-operators.v0.0.1
+  name: performance-addon-operator.v0.0.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -47,7 +47,7 @@ spec:
       version: v1alpha1
       displayName: placeholder
   description: Placeholder description
-  displayName: Performance Addon Operators
+  displayName: Performance Addon Operator
   install:
     spec:
       clusterPermissions:

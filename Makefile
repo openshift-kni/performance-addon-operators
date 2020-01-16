@@ -43,8 +43,8 @@ OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
-REGISTRY_IMAGE_NAME="performance-addon-operators-registry"
-OPERATOR_IMAGE_NAME="performance-addon-operators"
+REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
+OPERATOR_IMAGE_NAME="performance-addon-operator"
 
 FULL_OPERATOR_IMAGE="$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
 FULL_REGISTRY_IMAGE="${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
@@ -64,7 +64,7 @@ dist:
 build-containers: registry-container operator-container
 
 operator-container: build
-	@echo "Building the performance-addon-operators image"
+	@echo "Building the performance-addon-operator image"
 	@if [ -z "$(REGISTRY_NAMESPACE)" ]; then\
 		echo "REGISTRY_NAMESPACE env-var must be set to your $(IMAGE_REGISTRY) namespace";\
 		exit 1;\
@@ -72,7 +72,7 @@ operator-container: build
 	$(IMAGE_BUILD_CMD) build --no-cache -f build/Dockerfile -t $(FULL_OPERATOR_IMAGE) build/
 
 registry-container: generate-latest-dev-csv
-	@echo "Building the performance-addon-operatorsregistry image"
+	@echo "Building the performance-addon-operator registry image"
 	$(IMAGE_BUILD_CMD) build --no-cache -t "$(FULL_REGISTRY_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)" -f deploy/Dockerfile .
 
 push-containers:
@@ -92,16 +92,16 @@ operator-sdk:
 generate-latest-dev-csv: operator-sdk
 	@echo Generating developer csv
 	@echo
-	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) olm-catalog gen-csv --csv-version=$(OPERATOR_DEV_CSV)
+	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) olm-catalog gen-csv --operator-name="performance-addon-operator" --csv-version=$(OPERATOR_DEV_CSV)
 	# removing replaces field which breaks CSV validation
-	sed -i 's/replaces\:.*//g' deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/performance-addon-operators.v0.0.1.clusterserviceversion.yaml
+	sed -i 's/replaces\:.*//g' deploy/olm-catalog/performance-addon-operator/$(OPERATOR_DEV_CSV)/performance-addon-operator.v0.0.1.clusterserviceversion.yaml
 	# adding temporariy required displayName field
-	sed -i '/version\: v1alpha1/a displayName\: placeholder' deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/performance-addon-operators.v0.0.1.clusterserviceversion.yaml
-	sed -i 's/^displayName\: placeholder/      displayName\: placeholder/g' deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/performance-addon-operators.v0.0.1.clusterserviceversion.yaml
+	sed -i '/version\: v1alpha1/a displayName\: placeholder' deploy/olm-catalog/performance-addon-operator/$(OPERATOR_DEV_CSV)/performance-addon-operator.v0.0.1.clusterserviceversion.yaml
+	sed -i 's/^displayName\: placeholder/      displayName\: placeholder/g' deploy/olm-catalog/performance-addon-operator/$(OPERATOR_DEV_CSV)/performance-addon-operator.v0.0.1.clusterserviceversion.yaml
 
 	@echo
 	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate crds
-	cp deploy/crds/*crd.yaml deploy/olm-catalog/performance-addon-operators/$(OPERATOR_DEV_CSV)/
+	cp deploy/crds/*crd.yaml deploy/olm-catalog/performance-addon-operator/$(OPERATOR_DEV_CSV)/
 
 deps-update:
 	go mod tidy && \
