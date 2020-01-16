@@ -115,11 +115,15 @@ cluster-label-worker-rt:
 	@echo "Adding worker-rt label to worker nodes"
 	hack/label-worker-rt.sh
 
+cluster-wait-for-mcp:
+	@echo "Waiting for MCP to be updated"
+	hack/wait-for-mcp.sh
+
 cluster-clean:
 	@echo "Deleting operator"
 	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/clean-deploy.sh
 
-functests:
+functests: cluster-label-worker-rt cluster-wait-for-mcp
 	@echo "Running Functional Tests"
 	hack/run-functests.sh
 

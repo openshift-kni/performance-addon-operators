@@ -2,7 +2,6 @@ package performanceprofile
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/featuregate"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
@@ -253,7 +253,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	// TODO: we need to check if all under performance profiles values != nil
 	// first we need to decide if each of values required and we should move the check into validation webhook
 	// for now let's assume that all parameters needed for assets scrips are required
-	if err := r.validatePerformanceProfileParameters(instance); err != nil {
+	if err := profile.ValidateParameters(*instance); err != nil {
 		klog.Errorf("failed to reconcile: %v", err)
 		r.recorder.Eventf(instance, corev1.EventTypeWarning, "Validation failed", "Profile validation failed: %v", err)
 		conditions := r.getDegradedConditions(conditionReasonValidationFailed, err.Error())
@@ -409,33 +409,6 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 
 	r.recorder.Eventf(profile, corev1.EventTypeNormal, "Creation succeeded", "Succeeded to create all components")
 	return &reconcile.Result{}, nil
-}
-
-func (r *ReconcilePerformanceProfile) validatePerformanceProfileParameters(performanceProfile *performancev1alpha1.PerformanceProfile) error {
-	if performanceProfile.Spec.CPU == nil {
-		return fmt.Errorf("you should provide CPU section")
-	}
-
-	if performanceProfile.Spec.CPU.Isolated == nil {
-		return fmt.Errorf("you should provide isolated CPU set")
-	}
-
-	if performanceProfile.Spec.CPU.NonIsolated == nil {
-		return fmt.Errorf("you should provide non isolated CPU set")
-	}
-
-	if performanceProfile.Spec.MachineConfigLabels == nil {
-		return fmt.Errorf("you should provide MachineConfigLabels")
-	}
-
-	if performanceProfile.Spec.MachineConfigPoolSelector == nil {
-		return fmt.Errorf("you should provide MachineConfigPoolSelector")
-	}
-
-	if performanceProfile.Spec.NodeSelector == nil {
-		return fmt.Errorf("you should provide NodeSelector")
-	}
-	return nil
 }
 
 func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alpha1.PerformanceProfile) error {

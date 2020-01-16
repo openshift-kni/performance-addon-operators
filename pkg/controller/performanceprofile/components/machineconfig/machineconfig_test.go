@@ -6,7 +6,9 @@ import (
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 )
 
@@ -102,7 +104,7 @@ var _ = Describe("Machine Config", func() {
 
 		manifest := string(y)
 
-		labelKey, labelValue := testutils.GetFirstKeyAndValue(profile.Spec.MachineConfigLabels)
+		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
 		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
 		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
 		Expect(manifest).To(ContainSubstring(expectedBootArguments))

@@ -12,14 +12,18 @@ type PerformanceProfileSpec struct {
 	CPU *CPU `json:"cpu,omitempty"`
 	// HugePages defines set of huge pages related parameters.
 	HugePages *HugePages `json:"hugepages,omitempty"`
-	// MachineConfigLabels defines the labels to add to the MachineConfigs the operator creates. They have to be
-	// used as MachineConfigSelector in the MachineConfigPool which targets this performance profile.
-	MachineConfigLabels map[string]string `json:"machineConfigLabels,omitempty"`
-	// MachineConfigPoolSelector defines the MachineConfigPool labels to use in the MachineConfigPoolSelector
+	// MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be
+	// used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile.
+	// Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+	// +optional
+	MachineConfigLabel map[string]string `json:"machineConfigLabel,omitempty"`
+	// MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector
 	// of resources like KubeletConfigs created by the operator.
+	// Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+	// +optional
 	MachineConfigPoolSelector map[string]string `json:"machineConfigPoolSelector,omitempty"`
-	// NodeSelector defines the Node labels to use in the NodeSelectors of resources like Tuned created by the operator.
-	// They most likely should, but do not need to match the node labels in the NodeSelector of the MachineConfigPool
+	// NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator.
+	// It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool
 	// which targets this performance profile.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// RealTimeKernel defines set of real time kernel related parameters.

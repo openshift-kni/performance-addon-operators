@@ -156,8 +156,8 @@ func (in *PerformanceProfileSpec) DeepCopyInto(out *PerformanceProfileSpec) {
 		*out = new(HugePages)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.MachineConfigLabels != nil {
-		in, out := &in.MachineConfigLabels, &out.MachineConfigLabels
+	if in.MachineConfigLabel != nil {
+		in, out := &in.MachineConfigLabel, &out.MachineConfigLabel
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val

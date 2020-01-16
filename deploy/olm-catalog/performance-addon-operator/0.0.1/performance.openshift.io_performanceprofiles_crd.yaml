@@ -74,27 +74,30 @@ spec:
                     type: object
                   type: array
               type: object
-            machineConfigLabels:
+            machineConfigLabel:
               additionalProperties:
                 type: string
-              description: MachineConfigLabels defines the labels to add to the MachineConfigs
-                the operator creates. They have to be used as MachineConfigSelector
-                in the MachineConfigPool which targets this performance profile.
+              description: MachineConfigLabel defines the label to add to the MachineConfigs
+                the operator creates. It has to be used in the MachineConfigSelector
+                of the MachineConfigPool which targets this performance profile. Defaults
+                to "machineconfiguration.openshift.io/role=<same role as in NodeSelector
+                label key>"
               type: object
             machineConfigPoolSelector:
               additionalProperties:
                 type: string
               description: MachineConfigPoolSelector defines the MachineConfigPool
-                labels to use in the MachineConfigPoolSelector of resources like KubeletConfigs
-                created by the operator.
+                label to use in the MachineConfigPoolSelector of resources like KubeletConfigs
+                created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same
+                role as in NodeSelector label key>"
               type: object
             nodeSelector:
               additionalProperties:
                 type: string
-              description: NodeSelector defines the Node labels to use in the NodeSelectors
-                of resources like Tuned created by the operator. They most likely
-                should, but do not need to match the node labels in the NodeSelector
-                of the MachineConfigPool which targets this performance profile.
+              description: NodeSelector defines the Node label to use in the NodeSelectors
+                of resources like Tuned created by the operator. It most likely should,
+                but does not have to match the node label in the NodeSelector of the
+                MachineConfigPool which targets this performance profile.
               type: object
             realTimeKernel:
               description: RealTimeKernel defines set of real time kernel related

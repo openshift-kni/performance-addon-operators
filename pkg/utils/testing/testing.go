@@ -17,6 +17,15 @@ const (
 	NonIsolateCPUs = performancev1alpha1.CPUSet("2-3")
 	// ReservedCPUs defines the reserved CPU set used for tests
 	ReservedCPUs = performancev1alpha1.CPUSet("0-3")
+
+	//MachineConfigLabelKey defines the MachineConfig label key of the test profile
+	MachineConfigLabelKey = "mcKey"
+	//MachineConfigLabelValue defines the MachineConfig label vlue of the test profile
+	MachineConfigLabelValue = "mcValue"
+	//MachineConfigPoolLabelKey defines the MachineConfigPool label key of the test profile
+	MachineConfigPoolLabelKey = "mcpKey"
+	//MachineConfigPoolLabelValue defines the MachineConfigPool label value of the test profile
+	MachineConfigPoolLabelValue = "mcpValue"
 )
 
 // NewPerformanceProfile returns new performance profile object that used for tests
@@ -50,25 +59,15 @@ func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile 
 			RealTimeKernel: &performancev1alpha1.RealTimeKernel{
 				Enabled: pointer.BoolPtr(true),
 			},
-			MachineConfigLabels: map[string]string{
-				"mclKey": "mclValue",
+			MachineConfigLabel: map[string]string{
+				MachineConfigLabelKey: MachineConfigLabelValue,
 			},
 			MachineConfigPoolSelector: map[string]string{
-				"mcpkey": "mcpValue",
+				MachineConfigPoolLabelKey: MachineConfigPoolLabelValue,
 			},
 			NodeSelector: map[string]string{
 				"nodekey": "nodeValue",
 			},
 		},
 	}
-}
-
-// GetFirstKeyAndValue return the first key / value pair of a map
-func GetFirstKeyAndValue(m map[string]string) (key, value string) {
-	for k, v := range m {
-		key = k
-		value = v
-		break
-	}
-	return
 }
