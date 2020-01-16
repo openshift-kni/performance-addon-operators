@@ -17,9 +17,11 @@ import (
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
+	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,6 +53,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcilePerformanceProfile{
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
+		recorder:  mgr.GetEventRecorderFor("performance-profile-controller"),
 		assetsDir: components.AssetsDir,
 	}
 }
@@ -184,6 +187,7 @@ type ReconcilePerformanceProfile struct {
 	// that reads objects from the cache and writes to the apiserver
 	client    client.Client
 	scheme    *runtime.Scheme
+	recorder  record.EventRecorder
 	assetsDir string
 }
 
@@ -223,6 +227,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 			// pause machine config pool
 			updated, err := r.pauseMachineConfigPool(mcp, true)
 			if err != nil {
+				r.recorder.Eventf(instance, corev1.EventTypeWarning, "Pause failed", "Failed to pause machine-config-pool %q: %v", mcp.Name, err)
 				return reconcile.Result{}, err
 			}
 
@@ -235,8 +240,10 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		// delete components
 		if err := r.deleteComponents(instance); err != nil {
 			klog.Errorf("failed to delete components: %v", err)
+			r.recorder.Eventf(instance, corev1.EventTypeWarning, "Deletion failed", "Failed to delete components: %v", err)
 			return reconcile.Result{}, err
 		}
+		r.recorder.Eventf(instance, corev1.EventTypeNormal, "Deletion succeeded", "Succeeded to delete all components")
 
 		if r.isComponentsExist(instance) {
 			return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
@@ -269,6 +276,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	// for now let's assume that all parameters needed for assets scrips are required
 	if err := r.validatePerformanceProfileParameters(instance); err != nil {
 		klog.Errorf("failed to reconcile: %v", err)
+		r.recorder.Eventf(instance, corev1.EventTypeWarning, "Validation failed", "Profile validation failed: %v", err)
 		conditions := r.getDegradedConditions(conditionReasonValidationFailed, err.Error())
 		if err := r.updateStatus(instance, conditions); err != nil {
 			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
@@ -282,6 +290,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	result, err := r.applyComponents(instance)
 	if err != nil {
 		klog.Errorf("failed to deploy performance profile %q components: %v", instance.Name, err)
+		r.recorder.Eventf(instance, corev1.EventTypeWarning, "Creation failed", "Failed to create all components: %v", err)
 		conditions := r.getDegradedConditions(conditionReasonComponentsCreationFailed, err.Error())
 		if err := r.updateStatus(instance, conditions); err != nil {
 			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
@@ -440,6 +449,7 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 		}
 	}
 
+	r.recorder.Eventf(profile, corev1.EventTypeNormal, "Creation succeeded", "Succeeded to create all components")
 	return &reconcile.Result{RequeueAfter: 10 * time.Second}, nil
 }
 

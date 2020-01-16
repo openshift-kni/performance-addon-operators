@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -91,6 +92,12 @@ var _ = Describe("Controller", func() {
 			Expect(degradeCondition.Status).To(Equal(corev1.ConditionTrue))
 			Expect(degradeCondition.Reason).To(Equal(conditionReasonValidationFailed))
 			Expect(degradeCondition.Message).To(Equal("you should provide isolated CPU set"))
+
+			// verify validation event
+			fakeRecorder, ok := r.recorder.(*record.FakeRecorder)
+			Expect(ok).To(BeTrue())
+			event := <-fakeRecorder.Events
+			Expect(event).To(ContainSubstring("Validation failed"))
 
 			// verify that no components created by the controller
 			mcp := &mcov1.MachineConfigPool{}
@@ -249,6 +256,12 @@ var _ = Describe("Controller", func() {
 			result, err = r.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(reconcile.Result{}))
+
+			// verify creation event
+			fakeRecorder, ok := r.recorder.(*record.FakeRecorder)
+			Expect(ok).To(BeTrue())
+			event := <-fakeRecorder.Events
+			Expect(event).To(ContainSubstring("Creation succeeded"))
 		})
 
 		Context("with existing MachineConfigPool", func() {
@@ -304,6 +317,49 @@ var _ = Describe("Controller", func() {
 				Expect(progressingCondition.Status).To(Equal(corev1.ConditionTrue))
 				Expect(progressingCondition.Reason).To(Equal("test"))
 				Expect(progressingCondition.Message).To(Equal("test"))
+			})
+
+			Context("when all components exist", func() {
+				var mc *mcov1.MachineConfig
+				var kc *mcov1.KubeletConfig
+				var fg *configv1.FeatureGate
+				var tunedRTKernel *tunedv1.Tuned
+				var tunedNetworkLatency *tunedv1.Tuned
+
+				BeforeEach(func() {
+					var err error
+					mc, err = machineconfig.New(assetsDir, profile)
+					Expect(err).ToNot(HaveOccurred())
+
+					kc, err = kubeletconfig.New(profile)
+					Expect(err).ToNot(HaveOccurred())
+
+					fg = featuregate.NewLatencySensitive()
+
+					tunedRTKernel, err = tuned.NewWorkerRealTimeKernel(assetsDir, profile)
+					Expect(err).ToNot(HaveOccurred())
+
+					tunedNetworkLatency, err = tuned.NewNetworkLatency(assetsDir)
+					Expect(err).ToNot(HaveOccurred())
+
+				})
+
+				It("should not record new create event", func() {
+					r := newFakeReconciler(profile, mcp, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+					result, err := r.Reconcile(request)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(result).To(Equal(reconcile.Result{}))
+
+					// verify that no creation event created
+					fakeRecorder, ok := r.recorder.(*record.FakeRecorder)
+					Expect(ok).To(BeTrue())
+
+					select {
+					case _ = <-fakeRecorder.Events:
+						Fail("the recorder should not have new events")
+					default:
+					}
+				})
 			})
 		})
 	})
@@ -414,9 +470,11 @@ var _ = Describe("Controller", func() {
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client
 func newFakeReconciler(initObjects ...runtime.Object) *ReconcilePerformanceProfile {
 	fakeClient := fake.NewFakeClient(initObjects...)
+	fakeRecorder := record.NewFakeRecorder(10)
 	return &ReconcilePerformanceProfile{
 		client:    fakeClient,
 		scheme:    scheme.Scheme,
+		recorder:  fakeRecorder,
 		assetsDir: assetsDir,
 	}
 }
