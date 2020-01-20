@@ -220,6 +220,55 @@ var _ = Describe("Controller", func() {
 
 		})
 
+		It("should create nothing when pause annotation is set", func() {
+			profile.Annotations = map[string]string{performancev1alpha1.PerformanceProfilePauseAnnotation: "true"}
+			r := newFakeReconciler(profile)
+
+			result, err := r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(reconcile.Result{}))
+
+			name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
+			key := types.NamespacedName{
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+			}
+
+			// verify MachineConfig wasn't created
+			mc := &mcov1.MachineConfig{}
+			err = r.client.Get(context.TODO(), key, mc)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+
+			// verify that KubeletConfig wasn't created
+			kc := &mcov1.KubeletConfig{}
+			err = r.client.Get(context.TODO(), key, kc)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+
+			// verify no machine config pool was created
+			mcp := &mcov1.MachineConfigPool{}
+			err = r.client.Get(context.TODO(), key, mcp)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+
+			// verify FeatureGate wasn't created
+			fg := &configv1.FeatureGate{}
+			key.Name = components.FeatureGateLatencySensetiveName
+			err = r.client.Get(context.TODO(), key, fg)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+
+			// verify tuned LatencySensitive wasn't created
+			tunedLatency := &tunedv1.Tuned{}
+			key.Name = components.ProfileNameNetworkLatency
+			key.Namespace = components.NamespaceNodeTuningOperator
+			err = r.client.Get(context.TODO(), key, tunedLatency)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+
+			// verify tuned tuned real-time kernel wasn't created
+			tunedRTKernel := &tunedv1.Tuned{}
+			key.Name = components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
+			err = r.client.Get(context.TODO(), key, tunedRTKernel)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+		})
+
 		Context("when all components exist", func() {
 			var mc *mcov1.MachineConfig
 			var kc *mcov1.KubeletConfig
