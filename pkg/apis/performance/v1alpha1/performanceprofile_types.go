@@ -6,6 +6,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// PerformanceProfilePauseAnnotation allows an admin to suspend the operator's
+// reconcile loop in order to perform manual changes to performance profile owned
+// objects.
+const PerformanceProfilePauseAnnotation = "performance.openshift.io/pause-reconcile"
+
 // PerformanceProfileSpec defines the desired state of PerformanceProfile.
 type PerformanceProfileSpec struct {
 	// CPU defines set of CPU related parameters.

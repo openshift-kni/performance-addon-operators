@@ -296,7 +296,27 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	return reconcile.Result{}, nil
 }
 
+func isPaused(profile *performancev1alpha1.PerformanceProfile) bool {
+
+	if profile.Annotations == nil {
+		return false
+	}
+
+	isPaused, ok := profile.Annotations[performancev1alpha1.PerformanceProfilePauseAnnotation]
+	if ok && isPaused == "true" {
+		return true
+	}
+
+	return false
+}
+
 func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alpha1.PerformanceProfile) (*reconcile.Result, error) {
+
+	if isPaused(profile) {
+		klog.Infof("Ignoring reconcile loop for pause performance profile %s", profile.Name)
+		return nil, nil
+	}
+
 	// get mutated machine config
 	mc, err := machineconfig.New(r.assetsDir, profile)
 	if err != nil {
