@@ -1,5 +1,0 @@
-channels:
-- currentCSV: performance-addon-operators.v0.0.1
-  name: alpha
-defaultChannel: alpha
-packageName: performance-addon-operators

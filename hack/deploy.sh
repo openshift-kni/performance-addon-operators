@@ -7,7 +7,7 @@ OC_TOOL="${OC_TOOL:-oc}"
 
 # Override the image name when this is invoked from openshift ci                               
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE}" ]; then                                                   
-        FULL_REGISTRY_IMAGE="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:performance-addon-operators-registry"
+        FULL_REGISTRY_IMAGE="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:performance-addon-operator-registry"
         echo "Openshift CI detected, deploying using image $FULL_REGISTRY_IMAGE"                   
 fi   
 
@@ -39,10 +39,10 @@ ${OC_TOOL} apply -f - <<EOF
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
-  name: performance-addon-operators-catalogsource
+  name: performance-addon-operator-catalogsource
   namespace: openshift-marketplace
 spec:
-  displayName: Openshift Performance Addon Operators
+  displayName: Openshift Performance Addon Operator
   icon:
     base64data: ""
     mediatype: ""
@@ -55,12 +55,12 @@ ${OC_TOOL} apply -f - <<EOF
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: performance-addon-operators-subscription
+  name: performance-addon-operator-subscription
   namespace: openshift-performance-addon
 spec:
   channel: alpha
-  name: performance-addon-operators
-  source: performance-addon-operators-catalogsource
+  name: performance-addon-operator
+  source: performance-addon-operator-catalogsource
   sourceNamespace: openshift-marketplace
 EOF
 
