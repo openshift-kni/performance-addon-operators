@@ -10,8 +10,21 @@ iterations=0
 sleep_time=10
 max_iterations=90 # results in 15 minute timeout
 
+# TODO the worker-rt MCP is paused to prevent https://bugzilla.redhat.com/show_bug.cgi?id=1792749 from happening
+# Let's gibe the operator some time to do its work before we unpause the MCP (see below)
+echo "[INFO] Waiting 5 min for letting the operator do its work"
+sleep 300
+
 until [[ $success -eq 1 ]] || [[ $iterations -eq $max_iterations ]]
 do
+
+  # See cooment above
+  echo "[INFO] Unpausing  MCPs"
+  mcps=$(${OC_TOOL} get mcp --no-headers -o custom-columns=":metadata.name")
+  for mcp in $mcps
+  do
+      ${OC_TOOL} patch mcp "${mcp}" -p '{"spec":{"paused":false}}' --type=merge
+  done
 
   echo "[INFO] Checking if MCP picked up the performance MC"
   # No output means that the new machine config wasn't picked by MCO yet

@@ -6,6 +6,7 @@ metadata:
   labels:
     machineconfiguration.openshift.io/role: worker-rt
 spec:
+  paused: true
   machineConfigSelector:
     matchExpressions:
       - key: machineconfiguration.openshift.io/role
