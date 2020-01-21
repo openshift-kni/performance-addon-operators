@@ -80,3 +80,18 @@ func getDefaultLabel(profile v1alpha1.PerformanceProfile) map[string]string {
 
 	return labels
 }
+
+// IsPaused returns whether or not a performance profile's reconcile loop is paused
+func IsPaused(profile *v1alpha1.PerformanceProfile) bool {
+
+	if profile.Annotations == nil {
+		return false
+	}
+
+	isPaused, ok := profile.Annotations[v1alpha1.PerformanceProfilePauseAnnotation]
+	if ok && isPaused == "true" {
+		return true
+	}
+
+	return false
+}
