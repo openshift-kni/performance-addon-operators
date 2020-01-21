@@ -2,7 +2,6 @@ package performanceprofile
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/featuregate"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfigpool"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
@@ -216,27 +215,6 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	}
 
 	if instance.DeletionTimestamp != nil {
-		name := components.GetComponentName(instance.Name, components.RoleWorkerPerformance)
-		mcp, err := r.getMachineConfigPool(name)
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				return reconcile.Result{}, err
-			}
-			klog.Warning("does not pause, the machine config pool does not exist, probably it was deleted")
-		} else {
-			// pause machine config pool
-			updated, err := r.pauseMachineConfigPool(mcp, true)
-			if err != nil {
-				r.recorder.Eventf(instance, corev1.EventTypeWarning, "Pause failed", "Failed to pause machine-config-pool %q: %v", mcp.Name, err)
-				return reconcile.Result{}, err
-			}
-
-			// we want to give time to the machine-config controllers to get updated values
-			if updated {
-				return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
-			}
-		}
-
 		// delete components
 		if err := r.deleteComponents(instance); err != nil {
 			klog.Errorf("failed to delete components: %v", err)
@@ -263,6 +241,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	// add finalizer
 	if !hasFinalizer(instance, finalizer) {
 		instance.Finalizers = append(instance.Finalizers, finalizer)
+		instance.Status.Conditions = r.getProgressingConditions("DeploymentStarting", "Deployment is starting")
 		if err := r.client.Update(context.TODO(), instance); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -274,7 +253,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	// TODO: we need to check if all under performance profiles values != nil
 	// first we need to decide if each of values required and we should move the check into validation webhook
 	// for now let's assume that all parameters needed for assets scrips are required
-	if err := r.validatePerformanceProfileParameters(instance); err != nil {
+	if err := profile.ValidateParameters(*instance); err != nil {
 		klog.Errorf("failed to reconcile: %v", err)
 		r.recorder.Eventf(instance, corev1.EventTypeWarning, "Validation failed", "Profile validation failed: %v", err)
 		conditions := r.getDegradedConditions(conditionReasonValidationFailed, err.Error())
@@ -299,7 +278,8 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	if err := r.updateStatus(instance, nil); err != nil {
+	conditions := r.getAvailableConditions()
+	if err := r.updateStatus(instance, conditions); err != nil {
 		klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
 		// we still want to requeue after some, also in case of error, to avoid chance of multiple reboots
 		if result != nil {
@@ -380,37 +360,15 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 		return nil, err
 	}
 
-	updated := (mcMutated != nil ||
+	updated := mcMutated != nil ||
 		kcMutated != nil ||
 		fgMutated != nil ||
 		networkLatencyTunedMutated != nil ||
-		realTimeKernelTunedMutated != nil)
-
-	// get mutated machine config pool
-	mcp := machineconfigpool.New(profile)
-	// we set MCP paused to updated, so if we need to update any resources it will be equal true,
-	// otherwise false
-	mcp.Spec.Paused = updated
-
-	if err := controllerutil.SetControllerReference(profile, mcp, r.scheme); err != nil {
-		return nil, err
-	}
-	mcpMutated, err := r.getMutatedMachineConfigPool(mcp)
-	if err != nil {
-		return nil, err
-	}
+		realTimeKernelTunedMutated != nil
 
 	// does not update any resources, if it no changes to relevant objects and just continue to the status update
-	if mcpMutated == nil && !updated {
+	if !updated {
 		return nil, nil
-	}
-
-	// create or update machine config pool and pause it
-	if mcpMutated != nil {
-		if err := r.createOrUpdateMachineConfigPool(mcpMutated); err != nil {
-			return nil, err
-		}
-		return &reconcile.Result{RequeueAfter: 10 * time.Second}, nil
 	}
 
 	if mcMutated != nil {
@@ -450,33 +408,7 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 	}
 
 	r.recorder.Eventf(profile, corev1.EventTypeNormal, "Creation succeeded", "Succeeded to create all components")
-	return &reconcile.Result{RequeueAfter: 10 * time.Second}, nil
-}
-
-func (r *ReconcilePerformanceProfile) pauseMachineConfigPool(mcp *mcov1.MachineConfigPool, pause bool) (bool, error) {
-	if mcp.Spec.Paused == pause {
-		return false, nil
-	}
-
-	mcp.Spec.Paused = pause
-	klog.Infof("Set machine-config-pool %q pause to %t", mcp.Name, pause)
-	return true, r.client.Update(context.TODO(), mcp)
-}
-
-func (r *ReconcilePerformanceProfile) validatePerformanceProfileParameters(performanceProfile *performancev1alpha1.PerformanceProfile) error {
-	if performanceProfile.Spec.CPU == nil {
-		return fmt.Errorf("you should provide CPU section")
-	}
-
-	if performanceProfile.Spec.CPU.Isolated == nil {
-		return fmt.Errorf("you should provide isolated CPU set")
-	}
-
-	if performanceProfile.Spec.CPU.NonIsolated == nil {
-		return fmt.Errorf("you should provide non isolated CPU set")
-	}
-
-	return nil
+	return &reconcile.Result{}, nil
 }
 
 func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alpha1.PerformanceProfile) error {
@@ -494,7 +426,7 @@ func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alp
 	// 	return err
 	// }
 
-	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	if err := r.deleteKubeletConfig(name); err != nil {
 		return err
 	}
@@ -503,7 +435,8 @@ func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alp
 		return err
 	}
 
-	return r.deleteMachineConfigPool(name)
+	return nil
+
 }
 
 func (r *ReconcilePerformanceProfile) isComponentsExist(profile *performancev1alpha1.PerformanceProfile) bool {
@@ -518,7 +451,7 @@ func (r *ReconcilePerformanceProfile) isComponentsExist(profile *performancev1al
 		return true
 	}
 
-	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	if _, err := r.getKubeletConfig(name); !errors.IsNotFound(err) {
 		klog.Infof("Kubelet Config %q custom resource is still exists under the cluster", name)
 		return true
@@ -529,10 +462,6 @@ func (r *ReconcilePerformanceProfile) isComponentsExist(profile *performancev1al
 		return true
 	}
 
-	if _, err := r.getMachineConfigPool(name); !errors.IsNotFound(err) {
-		klog.Infof("Machine Config Pool %q custom resource is still exists under the cluster", name)
-		return true
-	}
 	return false
 }
 

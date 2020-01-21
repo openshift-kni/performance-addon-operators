@@ -7,8 +7,11 @@ import (
 
 	"github.com/coreos/go-systemd/unit"
 	igntypes "github.com/coreos/ignition/config/v2_2/types"
+
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	profile2 "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,17 +60,15 @@ const (
 
 // New returns new machine configuration object for performance sensetive workflows
 func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.MachineConfig, error) {
-	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
+	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	mc := &machineconfigv1.MachineConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: machineconfigv1.GroupVersion.String(),
 			Kind:       "MachineConfig",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				components.LabelMachineConfigurationRole: name,
-			},
+			Name:   name,
+			Labels: profile2.GetMachineConfigLabel(*profile),
 		},
 		Spec: machineconfigv1.MachineConfigSpec{},
 	}

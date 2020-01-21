@@ -2,16 +2,11 @@ package performanceprofile
 
 import (
 	"context"
-	"reflect"
 	"time"
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
-
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 )
@@ -22,45 +17,36 @@ const (
 )
 
 func (r *ReconcilePerformanceProfile) updateStatus(profile *performancev1alpha1.PerformanceProfile, conditions []conditionsv1.Condition) error {
-	// TODO: once we will have tuned resource status we will need to merge output from the machine-config-pool status
-	// and tuned status
 	profileCopy := profile.DeepCopy()
 
-	name := components.GetComponentName(profile.Name, components.RoleWorkerPerformance)
-	mcp, err := r.getMachineConfigPool(name)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
+	if conditions != nil {
+		profileCopy.Status.Conditions = conditions
 	}
 
-	if errors.IsNotFound(err) {
-		profileCopy.Status.MachineCount = 0
-		profileCopy.Status.UpdatedMachineCount = 0
-		profileCopy.Status.UnavailableMachineCount = 0
-		profileCopy.Status.Conditions = conditions
-	} else {
-		profileCopy.Status.MachineCount = mcp.Status.MachineCount
-		profileCopy.Status.UpdatedMachineCount = mcp.Status.UpdatedMachineCount
-		profileCopy.Status.UnavailableMachineCount = mcp.Status.UnavailableMachineCount
-		if conditions != nil {
-			profileCopy.Status.Conditions = conditions
-		} else {
-			if mcov1.IsMachineConfigPoolConditionTrue(mcp.Status.Conditions, mcov1.MachineConfigPoolUpdated) {
-				profileCopy.Status.Conditions = r.getAvailableConditions()
-			}
+	// check if we need to update the status
+	modified := false
 
-			if mcov1.IsMachineConfigPoolConditionTrue(mcp.Status.Conditions, mcov1.MachineConfigPoolUpdating) {
-				updatingCondition := mcov1.GetMachineConfigPoolCondition(mcp.Status, mcov1.MachineConfigPoolUpdating)
-				profileCopy.Status.Conditions = r.getProgressingConditions(updatingCondition.Reason, updatingCondition.Message)
-			}
+	// since we always set the same four conditions, we don't need to check if we need to remove old conditions
+	for _, newCondition := range profileCopy.Status.Conditions {
+		oldCondition := conditionsv1.FindStatusCondition(profile.Status.Conditions, newCondition.Type)
+		if oldCondition == nil {
+			modified = true
+			break
+		}
 
-			if mcov1.IsMachineConfigPoolConditionTrue(mcp.Status.Conditions, mcov1.MachineConfigPoolDegraded) {
-				degradedCondition := mcov1.GetMachineConfigPoolCondition(mcp.Status, mcov1.MachineConfigPoolUpdating)
-				profileCopy.Status.Conditions = r.getDegradedConditions(degradedCondition.Reason, degradedCondition.Message)
-			}
+		// ignore timestamps to avoid infinite reconcile loops
+		if oldCondition.Status != newCondition.Status ||
+			oldCondition.Reason != newCondition.Reason ||
+			oldCondition.Message != newCondition.Message {
+
+			modified = true
+			break
 		}
 	}
 
-	if reflect.DeepEqual(profile.Status, profileCopy.Status) {
+	// Note: add checks for new status fields when added
+
+	if !modified {
 		return nil
 	}
 
@@ -75,21 +61,25 @@ func (r *ReconcilePerformanceProfile) getAvailableConditions() []conditionsv1.Co
 			Type:               conditionsv1.ConditionAvailable,
 			Status:             corev1.ConditionTrue,
 			LastTransitionTime: metav1.Time{Time: now},
+			LastHeartbeatTime:  metav1.Time{Time: now},
 		},
 		{
 			Type:               conditionsv1.ConditionUpgradeable,
 			Status:             corev1.ConditionTrue,
 			LastTransitionTime: metav1.Time{Time: now},
+			LastHeartbeatTime:  metav1.Time{Time: now},
 		},
 		{
 			Type:               conditionsv1.ConditionProgressing,
 			Status:             corev1.ConditionFalse,
 			LastTransitionTime: metav1.Time{Time: now},
+			LastHeartbeatTime:  metav1.Time{Time: now},
 		},
 		{
 			Type:               conditionsv1.ConditionDegraded,
 			Status:             corev1.ConditionFalse,
 			LastTransitionTime: metav1.Time{Time: now},
+			LastHeartbeatTime:  metav1.Time{Time: now},
 		},
 	}
 }
@@ -101,21 +91,25 @@ func (r *ReconcilePerformanceProfile) getDegradedConditions(reason string, messa
 			Type:               conditionsv1.ConditionAvailable,
 			Status:             corev1.ConditionFalse,
 			LastTransitionTime: metav1.Time{Time: now},
+			LastHeartbeatTime:  metav1.Time{Time: now},
 		},
 		{
 			Type:               conditionsv1.ConditionUpgradeable,
 			Status:             corev1.ConditionFalse,
 			LastTransitionTime: metav1.Time{Time: now},
+			LastHeartbeatTime:  metav1.Time{Time: now},
 		},
 		{
 			Type:               conditionsv1.ConditionProgressing,
 			Status:             corev1.ConditionFalse,
 			LastTransitionTime: metav1.Time{Time: now},
+			LastHeartbeatTime:  metav1.Time{Time: now},
 		},
 		{
 			Type:               conditionsv1.ConditionDegraded,
 			Status:             corev1.ConditionTrue,
 			LastTransitionTime: metav1.Time{Time: now},
+			LastHeartbeatTime:  metav1.Time{Time: now},
 			Reason:             reason,
 			Message:            message,
 		},

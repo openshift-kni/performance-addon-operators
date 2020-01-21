@@ -28,11 +28,21 @@ TODO: further implement and explain this API
 
 ### Unit tests
 
-TODO
+Unit tests can be executed with `make unittests`.
 
 ### Func tests
 
 The functional tests are located in `/functests`. They can be executed with `make functests`.
+
+#### Running functests in CI
+
+Openshift CI will run `make cluster-deploy functests`.  
+The `cluster-deploy` target deploys the operator and a CR using `/hack/deploy.sh`, `kustomize` and manifests located
+in `/cluster-setup`. It will detect that it is running in CI and deploy the images under test automatically.
+
+#### Running functests on your own cluster
+
+see [CONTRIBUTING](CONTRIBUTING.md#deploying-operator-on-test-cluster)
 
 ## How to contribute
 

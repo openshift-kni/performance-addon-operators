@@ -74,11 +74,30 @@ spec:
                     type: object
                   type: array
               type: object
+            machineConfigLabel:
+              additionalProperties:
+                type: string
+              description: MachineConfigLabel defines the label to add to the MachineConfigs
+                the operator creates. It has to be used in the MachineConfigSelector
+                of the MachineConfigPool which targets this performance profile. Defaults
+                to "machineconfiguration.openshift.io/role=<same role as in NodeSelector
+                label key>"
+              type: object
+            machineConfigPoolSelector:
+              additionalProperties:
+                type: string
+              description: MachineConfigPoolSelector defines the MachineConfigPool
+                label to use in the MachineConfigPoolSelector of resources like KubeletConfigs
+                created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same
+                role as in NodeSelector label key>"
+              type: object
             nodeSelector:
               additionalProperties:
                 type: string
-              description: NodeSelector is a selector which must be true for the performance
-                profile to fit on a node.
+              description: NodeSelector defines the Node label to use in the NodeSelectors
+                of resources like Tuned created by the operator. It most likely should,
+                but does not have to match the node label in the NodeSelector of the
+                MachineConfigPool which targets this performance profile.
               type: object
             realTimeKernel:
               description: RealTimeKernel defines set of real time kernel related
@@ -121,28 +140,6 @@ spec:
                 - type
                 type: object
               type: array
-            machineCount:
-              description: MachineCount represents the total number of machines targeted
-                by the performance profile.
-              format: int32
-              type: integer
-            unavailableMachineCount:
-              description: UnavailableMachineCount represents the total number of
-                unavailable (non-ready) machines targeted by performance profile.
-                A node is marked unavailable if it is in updating state or NodeReady
-                condition is false.
-              format: int32
-              type: integer
-            updatedMachineCount:
-              description: UpdatedMachineCount represents the total number of machines
-                that updated with parameters from the performance profile and ready
-                for action.
-              format: int32
-              type: integer
-          required:
-          - machineCount
-          - unavailableMachineCount
-          - updatedMachineCount
           type: object
       type: object
   version: v1alpha1

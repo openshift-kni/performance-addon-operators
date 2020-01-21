@@ -72,9 +72,10 @@ Then deploy the operator using this make target.
 make cluster-deploy
 ```
 
-At the moment, there currently isn't any logic to verify the deployment. This simply posts the manifests for now. You can perform your own introspection into the cluster to determine if the deployment was successful though.
+This simply posts the manifests for now. You can perform your own introspection into the cluster to determine if the deployment was successful,
+or verify the deployment by running the functional tests.
 
-TODO - revise this once deployment validation is included in `make cluster-deploy`
+## Manual introspection
 
 Verify the install by checking the csv is posted.
 
@@ -83,11 +84,20 @@ $ oc get csv --all-namespaces | grep performance-addon
 openshift-performance-addon            performance-addon-operator.v0.0.1   Performance Addon Operator   0.0.1                InstallReady
 ```
 
-That the catalog container is online.
+That the catalog container and the operator are running.
 
 ```
 $ oc get pods --all-namespaces | grep performance
 openshift-marketplace            performance-addon-operator-catalogsource-87bjk     1/1     Running   0     2m
 openshift-performance-addon      performance-operator-6ff4977f8b-ljk42              1/1     Running   0    19s
 ```
+
+TODO - revise this once deployment validation is included in `make cluster-deploy`
+
+## Run functional tests
+
+```
+make functests
+```
+
 

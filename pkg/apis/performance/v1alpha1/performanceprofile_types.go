@@ -12,7 +12,19 @@ type PerformanceProfileSpec struct {
 	CPU *CPU `json:"cpu,omitempty"`
 	// HugePages defines set of huge pages related parameters.
 	HugePages *HugePages `json:"hugepages,omitempty"`
-	// NodeSelector is a selector which must be true for the performance profile to fit on a node.
+	// MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be
+	// used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile.
+	// Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+	// +optional
+	MachineConfigLabel map[string]string `json:"machineConfigLabel,omitempty"`
+	// MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector
+	// of resources like KubeletConfigs created by the operator.
+	// Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+	// +optional
+	MachineConfigPoolSelector map[string]string `json:"machineConfigPoolSelector,omitempty"`
+	// NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator.
+	// It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool
+	// which targets this performance profile.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// RealTimeKernel defines set of real time kernel related parameters.
 	RealTimeKernel *RealTimeKernel `json:"realTimeKernel,omitempty"`
@@ -59,17 +71,6 @@ type RealTimeKernel struct {
 
 // PerformanceProfileStatus defines the observed state of PerformanceProfile.
 type PerformanceProfileStatus struct {
-	// MachineCount represents the total number of machines targeted by the performance profile.
-	MachineCount int32 `json:"machineCount"`
-
-	// UpdatedMachineCount represents the total number of machines that updated with parameters from the performance profile
-	// and ready for action.
-	UpdatedMachineCount int32 `json:"updatedMachineCount"`
-
-	// UnavailableMachineCount represents the total number of unavailable (non-ready) machines targeted by performance profile.
-	// A node is marked unavailable if it is in updating state or NodeReady condition is false.
-	UnavailableMachineCount int32 `json:"unavailableMachineCount"`
-
 	// conditions represents the latest available observations of current state.
 	// +optional
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"`

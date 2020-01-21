@@ -1,4 +1,4 @@
-package machineconfigpool
+package profile
 
 import (
 	"testing"
@@ -9,5 +9,5 @@ import (
 
 func TestFeatureGate(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Machine Config Pool Suite")
+	RunSpecs(t, "Kubelet Config Suite")
 }
