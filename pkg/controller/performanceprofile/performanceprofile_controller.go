@@ -10,7 +10,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/featuregate"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
@@ -253,7 +253,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	// TODO: we need to check if all under performance profiles values != nil
 	// first we need to decide if each of values required and we should move the check into validation webhook
 	// for now let's assume that all parameters needed for assets scrips are required
-	if err := profile.ValidateParameters(*instance); err != nil {
+	if err := profileutil.ValidateParameters(*instance); err != nil {
 		klog.Errorf("failed to reconcile: %v", err)
 		r.recorder.Eventf(instance, corev1.EventTypeWarning, "Validation failed", "Profile validation failed: %v", err)
 		conditions := r.getDegradedConditions(conditionReasonValidationFailed, err.Error())
@@ -297,6 +297,12 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 }
 
 func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alpha1.PerformanceProfile) (*reconcile.Result, error) {
+
+	if profileutil.IsPaused(profile) {
+		klog.Infof("Ignoring reconcile loop for pause performance profile %s", profile.Name)
+		return nil, nil
+	}
+
 	// get mutated machine config
 	mc, err := machineconfig.New(r.assetsDir, profile)
 	if err != nil {
