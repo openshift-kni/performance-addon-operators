@@ -123,7 +123,9 @@ cluster-clean:
 	@echo "Deleting operator"
 	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/clean-deploy.sh
 
-functests: cluster-label-worker-rt cluster-wait-for-mcp
+functests: cluster-label-worker-rt cluster-wait-for-mcp functests-only
+
+functests-only:
 	@echo "Running Functional Tests"
 	hack/run-functests.sh
 
