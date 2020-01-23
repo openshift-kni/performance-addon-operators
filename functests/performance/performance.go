@@ -2,6 +2,7 @@ package performance
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -21,6 +22,15 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 )
+
+var profileName string
+
+func init() {
+	profileName = os.Getenv("PERF_TEST_PROFILE")
+	if profileName == "" {
+		profileName = "ci"
+	}
+}
 
 const (
 	testTimeout      = 480
@@ -85,7 +95,7 @@ var _ = Describe("performance", func() {
 				"kernel.timer_migration":        "0",
 			}
 
-			tunedName := components.GetComponentName("ci", components.ProfileNameWorkerRT)
+			tunedName := components.GetComponentName(profileName, components.ProfileNameWorkerRT)
 			_, err := testclient.Client.Tuneds(components.NamespaceNodeTuningOperator).Get(tunedName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+tunedName)
 			validatTunedActiveProfile(workerRTNodes)
@@ -130,7 +140,7 @@ func execSysctlOnWorkers(workerNodes []corev1.Node, sysctlMap map[string]string)
 func validatTunedActiveProfile(nodes []corev1.Node) {
 	var err error
 	var out []byte
-	activeProfileName := components.GetComponentName("ci", components.ProfileNameWorkerRT)
+	activeProfileName := components.GetComponentName(profileName, components.ProfileNameWorkerRT)
 	for _, node := range nodes {
 		tuned := tunedForNode(&node)
 		tunedName := tuned.ObjectMeta.Name

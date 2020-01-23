@@ -1,19 +1,26 @@
 package utils
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	"os"
+
+	corev1 "k8s.io/api/core/v1"
+)
+
+// RoleWorkerRT contains the worker-rt role
+var RoleWorkerRT string
+
+func init() {
+	RoleWorkerRT = os.Getenv("ROLE_WORKER_RT")
+	if RoleWorkerRT == "" {
+		RoleWorkerRT = "worker-rt"
+	}
+}
 
 const (
 	// LabelRole contains the key for the role label
 	LabelRole = "node-role.kubernetes.io"
 	// LabelHostname contains the key for the hostname label
 	LabelHostname = "kubernetes.io/hostname"
-)
-
-const (
-	// RoleWorker contains the worker role
-	RoleWorker = "worker"
-	// RoleWorkerRT contains the worker-rt role
-	RoleWorkerRT = "worker-rt"
 )
 
 const (
