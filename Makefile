@@ -86,6 +86,9 @@ operator-sdk:
 		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
 	fi
 
+generate-csv: operator-sdk
+	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/csv-generate.sh
+
 generate-latest-dev-csv: operator-sdk
 	@echo Generating developer csv
 	@echo
