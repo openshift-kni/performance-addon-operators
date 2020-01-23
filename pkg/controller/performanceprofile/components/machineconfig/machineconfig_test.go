@@ -16,26 +16,7 @@ const testAssetsDir = "../../../../../build/assets"
 const expectedSystemdUnits = `
       - contents: |
           [Unit]
-          Description=RT kernel patch
-          Wants=network-online.target
-          After=network-online.target
-          Before=kubelet.service
-          Before=pre-boot-tuning.service
-
-          [Service]
-          Type=oneshot
-          RemainAfterExit=true
-          ExecStart=/usr/local/bin/rt-kernel.sh
-
-          [Install]
-          WantedBy=multi-user.target
-        enabled: true
-        name: rt-kernel.service
-      - contents: |
-          [Unit]
           Description=Preboot tuning patch
-          Wants=rt-kernel.service
-          After=rt-kernel.service
           Before=kubelet.service
           Before=reboot.service
 
@@ -51,7 +32,7 @@ const expectedSystemdUnits = `
         name: pre-boot-tuning.service
       - contents: |
           [Unit]
-          Description=Reboot initiated by rt-kernel and pre-boot-tuning
+          Description=Reboot initiated by pre-boot-tuning
           Wants=network-online.target
           After=network-online.target
           Before=kubelet.service
@@ -98,6 +79,8 @@ var _ = Describe("Machine Config", func() {
 		})
 		mc, err := New(testAssetsDir, profile)
 		Expect(err).ToNot(HaveOccurred())
+
+		Expect(mc.Spec.KernelType).To(Equal(mcKernelRT))
 
 		y, err := yaml.Marshal(mc)
 		Expect(err).ToNot(HaveOccurred())

@@ -65,6 +65,6 @@ replace (
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20191220175332-378bec237e34 // release-4.4
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191205152420-9faca5198b4f // release-4.4
 	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20191217222311-500135cb8754 // release-4.4
-	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.0-20191220033234-347a7a09e869 // release-4.4
+	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.0-20200123151440-ca3e3e1921f3 // release-4.4
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
 )

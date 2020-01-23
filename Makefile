@@ -142,8 +142,7 @@ golint:
 
 govet:
 	@echo "Running go vet"
-	# Disabling GO111MODULE for go vet execution
-	GO111MODULE=off go vet github.com/openshift-kni/performance-addon-operators/...
+	go vet ./...
 
 generate: operator-sdk
 	@echo Updating generated files
