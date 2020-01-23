@@ -6,6 +6,4 @@ if [ $? -ne 0 ]; then
 	go install github.com/onsi/ginkgo/ginkgo
 fi
 
-FOCUS=$(echo "$FEATURES" | tr ' ' '|') 
-echo "Focusing on $FOCUS"
-GOFLAGS=-mod=vendor ginkgo --focus=$FOCUS functests -- -junit /tmp/artifacts/unit_report.xml
+GOFLAGS=-mod=vendor ginkgo functests -- -junit /tmp/artifacts/unit_report.xml
