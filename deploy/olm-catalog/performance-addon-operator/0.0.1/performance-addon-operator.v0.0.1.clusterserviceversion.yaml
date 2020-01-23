@@ -1,3 +1,4 @@
+---
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
@@ -42,11 +43,13 @@ spec:
   customresourcedefinitions:
     owned:
     - description: PerformanceProfile is the Schema for the performanceprofiles API.
+      displayName: Performance Profile
       kind: PerformanceProfile
       name: performanceprofiles.performance.openshift.io
       version: v1alpha1
-      displayName: placeholder
-  description: Placeholder description
+  description: |2-
+
+    Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.
   displayName: Performance Addon Operator
   install:
     spec:
@@ -159,6 +162,16 @@ spec:
     type: MultiNamespace
   - supported: true
     type: AllNamespaces
+  keywords:
+  - numa
+  - realtime
+  - cpu pinning
+  - hugepages
+  links:
+  - name: Source Code
+    url: https://github.com/openshift-kni/performance-addon-operator
   maturity: alpha
-  provider: {}
+  provider:
+    name: Red Hat
+  replaces: performance-addon-operator.v0.0.0
   version: 0.0.1

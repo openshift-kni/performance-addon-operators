@@ -92,16 +92,7 @@ generate-csv: operator-sdk
 generate-latest-dev-csv: operator-sdk
 	@echo Generating developer csv
 	@echo
-	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) olm-catalog gen-csv --operator-name="performance-addon-operator" --csv-version=$(OPERATOR_DEV_CSV)
-	# removing replaces field which breaks CSV validation
-	sed -i 's/replaces\:.*//g' deploy/olm-catalog/performance-addon-operator/$(OPERATOR_DEV_CSV)/performance-addon-operator.v0.0.1.clusterserviceversion.yaml
-	# adding temporariy required displayName field
-	sed -i '/version\: v1alpha1/a displayName\: placeholder' deploy/olm-catalog/performance-addon-operator/$(OPERATOR_DEV_CSV)/performance-addon-operator.v0.0.1.clusterserviceversion.yaml
-	sed -i 's/^displayName\: placeholder/      displayName\: placeholder/g' deploy/olm-catalog/performance-addon-operator/$(OPERATOR_DEV_CSV)/performance-addon-operator.v0.0.1.clusterserviceversion.yaml
-
-	@echo
-	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate crds
-	cp deploy/crds/*crd.yaml deploy/olm-catalog/performance-addon-operator/$(OPERATOR_DEV_CSV)/
+	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" CSV_VERSION=$(OPERATOR_DEV_CSV) hack/csv-generate.sh
 
 deps-update:
 	go mod tidy && \

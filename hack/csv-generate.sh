@@ -23,6 +23,7 @@ clean_tmp_csv
 
 # generate a temporary csv we'll use as a template
 $OPERATOR_SDK olm-catalog gen-csv --operator-name="performance-addon-operator" --csv-version="${TMP_CSV_VERSION}"
+$OPERATOR_SDK generate crds
 
 # using the generated CSV, create the real CSV by injecting all the right data into it
 tools/csv-generator/csv-generator \
@@ -33,6 +34,6 @@ tools/csv-generator/csv-generator \
 
 cp deploy/crds/*_crd.yaml $FINAL_CSV_DIR/
 
-echo "New CSV created at $FINAL_CSV_DIR"
-
 clean_tmp_csv
+
+echo "New CSV created at $FINAL_CSV_DIR"
