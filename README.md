@@ -47,3 +47,29 @@ see [CONTRIBUTING](CONTRIBUTING.md#deploying-operator-on-test-cluster)
 ## How to contribute
 
 See [CONTRIBUTING](CONTRIBUTING.md) for some guidelines.
+
+## Building Custom CSV
+
+A custom CSV entry for the registry container can be generated using the
+`make generate-csv` make target.
+
+First export your CSV details as environment variables.
+
+__required options__
+export IMAGE_REGISTRY="quay.io"
+export REGISTRY_NAMESPACE="some-operator=repo-namespace"
+export IMAGE_TAG="some-operator-image-tag"
+export CSV_VERSION="0.0.3"
+
+__optional options__
+export REPLACES_CSV_VERSION="0.0.2"
+export CSV_SKIP_RANGE=">=0.0.1 <0.0.2"
+
+Then run `make generate-csv`
+
+The result will be stored in the deploy/olm-catalog/performance-addon-operator
+directory within a directory that matches the CSV_VERSION set.
+
+Running `make registry-container` after creating a new custom CSV will result
+in a registry bundle that includes the new CSV version and all other CSV
+versions in the deploy/olm-catalog directory.
