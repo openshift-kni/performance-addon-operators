@@ -201,6 +201,8 @@ func generateUnifiedCSV() {
 	operatorCSV.Name = "performance-addon-operator.v" + *csvVersion
 	if *replacesCsvVersion != "" {
 		operatorCSV.Spec.Replaces = "performance-addon-operator.v" + *replacesCsvVersion
+	} else {
+		operatorCSV.Spec.Replaces = ""
 	}
 
 	// Set api maturity
