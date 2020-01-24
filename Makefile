@@ -87,6 +87,10 @@ operator-sdk:
 	fi
 
 generate-csv: operator-sdk
+	@if [ -z "$(REGISTRY_NAMESPACE)" ]; then\
+		echo "REGISTRY_NAMESPACE env-var must be set to your $(IMAGE_REGISTRY) namespace";\
+		exit 1;\
+	fi
 	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/csv-generate.sh
 
 generate-latest-dev-csv: operator-sdk

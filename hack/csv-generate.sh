@@ -30,7 +30,9 @@ tools/csv-generator/csv-generator \
 	--csv-version "${CSV_VERSION}" \
 	--operator-csv-template-file "${TMP_CSV_FILE}" \
 	--operator-image "${FULL_OPERATOR_IMAGE}" \
-	--olm-bundle-directory "$FINAL_CSV_DIR"
+	--olm-bundle-directory "$FINAL_CSV_DIR" \
+	--replaces-csv-version "$REPLACES_CSV_VERSION" \
+	--skip-range "$CSV_SKIP_RANGE"
 
 cp deploy/crds/*_crd.yaml $FINAL_CSV_DIR/
 
