@@ -20,11 +20,13 @@ do
 
   # See cooment above
   echo "[INFO] Unpausing  MCPs"
+  set +e
   mcps=$(${OC_TOOL} get mcp --no-headers -o custom-columns=":metadata.name")
   for mcp in $mcps
   do
       ${OC_TOOL} patch mcp "${mcp}" -p '{"spec":{"paused":false}}' --type=merge
   done
+  set -e
 
   echo "[INFO] Checking if MCP picked up the performance MC"
   # No output means that the new machine config wasn't picked by MCO yet

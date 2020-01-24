@@ -65,12 +65,6 @@ var _ = Describe("performance", func() {
 		It(perfRtKernelPrebootTuningScript+" should exist on the nodes", func() {
 			checkFileExistence(workerRTNodes, perfRtKernelPrebootTuningScript)
 		})
-
-		// Check /usr/local/bin/rt-kernel.sh existence under worker's rootfs
-		const perfRTKernelPatchScript = "/usr/local/bin/rt-kernel.sh"
-		It(perfRTKernelPatchScript+" should exist on the nodes", func() {
-			checkFileExistence(workerRTNodes, perfRTKernelPatchScript)
-		})
 	})
 
 	Context("FeatureGate - FeatureSet configuration", func() {

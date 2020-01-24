@@ -25,7 +25,10 @@ const (
 )
 
 const (
-	rtKernel       = "rt-kernel"
+	// Values of the kernel setting in MachineConfig, unfortunately not exported by MCO
+	mcKernelRT      = "realtime"
+	mcKernelDefault = "default"
+
 	preBootTuning  = "pre-boot-tuning"
 	reboot         = "reboot"
 	bashScriptsDir = "/usr/local/bin"
@@ -81,6 +84,16 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	mc.Spec.Config = *ignitionConfig
 	mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated)
 
+	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
+		profile.Spec.RealTimeKernel.Enabled != nil &&
+		*profile.Spec.RealTimeKernel.Enabled
+
+	if enableRTKernel {
+		mc.Spec.KernelType = mcKernelRT
+	} else {
+		mc.Spec.KernelType = mcKernelDefault
+	}
+
 	return mc, nil
 }
 
@@ -130,7 +143,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		},
 	}
 
-	for _, script := range []string{preBootTuning, reboot, rtKernel} {
+	for _, script := range []string{preBootTuning, reboot} {
 		content, err := ioutil.ReadFile(fmt.Sprintf("%s/scripts/%s.sh", assetsDir, script))
 		if err != nil {
 			return nil, err
@@ -150,11 +163,6 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		})
 	}
 
-	rtKernelService, err := getSystemdContent(getRTKernelUnitOptions())
-	if err != nil {
-		return nil, err
-	}
-
 	nonIsolatedCpus := profile.Spec.CPU.NonIsolated
 	preBootTuningService, err := getSystemdContent(
 		getPreBootTuningUnitOptions(string(*nonIsolatedCpus)),
@@ -168,17 +176,8 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		return nil, err
 	}
 
-	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
-		profile.Spec.RealTimeKernel.Enabled != nil &&
-		*profile.Spec.RealTimeKernel.Enabled
-
 	ignitionConfig.Systemd = igntypes.Systemd{
 		Units: []igntypes.Unit{
-			{
-				Contents: rtKernelService,
-				Enabled:  &enableRTKernel,
-				Name:     getSystemdService(rtKernel),
-			},
 			{
 				Contents: preBootTuningService,
 				Enabled:  pointer.BoolPtr(true),
@@ -215,36 +214,11 @@ func getSystemdContent(options []*unit.UnitOption) (string, error) {
 	return string(outBytes), nil
 }
 
-func getRTKernelUnitOptions() []*unit.UnitOption {
-	return []*unit.UnitOption{
-		// [Unit]
-		// Description
-		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "RT kernel patch"),
-		// Wants
-		unit.NewUnitOption(systemdSectionUnit, systemdWants, systemdTargetNetworkOnline),
-		// After
-		unit.NewUnitOption(systemdSectionUnit, systemdAfter, systemdTargetNetworkOnline),
-		// Before
-		unit.NewUnitOption(systemdSectionUnit, systemdBefore, systemdServiceKubelet),
-		unit.NewUnitOption(systemdSectionUnit, systemdBefore, getSystemdService(preBootTuning)),
-		// [Service]
-		// Type
-		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
-		// RemainAfterExit
-		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
-		// ExecStart
-		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(rtKernel)),
-		// [Install]
-		// WantedBy
-		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
-	}
-}
-
 func getRebootUnitOptions() []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
-		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Reboot initiated by rt-kernel and pre-boot-tuning"),
+		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Reboot initiated by pre-boot-tuning"),
 		// Wants
 		unit.NewUnitOption(systemdSectionUnit, systemdWants, systemdTargetNetworkOnline),
 		// After
@@ -269,10 +243,6 @@ func getPreBootTuningUnitOptions(nonIsolatedCpus string) []*unit.UnitOption {
 		// [Unit]
 		// Description
 		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Preboot tuning patch"),
-		// Wants
-		unit.NewUnitOption(systemdSectionUnit, systemdWants, getSystemdService(rtKernel)),
-		// After
-		unit.NewUnitOption(systemdSectionUnit, systemdAfter, getSystemdService(rtKernel)),
 		// Before
 		unit.NewUnitOption(systemdSectionUnit, systemdBefore, systemdServiceKubelet),
 		unit.NewUnitOption(systemdSectionUnit, systemdBefore, getSystemdService(reboot)),
