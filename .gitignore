@@ -2,6 +2,7 @@
 build/_output
 build/_test
 _cache
+tools/csv-generator/csv-generator
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 ### Emacs ###
 # -*- mode: gitignore; -*-
