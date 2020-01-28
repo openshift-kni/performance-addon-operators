@@ -268,7 +268,7 @@ func main() {
 	os.RemoveAll(*outputDir)
 
 	// create output directory
-	os.MkdirAll(*outputDir, os.FileMode(0755))
+	os.MkdirAll(*outputDir, os.FileMode(0775))
 
 	generateUnifiedCSV()
 }
