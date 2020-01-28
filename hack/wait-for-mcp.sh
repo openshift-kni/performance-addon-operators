@@ -34,7 +34,7 @@ do
   then
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))
-    echo "[INFO] Performace MC not picked up yet."
+    echo "[INFO] Performace MC not picked up yet. $iterations_left retries left."
     sleep $sleep_time
     continue
   fi
@@ -44,7 +44,7 @@ do
   then
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))
-    echo "[INFO] Performace MCP not updated yet."
+    echo "[INFO] Performace MCP not updated yet. $iterations_left retries left."
     sleep $sleep_time
     continue
   fi
