@@ -7,19 +7,4 @@ $OC_TOOL delete performanceprofile --all
 
 $OC_TOOL delete ns openshift-performance-addon
 
-$OC_TOOL delete -f - <<EOF
----
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: performance-addon-operator-catalogsource
-  namespace: openshift-marketplace
-spec:
-  displayName: Openshift Performance Addon Operator
-  icon:
-    base64data: ""
-    mediatype: ""
-  image: ${FULL_REGISTRY_IMAGE}
-  publisher: Red Hat
-  sourceType: grpc
-EOF
+$OC_TOOL -n openshift-marketplace delete catalogsource performance-addon-operator-catalogsource
