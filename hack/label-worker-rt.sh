@@ -10,4 +10,4 @@ echo "[INFO]: Labeling 1 worker node with worker-rt"
 node=$(${OC_TOOL} get nodes --selector='node-role.kubernetes.io/worker' \
     --selector='!node-role.kubernetes.io/master' -o name | head -1)
 
-${OC_TOOL} label $node node-role.kubernetes.io/worker-rt=""
+${OC_TOOL} label --overwrite $node node-role.kubernetes.io/worker-rt=""
