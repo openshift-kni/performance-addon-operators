@@ -5,9 +5,6 @@ set -e
 # expect oc to be in PATH by default
 OC_TOOL="${OC_TOOL:-oc}"
 
-# expect kustomize to be in PATH by default
-KUSTOMIZE="${KUSTOMIZE:-kustomize}"
-
 # Override the image name when this is invoked from openshift ci
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE}" ]; then
   FULL_REGISTRY_IMAGE="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:performance-addon-operator-registry"
@@ -27,7 +24,7 @@ do
 
   echo "[INFO] Deploying performance operator and profile."
   set +e
-  if ! ${KUSTOMIZE} build $feature_dir | envsubst | ${OC_TOOL} apply -f -
+  if ! ${OC_TOOL} kustomize $feature_dir | envsubst | ${OC_TOOL} apply -f -
   then
     set -e
     iterations=$((iterations + 1))

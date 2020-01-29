@@ -15,8 +15,7 @@
 	operator-container \
 	registry-container \
 	generate-latest-dev-csv \
-	test-cluster-setup \
-	kustomize
+	test-cluster-setup
 
 IMAGE_BUILD_CMD ?= "docker"
 IMAGE_REGISTRY ?= "quay.io"
@@ -28,12 +27,6 @@ TARGET_GOARCH=amd64
 
 CACHE_DIR="_cache"
 TOOLS_DIR="$(CACHE_DIR)/tools"
-
-KUSTOMIZE_VERSION="v3.5.3"
-KUSTOMIZE_PLATFORM ?= "linux_amd64"
-KUSTOMIZE_BIN="kustomize"
-KUSTOMIZE_TAR="$(KUSTOMIZE_BIN)_$(KUSTOMIZE_VERSION)_$(KUSTOMIZE_PLATFORM).tar.gz"
-KUSTOMIZE="$(TOOLS_DIR)/$(KUSTOMIZE_BIN)"
 
 OPERATOR_SDK_VERSION="v0.13.0"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
@@ -105,9 +98,9 @@ deps-update:
 deploy: cluster-deploy
 	# TODO - deprecated, will be removed soon in favor of cluster-deploy
 
-cluster-deploy: kustomize
+cluster-deploy:
 	@echo "Deploying operator"
-	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) KUSTOMIZE=$(KUSTOMIZE) hack/deploy.sh
+	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/deploy.sh
 
 cluster-label-worker-rt:
 	@echo "Adding worker-rt label to worker nodes"
@@ -155,14 +148,3 @@ verify-generate: generate
 
 ci-job: gofmt golint govet verify-generate build unittests
 
-kustomize:
-	@if [ ! -x "$(KUSTOMIZE)" ]; then\
-		echo "Downloading kustomize $(KUSTOMIZE_VERSION)";\
-		mkdir -p $(TOOLS_DIR);\
-		curl -JL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/$(KUSTOMIZE_VERSION)/$(KUSTOMIZE_TAR) -o $(TOOLS_DIR)/$(KUSTOMIZE_TAR);\
-		tar -xvf $(TOOLS_DIR)/$(KUSTOMIZE_TAR) -C $(TOOLS_DIR);\
-		rm -rf $(TOOLS_DIR)/$(KUSTOMIZE_TAR);\
-		chmod +x $(KUSTOMIZE);\
-	else\
-		echo "Using kustomize cached at $(KUSTOMIZE)";\
-	fi
