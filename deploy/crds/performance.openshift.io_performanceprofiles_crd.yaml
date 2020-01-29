@@ -67,6 +67,12 @@ spec:
                           'hugepages' kernel boot parameter.
                         format: int32
                         type: integer
+                      node:
+                        description: Node defines the NUMA node where hugepages will
+                          be allocated, if not specified, pages will be allocated
+                          equally between NUMA nodes
+                        format: int32
+                        type: integer
                       size:
                         description: Size defines huge page size, maps to the 'hugepagesz'
                           kernel boot parameter.

@@ -29,9 +29,10 @@ const (
 	mcKernelRT      = "realtime"
 	mcKernelDefault = "default"
 
-	preBootTuning  = "pre-boot-tuning"
-	reboot         = "reboot"
-	bashScriptsDir = "/usr/local/bin"
+	preBootTuning       = "pre-boot-tuning"
+	reboot              = "reboot"
+	hugepagesAllocation = "hugepages-allocation"
+	bashScriptsDir      = "/usr/local/bin"
 )
 
 const (
@@ -59,6 +60,9 @@ const (
 
 const (
 	environmentNonIsolatedCpus = "NON_ISOLATED_CPUS"
+	environmentHugepagesSize   = "HUGEPAGES_SIZE"
+	environmentHugepagesCount  = "HUGEPAGES_COUNT"
+	environmentNUMANode        = "NUMA_NODE"
 )
 
 // New returns new machine configuration object for performance sensetive workflows
@@ -124,6 +128,11 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 		}
 
 		for _, page := range hugePages.Pages {
+			// we can not allocate hugepages on the specific NUMA node via kernel boot arguments
+			if page.Node != nil {
+				continue
+			}
+
 			kargs = append(kargs, fmt.Sprintf("hugepagesz=%s", string(page.Size)))
 			kargs = append(kargs, fmt.Sprintf("hugepages=%d", page.Count))
 		}
@@ -143,7 +152,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		},
 	}
 
-	for _, script := range []string{preBootTuning, reboot} {
+	for _, script := range []string{preBootTuning, hugepagesAllocation, reboot} {
 		content, err := ioutil.ReadFile(fmt.Sprintf("%s/scripts/%s.sh", assetsDir, script))
 		if err != nil {
 			return nil, err
@@ -190,6 +199,36 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 			},
 		},
 	}
+
+	if profile.Spec.HugePages != nil {
+		for _, page := range profile.Spec.HugePages.Pages {
+			// we already allocated non NUMA specific hugepages via kernel arguments
+			if page.Node == nil {
+				continue
+			}
+
+			hugepagesSize, err := GetHugepagesSizeKilobytes(page.Size)
+			if err != nil {
+				return nil, err
+			}
+
+			hugepagesService, err := getSystemdContent(getHugepagesAllocationUnitOptions(
+				hugepagesSize,
+				page.Count,
+				*page.Node,
+			))
+			if err != nil {
+				return nil, err
+			}
+
+			ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
+				Contents: hugepagesService,
+				Enabled:  pointer.BoolPtr(true),
+				Name:     getSystemdService(fmt.Sprintf("%s-%skB-NUMA%d", hugepagesAllocation, hugepagesSize, *page.Node)),
+			})
+		}
+	}
+
 	return ignitionConfig, nil
 }
 
@@ -255,6 +294,42 @@ func getPreBootTuningUnitOptions(nonIsolatedCpus string) []*unit.UnitOption {
 		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
 		// ExecStart
 		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(preBootTuning)),
+		// [Install]
+		// WantedBy
+		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
+	}
+}
+
+// GetHugepagesSizeKilobytes retruns hugepages size in kilobytes
+func GetHugepagesSizeKilobytes(hugepagesSize performancev1alpha1.HugePageSize) (string, error) {
+	switch hugepagesSize {
+	case "1G":
+		return "1048576", nil
+	case "2M":
+		return "2048", nil
+	default:
+		return "", fmt.Errorf("can not convert size %q to kilobytes", hugepagesSize)
+	}
+}
+
+func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int32, numaNode int32) []*unit.UnitOption {
+	return []*unit.UnitOption{
+		// [Unit]
+		// Description
+		unit.NewUnitOption(systemdSectionUnit, systemdDescription, fmt.Sprintf("Hugepages-%skB allocation on the node %d", hugepagesSize, numaNode)),
+		// Before
+		unit.NewUnitOption(systemdSectionUnit, systemdBefore, systemdServiceKubelet),
+		// [Service]
+		// Environment
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentHugepagesCount, fmt.Sprint(hugepagesCount))),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentHugepagesSize, hugepagesSize)),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentNUMANode, fmt.Sprint(numaNode))),
+		// Type
+		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
+		// RemainAfterExit
+		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
+		// ExecStart
+		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(hugepagesAllocation)),
 		// [Install]
 		// WantedBy
 		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
