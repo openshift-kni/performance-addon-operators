@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
+	"github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/version"
@@ -98,7 +98,7 @@ func main() {
 	klog.Info("Registering Components.")
 
 	// Setup Scheme for all resources
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+	if err := v1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
 		klog.Exit(err.Error())
 	}
 
@@ -160,7 +160,7 @@ func main() {
 func serveCRMetrics(cfg *rest.Config) error {
 	// Below function returns filtered operator/CustomResource specific GVKs.
 	// For more control override the below GVK list with your own custom logic.
-	filteredGVK, err := k8sutil.GetGVKsFromAddToScheme(apis.AddToScheme)
+	filteredGVK, err := k8sutil.GetGVKsFromAddToScheme(v1alpha1.AddToScheme)
 	if err != nil {
 		return err
 	}

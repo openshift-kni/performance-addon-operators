@@ -5,7 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
+	"github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
@@ -17,7 +17,7 @@ func TestFeatureGate(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	// add resources API to default scheme
-	apis.AddToScheme(scheme.Scheme)
+	v1alpha1.AddToScheme(scheme.Scheme)
 	configv1.AddToScheme(scheme.Scheme)
 	mcov1.AddToScheme(scheme.Scheme)
 	tunedv1.AddToScheme(scheme.Scheme)
