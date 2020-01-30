@@ -7,34 +7,43 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 )
 
+const (
+	hugepagesSize2M = "2M"
+	hugepagesSize1G = "1G"
+)
+
+func validationError(err string) error {
+	return fmt.Errorf("validation error: %s", err)
+}
+
 // ValidateParameters validates parameters of the given profile
-func ValidateParameters(profile v1alpha1.PerformanceProfile) error {
+func ValidateParameters(profile *v1alpha1.PerformanceProfile) error {
 
 	if profile.Spec.CPU == nil {
-		return fmt.Errorf("you should provide CPU section")
+		return validationError("you should provide CPU section")
 	}
 
 	if profile.Spec.CPU.Isolated == nil {
-		return fmt.Errorf("you should provide isolated CPU set")
+		return validationError("you should provide isolated CPU set")
 	}
 
 	if profile.Spec.CPU.NonIsolated == nil {
-		return fmt.Errorf("you should provide non isolated CPU set")
+		return validationError("you should provide non isolated CPU set")
 	}
 
 	if profile.Spec.MachineConfigLabel != nil && len(profile.Spec.MachineConfigLabel) > 1 {
-		return fmt.Errorf("you should provide only 1 MachineConfigLabel")
+		return validationError("you should provide only 1 MachineConfigLabel")
 	}
 
 	if profile.Spec.MachineConfigPoolSelector != nil && len(profile.Spec.MachineConfigPoolSelector) > 1 {
-		return fmt.Errorf("you should provide onlyt 1 MachineConfigPoolSelector")
+		return validationError("you should provide onlyt 1 MachineConfigPoolSelector")
 	}
 
 	if profile.Spec.NodeSelector == nil {
-		return fmt.Errorf("you should provide NodeSelector")
+		return validationError("you should provide NodeSelector")
 	}
 	if len(profile.Spec.NodeSelector) > 1 {
-		return fmt.Errorf("you should provide ony 1 NodeSelector")
+		return validationError("you should provide ony 1 NodeSelector")
 	}
 
 	// in case MachineConfigLabels or MachineConfigPoolSelector are not set, we expect a certain format (domain/role)
@@ -42,7 +51,13 @@ func ValidateParameters(profile v1alpha1.PerformanceProfile) error {
 	if profile.Spec.MachineConfigLabel == nil || profile.Spec.MachineConfigPoolSelector == nil {
 		k, _ := components.GetFirstKeyAndValue(profile.Spec.NodeSelector)
 		if _, _, err := components.SplitLabelKey(k); err != nil {
-			return fmt.Errorf("invalid NodeSelector label key, can't be split into domain/role")
+			return validationError("invalid NodeSelector label key, can't be split into domain/role")
+		}
+	}
+
+	if profile.Spec.HugePages != nil {
+		if err := validateHugepages(profile.Spec.HugePages); err != nil {
+			return err
 		}
 	}
 
@@ -53,7 +68,7 @@ func ValidateParameters(profile v1alpha1.PerformanceProfile) error {
 }
 
 // GetMachineConfigPoolSelector returns the MachineConfigPoolSelector from the CR or a default value calculated based on NodeSelector
-func GetMachineConfigPoolSelector(profile v1alpha1.PerformanceProfile) map[string]string {
+func GetMachineConfigPoolSelector(profile *v1alpha1.PerformanceProfile) map[string]string {
 	if profile.Spec.MachineConfigPoolSelector != nil {
 		return profile.Spec.MachineConfigPoolSelector
 	}
@@ -62,7 +77,7 @@ func GetMachineConfigPoolSelector(profile v1alpha1.PerformanceProfile) map[strin
 }
 
 // GetMachineConfigLabel returns the MachineConfigLabels from the CR or a default value calculated based on NodeSelector
-func GetMachineConfigLabel(profile v1alpha1.PerformanceProfile) map[string]string {
+func GetMachineConfigLabel(profile *v1alpha1.PerformanceProfile) map[string]string {
 	if profile.Spec.MachineConfigLabel != nil {
 		return profile.Spec.MachineConfigLabel
 	}
@@ -70,7 +85,7 @@ func GetMachineConfigLabel(profile v1alpha1.PerformanceProfile) map[string]strin
 	return getDefaultLabel(profile)
 }
 
-func getDefaultLabel(profile v1alpha1.PerformanceProfile) map[string]string {
+func getDefaultLabel(profile *v1alpha1.PerformanceProfile) map[string]string {
 	nodeSelectorKey, _ := components.GetFirstKeyAndValue(profile.Spec.NodeSelector)
 	// no error handling needed, it's validated already
 	_, nodeRole, _ := components.SplitLabelKey(nodeSelectorKey)
@@ -94,4 +109,26 @@ func IsPaused(profile *v1alpha1.PerformanceProfile) bool {
 	}
 
 	return false
+}
+
+func validateHugepages(hugepages *v1alpha1.HugePages) error {
+	// validate that default hugepages size has correct value, currently we support only 2M and 1G(x86_64 architecture)
+	if hugepages.DefaultHugePagesSize != nil {
+		defaultSize := *hugepages.DefaultHugePagesSize
+		if defaultSize != hugepagesSize1G && defaultSize != hugepagesSize2M {
+			return validationError(fmt.Sprintf("hugepages default size should be equal to %q or %q", hugepagesSize1G, hugepagesSize2M))
+		}
+	}
+	hugepagesSizes := map[v1alpha1.HugePageSize]string{}
+	for _, page := range hugepages.Pages {
+		hugepagesSizes[page.Size] = ""
+	}
+
+	// TODO: this validation should be removed, once https://github.com/kubernetes/kubernetes/pull/84051
+	// is available under the openshift
+	// validate that we do not have allocations of hugepages of different sizes
+	if len(hugepagesSizes) > 1 {
+		return validationError("allocation of hugepages with different sizes not supported")
+	}
+	return nil
 }

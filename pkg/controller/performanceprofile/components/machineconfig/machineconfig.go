@@ -75,7 +75,7 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: profile2.GetMachineConfigLabel(*profile),
+			Labels: profile2.GetMachineConfigLabel(profile),
 		},
 		Spec: machineconfigv1.MachineConfigSpec{},
 	}
