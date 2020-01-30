@@ -79,17 +79,20 @@ operator-sdk:
 		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
 	fi
 
+generate-client:
+	./hack/generate-client.sh
+
 generate-csv: operator-sdk
 	@if [ -z "$(REGISTRY_NAMESPACE)" ]; then\
 		echo "REGISTRY_NAMESPACE env-var must be set to your $(IMAGE_REGISTRY) namespace";\
 		exit 1;\
 	fi
-	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/csv-generate.sh
+	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/generate-csv.sh
 
 generate-latest-dev-csv: operator-sdk
 	@echo Generating developer csv
 	@echo
-	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" CSV_VERSION=$(OPERATOR_DEV_CSV) hack/csv-generate.sh
+	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" CSV_VERSION=$(OPERATOR_DEV_CSV) hack/generate-csv.sh
 
 deps-update:
 	go mod tidy && \
@@ -135,7 +138,7 @@ govet:
 	@echo "Running go vet"
 	go vet ./...
 
-generate: operator-sdk
+generate: operator-sdk generate-client
 	@echo Updating generated files
 	@echo
 	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate k8s
