@@ -2,16 +2,18 @@ package pods
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"time"
-
-	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
-	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetBusybox returns pod with the busybox image
@@ -36,10 +38,14 @@ func GetBusybox() *corev1.Pod {
 }
 
 // WaitForDeletion waits until the pod will be removed from the cluster
-func WaitForDeletion(cs *testclient.ClientSet, pod *corev1.Pod, timeout time.Duration) error {
+func WaitForDeletion(c client.Client, pod *corev1.Pod, timeout time.Duration) error {
+	key := types.NamespacedName{
+		Name:      pod.Name,
+		Namespace: pod.Namespace,
+	}
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		_, err := cs.Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
-		if errors.IsNotFound(err) {
+		pod := &corev1.Pod{}
+		if err := c.Get(context.TODO(), key, pod); errors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, nil
@@ -47,14 +53,18 @@ func WaitForDeletion(cs *testclient.ClientSet, pod *corev1.Pod, timeout time.Dur
 }
 
 // WaitForCondition waits until the pod will have specified condition type with the expected status
-func WaitForCondition(cs *testclient.ClientSet, pod *corev1.Pod, conditionType corev1.PodConditionType, conditionStatus corev1.ConditionStatus, timeout time.Duration) error {
+func WaitForCondition(c client.Client, pod *corev1.Pod, conditionType corev1.PodConditionType, conditionStatus corev1.ConditionStatus, timeout time.Duration) error {
+	key := types.NamespacedName{
+		Name:      pod.Name,
+		Namespace: pod.Namespace,
+	}
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		updatePod, err := cs.Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
-		if err != nil {
+		updatedPod := &corev1.Pod{}
+		if err := c.Get(context.TODO(), key, updatedPod); err != nil {
 			return false, nil
 		}
 
-		for _, c := range updatePod.Status.Conditions {
+		for _, c := range updatedPod.Status.Conditions {
 			if c.Type == conditionType && c.Status == conditionStatus {
 				return true, nil
 			}
@@ -64,14 +74,18 @@ func WaitForCondition(cs *testclient.ClientSet, pod *corev1.Pod, conditionType c
 }
 
 // WaitForPhase waits until the pod will have specified phase
-func WaitForPhase(cs *testclient.ClientSet, pod *corev1.Pod, phase corev1.PodPhase, timeout time.Duration) error {
+func WaitForPhase(c client.Client, pod *corev1.Pod, phase corev1.PodPhase, timeout time.Duration) error {
+	key := types.NamespacedName{
+		Name:      pod.Name,
+		Namespace: pod.Namespace,
+	}
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		updatePod, err := cs.Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
-		if err != nil {
+		updatedPod := &corev1.Pod{}
+		if err := c.Get(context.TODO(), key, updatedPod); err != nil {
 			return false, nil
 		}
 
-		if updatePod.Status.Phase == phase {
+		if updatedPod.Status.Phase == phase {
 			return true, nil
 		}
 
@@ -80,8 +94,8 @@ func WaitForPhase(cs *testclient.ClientSet, pod *corev1.Pod, phase corev1.PodPha
 }
 
 // GetLogs returns logs of the specified pod
-func GetLogs(cs *testclient.ClientSet, pod *corev1.Pod) (string, error) {
-	logStream, err := testclient.Client.Pods(testutils.NamespaceTesting).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream()
+func GetLogs(c *kubernetes.Clientset, pod *corev1.Pod) (string, error) {
+	logStream, err := c.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{}).Stream()
 	if err != nil {
 		return "", err
 	}

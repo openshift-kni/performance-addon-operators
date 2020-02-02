@@ -3,6 +3,7 @@
 package test_test
 
 import (
+	"context"
 	"flag"
 	"testing"
 	"time"
@@ -18,10 +19,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TODO: we should refactor tests to use client from controller-runtime package
-// see - https://github.com/openshift/cluster-api-actuator-pkg/blob/master/pkg/e2e/framework/framework.go
-
 var junitPath *string
+var testingNamespace *corev1.Namespace = &corev1.Namespace{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: testutils.NamespaceTesting,
+	},
+}
 
 func init() {
 	junitPath = flag.String("junit", "junit.xml", "the path for the junit format report")
@@ -39,17 +42,12 @@ func TestTest(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	// create test namespace
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: testutils.NamespaceTesting,
-		},
-	}
-	_, err := testclient.Client.Namespaces().Create(ns)
+	err := testclient.Client.Create(context.TODO(), testingNamespace)
 	Expect(err).ToNot(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
-	err := testclient.Client.Namespaces().Delete(testutils.NamespaceTesting, &metav1.DeleteOptions{})
+	err := testclient.Client.Delete(context.TODO(), testingNamespace)
 	Expect(err).ToNot(HaveOccurred())
 	err = namespaces.WaitForDeletion(testclient.Client, testutils.NamespaceTesting, 5*time.Minute)
 })

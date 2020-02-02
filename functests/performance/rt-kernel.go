@@ -1,6 +1,7 @@
 package performance
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -12,14 +13,16 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("[performance]RT Kernel", func() {
 	var testpod *corev1.Pod
 
 	AfterEach(func() {
-		if err := testclient.Client.Pods(testutils.NamespaceTesting).Delete(testpod.Name, &metav1.DeleteOptions{}); err == nil {
+		if testpod == nil {
+			return
+		}
+		if err := testclient.Client.Delete(context.TODO(), testpod); err == nil {
 			pods.WaitForDeletion(testclient.Client, testpod, 60*time.Second)
 		}
 	})
@@ -30,24 +33,22 @@ var _ = Describe("[performance]RT Kernel", func() {
 
 			// run uname -a in a busybox pod and get logs
 			testpod = pods.GetBusybox()
+			testpod.Namespace = testutils.NamespaceTesting
 			testpod.Spec.Containers[0].Command = []string{"uname", "-a"}
 			testpod.Spec.RestartPolicy = corev1.RestartPolicyNever
 			testpod.Spec.NodeSelector = map[string]string{
 				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
 			}
 
-			var err error
-			testpod, err = testclient.Client.Pods(testutils.NamespaceTesting).Create(testpod)
-			if err != nil {
+			if err := testclient.Client.Create(context.TODO(), testpod); err != nil {
 				return ""
 			}
 
-			err = pods.WaitForPhase(testclient.Client, testpod, corev1.PodSucceeded, 60*time.Second)
-			if err != nil {
+			if err := pods.WaitForPhase(testclient.Client, testpod, corev1.PodSucceeded, 60*time.Second); err != nil {
 				return ""
 			}
 
-			logs, err := pods.GetLogs(testclient.Client, testpod)
+			logs, err := pods.GetLogs(testclient.K8sClient, testpod)
 			if err != nil {
 				return ""
 			}
