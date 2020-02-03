@@ -67,7 +67,7 @@ func ExecCommandOnMachineConfigDaemon(cs *testclient.ClientSet, node *corev1.Nod
 		"rsh",
 		"-n", testutils.NamespaceMachineConfigOperator,
 		"-c", testutils.ContainerMachineConfigDaemon,
-		"--timeout", "30",
+		"--request-timeout", "30",
 		mcd.Name,
 	}
 	initialArgs = append(initialArgs, command...)
