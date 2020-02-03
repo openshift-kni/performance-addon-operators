@@ -1,6 +1,7 @@
 package performance
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"path"
@@ -18,7 +19,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 )
 
@@ -50,7 +51,7 @@ var _ = Describe("[performance]Topology Manager", func() {
 		var sriovNode *corev1.Node
 
 		BeforeEach(func() {
-			sriovNodes := nodes.FilterByResource(testclient.Client, workerRTNodes, testutils.ResourceSRIOV)
+			sriovNodes := nodes.FilterByResource(workerRTNodes, testutils.ResourceSRIOV)
 			// TODO: once we will have different CI job for SR-IOV test cases, this skip should be removed
 			// and replaced by ginkgo CLI --focus parameter
 			if len(sriovNodes) < 1 {
@@ -66,13 +67,14 @@ var _ = Describe("[performance]Topology Manager", func() {
 
 			var err error
 			if testpod != nil {
-				err = testclient.Client.Pods(testutils.NamespaceTesting).Delete(testpod.Name, &metav1.DeleteOptions{})
+				err = testclient.Client.Delete(context.TODO(), testpod)
 				Expect(err).ToNot(HaveOccurred())
 
 				err = pods.WaitForDeletion(testclient.Client, testpod, 60*time.Second)
 				Expect(err).ToNot(HaveOccurred())
 			}
 			testpod = pods.GetBusybox()
+			testpod.Namespace = testutils.NamespaceTesting
 			testpod.Spec.Containers[0].Resources.Requests = map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceCPU:      resource.MustParse("1"),
 				corev1.ResourceMemory:   resource.MustParse("64Mi"),
@@ -86,14 +88,18 @@ var _ = Describe("[performance]Topology Manager", func() {
 			testpod.Spec.NodeSelector = map[string]string{
 				testutils.LabelHostname: sriovNode.Name,
 			}
-			testpod, err = testclient.Client.Pods(testutils.NamespaceTesting).Create(testpod)
+			err = testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
 			err = pods.WaitForCondition(testclient.Client, testpod, corev1.PodReady, corev1.ConditionTrue, 60*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 
 			// Get updated testpod
-			testpod, err = testclient.Client.Pods(testpod.Namespace).Get(testpod.Name, metav1.GetOptions{})
+			key := types.NamespacedName{
+				Name:      testpod.Name,
+				Namespace: testpod.Namespace,
+			}
+			err = testclient.Client.Get(context.TODO(), key, testpod)
 			Expect(err).ToNot(HaveOccurred())
 		})
 

@@ -1,20 +1,27 @@
 package namespaces
 
 import (
+	"context"
 	"time"
 
-	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
-
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // WaitForDeletion waits until the namespace will be removed from the cluster
-func WaitForDeletion(cs *testclient.ClientSet, nsName string, timeout time.Duration) error {
+func WaitForDeletion(c client.Client, name string, timeout time.Duration) error {
+	key := types.NamespacedName{
+		Name:      name,
+		Namespace: metav1.NamespaceNone,
+	}
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		_, err := cs.Namespaces().Get(nsName, metav1.GetOptions{})
-		if errors.IsNotFound(err) {
+		ns := &corev1.Namespace{}
+		if err := c.Get(context.TODO(), key, ns); errors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, nil

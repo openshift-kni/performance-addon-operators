@@ -1,26 +1,30 @@
 package performance
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
+	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	ocv1 "github.com/openshift/api/config/v1"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
-	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
-
-	ocv1 "github.com/openshift/api/config/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var profileName string
@@ -69,8 +73,14 @@ var _ = Describe("performance", func() {
 
 	Context("FeatureGate - FeatureSet configuration", func() {
 		It("FeatureGates with LatencySensitive should exist", func() {
-			fg, err := testclient.Client.FeatureGates().Get(components.FeatureGateLatencySensetiveName, metav1.GetOptions{})
+			key := types.NamespacedName{
+				Name:      components.FeatureGateLatencySensetiveName,
+				Namespace: metav1.NamespaceNone,
+			}
+			fg := &ocv1.FeatureGate{}
+			err := testclient.Client.Get(context.TODO(), key, fg)
 			Expect(err).ToNot(HaveOccurred())
+
 			lsStr := string(ocv1.LatencySensitive)
 			By("Checking whether FeatureSet is configured as " + lsStr)
 			Expect(string(fg.Spec.FeatureSet)).Should(Equal(lsStr), "FeauterSet is not set to "+lsStr)
@@ -89,9 +99,13 @@ var _ = Describe("performance", func() {
 				"kernel.timer_migration":        "0",
 			}
 
-			tunedName := components.GetComponentName(profileName, components.ProfileNameWorkerRT)
-			_, err := testclient.Client.Tuneds(components.NamespaceNodeTuningOperator).Get(tunedName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+tunedName)
+			key := types.NamespacedName{
+				Name:      components.GetComponentName(profileName, components.ProfileNameWorkerRT),
+				Namespace: components.NamespaceNodeTuningOperator,
+			}
+			tuned := &tunedv1.Tuned{}
+			err := testclient.Client.Get(context.TODO(), key, tuned)
+			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+key.String())
 			validatTunedActiveProfile(workerRTNodes)
 			execSysctlOnWorkers(workerRTNodes, sysctlMap)
 		})
@@ -109,7 +123,12 @@ var _ = Describe("performance", func() {
 				"vm.swappiness":                   "10",
 				"kernel.sched_migration_cost_ns":  "5000000",
 			}
-			_, err := testclient.Client.Tuneds(components.NamespaceNodeTuningOperator).Get(components.ProfileNameNetworkLatency, metav1.GetOptions{})
+			key := types.NamespacedName{
+				Name:      components.ProfileNameNetworkLatency,
+				Namespace: components.NamespaceNodeTuningOperator,
+			}
+			tuned := &tunedv1.Tuned{}
+			err := testclient.Client.Get(context.TODO(), key, tuned)
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+components.ProfileNameNetworkLatency)
 			validatTunedActiveProfile(workerRTNodes)
 			execSysctlOnWorkers(workerRTNodes, sysctlMap)
@@ -150,19 +169,18 @@ func validatTunedActiveProfile(nodes []corev1.Node) {
 
 // find tuned pod for appropriate node
 func tunedForNode(node *corev1.Node) *corev1.Pod {
-	listOptions := metav1.ListOptions{
-		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}).String(),
+	listOptions := &client.ListOptions{
+		Namespace:     components.NamespaceNodeTuningOperator,
+		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}),
+		LabelSelector: labels.SelectorFromSet(labels.Set{"openshift-app": "tuned"}),
 	}
-	listOptions.LabelSelector = labels.SelectorFromSet(labels.Set{"openshift-app": "tuned"}).String()
 
-	var tunedList *corev1.PodList
-	var err error
-
+	tunedList := &corev1.PodList{}
 	Eventually(func() bool {
-		tunedList, err = testclient.Client.Pods(components.NamespaceNodeTuningOperator).List(listOptions)
-		if err != nil {
+		if err := testclient.Client.List(context.TODO(), tunedList, listOptions); err != nil {
 			return false
 		}
+
 		if len(tunedList.Items) == 0 {
 			return false
 		}

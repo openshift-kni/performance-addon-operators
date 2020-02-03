@@ -1,57 +1,73 @@
 package client
 
 import (
-	"os"
+	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
+	configv1 "github.com/openshift/api/config/v1"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
-	"github.com/golang/glog"
-	clientconfigv1 "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
-	tunedClient "github.com/openshift/cluster-node-tuning-operator/pkg/generated/clientset/versioned/typed/tuned/v1"
-	clientmachineconfigv1 "github.com/openshift/machine-config-operator/pkg/generated/clientset/versioned/typed/machineconfiguration.openshift.io/v1"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-// Client defines the client set that will be used for testing
-var Client *ClientSet
+var (
+	// Client defines the API client to run CRUD operations, that will be used for testing
+	Client client.Client
+	// K8sClient defines k8s client to run subresource operations, for example you should use it to get pod logs
+	K8sClient *kubernetes.Clientset
+)
 
 func init() {
-	Client = New("")
-}
-
-// ClientSet provides the struct to talk with relevant API
-type ClientSet struct {
-	corev1client.CoreV1Interface
-	clientconfigv1.ConfigV1Interface
-	clientmachineconfigv1.MachineconfigurationV1Interface
-	tunedClient.TunedV1Interface
-}
-
-// New returns a *ClientBuilder with the given kubeconfig.
-func New(kubeconfig string) *ClientSet {
-	var config *rest.Config
-	var err error
-
-	if kubeconfig == "" {
-		kubeconfig = os.Getenv("KUBECONFIG")
+	// Setup Scheme for all resources
+	if err := apis.AddToScheme(scheme.Scheme); err != nil {
+		klog.Exit(err.Error())
 	}
 
-	if kubeconfig != "" {
-		glog.V(4).Infof("Loading kube client config from path %q", kubeconfig)
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
-	} else {
-		glog.V(4).Infof("Using in-cluster kube client config")
-		config, err = rest.InClusterConfig()
+	if err := configv1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Exit(err.Error())
 	}
+
+	if err := mcov1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Exit(err.Error())
+	}
+
+	if err := tunedv1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Exit(err.Error())
+	}
+
+	Client = New()
+	K8sClient = NewK8s()
+}
+
+// New returns a controller-runtime client.
+func New() client.Client {
+	cfg, err := config.GetConfig()
 	if err != nil {
-		panic(err)
+		klog.Exit(err.Error())
 	}
 
-	clientSet := &ClientSet{}
-	clientSet.CoreV1Interface = corev1client.NewForConfigOrDie(config)
-	clientSet.ConfigV1Interface = clientconfigv1.NewForConfigOrDie(config)
-	clientSet.MachineconfigurationV1Interface = clientmachineconfigv1.NewForConfigOrDie(config)
-	clientSet.TunedV1Interface = tunedClient.NewForConfigOrDie(config)
+	c, err := client.New(cfg, client.Options{})
+	if err != nil {
+		klog.Exit(err.Error())
+	}
 
-	return clientSet
+	return c
+}
+
+// NewK8s returns a kubernetes clientset
+func NewK8s() *kubernetes.Clientset {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		klog.Exit(err.Error())
+	}
+
+	clientset, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		klog.Exit(err.Error())
+	}
+	return clientset
 }
