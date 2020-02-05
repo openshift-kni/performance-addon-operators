@@ -44,6 +44,7 @@ type CPU struct {
 	Reserved *CPUSet `json:"reserved,omitempty"`
 	// Isolated defines set of CPU's that will used to give to application threads the most execution time possible,
 	// which means removing as many extraneous tasks off a CPU as possible.
+	// +optional
 	Isolated *CPUSet `json:"isolated,omitempty"`
 	// NonIsolated defines set of CPU's that will be used for OS tasks, like serving interupts or workqueues.
 	NonIsolated *CPUSet `json:"nonIsolated,omitempty"`

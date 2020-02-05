@@ -69,7 +69,7 @@ var _ = Describe("Controller", func() {
 		})
 
 		It("should validate scripts required parameters", func() {
-			profile.Spec.CPU.Isolated = nil
+			profile.Spec.MachineConfigPoolSelector = map[string]string{"fake1": "val1", "fake2": "val2"}
 			r := newFakeReconciler(profile)
 
 			// we do not return error, because we do not want to reconcile again, and just print error under the log,
@@ -90,7 +90,7 @@ var _ = Describe("Controller", func() {
 			Expect(degradeCondition).ToNot(BeNil())
 			Expect(degradeCondition.Status).To(Equal(corev1.ConditionTrue))
 			Expect(degradeCondition.Reason).To(Equal(conditionReasonValidationFailed))
-			Expect(degradeCondition.Message).To(ContainSubstring("you should provide isolated CPU set"))
+			Expect(degradeCondition.Message).To(Equal("you should provide only 1 MachineConfigPoolSelector"))
 
 			// verify validation event
 			fakeRecorder, ok := r.recorder.(*record.FakeRecorder)

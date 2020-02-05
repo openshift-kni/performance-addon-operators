@@ -72,9 +72,14 @@ func NewNetworkLatency(assetsDir string) (*tunedv1.Tuned, error) {
 
 // NewWorkerRealTimeKernel returns tuned profile for performance sensitive workflows on top of real time kernel
 func NewWorkerRealTimeKernel(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*tunedv1.Tuned, error) {
-	profileData, err := getProfileData(getProfilePath(components.ProfileNameWorkerRT, assetsDir), map[string]string{
-		templateIsolatedCpus: string(*profile.Spec.CPU.Isolated),
-	})
+
+	templateArgs := make(map[string]string)
+
+	if profile.Spec.CPU.Isolated != nil {
+		templateArgs[templateIsolatedCpus] = string(*profile.Spec.CPU.Isolated)
+	}
+
+	profileData, err := getProfileData(getProfilePath(components.ProfileNameWorkerRT, assetsDir), templateArgs)
 	if err != nil {
 		return nil, err
 	}
