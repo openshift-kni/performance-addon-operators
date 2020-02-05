@@ -46,6 +46,14 @@ type CPU struct {
 	// which means removing as many extraneous tasks off a CPU as possible.
 	// +optional
 	Isolated *CPUSet `json:"isolated,omitempty"`
+	// EnableIsolcpus results in the Isolated CPUset being listed in the isolcpu kernel arg on the host machines.
+	// When this option is set to "false", the Isolated cpus will be partitioned by tuned, but load balancing
+	// across the Isolated cpus will still be possible.
+	// When this option is set to "true", the Isolated CPU sets will be static, meaning workloads have to
+	// explicitly assign each thread to a specific cpu in order to work across multiple cpus.
+	// Setting this to "true" offers the most predictable performance for guaranteed workloads, but it offloads
+	// the complexity of cpu load balancing to the application.
+	EnableIsolcpus *bool `json:"enableIsolcpus,omitempty"`
 }
 
 // HugePageSize defines size of huge pages, can be 2M or 1G.

@@ -86,7 +86,12 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	}
 
 	mc.Spec.Config = *ignitionConfig
-	mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated)
+
+	if profile.Spec.CPU.Isolated != nil && profile.Spec.CPU.EnableIsolcpus != nil && *profile.Spec.CPU.EnableIsolcpus == true {
+		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated)
+	} else {
+		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, nil)
+	}
 
 	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
 		profile.Spec.RealTimeKernel.Enabled != nil &&

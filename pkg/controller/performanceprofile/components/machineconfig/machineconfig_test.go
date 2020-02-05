@@ -122,6 +122,8 @@ var _ = Describe("Machine Config", func() {
 			Count: 1024,
 			Size:  "2M",
 		})
+		t := true
+		profile.Spec.CPU.EnableIsolcpus = &t
 		mc, err := New(testAssetsDir, profile)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -138,13 +140,12 @@ var _ = Describe("Machine Config", func() {
 		Expect(manifest).To(ContainSubstring(expectedBootArguments))
 	})
 
-	It("should generate yaml with expected parameters when no isocpus are set", func() {
+	It("should generate yaml with expected parameters when isocpus not enabled", func() {
 		profile := testutils.NewPerformanceProfile("test")
 		profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, performancev1alpha1.HugePage{
 			Count: 1024,
 			Size:  "2M",
 		})
-		profile.Spec.CPU.Isolated = nil
 		mc, err := New(testAssetsDir, profile)
 		Expect(err).ToNot(HaveOccurred())
 
