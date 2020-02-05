@@ -46,8 +46,6 @@ type CPU struct {
 	// which means removing as many extraneous tasks off a CPU as possible.
 	// +optional
 	Isolated *CPUSet `json:"isolated,omitempty"`
-	// NonIsolated defines set of CPU's that will be used for OS tasks, like serving interupts or workqueues.
-	NonIsolated *CPUSet `json:"nonIsolated,omitempty"`
 }
 
 // HugePageSize defines size of huge pages, can be 2M or 1G.

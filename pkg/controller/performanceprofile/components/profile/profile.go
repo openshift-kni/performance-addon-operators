@@ -23,10 +23,6 @@ func ValidateParameters(profile *v1alpha1.PerformanceProfile) error {
 		return validationError("you should provide CPU section")
 	}
 
-	if profile.Spec.CPU.NonIsolated == nil {
-		return validationError("you should provide non isolated CPU set")
-	}
-
 	if profile.Spec.MachineConfigLabel != nil && len(profile.Spec.MachineConfigLabel) > 1 {
 		return validationError("you should provide only 1 MachineConfigLabel")
 	}

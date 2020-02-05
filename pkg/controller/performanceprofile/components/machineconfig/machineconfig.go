@@ -172,7 +172,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		})
 	}
 
-	nonIsolatedCpus := profile.Spec.CPU.NonIsolated
+	nonIsolatedCpus := profile.Spec.CPU.Reserved
 	preBootTuningService, err := getSystemdContent(
 		getPreBootTuningUnitOptions(string(*nonIsolatedCpus)),
 	)

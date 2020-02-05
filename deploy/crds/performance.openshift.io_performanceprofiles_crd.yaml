@@ -39,10 +39,6 @@ spec:
                     to application threads the most execution time possible, which
                     means removing as many extraneous tasks off a CPU as possible.
                   type: string
-                nonIsolated:
-                  description: NonIsolated defines set of CPU's that will be used
-                    for OS tasks, like serving interupts or workqueues.
-                  type: string
                 reserved:
                   description: Reserved defines set of CPU's that will not be used
                     for any container workloads initiated by kubelet.
