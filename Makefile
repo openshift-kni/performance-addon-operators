@@ -25,13 +25,13 @@ IMAGE_TAG ?= "latest"
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
 
-CACHE_DIR="_cache"
-TOOLS_DIR="$(CACHE_DIR)/tools"
+THIRD_PARTY_DIR="third_party"
 
 OPERATOR_SDK_VERSION="v0.13.0"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
-OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
+OPERATOR_SDK_DIR="$(THIRD_PARTY_DIR)/operator-sdk"
+OPERATOR_SDK="$(OPERATOR_SDK_DIR)/$(OPERATOR_SDK_BIN)"
 
 REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
 OPERATOR_IMAGE_NAME="performance-addon-operator"
@@ -72,11 +72,11 @@ push-containers:
 operator-sdk:
 	@if [ ! -x "$(OPERATOR_SDK)" ]; then\
 		echo "Downloading operator-sdk $(OPERATOR_SDK_VERSION)";\
-		mkdir -p $(TOOLS_DIR);\
+		mkdir -p $(OPERATOR_SDK_DIR);\
 		curl -JL https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/$(OPERATOR_SDK_BIN) -o $(OPERATOR_SDK);\
 		chmod +x $(OPERATOR_SDK);\
 	else\
-		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
+		echo "Using operator-sdk at $(OPERATOR_SDK)";\
 	fi
 
 generate-csv: operator-sdk
