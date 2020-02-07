@@ -52,6 +52,10 @@ var (
 	inputManifestsDir = flag.String("manifests-directory", "", "The directory containing the extra manifests to be included in the registry bundle")
 
 	outputDir = flag.String("olm-bundle-directory", "", "The directory to output the unified CSV and CRDs to")
+
+	annotationsFile = flag.String("inject-annotations-from", "", "inject metadata annotations from given file")
+
+	semverVersion *semver.Version
 )
 
 func finalizedCsvFilename() string {
@@ -163,7 +167,7 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 	return nil
 }
 
-func generateUnifiedCSV() {
+func generateUnifiedCSV(extraAnnotations map[string]string) {
 
 	operatorCSV := unmarshalCSV(*operatorCSVTemplate)
 
@@ -191,11 +195,11 @@ func generateUnifiedCSV() {
 	}
 	operatorCSV.Spec.InstallStrategy.StrategySpecRaw = updatedStrat
 
-	// Set correct csv versions and name
-	semverVersion, err := semver.New(*csvVersion)
-	if err != nil {
-		panic(err)
+	for key, value := range extraAnnotations {
+		operatorCSV.Annotations[key] = value
 	}
+
+	// Set correct csv versions and name
 	v := version.OperatorVersion{Version: *semverVersion}
 	operatorCSV.Spec.Version = v
 	operatorCSV.Name = "performance-addon-operator.v" + *csvVersion
@@ -212,7 +216,7 @@ func generateUnifiedCSV() {
 	operatorCSV.Spec.Links = []csvv1.AppLink{
 		{
 			Name: "Source Code",
-			URL:  "https://github.com/openshift-kni/performance-addon-operator",
+			URL:  "https://github.com/openshift-kni/performance-addon-operators",
 		},
 	}
 
@@ -243,12 +247,13 @@ Performance Addon Operator provides the ability to enable advanced node performa
 	// write CSV to out dir
 	writer := strings.Builder{}
 	marshallObject(operatorCSV, &writer)
-	err = ioutil.WriteFile(filepath.Join(*outputDir, finalizedCsvFilename()), []byte(writer.String()), 0644)
+	outputFilename := filepath.Join(*outputDir, finalizedCsvFilename())
+	err = ioutil.WriteFile(outputFilename, []byte(writer.String()), 0644)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("CSV written to %s\n", filepath.Join(*outputDir, finalizedCsvFilename()))
+	fmt.Printf("CSV written to %s\n", outputFilename)
 }
 
 func main() {
@@ -264,11 +269,30 @@ func main() {
 		log.Fatal("--olm-bundle-directory is required")
 	}
 
+	var err error
+	// Set correct csv versions and name
+	semverVersion, err = semver.New(*csvVersion)
+	if err != nil {
+		panic(err)
+	}
+
+	extraAnnotations := make(map[string]string)
+	if *annotationsFile != "" {
+		data, err := ioutil.ReadFile(*annotationsFile)
+		if err != nil {
+			panic(err)
+		}
+		err = json.Unmarshal(data, &extraAnnotations)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	// start with a fresh output directory if it already exists
 	os.RemoveAll(*outputDir)
 
 	// create output directory
 	os.MkdirAll(*outputDir, os.FileMode(0775))
 
-	generateUnifiedCSV()
+	generateUnifiedCSV(extraAnnotations)
 }
