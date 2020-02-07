@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-non_iso_cpumask=""
+reserved_cpumask=""
 cpu_affinity=""
 
 get_reserved_cores() {
@@ -15,10 +15,10 @@ get_reserved_cores() {
         else
             cores+=($part)
         fi
-    done < <( echo ${NON_ISOLATED_CPUS} | tr ',' '\n' )
+    done < <( echo ${RESERVED_CPUS} | tr ',' '\n' )
 }
 
-# $1 - 0 for irq balance banned cpus masking , 1 for non isolated cpus masking
+# $1 - 0 for irq balance banned cpus masking , 1 for reserved cpus masking
 get_cpu_mask() {
     if [ "$1" = "1" ]; then
         mask=( 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 )
@@ -31,7 +31,7 @@ get_cpu_mask() {
     done
     cpumaskBinary=`echo ${mask[@]}| rev`
     cpumaskBinary=${cpumaskBinary//[[:space:]]/}
-    non_iso_cpumask=`printf '%08x\n' "$((2#$cpumaskBinary))"`
+    reserved_cpumask=`printf '%08x\n' "$((2#$cpumaskBinary))"`
 }
 
 get_cpu_affinity() {
@@ -56,7 +56,7 @@ if [ -f ${INITRD_NEW_IMAGE} ] && grep -qs "iso_initrd.img" ${CURRENT_ENTRY_FILE}
     echo "Pre boot tuning configuration already applied"
     echo "Setting kernel rcuo* threads to the housekeeping cpus"
     get_cpu_mask 1
-    pgrep rcuo* | while read line; do taskset -pc ${NON_ISOLATED_CPUS} $line || true; done
+    pgrep rcuo* | while read line; do taskset -pc ${RESERVED_CPUS} $line || true; done
 else
     # Clean up
     rm -rf ${INITRD_GENERATION_DIR}
@@ -76,8 +76,8 @@ else
 
     type getargs >/dev/null 2>&1 || . /lib/dracut-lib.sh
 
-    #cpumask="$(getargs non_iso_cpumask)"
-    cpumask='$non_iso_cpumask'
+    #cpumask="$(getargs reserved_cpumask)"
+    cpumask='$reserved_cpumask'
 
     log()
     {
@@ -93,14 +93,14 @@ else
     done
     fi' > ${INITRD_GENERATION_DIR}/usr/lib/dracut/hooks/pre-udev/00-tuned-pre-udev.sh
 
-    # Set CPU affinity according to NON_ISOLATED_CPUS
+    # Set CPU affinity according to RESERVED_CPUS
     get_cpu_affinity
     echo "[Manager]" >> ${INITRD_GENERATION_DIR}/etc/systemd/system.conf
     echo "CPUAffinity=$cpu_affinity" >> ${INITRD_GENERATION_DIR}/etc/systemd/system.conf
 
-    # Set IRQ banned cpu according to NON_ISOLATED_CPUS
+    # Set IRQ banned cpu according to RESERVED_CPUS
     get_cpu_mask 0
-    echo "IRQBALANCE_BANNED_CPUS=$non_iso_cpumask" >> ${INITRD_GENERATION_DIR}/etc/sysconfig/irqbalance
+    echo "IRQBALANCE_BANNED_CPUS=$reserved_cpumask" >> ${INITRD_GENERATION_DIR}/etc/sysconfig/irqbalance
     
     cd ${INITRD_GENERATION_DIR}
     find . | cpio -co >${INITRD_NEW_IMAGE}

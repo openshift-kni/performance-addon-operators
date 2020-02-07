@@ -23,7 +23,7 @@ const expectedSystemdUnits = `
           Before=reboot.service
 
           [Service]
-          Environment=NON_ISOLATED_CPUS=0-3
+          Environment=RESERVED_CPUS=0-3
           Type=oneshot
           RemainAfterExit=true
           ExecStart=/usr/local/bin/pre-boot-tuning.sh

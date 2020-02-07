@@ -59,10 +59,10 @@ const (
 )
 
 const (
-	environmentNonIsolatedCpus = "NON_ISOLATED_CPUS"
-	environmentHugepagesSize   = "HUGEPAGES_SIZE"
-	environmentHugepagesCount  = "HUGEPAGES_COUNT"
-	environmentNUMANode        = "NUMA_NODE"
+	environmentHugepagesSize  = "HUGEPAGES_SIZE"
+	environmentHugepagesCount = "HUGEPAGES_COUNT"
+	environmentNUMANode       = "NUMA_NODE"
+	environmentReservedCpus   = "RESERVED_CPUS"
 )
 
 // New returns new machine configuration object for performance sensetive workflows
@@ -177,9 +177,9 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		})
 	}
 
-	nonIsolatedCpus := profile.Spec.CPU.Reserved
+	ReservedCpus := profile.Spec.CPU.Reserved
 	preBootTuningService, err := getSystemdContent(
-		getPreBootTuningUnitOptions(string(*nonIsolatedCpus)),
+		getPreBootTuningUnitOptions(string(*ReservedCpus)),
 	)
 	if err != nil {
 		return nil, err
@@ -282,7 +282,7 @@ func getRebootUnitOptions() []*unit.UnitOption {
 	}
 }
 
-func getPreBootTuningUnitOptions(nonIsolatedCpus string) []*unit.UnitOption {
+func getPreBootTuningUnitOptions(ReservedCpus string) []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
@@ -292,7 +292,7 @@ func getPreBootTuningUnitOptions(nonIsolatedCpus string) []*unit.UnitOption {
 		unit.NewUnitOption(systemdSectionUnit, systemdBefore, getSystemdService(reboot)),
 		// [Service]
 		// Environment
-		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentNonIsolatedCpus, nonIsolatedCpus)),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCpus, ReservedCpus)),
 		// Type
 		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
 		// RemainAfterExit
