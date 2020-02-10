@@ -49,8 +49,10 @@ RHCOS_OSTREE_BOOTLOADER_PATH=${RHCOS_OSTREE_PATH#"/boot"}
 INITRD_GENERATION_DIR="/root/initrd"
 INITRD_NEW_IMAGE="${RHCOS_OSTREE_PATH}/iso_initrd.img"
 
-# TODO: improve check for applied configuration
-if [ -f ${INITRD_NEW_IMAGE} ] && grep -qsR "iso_initrd.img" "/boot/loader/entries/"; then
+OSTREE_VERSION=$(rpm-ostree status -b | grep Version | awk '{print $2}')
+CURRENT_ENTRY_FILE=$(grep -Rls ${OSTREE_VERSION} /boot/loader/entries/)
+
+if [ -f ${INITRD_NEW_IMAGE} ] && grep -qs "iso_initrd.img" ${CURRENT_ENTRY_FILE}; then
     echo "Pre boot tuning configuration already applied"
     echo "Setting kernel rcuo* threads to the housekeeping cpus"
     get_cpu_mask 1
@@ -100,20 +102,10 @@ else
     get_cpu_mask 0
     echo "IRQBALANCE_BANNED_CPUS=$non_iso_cpumask" >> ${INITRD_GENERATION_DIR}/etc/sysconfig/irqbalance
     
-    find ${INITRD_GENERATION_DIR} | cpio -co >${INITRD_NEW_IMAGE}
+    cd ${INITRD_GENERATION_DIR}
+    find . | cpio -co >${INITRD_NEW_IMAGE}
 
-    # Get current ostree config file according to the latest version
-    current_ver=1
-    entry_file=$(ls -td /boot/loader/entries/* | head -1)
-    while read -r line ; do
-        ver=`awk '/version/ {print $2}' $line`
-        if [ "$ver" -gt "$current_ver" ]; then
-           current_ver=$ver
-           entry_file=$line
-        fi
-    done <<<$(egrep $(uname -r) -lr /boot/loader/entries/)
-
-    sed -i "s^initrd .*\$^& ${RHCOS_OSTREE_BOOTLOADER_PATH}iso_initrd.img^" $entry_file
+    sed -i "s^initrd .*\$^& ${RHCOS_OSTREE_BOOTLOADER_PATH}iso_initrd.img^" ${CURRENT_ENTRY_FILE}
 
     #TODO - once RHCOS image contains the initrd content we can set parameters with rpm-ostree:
     #rpm-ostree initramfs --enable --arg=-I --arg=/etc/systemd/system.conf
