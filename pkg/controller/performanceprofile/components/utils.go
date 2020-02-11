@@ -11,13 +11,11 @@ func GetComponentName(profileName string, prefix string) string {
 }
 
 // GetFirstKeyAndValue return the first key / value pair of a map
-func GetFirstKeyAndValue(m map[string]string) (key, value string) {
+func GetFirstKeyAndValue(m map[string]string) (string, string) {
 	for k, v := range m {
-		key = k
-		value = v
-		break
+		return k, v
 	}
-	return
+	return "", ""
 }
 
 // SplitLabelKey returns the given label key splitted up in domain and role

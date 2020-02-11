@@ -59,7 +59,7 @@ func New(profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.Kube
 		},
 		Spec: machineconfigv1.KubeletConfigSpec{
 			MachineConfigPoolSelector: &metav1.LabelSelector{
-				MatchLabels: profile2.GetMachineConfigPoolSelector(*profile),
+				MatchLabels: profile2.GetMachineConfigPoolSelector(profile),
 			},
 			KubeletConfig: &runtime.RawExtension{
 				Raw: raw,

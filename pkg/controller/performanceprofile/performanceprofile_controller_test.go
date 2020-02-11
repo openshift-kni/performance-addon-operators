@@ -90,7 +90,7 @@ var _ = Describe("Controller", func() {
 			Expect(degradeCondition).ToNot(BeNil())
 			Expect(degradeCondition.Status).To(Equal(corev1.ConditionTrue))
 			Expect(degradeCondition.Reason).To(Equal(conditionReasonValidationFailed))
-			Expect(degradeCondition.Message).To(Equal("you should provide isolated CPU set"))
+			Expect(degradeCondition.Message).To(ContainSubstring("you should provide isolated CPU set"))
 
 			// verify validation event
 			fakeRecorder, ok := r.recorder.(*record.FakeRecorder)

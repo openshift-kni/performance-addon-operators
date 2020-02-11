@@ -253,7 +253,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	// TODO: we need to check if all under performance profiles values != nil
 	// first we need to decide if each of values required and we should move the check into validation webhook
 	// for now let's assume that all parameters needed for assets scrips are required
-	if err := profileutil.ValidateParameters(*instance); err != nil {
+	if err := profileutil.ValidateParameters(instance); err != nil {
 		klog.Errorf("failed to reconcile: %v", err)
 		r.recorder.Eventf(instance, corev1.EventTypeWarning, "Validation failed", "Profile validation failed: %v", err)
 		conditions := r.getDegradedConditions(conditionReasonValidationFailed, err.Error())

@@ -66,6 +66,10 @@ type HugePage struct {
 	Size HugePageSize `json:"size,omitempty"`
 	// Count defines amount of huge pages, maps to the 'hugepages' kernel boot parameter.
 	Count int32 `json:"count,omitempty"`
+	// Node defines the NUMA node where hugepages will be allocated,
+	// if not specified, pages will be allocated equally between NUMA nodes
+	// +optional
+	Node *int32 `json:"node,omitempty"`
 }
 
 // RealTimeKernel defines the set of parameters relevant for the real time kernel.
