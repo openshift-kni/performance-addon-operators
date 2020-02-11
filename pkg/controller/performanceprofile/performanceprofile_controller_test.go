@@ -2,6 +2,8 @@ package performanceprofile
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"time"
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/featuregate"
@@ -11,6 +13,8 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
+
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
@@ -26,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -50,9 +55,7 @@ var _ = Describe("Controller", func() {
 	It("should add finalizer to the performance profile", func() {
 		r := newFakeReconciler(profile)
 
-		result, err := r.Reconcile(request)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(result).To(Equal(reconcile.Result{}))
+		Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 		updatedProfile := &performancev1alpha1.PerformanceProfile{}
 		key := types.NamespacedName{
@@ -74,9 +77,7 @@ var _ = Describe("Controller", func() {
 
 			// we do not return error, because we do not want to reconcile again, and just print error under the log,
 			// once we will have validation webhook, this test will not be relevant anymore
-			result, err := r.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(reconcile.Result{}))
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 			updatedProfile := &performancev1alpha1.PerformanceProfile{}
 			key := types.NamespacedName{
@@ -101,16 +102,14 @@ var _ = Describe("Controller", func() {
 			// verify that no components created by the controller
 			mcp := &mcov1.MachineConfigPool{}
 			key.Name = components.GetComponentName(profile.Name, components.ComponentNamePrefix)
-			err = r.client.Get(context.TODO(), key, mcp)
+			err := r.client.Get(context.TODO(), key, mcp)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 		})
 
 		It("should create all resources except KubeletConfig on first reconcile loop", func() {
 			r := newFakeReconciler(profile)
 
-			result, err := r.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
 
 			name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 			key := types.NamespacedName{
@@ -120,7 +119,7 @@ var _ = Describe("Controller", func() {
 
 			// verify MachineConfig creation
 			mc := &mcov1.MachineConfig{}
-			err = r.client.Get(context.TODO(), key, mc)
+			err := r.client.Get(context.TODO(), key, mc)
 			Expect(err).ToNot(HaveOccurred())
 
 			// verify that KubeletConfig wasn't created
@@ -151,13 +150,7 @@ var _ = Describe("Controller", func() {
 		It("should create KubeletConfig on second reconcile loop", func() {
 			r := newFakeReconciler(profile)
 
-			result, err := r.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
-
-			result, err = r.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(reconcile.Result{}))
+			Expect(reconcileTimes(r, request, 2)).To(Equal(reconcile.Result{}))
 
 			name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 			key := types.NamespacedName{
@@ -167,24 +160,14 @@ var _ = Describe("Controller", func() {
 
 			// verify KubeletConfig creation
 			kc := &mcov1.KubeletConfig{}
-			err = r.client.Get(context.TODO(), key, kc)
+			err := r.client.Get(context.TODO(), key, kc)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("should do nothing on third reconcile loop", func() {
+		It("should create event on third reconcile loop", func() {
 			r := newFakeReconciler(profile)
 
-			result, err := r.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
-
-			result, err = r.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(reconcile.Result{}))
-
-			result, err = r.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(reconcile.Result{}))
+			Expect(reconcileTimes(r, request, 3)).To(Equal(reconcile.Result{}))
 
 			// verify creation event
 			fakeRecorder, ok := r.recorder.(*record.FakeRecorder)
@@ -194,11 +177,9 @@ var _ = Describe("Controller", func() {
 		})
 
 		It("should update the profile status", func() {
-
 			r := newFakeReconciler(profile)
-			result, err := r.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
 
 			updatedProfile := &performancev1alpha1.PerformanceProfile{}
 			key := types.NamespacedName{
@@ -224,9 +205,7 @@ var _ = Describe("Controller", func() {
 			profile.Annotations = map[string]string{performancev1alpha1.PerformanceProfilePauseAnnotation: "true"}
 			r := newFakeReconciler(profile)
 
-			result, err := r.Reconcile(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(reconcile.Result{}))
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 			name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 			key := types.NamespacedName{
@@ -236,7 +215,7 @@ var _ = Describe("Controller", func() {
 
 			// verify MachineConfig wasn't created
 			mc := &mcov1.MachineConfig{}
-			err = r.client.Get(context.TODO(), key, mc)
+			err := r.client.Get(context.TODO(), key, mc)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 
 			// verify that KubeletConfig wasn't created
@@ -296,9 +275,8 @@ var _ = Describe("Controller", func() {
 
 			It("should not record new create event", func() {
 				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
-				result, err := r.Reconcile(request)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(result).To(Equal(reconcile.Result{}))
+
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 				// verify that no creation event created
 				fakeRecorder, ok := r.recorder.(*record.FakeRecorder)
@@ -309,6 +287,180 @@ var _ = Describe("Controller", func() {
 					Fail("the recorder should not have new events")
 				default:
 				}
+			})
+
+			It("should update MC when RT kernel gets disabled", func() {
+				profile.Spec.RealTimeKernel.Enabled = pointer.BoolPtr(false)
+				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
+				key := types.NamespacedName{
+					Name:      name,
+					Namespace: metav1.NamespaceNone,
+				}
+
+				// verify MachineConfig update
+				mc := &mcov1.MachineConfig{}
+				err := r.client.Get(context.TODO(), key, mc)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(mc.Spec.KernelType).To(Equal(machineconfig.MCKernelDefault))
+			})
+
+			It("should update MC, KC and Tuned when CPU params change", func() {
+				reserved := performancev1alpha1.CPUSet("0-1")
+				isolated := performancev1alpha1.CPUSet("2-3")
+				profile.Spec.CPU = &performancev1alpha1.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+
+				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				key := types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
+					Namespace: metav1.NamespaceNone,
+				}
+
+				By("Verifying MC update for isolated")
+				mc := &mcov1.MachineConfig{}
+				err := r.client.Get(context.TODO(), key, mc)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mc.Spec.KernelArguments).ToNot(ContainElement(ContainSubstring(`"isolcpus`)))
+
+				By("Verifying MC update for reserved")
+
+				contentBase64 := base64.StdEncoding.EncodeToString([]byte("[Manager]\nCPUAffinity=" + string(*profile.Spec.CPU.Reserved)))
+				Expect(mc.Spec.Config.Storage.Files).To(ContainElement(MatchFields(IgnoreMissing|IgnoreExtras, Fields{
+					"FileEmbedded1": MatchFields(IgnoreMissing|IgnoreExtras, Fields{
+						"Contents": MatchFields(IgnoreMissing|IgnoreExtras, Fields{
+							"Source": ContainSubstring(contentBase64),
+						}),
+					}),
+				})))
+
+				reservedCPUMask, err := components.CPUListTo256BitsMaskList(string(*profile.Spec.CPU.Reserved))
+				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("tuned.non_isolcpus=" + reservedCPUMask)))
+
+				By("Verifying KC update for reserved")
+				kc := &mcov1.KubeletConfig{}
+				err = r.client.Get(context.TODO(), key, kc)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(string(kc.Spec.KubeletConfig.Raw)).To(ContainSubstring(fmt.Sprintf(`"reservedSystemCPUs":"%s"`, string(*profile.Spec.CPU.Reserved))))
+
+				By("Verifying Tuned update for isolated")
+				key = types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ProfileNameWorkerRT),
+					Namespace: components.NamespaceNodeTuningOperator,
+				}
+				t := &tunedv1.Tuned{}
+				err = r.client.Get(context.TODO(), key, t)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(*t.Spec.Profile[0].Data).To(ContainSubstring("isolated_cores=" + string(*profile.Spec.CPU.Isolated)))
+
+				By("Verifying Tuned update for isolated")
+				Expect(*t.Spec.Profile[0].Data).To(ContainSubstring("/sys/bus/workqueue/devices/writeback/cpumask = " + reservedCPUMask))
+			})
+
+			It("should add isolcpus to MC kargs when balanced set to false", func() {
+				reserved := performancev1alpha1.CPUSet("0-1")
+				isolated := performancev1alpha1.CPUSet("2-3")
+				profile.Spec.CPU = &performancev1alpha1.CPU{
+					Reserved:        &reserved,
+					Isolated:        &isolated,
+					BalanceIsolated: pointer.BoolPtr(false),
+				}
+
+				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				key := types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
+					Namespace: metav1.NamespaceNone,
+				}
+
+				By("Verifying MC update for isolated")
+				mc := &mcov1.MachineConfig{}
+				err := r.client.Get(context.TODO(), key, mc)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("isolcpus=" + string(*profile.Spec.CPU.Isolated))))
+			})
+
+			It("should update MC when Hugepages params change without node added", func() {
+				size := performancev1alpha1.HugePageSize("2M")
+				profile.Spec.HugePages = &performancev1alpha1.HugePages{
+					DefaultHugePagesSize: &size,
+					Pages: []performancev1alpha1.HugePage{
+						{
+							Count: 8,
+							Size:  size,
+						},
+					},
+				}
+
+				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				key := types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
+					Namespace: metav1.NamespaceNone,
+				}
+
+				By("Verifying MC update")
+				mc := &mcov1.MachineConfig{}
+				err := r.client.Get(context.TODO(), key, mc)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("default_hugepagesz=2M")))
+				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("hugepagesz=2M")))
+				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("hugepages=8")))
+
+			})
+
+			It("should update MC when Hugepages params change with node added", func() {
+				size := performancev1alpha1.HugePageSize("2M")
+				profile.Spec.HugePages = &performancev1alpha1.HugePages{
+					DefaultHugePagesSize: &size,
+					Pages: []performancev1alpha1.HugePage{
+						{
+							Count: 8,
+							Size:  size,
+							Node:  pointer.Int32Ptr(0),
+						},
+					},
+				}
+
+				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				key := types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
+					Namespace: metav1.NamespaceNone,
+				}
+
+				By("Verifying MC update")
+				mc := &mcov1.MachineConfig{}
+				err := r.client.Get(context.TODO(), key, mc)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("default_hugepagesz=2M")))
+				Expect(mc.Spec.KernelArguments).ToNot(ContainElement(ContainSubstring(`"hugepagesz`)))
+				Expect(mc.Spec.KernelArguments).ToNot(ContainElement(ContainSubstring(`"hugepages`)))
+
+				Expect(mc.Spec.Config.Systemd.Units).To(ContainElement(MatchFields(IgnoreMissing|IgnoreExtras, Fields{
+					"Contents": And(
+						ContainSubstring("Description=Hugepages"),
+						ContainSubstring("Environment=HUGEPAGES_COUNT=8"),
+						ContainSubstring("Environment=HUGEPAGES_SIZE=2048"),
+						ContainSubstring("Environment=NUMA_NODE=0"),
+					),
+				})))
+
 			})
 		})
 
@@ -386,6 +538,16 @@ var _ = Describe("Controller", func() {
 	})
 })
 
+func reconcileTimes(reconciler *ReconcilePerformanceProfile, request reconcile.Request, times int) reconcile.Result {
+	var result reconcile.Result
+	var err error
+	for i := 0; i < times; i++ {
+		result, err = reconciler.Reconcile(request)
+		Expect(err).ToNot(HaveOccurred())
+	}
+	return result
+}
+
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client
 func newFakeReconciler(initObjects ...runtime.Object) *ReconcilePerformanceProfile {
 	fakeClient := fake.NewFakeClient(initObjects...)
@@ -395,19 +557,5 @@ func newFakeReconciler(initObjects ...runtime.Object) *ReconcilePerformanceProfi
 		scheme:    scheme.Scheme,
 		recorder:  fakeRecorder,
 		assetsDir: assetsDir,
-	}
-}
-
-func createMachineConfigPoolCondition(
-	conditionType mcov1.MachineConfigPoolConditionType,
-	conditionStatus corev1.ConditionStatus,
-	timestamp *time.Time,
-) *mcov1.MachineConfigPoolCondition {
-	return &mcov1.MachineConfigPoolCondition{
-		LastTransitionTime: metav1.Time{Time: *timestamp},
-		Message:            "test",
-		Reason:             "test",
-		Status:             conditionStatus,
-		Type:               conditionType,
 	}
 }
