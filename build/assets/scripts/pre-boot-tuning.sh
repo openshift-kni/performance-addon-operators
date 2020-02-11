@@ -56,7 +56,7 @@ if [ -f ${INITRD_NEW_IMAGE} ] && grep -qs "iso_initrd.img" ${CURRENT_ENTRY_FILE}
     echo "Pre boot tuning configuration already applied"
     echo "Setting kernel rcuo* threads to the housekeeping cpus"
     get_cpu_mask 1
-    pgrep rcuo* | while read line; do taskset -p $non_iso_cpumask $line || true; done
+    pgrep rcuo* | while read line; do taskset -pc ${NON_ISOLATED_CPUS} $line || true; done
 else
     # Clean up
     rm -rf ${INITRD_GENERATION_DIR}
