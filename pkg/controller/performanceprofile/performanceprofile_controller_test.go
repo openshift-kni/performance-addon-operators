@@ -90,7 +90,7 @@ var _ = Describe("Controller", func() {
 			Expect(degradeCondition).ToNot(BeNil())
 			Expect(degradeCondition.Status).To(Equal(corev1.ConditionTrue))
 			Expect(degradeCondition.Reason).To(Equal(conditionReasonValidationFailed))
-			Expect(degradeCondition.Message).To(Equal("you should provide only 1 MachineConfigPoolSelector"))
+			Expect(degradeCondition.Message).To(Equal("validation error: you should provide only 1 MachineConfigPoolSelector"))
 
 			// verify validation event
 			fakeRecorder, ok := r.recorder.(*record.FakeRecorder)

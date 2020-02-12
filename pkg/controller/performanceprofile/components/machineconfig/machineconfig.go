@@ -177,9 +177,9 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		})
 	}
 
-	ReservedCpus := profile.Spec.CPU.Reserved
+	reservedCpus := profile.Spec.CPU.Reserved
 	preBootTuningService, err := getSystemdContent(
-		getPreBootTuningUnitOptions(string(*ReservedCpus)),
+		getPreBootTuningUnitOptions(string(*reservedCpus)),
 	)
 	if err != nil {
 		return nil, err
@@ -282,7 +282,7 @@ func getRebootUnitOptions() []*unit.UnitOption {
 	}
 }
 
-func getPreBootTuningUnitOptions(ReservedCpus string) []*unit.UnitOption {
+func getPreBootTuningUnitOptions(reservedCpus string) []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
@@ -292,7 +292,7 @@ func getPreBootTuningUnitOptions(ReservedCpus string) []*unit.UnitOption {
 		unit.NewUnitOption(systemdSectionUnit, systemdBefore, getSystemdService(reboot)),
 		// [Service]
 		// Environment
-		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCpus, ReservedCpus)),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCpus, reservedCpus)),
 		// Type
 		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
 		// RemainAfterExit
