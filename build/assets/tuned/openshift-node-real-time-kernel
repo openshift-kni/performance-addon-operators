@@ -16,7 +16,8 @@ vm.stat_interval = 10
 kernel.timer_migration = 0
 
 [sysfs]
-/sys/devices/system/machinecheck/machinecheck*/ignore_ce = 1   
+/sys/devices/system/machinecheck/machinecheck*/ignore_ce = 1
+/sys/bus/workqueue/devices/writeback/cpumask = {{.NotIsolatedCpumask}}  
 
 {{if .IsolatedCpus}}
 [scheduler]

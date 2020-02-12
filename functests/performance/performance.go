@@ -54,13 +54,16 @@ var _ = Describe("performance", func() {
 
 	Context("Pre boot tuning adjusted by the Machine Config Operator ", func() {
 
-		It("Should contain a custom initrd image in the boot loader", func() {
+		It("Should set workqueue CPU mask", func() {
 			for _, node := range workerRTNodes {
-				By("executing the command \"grep -R  initrd /rootfs/boot/loader/entries/\"")
-				bootLoaderEntries, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"grep", "-R", "initrd", "/rootfs/boot/loader/entries/"})
+				By("Getting tuned.non_isolcpus kernel argument")	
+				nonIsolcpusMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"awk","-F","'tuned.non_isolcpus='","'{sub(/ .*$/, \"\", $2); print $2}'","/proc/cmdline"})
 				Expect(err).ToNot(HaveOccurred())
-				Expect(strings.Contains(string(bootLoaderEntries), "iso_initrd.img")).To(BeTrue(),
-					"cannot find iso_initrd.img entry among the bootloader entries")
+				By("executing the command \"cat /sys/devices/virtual/workqueue/cpumask\"")
+				workqueueMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat","/sys/devices/virtual/workqueue/cpumask"})
+				Expect(err).ToNot(HaveOccurred())
+				workqueueMaskTrimmed := strings.TrimSpace(string(workqueueMask))
+				Expect(nonIsolcpusMask).Should(Equal(workqueueMaskTrimmed), "workqueueMask is not set to "+workqueueMaskTrimmed)
 			}
 		})
 

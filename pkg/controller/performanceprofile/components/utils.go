@@ -26,3 +26,16 @@ func SplitLabelKey(s string) (domain, role string, err error) {
 	}
 	return parts[0], parts[1], nil
 }
+
+// CPUListToHexMask converts a list of cpus into a cpu mask represented in hexdecimal
+func CPUListToHexMask(cpulist string) (hexMask string) {
+	return ""
+}
+
+// CPUListToInvertedMask converts a list of cpus into an inverted cpu mask represented in hexdecimal
+func CPUListToInvertedMask(cpulist string) (hexMask string) {
+	return ""
+}
+
+
+

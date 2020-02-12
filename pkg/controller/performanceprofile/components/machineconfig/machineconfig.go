@@ -59,10 +59,11 @@ const (
 )
 
 const (
-	environmentHugepagesSize  = "HUGEPAGES_SIZE"
-	environmentHugepagesCount = "HUGEPAGES_COUNT"
-	environmentNUMANode       = "NUMA_NODE"
-	environmentReservedCpus   = "RESERVED_CPUS"
+	environmentHugepagesSize           = "HUGEPAGES_SIZE"
+	environmentHugepagesCount          = "HUGEPAGES_COUNT"
+	environmentNUMANode                = "NUMA_NODE"
+	environmentReservedCpus            = "RESERVED_CPUS"
+	environmentReservedCPUMaskInverted = "RESERVED_CPU_MASK_INVERT"
 )
 
 // New returns new machine configuration object for performance sensetive workflows
@@ -88,9 +89,9 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	mc.Spec.Config = *ignitionConfig
 
 	if profile.Spec.CPU.Isolated != nil && profile.Spec.CPU.BalanceIsolated != nil && *profile.Spec.CPU.BalanceIsolated == false {
-		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated)
+		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated, profile.Spec.CPU.Reserved)
 	} else {
-		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, nil)
+		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, nil, nil)
 	}
 
 	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
@@ -106,7 +107,7 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	return mc, nil
 }
 
-func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet) []string {
+func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet, nonIsolatedCPUs *performancev1alpha1.CPUSet) []string {
 	kargs := []string{
 		"nohz=on",
 		"nosoftlockup",
@@ -125,6 +126,10 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 
 	if isolatedCPUs != nil {
 		kargs = append(kargs, fmt.Sprintf("isolcpus=%s", string(*isolatedCPUs)))
+	}
+
+	if nonIsolatedCPUs != nil {
+		kargs = append(kargs, fmt.Sprintf("tuned.non_isolcpus=%s", components.CPUListToHexMask(string(*nonIsolatedCPUs))))
 	}
 
 	if hugePages != nil {
@@ -178,6 +183,30 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 	}
 
 	reservedCpus := profile.Spec.CPU.Reserved
+
+	err := ioutil.WriteFile(fmt.Sprintf("%s/setAffinity.conf", assetsDir), []byte("[Manager]\nCPUAffinity="+string(*reservedCpus)), 0700)
+	if err != nil {
+		return nil, err
+	}
+	content, err := ioutil.ReadFile(fmt.Sprintf("%s/setAffinity.conf", assetsDir))
+	if err != nil {
+		return nil, err
+	}
+
+	contentBase64 := base64.StdEncoding.EncodeToString(content)
+	ignitionConfig.Storage.Files = append(ignitionConfig.Storage.Files, igntypes.File{
+		Node: igntypes.Node{
+			Filesystem: defaultFileSystem,
+			Path:       "/etc/systemd/system.conf.d/setAffinity.conf",
+		},
+		FileEmbedded1: igntypes.FileEmbedded1{
+			Contents: igntypes.FileContents{
+				Source: fmt.Sprintf("%s,%s", defaultIgnitionContentSource, contentBase64),
+			},
+			Mode: &mode,
+		},
+	})
+
 	preBootTuningService, err := getSystemdContent(
 		getPreBootTuningUnitOptions(string(*reservedCpus)),
 	)
@@ -293,6 +322,7 @@ func getPreBootTuningUnitOptions(reservedCpus string) []*unit.UnitOption {
 		// [Service]
 		// Environment
 		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCpus, reservedCpus)),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCPUMaskInverted, components.CPUListToInvertedMask(reservedCpus))),
 		// Type
 		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
 		// RemainAfterExit
