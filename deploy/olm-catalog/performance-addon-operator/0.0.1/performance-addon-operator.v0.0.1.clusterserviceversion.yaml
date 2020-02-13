@@ -169,7 +169,7 @@ spec:
   - hugepages
   links:
   - name: Source Code
-    url: https://github.com/openshift-kni/performance-addon-operator
+    url: https://github.com/openshift-kni/performance-addon-operators
   maturity: alpha
   provider:
     name: Red Hat
