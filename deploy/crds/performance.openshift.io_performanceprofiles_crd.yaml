@@ -34,17 +34,16 @@ spec:
             cpu:
               description: CPU defines set of CPU related parameters.
               properties:
-                enableIsolcpus:
-                  description: EnableIsolcpus results in the Isolated CPUset being
-                    listed in the isolcpu kernel arg on the host machines. When this
-                    option is set to "false", the Isolated cpus will be partitioned
-                    by tuned, but load balancing across the Isolated cpus will still
-                    be possible. When this option is set to "true", the Isolated CPU
-                    sets will be static, meaning workloads have to explicitly assign
-                    each thread to a specific cpu in order to work across multiple
-                    cpus. Setting this to "true" offers the most predictable performance
-                    for guaranteed workloads, but it offloads the complexity of cpu
-                    load balancing to the application.
+                balanceIsolated:
+                  description: BalanceIsolated toggles whether or not the Isolated
+                    CPU set is eligible for load balancing work loads. When this option
+                    is set to "false", the Isolated CPU set will be static, meaning
+                    workloads have to explicitly assign each thread to a specific
+                    cpu in order to work across multiple CPUs. Setting this to "true"
+                    allows workloads to be balanced across CPUs. Setting this to "false"
+                    offers the most predictable performance for guaranteed workloads,
+                    but it offloads the complexity of cpu load balancing to the application.
+                    Defaults to "true"
                   type: boolean
                 isolated:
                   description: Isolated defines set of CPU's that will used to give
