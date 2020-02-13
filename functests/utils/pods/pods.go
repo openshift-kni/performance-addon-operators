@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os/exec"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -107,4 +108,15 @@ func GetLogs(c *kubernetes.Clientset, pod *corev1.Pod) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// ExecCommandOnPod returns the output of the command execution on the pod
+func ExecCommandOnPod(c client.Client, pod *corev1.Pod, command []string) ([]byte, error) {
+	initialArgs := []string{
+		"rsh",
+		"-n", pod.Namespace,
+		pod.Name,
+	}
+	initialArgs = append(initialArgs, command...)
+	return exec.Command("oc", initialArgs...).CombinedOutput()
 }
