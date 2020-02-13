@@ -183,17 +183,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 	}
 
 	reservedCpus := profile.Spec.CPU.Reserved
-
-	err := ioutil.WriteFile(fmt.Sprintf("%s/setAffinity.conf", assetsDir), []byte("[Manager]\nCPUAffinity="+string(*reservedCpus)), 0700)
-	if err != nil {
-		return nil, err
-	}
-	content, err := ioutil.ReadFile(fmt.Sprintf("%s/setAffinity.conf", assetsDir))
-	if err != nil {
-		return nil, err
-	}
-
-	contentBase64 := base64.StdEncoding.EncodeToString(content)
+	contentBase64 := base64.StdEncoding.EncodeToString([]byte("[Manager]\nCPUAffinity=" + string(*reservedCpus)))
 	ignitionConfig.Storage.Files = append(ignitionConfig.Storage.Files, igntypes.File{
 		Node: igntypes.Node{
 			Filesystem: defaultFileSystem,
