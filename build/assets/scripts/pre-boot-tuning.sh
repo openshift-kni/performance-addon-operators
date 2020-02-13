@@ -76,7 +76,6 @@ else
 
     type getargs >/dev/null 2>&1 || . /lib/dracut-lib.sh
 
-    #cpumask="$(getargs reserved_cpumask)"
     cpumask='$reserved_cpumask'
 
     log()
