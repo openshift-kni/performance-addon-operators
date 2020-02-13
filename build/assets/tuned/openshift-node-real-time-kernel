@@ -17,7 +17,7 @@ kernel.timer_migration = 0
 
 [sysfs]
 /sys/devices/system/machinecheck/machinecheck*/ignore_ce = 1
-/sys/bus/workqueue/devices/writeback/cpumask = {{.NotIsolatedCpumask}}  
+{{if .NotIsolatedCpumask}}/sys/bus/workqueue/devices/writeback/cpumask = {{.NotIsolatedCpumask}}{{end}}
 
 {{if .IsolatedCpus}}
 [scheduler]

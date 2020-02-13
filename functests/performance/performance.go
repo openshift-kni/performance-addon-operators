@@ -57,7 +57,7 @@ var _ = Describe("performance", func() {
 		It("Should set workqueue CPU mask", func() {
 			for _, node := range workerRTNodes {
 				By("Getting tuned.non_isolcpus kernel argument")	
-				nonIsolcpusMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"awk","-F","'tuned.non_isolcpus='","'{sub(/ .*$/, \"\", $2); print $2}'","/proc/cmdline"})
+				nonIsolcpusMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"awk","-F 'tuned.non_isolcpus=' '{sub(/ .*$/, \"\", $2); print $2}' /proc/cmdline"})
 				Expect(err).ToNot(HaveOccurred())
 				By("executing the command \"cat /sys/devices/virtual/workqueue/cpumask\"")
 				workqueueMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat","/sys/devices/virtual/workqueue/cpumask"})
