@@ -3,6 +3,7 @@ package performance
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"os"
 	"os/exec"
 	"strings"
@@ -57,13 +58,21 @@ var _ = Describe("performance", func() {
 		It("Should set workqueue CPU mask", func() {
 			for _, node := range workerRTNodes {
 				By("Getting tuned.non_isolcpus kernel argument")
-				nonIsolcpusMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node,[]string{"grep","-oP","'tuned.non_isolcpus=\\K\\S+'","/proc/cmdline"})
+				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node,[]string{"cat","/proc/cmdline"})
+				re := regexp.MustCompile(`tuned.non_isolcpus=\S+`)
+				nonIsolcpusFullArgument := re.FindString(string(cmdline))
+				nonIsolcpusMask := strings.Split(string(nonIsolcpusFullArgument), "=")[1]
 				Expect(err).ToNot(HaveOccurred())
 				By("executing the command \"cat /sys/devices/virtual/workqueue/cpumask\"")
 				workqueueMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat","/sys/devices/virtual/workqueue/cpumask"})
 				Expect(err).ToNot(HaveOccurred())
 				workqueueMaskTrimmed := strings.TrimSpace(string(workqueueMask))
-				Expect(nonIsolcpusMask).Should(Equal(workqueueMaskTrimmed), "workqueueMask is not set to "+workqueueMaskTrimmed)
+				Expect(strings.TrimLeft(nonIsolcpusMask,"0")).Should(Equal(strings.TrimLeft(workqueueMaskTrimmed,"0")), "workqueueMask is not set to "+workqueueMaskTrimmed)
+				By("executing the command \"cat /sys/bus/workqueue/devices/writeback/cpumask\"")
+				workqueueWritebackMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat","/sys/bus/workqueue/devices/writeback/cpumask"})
+				Expect(err).ToNot(HaveOccurred())
+				workqueueWritebackMaskTrimmed := strings.TrimSpace(string(workqueueWritebackMask))
+				Expect(strings.TrimLeft(nonIsolcpusMask,"0")).Should(Equal(strings.TrimLeft(workqueueWritebackMaskTrimmed,"0")), "workqueueMask is not set to "+workqueueWritebackMaskTrimmed)
 			}
 		})
 

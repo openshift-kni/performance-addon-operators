@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const maxSystemCpus = 254
+
 // GetComponentName returns the component name for the specific performance profile
 func GetComponentName(profileName string, prefix string) string {
 	return fmt.Sprintf("%s-%s", prefix, profileName)
@@ -81,7 +83,7 @@ func CPUListToInvertedMask(cpulist string) (hexMask string) {
 	}
 
 	currMask := big.NewInt(0)
-	for cpu := 0; cpu < 254; cpu++ {
+	for cpu := 0; cpu < maxSystemCpus; cpu++ {
 		if _, reserved := reservedCpusLookup[cpu]; reserved {
 			continue
 		}
