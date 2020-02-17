@@ -195,6 +195,7 @@ func generateUnifiedCSV(extraAnnotations map[string]string) {
 	}
 	operatorCSV.Spec.InstallStrategy.StrategySpecRaw = updatedStrat
 
+	operatorCSV.Annotations["containerImage"] = *operatorImage
 	for key, value := range extraAnnotations {
 		operatorCSV.Annotations[key] = value
 	}
