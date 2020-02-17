@@ -320,7 +320,7 @@ func getPreBootTuningUnitOptions(reservedCpus string, cpuInvertedMask string) []
 		// [Service]
 		// Environment
 		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCpus, reservedCpus)),
-		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCPUMaskInverted, components.CPUListToInvertedMask(reservedCpus))),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCPUMaskInverted, cpuInvertedMask)),
 		// Type
 		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
 		// RemainAfterExit

@@ -81,7 +81,11 @@ func NewWorkerRealTimeKernel(assetsDir string, profile *performancev1alpha1.Perf
 	}
 
 	if profile.Spec.CPU.Reserved != nil {
-		templateArgs[templateNotIsolatedCpumask] = components.CPUListToHexMask(string(*profile.Spec.CPU.Reserved))
+		cpuMask, err := components.CPUListToHexMask(string(*profile.Spec.CPU.Reserved))
+		if err != nil {
+			return nil, err
+		}
+		templateArgs[templateNotIsolatedCpumask] = cpuMask
 	}
 
 	profileData, err := getProfileData(getProfilePath(components.ProfileNameWorkerRT, assetsDir), templateArgs)
