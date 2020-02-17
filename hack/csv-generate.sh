@@ -8,6 +8,11 @@ TMP_CSV_DIR="deploy/olm-catalog/performance-addon-operator/$TMP_CSV_VERSION"
 TMP_CSV_FILE="$TMP_CSV_DIR/performance-addon-operator.v${TMP_CSV_VERSION}.clusterserviceversion.yaml"
 FINAL_CSV_DIR="deploy/olm-catalog/performance-addon-operator/$CSV_VERSION"
 EXTRA_ANNOTATIONS=""
+MAINTAINERS=""
+
+if [ -n "$MAINTAINERS_FILE" ]; then
+	MAINTAINERS="-maintainers-from=$MAINTAINERS_FILE"
+fi
 
 if [ -n "$ANNOTATIONS_FILE" ]; then
 	EXTRA_ANNOTATIONS="-inject-annotations-from=$ANNOTATIONS_FILE"
@@ -38,6 +43,7 @@ tools/csv-generator/csv-generator \
 	--olm-bundle-directory "$FINAL_CSV_DIR" \
 	--replaces-csv-version "$REPLACES_CSV_VERSION" \
 	--skip-range "$CSV_SKIP_RANGE" \
+	"${MAINTAINERS}" \
 	"${EXTRA_ANNOTATIONS}"
 
 cp deploy/crds/*_crd.yaml $FINAL_CSV_DIR/
