@@ -44,9 +44,17 @@ type CPU struct {
 	Reserved *CPUSet `json:"reserved,omitempty"`
 	// Isolated defines set of CPU's that will used to give to application threads the most execution time possible,
 	// which means removing as many extraneous tasks off a CPU as possible.
+	// +optional
 	Isolated *CPUSet `json:"isolated,omitempty"`
-	// NonIsolated defines set of CPU's that will be used for OS tasks, like serving interupts or workqueues.
-	NonIsolated *CPUSet `json:"nonIsolated,omitempty"`
+	// BalanceIsolated toggles whether or not the Isolated CPU set is eligible for load balancing work loads.
+	// When this option is set to "false", the Isolated CPU set will be static, meaning workloads have to
+	// explicitly assign each thread to a specific cpu in order to work across multiple CPUs.
+	// Setting this to "true" allows workloads to be balanced across CPUs.
+	// Setting this to "false" offers the most predictable performance for guaranteed workloads, but it
+	// offloads the complexity of cpu load balancing to the application.
+	// Defaults to "true"
+	// +optional
+	BalanceIsolated *bool `json:"balanceIsolated,omitempty"`
 }
 
 // HugePageSize defines size of huge pages, can be 2M or 1G.

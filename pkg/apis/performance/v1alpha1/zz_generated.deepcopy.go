@@ -22,9 +22,9 @@ func (in *CPU) DeepCopyInto(out *CPU) {
 		*out = new(CPUSet)
 		**out = **in
 	}
-	if in.NonIsolated != nil {
-		in, out := &in.NonIsolated, &out.NonIsolated
-		*out = new(CPUSet)
+	if in.BalanceIsolated != nil {
+		in, out := &in.BalanceIsolated, &out.BalanceIsolated
+		*out = new(bool)
 		**out = **in
 	}
 	return

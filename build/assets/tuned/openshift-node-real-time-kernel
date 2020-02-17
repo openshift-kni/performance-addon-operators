@@ -18,5 +18,7 @@ kernel.timer_migration = 0
 [sysfs]
 /sys/devices/system/machinecheck/machinecheck*/ignore_ce = 1   
 
+{{if .IsolatedCpus}}
 [scheduler]
 isolated_cores={{.IsolatedCpus}}
+{{end}}

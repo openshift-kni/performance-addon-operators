@@ -23,7 +23,7 @@ const expectedSystemdUnits = `
           Before=reboot.service
 
           [Service]
-          Environment=NON_ISOLATED_CPUS=2-3
+          Environment=RESERVED_CPUS=0-3
           Type=oneshot
           RemainAfterExit=true
           ExecStart=/usr/local/bin/pre-boot-tuning.sh
@@ -93,8 +93,54 @@ const expectedBootArguments = `
   - hugepages=1024
 `
 
+const expectedBootArgumentsWithoutIso = `
+  kernelArguments:
+  - nohz=on
+  - nosoftlockup
+  - nmi_watchdog=0
+  - audit=0
+  - mce=off
+  - irqaffinity=0
+  - skew_tick=1
+  - processor.max_cstate=1
+  - idle=poll
+  - intel_pstate=disable
+  - intel_idle.max_cstate=0
+  - intel_iommu=on
+  - iommu=pt
+  - default_hugepagesz=1G
+  - hugepagesz=1G
+  - hugepages=4
+  - hugepagesz=2M
+  - hugepages=1024
+`
+
 var _ = Describe("Machine Config", func() {
 	It("should generate yaml with expected parameters", func() {
+		profile := testutils.NewPerformanceProfile("test")
+		profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, performancev1alpha1.HugePage{
+			Count: 1024,
+			Size:  "2M",
+		})
+		f := false
+		profile.Spec.CPU.BalanceIsolated = &f
+		mc, err := New(testAssetsDir, profile)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(mc.Spec.KernelType).To(Equal(mcKernelRT))
+
+		y, err := yaml.Marshal(mc)
+		Expect(err).ToNot(HaveOccurred())
+
+		manifest := string(y)
+
+		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
+		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
+		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
+		Expect(manifest).To(ContainSubstring(expectedBootArguments))
+	})
+
+	It("should generate yaml with expected parameters when balanced isolated defaults to true", func() {
 		profile := testutils.NewPerformanceProfile("test")
 		profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, performancev1alpha1.HugePage{
 			Count: 1024,
@@ -113,7 +159,7 @@ var _ = Describe("Machine Config", func() {
 		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
 		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
 		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
-		Expect(manifest).To(ContainSubstring(expectedBootArguments))
+		Expect(manifest).To(ContainSubstring(expectedBootArgumentsWithoutIso))
 	})
 
 	Context("with hugepages with specified NUMA node", func() {

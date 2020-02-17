@@ -13,8 +13,6 @@ const (
 	HugePageSize = performancev1alpha1.HugePageSize("1G")
 	// IsolatedCPUs defines the isolated CPU set used for tests
 	IsolatedCPUs = performancev1alpha1.CPUSet("4-7")
-	// NonIsolateCPUs defines the non-isolated CPU set used for tests
-	NonIsolateCPUs = performancev1alpha1.CPUSet("2-3")
 	// ReservedCPUs defines the reserved CPU set used for tests
 	ReservedCPUs = performancev1alpha1.CPUSet("0-3")
 
@@ -32,7 +30,6 @@ const (
 func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile {
 	size := HugePageSize
 	isolatedCPUs := IsolatedCPUs
-	nonIsolateCPUs := NonIsolateCPUs
 	reservedCPUs := ReservedCPUs
 
 	return &performancev1alpha1.PerformanceProfile{
@@ -43,9 +40,8 @@ func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile 
 		},
 		Spec: performancev1alpha1.PerformanceProfileSpec{
 			CPU: &performancev1alpha1.CPU{
-				Isolated:    &isolatedCPUs,
-				NonIsolated: &nonIsolateCPUs,
-				Reserved:    &reservedCPUs,
+				Isolated: &isolatedCPUs,
+				Reserved: &reservedCPUs,
 			},
 			HugePages: &performancev1alpha1.HugePages{
 				DefaultHugePagesSize: &size,

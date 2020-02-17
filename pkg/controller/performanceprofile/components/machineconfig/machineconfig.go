@@ -59,10 +59,10 @@ const (
 )
 
 const (
-	environmentNonIsolatedCpus = "NON_ISOLATED_CPUS"
-	environmentHugepagesSize   = "HUGEPAGES_SIZE"
-	environmentHugepagesCount  = "HUGEPAGES_COUNT"
-	environmentNUMANode        = "NUMA_NODE"
+	environmentHugepagesSize  = "HUGEPAGES_SIZE"
+	environmentHugepagesCount = "HUGEPAGES_COUNT"
+	environmentNUMANode       = "NUMA_NODE"
+	environmentReservedCpus   = "RESERVED_CPUS"
 )
 
 // New returns new machine configuration object for performance sensetive workflows
@@ -86,7 +86,12 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	}
 
 	mc.Spec.Config = *ignitionConfig
-	mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated)
+
+	if profile.Spec.CPU.Isolated != nil && profile.Spec.CPU.BalanceIsolated != nil && *profile.Spec.CPU.BalanceIsolated == false {
+		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated)
+	} else {
+		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, nil)
+	}
 
 	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
 		profile.Spec.RealTimeKernel.Enabled != nil &&
@@ -172,9 +177,9 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		})
 	}
 
-	nonIsolatedCpus := profile.Spec.CPU.NonIsolated
+	reservedCpus := profile.Spec.CPU.Reserved
 	preBootTuningService, err := getSystemdContent(
-		getPreBootTuningUnitOptions(string(*nonIsolatedCpus)),
+		getPreBootTuningUnitOptions(string(*reservedCpus)),
 	)
 	if err != nil {
 		return nil, err
@@ -277,7 +282,7 @@ func getRebootUnitOptions() []*unit.UnitOption {
 	}
 }
 
-func getPreBootTuningUnitOptions(nonIsolatedCpus string) []*unit.UnitOption {
+func getPreBootTuningUnitOptions(reservedCpus string) []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
@@ -287,7 +292,7 @@ func getPreBootTuningUnitOptions(nonIsolatedCpus string) []*unit.UnitOption {
 		unit.NewUnitOption(systemdSectionUnit, systemdBefore, getSystemdService(reboot)),
 		// [Service]
 		// Environment
-		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentNonIsolatedCpus, nonIsolatedCpus)),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCpus, reservedCpus)),
 		// Type
 		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
 		// RemainAfterExit
