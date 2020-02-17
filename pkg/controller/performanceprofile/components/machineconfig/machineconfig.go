@@ -129,7 +129,10 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 	}
 
 	if nonIsolatedCPUs != nil {
-		kargs = append(kargs, fmt.Sprintf("tuned.non_isolcpus=%s", components.CPUListToHexMask(string(*nonIsolatedCPUs))))
+		cpuMask, err := components.CPUListToHexMask(string(*nonIsolatedCPUs))
+		if err == nil {
+			kargs = append(kargs, fmt.Sprintf("tuned.non_isolcpus=%s", cpuMask))
+		}
 	}
 
 	if hugePages != nil {
@@ -197,8 +200,13 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		},
 	})
 
+	cpuInvertedMask, err := components.CPUListToInvertedMask(string(*reservedCpus))
+	if err != nil {
+		return nil, err
+	}
+
 	preBootTuningService, err := getSystemdContent(
-		getPreBootTuningUnitOptions(string(*reservedCpus)),
+		getPreBootTuningUnitOptions(string(*reservedCpus), cpuInvertedMask),
 	)
 	if err != nil {
 		return nil, err
@@ -301,7 +309,7 @@ func getRebootUnitOptions() []*unit.UnitOption {
 	}
 }
 
-func getPreBootTuningUnitOptions(reservedCpus string) []*unit.UnitOption {
+func getPreBootTuningUnitOptions(reservedCpus string, cpuInvertedMask string) []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
