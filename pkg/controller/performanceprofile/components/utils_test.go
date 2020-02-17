@@ -14,7 +14,7 @@ var cpuListToMask = []listToMask{
 	{"0", "01"}, {"2-3", "0c"}, {"3,4,53-55,61-63", "e0e0000000000018"},
 }
 var cpuListToInvertMask = []listToMask{
-	{"0", "3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe"}, {"2-3", "3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff3"}, {"3,4,53-55,61-63", "3fffffffffffffffffffffffffffffffffffffffffffffff1f1fffffffffffe7"},
+	{"0", "ffffffff,fffffffe"}, {"2-3", "ffffffff,fffffff3"}, {"3,4,53-55,61-63", "1f1fffff,ffffffe7"},
 }
 
 var _ = Describe("Components utils", func() {
@@ -28,7 +28,7 @@ var _ = Describe("Components utils", func() {
 		})
 		It("should generate a valid CPU inverted mask from CPU list ", func() {
 			for _, cpuEntry := range cpuListToInvertMask {
-				cpuMask, err := CPUListToInvertedMask(cpuEntry.cpuList)
+				cpuMask, err := CPUListTo32BitsMaskList(cpuEntry.cpuList)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(cpuMask).Should(Equal(cpuEntry.cpuMask))
 			}

@@ -24,7 +24,7 @@ const expectedSystemdUnits = `
 
           [Service]
           Environment=RESERVED_CPUS=0-3
-          Environment=RESERVED_CPU_MASK_INVERT=3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff3
+          Environment=RESERVED_CPU_MASK_INVERT=ffffffff,fffffff0
           Type=oneshot
           RemainAfterExit=true
           ExecStart=/usr/local/bin/pre-boot-tuning.sh
@@ -87,7 +87,7 @@ const expectedBootArguments = `
   - intel_iommu=on
   - iommu=pt
   - isolcpus=4-7
-  - tuned.non_isolcpus=0c
+  - tuned.non_isolcpus=0f
   - default_hugepagesz=1G
   - hugepagesz=1G
   - hugepages=4

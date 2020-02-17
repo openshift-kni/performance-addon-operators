@@ -20,8 +20,8 @@ const (
 )
 
 const (
-	templateIsolatedCpus       = "IsolatedCpus"
-	templateNotIsolatedCpumask = "NotIsolatedCpumask"
+	templateIsolatedCpus    = "IsolatedCpus"
+	templateReservedCpumask = "ReservedCpumask"
 )
 
 func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.TunedRecommend) *tunedv1.Tuned {
@@ -85,7 +85,7 @@ func NewWorkerRealTimeKernel(assetsDir string, profile *performancev1alpha1.Perf
 		if err != nil {
 			return nil, err
 		}
-		templateArgs[templateNotIsolatedCpumask] = cpuMask
+		templateArgs[templateReservedCpumask] = cpuMask
 	}
 
 	profileData, err := getProfileData(getProfilePath(components.ProfileNameWorkerRT, assetsDir), templateArgs)

@@ -107,7 +107,7 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	return mc, nil
 }
 
-func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet, nonIsolatedCPUs *performancev1alpha1.CPUSet) []string {
+func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet, reservedCPUs *performancev1alpha1.CPUSet) []string {
 	kargs := []string{
 		"nohz=on",
 		"nosoftlockup",
@@ -128,8 +128,8 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 		kargs = append(kargs, fmt.Sprintf("isolcpus=%s", string(*isolatedCPUs)))
 	}
 
-	if nonIsolatedCPUs != nil {
-		cpuMask, err := components.CPUListToHexMask(string(*nonIsolatedCPUs))
+	if reservedCPUs != nil {
+		cpuMask, err := components.CPUListToHexMask(string(*reservedCPUs))
 		if err == nil {
 			kargs = append(kargs, fmt.Sprintf("tuned.non_isolcpus=%s", cpuMask))
 		}
@@ -200,7 +200,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		},
 	})
 
-	cpuInvertedMask, err := components.CPUListToInvertedMask(string(*reservedCpus))
+	cpuInvertedMask, err := components.CPUListTo32BitsMaskList(string(*reservedCpus))
 	if err != nil {
 		return nil, err
 	}

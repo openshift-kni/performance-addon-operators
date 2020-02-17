@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const maxSystemCpus = 254
+const maxSystemCpus = 64
 
 // GetComponentName returns the component name for the specific performance profile
 func GetComponentName(profileName string, prefix string) string {
@@ -95,5 +95,15 @@ func CPUListToInvertedMask(cpulist string) (hexMask string, err error) {
 		x := new(big.Int).Lsh(big.NewInt(1), uint(cpu))
 		currMask.Or(currMask, x)
 	}
-	return fmt.Sprintf("%02x", currMask), nil
+	return fmt.Sprintf("%016x", currMask), nil
+}
+
+// CPUListTo32BitsMaskList converts a list of cpus into an inverted cpu mask represented
+// in a list of 32bit hexadecimal masks devided by a delimiter ","
+func CPUListTo32BitsMaskList(cpulist string) (hexMask string, err error) {
+	maskStr, err := CPUListToInvertedMask(cpulist)
+	if err != nil {
+		return "", nil
+	}
+	return fmt.Sprintf("%s,%s", maskStr[:8], maskStr[8:]), nil
 }
