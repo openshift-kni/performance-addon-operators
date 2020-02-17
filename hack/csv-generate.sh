@@ -18,8 +18,6 @@ if [ -n "$ANNOTATIONS_FILE" ]; then
 	EXTRA_ANNOTATIONS="-inject-annotations-from=$ANNOTATIONS_FILE"
 fi
 
-(cd tools/csv-generator/ && go build)
-
 clean_tmp_csv() {
 	rm -rf $TMP_CSV_DIR
 }
@@ -36,7 +34,7 @@ $OPERATOR_SDK olm-catalog gen-csv --operator-name="performance-addon-operator" -
 $OPERATOR_SDK generate crds
 
 # using the generated CSV, create the real CSV by injecting all the right data into it
-tools/csv-generator/csv-generator \
+build/_output/bin/csv-generator \
 	--csv-version "${CSV_VERSION}" \
 	--operator-csv-template-file "${TMP_CSV_FILE}" \
 	--operator-image "${FULL_OPERATOR_IMAGE}" \

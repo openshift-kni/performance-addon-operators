@@ -51,6 +51,15 @@ dist:
 	mkdir -p build/_output/bin
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/performance-addon-operators ./cmd/manager
 
+dist-csv-generator:
+	@if [ ! -x build/_output/bin/csv-generator ]; then\
+		echo "Building csv-generator tool";\
+		mkdir -p build/_output/bin;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/csv-generator ./tools/csv-generator;\
+	else \
+		echo "Using pre-built csv-generator tool";\
+	fi
+
 build-containers: registry-container operator-container
 
 operator-container: build
@@ -79,14 +88,14 @@ operator-sdk:
 		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
 	fi
 
-generate-csv: operator-sdk
+generate-csv: operator-sdk dist-csv-generator
 	@if [ -z "$(REGISTRY_NAMESPACE)" ]; then\
 		echo "REGISTRY_NAMESPACE env-var must be set to your $(IMAGE_REGISTRY) namespace";\
 		exit 1;\
 	fi
 	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/csv-generate.sh
 
-generate-latest-dev-csv: operator-sdk
+generate-latest-dev-csv: operator-sdk dist-csv-generator
 	@echo Generating developer csv
 	@echo
 	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" CSV_VERSION=$(OPERATOR_DEV_CSV) hack/csv-generate.sh
