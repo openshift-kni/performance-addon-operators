@@ -27,6 +27,7 @@ do
   if ! ${OC_TOOL} kustomize $feature_dir | envsubst | ${OC_TOOL} apply -f -
   then
     set -e
+    ${OC_TOOL} -n openshift-marketplace describe catalogsource performance-addon-operator-catalogsource
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))
     echo "[WARN] Deployment failed, retrying in $sleep_time sec, $iterations_left retries left."
