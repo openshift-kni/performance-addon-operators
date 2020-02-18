@@ -28,6 +28,7 @@ const (
 var _ = Describe("[performance] CPU Management", func() {
 	var workerRTNode *corev1.Node
 	var profile *performancev1alpha1.PerformanceProfile
+	var balanceIsolated bool
 	var reservedCPU, isolatedCPU string
 	var listReservedCPU []string
 	var listIsolatedCPU []string
@@ -46,6 +47,11 @@ var _ = Describe("[performance] CPU Management", func() {
 		)
 		Expect(err).ToNot(HaveOccurred())
 
+		balanceIsolated = true
+		if profile.Spec.CPU.BalanceIsolated != nil {
+			balanceIsolated = *profile.Spec.CPU.BalanceIsolated
+		}
+
 		isolatedCPU = string(*profile.Spec.CPU.Isolated)
 		Expect(isolatedCPU).ToNot(BeEmpty())
 		listIsolatedCPU, err = CPUListConverter(isolatedCPU)
@@ -63,15 +69,20 @@ var _ = Describe("[performance] CPU Management", func() {
 	Describe("Verification of configuration on the worker node", func() {
 		It("Verify CPU reservation on the node", func() {
 			By(fmt.Sprintf("Allocatable CPU should be less then capacity by %d", len(listReservedCPU)))
-			capacityCpu, _ := workerRTNode.Status.Capacity.Cpu().AsInt64()
-			allocatableCpu, _ := workerRTNode.Status.Allocatable.Cpu().AsInt64()
-			Expect(capacityCpu - allocatableCpu).To(Equal(int64(len(listReservedCPU))))
+			capacityCPU, _ := workerRTNode.Status.Capacity.Cpu().AsInt64()
+			allocatableCPU, _ := workerRTNode.Status.Allocatable.Cpu().AsInt64()
+			Expect(capacityCPU - allocatableCPU).To(Equal(int64(len(listReservedCPU))))
 		})
 
 		It("Verify CPU affinity mask, CPU reservation and CPU isolation on worker node", func() {
 			By("checking isolated CPU")
 			cmd := []string{"cat", "/sys/devices/system/cpu/isolated"}
-			Expect(execCommandOnWorker(cmd, workerRTNode)).To(Equal(isolatedCPU))
+			sysIsolatedCpus := execCommandOnWorker(cmd, workerRTNode)
+			if balanceIsolated {
+				Expect(sysIsolatedCpus).To(BeEmpty())
+			} else {
+				Expect(sysIsolatedCpus).To(Equal(isolatedCPU))
+			}
 
 			By("checking reserved CPU in kubelet config file")
 			cmd = []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}

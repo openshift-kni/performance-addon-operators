@@ -20,7 +20,8 @@ const (
 )
 
 const (
-	templateIsolatedCpus = "IsolatedCpus"
+	templateIsolatedCpus    = "IsolatedCpus"
+	templateReservedCpumask = "ReservedCpumask"
 )
 
 func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.TunedRecommend) *tunedv1.Tuned {
@@ -79,7 +80,16 @@ func NewWorkerRealTimeKernel(assetsDir string, profile *performancev1alpha1.Perf
 		templateArgs[templateIsolatedCpus] = string(*profile.Spec.CPU.Isolated)
 	}
 
+	if profile.Spec.CPU.Reserved != nil {
+		cpuMask, err := components.CPUListToHexMask(string(*profile.Spec.CPU.Reserved))
+		if err != nil {
+			return nil, err
+		}
+		templateArgs[templateReservedCpumask] = cpuMask
+	}
+
 	profileData, err := getProfileData(getProfilePath(components.ProfileNameWorkerRT, assetsDir), templateArgs)
+
 	if err != nil {
 		return nil, err
 	}

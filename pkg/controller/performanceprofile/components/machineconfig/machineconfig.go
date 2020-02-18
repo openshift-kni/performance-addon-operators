@@ -59,10 +59,11 @@ const (
 )
 
 const (
-	environmentHugepagesSize  = "HUGEPAGES_SIZE"
-	environmentHugepagesCount = "HUGEPAGES_COUNT"
-	environmentNUMANode       = "NUMA_NODE"
-	environmentReservedCpus   = "RESERVED_CPUS"
+	environmentHugepagesSize           = "HUGEPAGES_SIZE"
+	environmentHugepagesCount          = "HUGEPAGES_COUNT"
+	environmentNUMANode                = "NUMA_NODE"
+	environmentReservedCpus            = "RESERVED_CPUS"
+	environmentReservedCPUMaskInverted = "RESERVED_CPU_MASK_INVERT"
 )
 
 // New returns new machine configuration object for performance sensetive workflows
@@ -88,9 +89,13 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	mc.Spec.Config = *ignitionConfig
 
 	if profile.Spec.CPU.Isolated != nil && profile.Spec.CPU.BalanceIsolated != nil && *profile.Spec.CPU.BalanceIsolated == false {
-		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated)
+		mc.Spec.KernelArguments, err = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated, profile.Spec.CPU.Reserved)
 	} else {
-		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, nil)
+		mc.Spec.KernelArguments, err = getKernelArgs(profile.Spec.HugePages, nil, profile.Spec.CPU.Reserved)
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
@@ -106,7 +111,7 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	return mc, nil
 }
 
-func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet) []string {
+func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet, reservedCPUs *performancev1alpha1.CPUSet) ([]string, error) {
 	kargs := []string{
 		"nohz=on",
 		"nosoftlockup",
@@ -127,6 +132,14 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 		kargs = append(kargs, fmt.Sprintf("isolcpus=%s", string(*isolatedCPUs)))
 	}
 
+	if reservedCPUs != nil {
+		cpuMask, err := components.CPUListToHexMask(string(*reservedCPUs))
+		if err != nil {
+			return nil, err
+		}
+		kargs = append(kargs, fmt.Sprintf("tuned.non_isolcpus=%s", cpuMask))
+	}
+
 	if hugePages != nil {
 		if hugePages.DefaultHugePagesSize != nil {
 			kargs = append(kargs, fmt.Sprintf("default_hugepagesz=%s", string(*hugePages.DefaultHugePagesSize)))
@@ -142,7 +155,7 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 			kargs = append(kargs, fmt.Sprintf("hugepages=%d", page.Count))
 		}
 	}
-	return kargs
+	return kargs, nil
 }
 
 func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*igntypes.Config, error) {
@@ -178,8 +191,27 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 	}
 
 	reservedCpus := profile.Spec.CPU.Reserved
+	contentBase64 := base64.StdEncoding.EncodeToString([]byte("[Manager]\nCPUAffinity=" + string(*reservedCpus)))
+	ignitionConfig.Storage.Files = append(ignitionConfig.Storage.Files, igntypes.File{
+		Node: igntypes.Node{
+			Filesystem: defaultFileSystem,
+			Path:       "/etc/systemd/system.conf.d/setAffinity.conf",
+		},
+		FileEmbedded1: igntypes.FileEmbedded1{
+			Contents: igntypes.FileContents{
+				Source: fmt.Sprintf("%s,%s", defaultIgnitionContentSource, contentBase64),
+			},
+			Mode: &mode,
+		},
+	})
+
+	cpuInvertedMask, err := components.CPUListTo32BitsMaskList(string(*reservedCpus))
+	if err != nil {
+		return nil, err
+	}
+
 	preBootTuningService, err := getSystemdContent(
-		getPreBootTuningUnitOptions(string(*reservedCpus)),
+		getPreBootTuningUnitOptions(string(*reservedCpus), cpuInvertedMask),
 	)
 	if err != nil {
 		return nil, err
@@ -282,7 +314,7 @@ func getRebootUnitOptions() []*unit.UnitOption {
 	}
 }
 
-func getPreBootTuningUnitOptions(reservedCpus string) []*unit.UnitOption {
+func getPreBootTuningUnitOptions(reservedCpus string, cpuInvertedMask string) []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
@@ -293,6 +325,7 @@ func getPreBootTuningUnitOptions(reservedCpus string) []*unit.UnitOption {
 		// [Service]
 		// Environment
 		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCpus, reservedCpus)),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCPUMaskInverted, cpuInvertedMask)),
 		// Type
 		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
 		// RemainAfterExit
