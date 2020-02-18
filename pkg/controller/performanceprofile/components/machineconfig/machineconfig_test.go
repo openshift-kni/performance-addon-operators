@@ -110,6 +110,7 @@ const expectedBootArgumentsWithoutIso = `
   - intel_idle.max_cstate=0
   - intel_iommu=on
   - iommu=pt
+  - tuned.non_isolcpus=0f
   - default_hugepagesz=1G
   - hugepagesz=1G
   - hugepages=4

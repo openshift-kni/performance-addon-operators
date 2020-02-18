@@ -91,7 +91,7 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	if profile.Spec.CPU.Isolated != nil && profile.Spec.CPU.BalanceIsolated != nil && *profile.Spec.CPU.BalanceIsolated == false {
 		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated, profile.Spec.CPU.Reserved)
 	} else {
-		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, nil, nil)
+		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, nil, profile.Spec.CPU.Reserved)
 	}
 
 	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
