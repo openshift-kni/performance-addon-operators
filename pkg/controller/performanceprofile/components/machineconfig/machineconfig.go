@@ -89,9 +89,13 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	mc.Spec.Config = *ignitionConfig
 
 	if profile.Spec.CPU.Isolated != nil && profile.Spec.CPU.BalanceIsolated != nil && *profile.Spec.CPU.BalanceIsolated == false {
-		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated, profile.Spec.CPU.Reserved)
+		mc.Spec.KernelArguments, err = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated, profile.Spec.CPU.Reserved)
 	} else {
-		mc.Spec.KernelArguments = getKernelArgs(profile.Spec.HugePages, nil, profile.Spec.CPU.Reserved)
+		mc.Spec.KernelArguments, err = getKernelArgs(profile.Spec.HugePages, nil, profile.Spec.CPU.Reserved)
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
@@ -107,7 +111,7 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	return mc, nil
 }
 
-func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet, reservedCPUs *performancev1alpha1.CPUSet) []string {
+func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet, reservedCPUs *performancev1alpha1.CPUSet) ([]string, error) {
 	kargs := []string{
 		"nohz=on",
 		"nosoftlockup",
@@ -130,9 +134,10 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 
 	if reservedCPUs != nil {
 		cpuMask, err := components.CPUListToHexMask(string(*reservedCPUs))
-		if err == nil {
-			kargs = append(kargs, fmt.Sprintf("tuned.non_isolcpus=%s", cpuMask))
+		if err != nil {
+			return nil, err
 		}
+		kargs = append(kargs, fmt.Sprintf("tuned.non_isolcpus=%s", cpuMask))
 	}
 
 	if hugePages != nil {
@@ -150,7 +155,7 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 			kargs = append(kargs, fmt.Sprintf("hugepages=%d", page.Count))
 		}
 	}
-	return kargs
+	return kargs, nil
 }
 
 func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*igntypes.Config, error) {
