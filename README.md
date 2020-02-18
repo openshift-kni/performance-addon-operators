@@ -42,7 +42,7 @@ in `/cluster-setup`. It will detect that it is running in CI and deploy the imag
 
 #### Running functests on your own cluster
 
-see [CONTRIBUTING](CONTRIBUTING.md#deploying-operator-on-test-cluster)
+see [CONTRIBUTING#deploying-operator-on-test-cluster](CONTRIBUTING.md#deploying-operator-on-test-cluster)
 
 ## How to contribute
 

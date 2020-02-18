@@ -1,16 +1,3 @@
 FROM quay.io/openshift/origin-operator-registry:latest
 
-ARG OPENSHIFT_BUILD_NAMESPACE
-
-COPY deploy/olm-catalog /registry/performance-addon-operator-catalog
-
-# replaces performance-addon-operator image with the one built by openshift ci
-RUN find /registry/performance-addon-operator-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:performance-addon-operator|g" {} \; || :
-
-# Initialize the database
-RUN initializer --manifests /registry/performance-addon-operator-catalog --output bundles.db
-
-# There are multiple binaries in the origin-operator-registry
-# We want the registry-server
-ENTRYPOINT ["registry-server"]
-CMD ["--database", "bundles.db"]
+# DEPRECATED, REMOVE THIS AFTER IT WAS REMOVED FROM CI CONFIG

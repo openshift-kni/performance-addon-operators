@@ -69,7 +69,7 @@ Make sure your images are made public in your quay.io account.
 Then deploy the operator using this make target.
 
 ```
-make cluster-deploy
+FEATURES_ENVIRONMENT=other-clusters make cluster-deploy
 ```
 
 This simply posts the manifests for now. You can perform your own introspection into the cluster to determine if the deployment was successful,

@@ -41,6 +41,9 @@ FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE
 
 OPERATOR_DEV_CSV="0.0.1"
 
+# The environment represents the kustomize patches to apply when deploying the features
+export FEATURES_ENVIRONMENT?=ci-cluster
+
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 
@@ -89,7 +92,7 @@ generate-csv: operator-sdk
 generate-latest-dev-csv: operator-sdk
 	@echo Generating developer csv
 	@echo
-	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" CSV_VERSION=$(OPERATOR_DEV_CSV) hack/csv-generate.sh
+	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" CSV_VERSION=$(OPERATOR_DEV_CSV) DEV_BUILD=1 hack/csv-generate.sh
 
 deps-update:
 	go mod tidy && \

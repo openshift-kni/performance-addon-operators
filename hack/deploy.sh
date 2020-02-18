@@ -5,19 +5,24 @@ set -e
 # expect oc to be in PATH by default
 OC_TOOL="${OC_TOOL:-oc}"
 
-# Override the image name when this is invoked from openshift ci
-if [ -n "${OPENSHIFT_BUILD_NAMESPACE}" ]; then
-  FULL_REGISTRY_IMAGE="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:performance-addon-operator-registry"
-fi
+# Override the image name in the CSV when this is invoked from openshift ci
+# See https://github.com/openshift/ci-tools/blob/master/TEMPLATES.md#image_format
+# Fallback to string "REPLACE_IMAGE" what we use at other places as well
+CI_OPERATOR_IMAGE=${IMAGE_FORMAT/'${component}'/performance-addon-operator}
+export REPLACE_IMAGE=${CI_OPERATOR_IMAGE:-REPLACE_IMAGE}
 
-echo "Deploying using image $FULL_REGISTRY_IMAGE."
+if [ $FEATURES_ENVIRONMENT == "ci-cluster" ]; then
+  echo "[INFO] Deployment method: CSV with image $REPLACE_IMAGE."
+else
+  echo "[INFO] Deployment method: CatalogSource with image $FULL_REGISTRY_IMAGE."
+fi
 
 # Deploy features
 success=0
 iterations=0
 sleep_time=10
 max_iterations=30 # results in 5 minute timeout
-feature_dir=cluster-setup/ci-cluster/performance/
+feature_dir=cluster-setup/$FEATURES_ENVIRONMENT/performance/
 
 until [[ $success -eq 1 ]] || [[ $iterations -eq $max_iterations ]]
 do

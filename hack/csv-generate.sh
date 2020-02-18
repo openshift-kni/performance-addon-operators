@@ -45,3 +45,14 @@ cp deploy/crds/*_crd.yaml $FINAL_CSV_DIR/
 clean_tmp_csv
 
 echo "New CSV created at $FINAL_CSV_DIR"
+
+if [ -n "$DEV_BUILD" ]; then
+  SETUP_DIR=cluster-setup/ci-cluster/performance
+  cp $FINAL_CSV_DIR/* ${SETUP_DIR}/
+  # set correct namespace in CSV since this is going tpo be installed directly
+  find ${SETUP_DIR}/ -type f -exec sed -i 's/namespace: placeholder/namespace: openshift-marketplace/' {} \;
+  # use REPLACE_IMAGE in var format, easier to use with kustomize + envsubst
+  find ${SETUP_DIR}/ -type f -exec sed -i 's/REPLACE_IMAGE/${REPLACE_IMAGE}/g' {} \;
+  echo "Dev CSV and CRDs copied into cluster-ci kustomize override dir"
+fi
+

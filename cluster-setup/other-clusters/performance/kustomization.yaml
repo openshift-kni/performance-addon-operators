@@ -5,8 +5,9 @@ bases:
   - ../../base/performance
 
 resources:
-  - performance.openshift.io_performanceprofiles_crd.yaml
-  - performance-addon-operator.v0.0.1.clusterserviceversion.yaml
+  - operator_operatorgroup.yaml
+  - operator_catalogsource.yaml
+  - operator_subscription.yaml
 
 patchesStrategicMerge:
   - performance_profile.patch.yaml

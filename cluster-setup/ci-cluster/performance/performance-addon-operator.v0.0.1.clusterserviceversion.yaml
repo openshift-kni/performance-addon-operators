@@ -36,7 +36,7 @@ metadata:
       ]
     capabilities: Basic Install
   name: performance-addon-operator.v0.0.1
-  namespace: placeholder
+  namespace: openshift-marketplace
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
@@ -110,7 +110,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: performance-operator
-                image: REPLACE_IMAGE
+                image: ${REPLACE_IMAGE}
                 imagePullPolicy: Always
                 name: performance-operator
                 resources: {}
