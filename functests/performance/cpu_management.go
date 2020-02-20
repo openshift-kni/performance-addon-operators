@@ -46,6 +46,7 @@ var _ = Describe("[performance] CPU Management", func() {
 			},
 		)
 		Expect(err).ToNot(HaveOccurred())
+		Expect(profile.Spec.HugePages).ToNot(BeNil())
 
 		balanceIsolated = true
 		if profile.Spec.CPU.BalanceIsolated != nil {
@@ -61,9 +62,6 @@ var _ = Describe("[performance] CPU Management", func() {
 		Expect(reservedCPU).ToNot(BeEmpty())
 		listReservedCPU, err = CPUListConverter(reservedCPU)
 		Expect(err).ToNot(HaveOccurred())
-
-		Expect(err).ToNot(HaveOccurred())
-		Expect(profile.Spec.HugePages).ToNot(BeNil())
 	})
 
 	Describe("Verification of configuration on the worker node", func() {
@@ -107,16 +105,26 @@ var _ = Describe("[performance] CPU Management", func() {
 		})
 
 		table.DescribeTable("Verify CPU usage by stress PODs", func(guaranteed bool) {
-			listCPU := listReservedCPU
+			var listCPU []string
+
 			testpod = getStressPod(workerRTNode.Name)
 			testpod.Namespace = testutils.NamespaceTesting
+
 			if guaranteed {
 				listCPU = listIsolatedCPU
 				testpod.Spec.Containers[0].Resources.Limits = map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceCPU:    resource.MustParse("1"),
 					corev1.ResourceMemory: resource.MustParse("1Gi"),
 				}
+			} else if balanceIsolated {
+				// when balanceIsolated is True - non-guaranteed pod can take ANY cpu
+				cmd := []string{"/bin/bash", "-c", "lscpu | grep On-line | awk '{print $4}'"}
+				listCPU, _ = CPUListConverter(execCommandOnWorker(cmd, workerRTNode))
+			} else {
+				// when balanceIsolated is False - non-guaranteed pod should run on reserved cpu
+				listCPU = listReservedCPU
 			}
+
 			err := testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -126,7 +134,7 @@ var _ = Describe("[performance] CPU Management", func() {
 			cmd := []string{"/bin/bash", "-c", "ps -o psr $(pgrep -n stress) | tail -1"}
 			Expect(strings.Trim(execCommandOnWorker(cmd, workerRTNode), " ")).To(BeElementOf(listCPU))
 		},
-			table.Entry("Non-guaranteed POD should work on non-isolated (reserved) cpu", false),
+			table.Entry("Non-guaranteed POD can work on any CPU", false),
 			table.Entry("Guaranteed POD should work on isolated cpu", true),
 		)
 	})
