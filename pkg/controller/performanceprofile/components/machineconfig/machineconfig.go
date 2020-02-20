@@ -133,7 +133,7 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 	}
 
 	if reservedCPUs != nil {
-		cpuMask, err := components.CPUListToHexMask(string(*reservedCPUs))
+		cpuMask, err := components.CPUListTo256BitsMaskList(string(*reservedCPUs))
 		if err != nil {
 			return nil, err
 		}
@@ -205,7 +205,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		},
 	})
 
-	cpuInvertedMask, err := components.CPUListTo32BitsMaskList(string(*reservedCpus))
+	cpuInvertedMask, err := components.CPUListTo64BitsMaskList(string(*reservedCpus))
 	if err != nil {
 		return nil, err
 	}

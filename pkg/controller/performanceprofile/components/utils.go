@@ -73,7 +73,7 @@ func CPUListToHexMask(cpulist string) (hexMask string, err error) {
 		x := new(big.Int).Lsh(big.NewInt(1), uint(cpu))
 		currMask.Or(currMask, x)
 	}
-	return fmt.Sprintf("%02x", currMask), nil
+	return fmt.Sprintf("%064x", currMask), nil
 }
 
 // CPUListToInvertedMask converts a list of cpus into an inverted cpu mask represented in hexdecimal
@@ -98,12 +98,22 @@ func CPUListToInvertedMask(cpulist string) (hexMask string, err error) {
 	return fmt.Sprintf("%016x", currMask), nil
 }
 
-// CPUListTo32BitsMaskList converts a list of cpus into an inverted cpu mask represented
-// in a list of 32bit hexadecimal masks devided by a delimiter ","
-func CPUListTo32BitsMaskList(cpulist string) (hexMask string, err error) {
+// CPUListTo64BitsMaskList converts a list of cpus into an inverted cpu mask represented
+// in a list of 64bit hexadecimal mask devided by a delimiter ","
+func CPUListTo64BitsMaskList(cpulist string) (hexMask string, err error) {
 	maskStr, err := CPUListToInvertedMask(cpulist)
 	if err != nil {
 		return "", nil
 	}
 	return fmt.Sprintf("%s,%s", maskStr[:8], maskStr[8:]), nil
+}
+
+// CPUListTo256BitsMaskList converts a list of cpus into an inverted cpu mask represented
+// in a list of 256bit hexadecimal mask devided by a delimiter ","
+func CPUListTo256BitsMaskList(cpulist string) (hexMask string, err error) {
+	maskStr, err := CPUListToHexMask(cpulist)
+	if err != nil {
+		return "", nil
+	}
+	return fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s", maskStr[0:8], maskStr[8:16], maskStr[16:24], maskStr[24:32], maskStr[32:40], maskStr[40:48], maskStr[48:56], maskStr[56:64]), nil
 }
