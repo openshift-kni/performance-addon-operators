@@ -63,17 +63,20 @@ var _ = Describe("performance", func() {
 				nonIsolcpusFullArgument := re.FindString(string(cmdline))
 				Expect(nonIsolcpusFullArgument).To(ContainSubstring("tuned.non_isolcpus="))
 				nonIsolcpusMask := strings.Split(string(nonIsolcpusFullArgument), "=")[1]
+				nonIsolcpusMaskNoDelimiters := strings.Replace(nonIsolcpusMask, ",", "", -1)
 				Expect(err).ToNot(HaveOccurred())
 				By("executing the command \"cat /sys/devices/virtual/workqueue/cpumask\"")
 				workqueueMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat", "/sys/devices/virtual/workqueue/cpumask"})
 				Expect(err).ToNot(HaveOccurred())
 				workqueueMaskTrimmed := strings.TrimSpace(string(workqueueMask))
-				Expect(strings.TrimLeft(nonIsolcpusMask, "0")).Should(Equal(strings.TrimLeft(workqueueMaskTrimmed, "0")), "workqueueMask is not set to "+workqueueMaskTrimmed)
+				workqueueMaskTrimmedNoDelimiters := strings.Replace(workqueueMaskTrimmed, ",", "", -1)
+				Expect(strings.TrimLeft(nonIsolcpusMaskNoDelimiters, "0")).Should(Equal(strings.TrimLeft(workqueueMaskTrimmedNoDelimiters, "0")), "workqueueMask is not set to "+workqueueMaskTrimmed)
 				By("executing the command \"cat /sys/bus/workqueue/devices/writeback/cpumask\"")
 				workqueueWritebackMask, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat", "/sys/bus/workqueue/devices/writeback/cpumask"})
 				Expect(err).ToNot(HaveOccurred())
 				workqueueWritebackMaskTrimmed := strings.TrimSpace(string(workqueueWritebackMask))
-				Expect(strings.TrimLeft(nonIsolcpusMask, "0")).Should(Equal(strings.TrimLeft(workqueueWritebackMaskTrimmed, "0")), "workqueueMask is not set to "+workqueueWritebackMaskTrimmed)
+				workqueueWritebackMaskTrimmedNoDelimiters := strings.Replace(workqueueWritebackMaskTrimmed, ",", "", -1)
+				Expect(strings.TrimLeft(nonIsolcpusMaskNoDelimiters, "0")).Should(Equal(strings.TrimLeft(workqueueWritebackMaskTrimmedNoDelimiters, "0")), "workqueueMask is not set to "+workqueueWritebackMaskTrimmed)
 			}
 		})
 
