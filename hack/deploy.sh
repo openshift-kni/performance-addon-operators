@@ -7,14 +7,13 @@ OC_TOOL="${OC_TOOL:-oc}"
 
 # Override the image name in the CSV when this is invoked from openshift ci
 # See https://github.com/openshift/ci-tools/blob/master/TEMPLATES.md#image_format
-# Fallback to string "REPLACE_IMAGE" what we use at other places as well
-CI_OPERATOR_IMAGE=${IMAGE_FORMAT/'${component}'/performance-addon-operator}
-export REPLACE_IMAGE=${CI_OPERATOR_IMAGE:-REPLACE_IMAGE}
-
-if [ $FEATURES_ENVIRONMENT == "ci-cluster" ]; then
-  echo "[INFO] Deployment method: CSV with image $REPLACE_IMAGE."
+if [ -n "${IMAGE_FORMAT}" ]; then
+  CI_OPERATOR_IMAGE=${IMAGE_FORMAT/'${component}'/performance-addon-operator}
+  export REPLACE_IMAGE=${CI_OPERATOR_IMAGE:-REPLACE_IMAGE}
+  FEATURES_ENVIRONMENT="ci-cluster"
+  echo "[INFO] Openshift CI detected, using \"$FEATURES_ENVIRONMENT\" environment with operator image: $REPLACE_IMAGE."
 else
-  echo "[INFO] Deployment method: CatalogSource with image $FULL_REGISTRY_IMAGE."
+  echo "[INFO] Using \"$FEATURES_ENVIRONMENT\" environment with registry image: $FULL_REGISTRY_IMAGE."
 fi
 
 # Deploy features

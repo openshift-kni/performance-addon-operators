@@ -42,7 +42,7 @@ FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE
 OPERATOR_DEV_CSV="0.0.1"
 
 # The environment represents the kustomize patches to apply when deploying the features
-export FEATURES_ENVIRONMENT?=ci-cluster
+export FEATURES_ENVIRONMENT?=other-clusters
 
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
