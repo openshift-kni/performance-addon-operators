@@ -54,6 +54,7 @@ var (
 	outputDir = flag.String("olm-bundle-directory", "", "The directory to output the unified CSV and CRDs to")
 
 	annotationsFile = flag.String("inject-annotations-from", "", "inject metadata annotations from given file")
+	maintainersFile = flag.String("maintainers-from", "", "add maintainers list from given file")
 
 	semverVersion *semver.Version
 )
@@ -167,7 +168,7 @@ func marshallObject(obj interface{}, writer io.Writer) error {
 	return nil
 }
 
-func generateUnifiedCSV(extraAnnotations map[string]string) {
+func generateUnifiedCSV(extraAnnotations, maintainers map[string]string) {
 
 	operatorCSV := unmarshalCSV(*operatorCSVTemplate)
 
@@ -195,6 +196,7 @@ func generateUnifiedCSV(extraAnnotations map[string]string) {
 	}
 	operatorCSV.Spec.InstallStrategy.StrategySpecRaw = updatedStrat
 
+	operatorCSV.Annotations["containerImage"] = *operatorImage
 	for key, value := range extraAnnotations {
 		operatorCSV.Annotations[key] = value
 	}
@@ -239,6 +241,15 @@ Performance Addon Operator provides the ability to enable advanced node performa
 
 	operatorCSV.Spec.DisplayName = "Performance Addon Operator"
 
+	if maintainers != nil {
+		for name, email := range maintainers {
+			operatorCSV.Spec.Maintainers = append(operatorCSV.Spec.Maintainers, csvv1.Maintainer{
+				Name:  name,
+				Email: email,
+			})
+		}
+	}
+
 	// Set Annotations
 	if *skipRange != "" {
 		operatorCSV.Annotations["olm.skipRange"] = *skipRange
@@ -254,6 +265,19 @@ Performance Addon Operator provides the ability to enable advanced node performa
 	}
 
 	fmt.Printf("CSV written to %s\n", outputFilename)
+}
+
+func readKeyValueMapFromFileOrPanic(filename string) map[string]string {
+	kvMap := make(map[string]string)
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(data, &kvMap)
+	if err != nil {
+		panic(err)
+	}
+	return kvMap
 }
 
 func main() {
@@ -278,14 +302,12 @@ func main() {
 
 	extraAnnotations := make(map[string]string)
 	if *annotationsFile != "" {
-		data, err := ioutil.ReadFile(*annotationsFile)
-		if err != nil {
-			panic(err)
-		}
-		err = json.Unmarshal(data, &extraAnnotations)
-		if err != nil {
-			panic(err)
-		}
+		extraAnnotations = readKeyValueMapFromFileOrPanic(*annotationsFile)
+	}
+
+	maintainers := make(map[string]string)
+	if *maintainersFile != "" {
+		maintainers = readKeyValueMapFromFileOrPanic(*maintainersFile)
 	}
 
 	// start with a fresh output directory if it already exists
@@ -294,5 +316,5 @@ func main() {
 	// create output directory
 	os.MkdirAll(*outputDir, os.FileMode(0775))
 
-	generateUnifiedCSV(extraAnnotations)
+	generateUnifiedCSV(extraAnnotations, maintainers)
 }
