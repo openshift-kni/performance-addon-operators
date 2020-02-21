@@ -130,7 +130,7 @@ var _ = Describe("Machine Config", func() {
 		mc, err := New(testAssetsDir, profile)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(mc.Spec.KernelType).To(Equal(mcKernelRT))
+		Expect(mc.Spec.KernelType).To(Equal(MCKernelRT))
 
 		y, err := yaml.Marshal(mc)
 		Expect(err).ToNot(HaveOccurred())
@@ -152,7 +152,7 @@ var _ = Describe("Machine Config", func() {
 		mc, err := New(testAssetsDir, profile)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(mc.Spec.KernelType).To(Equal(mcKernelRT))
+		Expect(mc.Spec.KernelType).To(Equal(MCKernelRT))
 
 		y, err := yaml.Marshal(mc)
 		Expect(err).ToNot(HaveOccurred())
@@ -174,7 +174,7 @@ var _ = Describe("Machine Config", func() {
 
 			mc, err := New(testAssetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(mc.Spec.KernelType).To(Equal(mcKernelRT))
+			Expect(mc.Spec.KernelType).To(Equal(MCKernelRT))
 
 			y, err := yaml.Marshal(mc)
 			Expect(err).ToNot(HaveOccurred())

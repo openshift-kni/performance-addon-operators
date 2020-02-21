@@ -8,11 +8,9 @@ require (
 	github.com/coreos/ignition v0.34.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.4 // indirect
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/onsi/ginkgo v1.10.3
-	github.com/onsi/gomega v1.7.0
+	github.com/onsi/gomega v1.9.0
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
-	github.com/openshift/client-go v0.0.0-20191022152013-2823239d2298
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-00010101000000-000000000000
 	github.com/openshift/custom-resource-status v0.0.0-20190822192428-e62f2f3b79f3
 	github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible

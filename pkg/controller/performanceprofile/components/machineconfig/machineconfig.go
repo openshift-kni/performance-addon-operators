@@ -25,9 +25,10 @@ const (
 )
 
 const (
-	// Values of the kernel setting in MachineConfig, unfortunately not exported by MCO
-	mcKernelRT      = "realtime"
-	mcKernelDefault = "default"
+	// MCKernelRT is the value of the kernel setting in MachineConfig for the RT kernel
+	MCKernelRT = "realtime"
+	// MCKernelDefault is the value of the kernel setting in MachineConfig for the default kernel
+	MCKernelDefault = "default"
 
 	preBootTuning       = "pre-boot-tuning"
 	reboot              = "reboot"
@@ -103,9 +104,9 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 		*profile.Spec.RealTimeKernel.Enabled
 
 	if enableRTKernel {
-		mc.Spec.KernelType = mcKernelRT
+		mc.Spec.KernelType = MCKernelRT
 	} else {
-		mc.Spec.KernelType = mcKernelDefault
+		mc.Spec.KernelType = MCKernelDefault
 	}
 
 	return mc, nil

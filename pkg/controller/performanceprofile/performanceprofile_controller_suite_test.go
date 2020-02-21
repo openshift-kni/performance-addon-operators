@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func TestFeatureGate(t *testing.T) {
+func TestPerformanceProfile(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	// add resources API to default scheme
