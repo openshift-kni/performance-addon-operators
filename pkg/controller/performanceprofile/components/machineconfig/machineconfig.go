@@ -191,51 +191,53 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		})
 	}
 
-	reservedCpus := profile.Spec.CPU.Reserved
-	contentBase64 := base64.StdEncoding.EncodeToString([]byte("[Manager]\nCPUAffinity=" + string(*reservedCpus)))
-	ignitionConfig.Storage.Files = append(ignitionConfig.Storage.Files, igntypes.File{
-		Node: igntypes.Node{
-			Filesystem: defaultFileSystem,
-			Path:       "/etc/systemd/system.conf.d/setAffinity.conf",
-		},
-		FileEmbedded1: igntypes.FileEmbedded1{
-			Contents: igntypes.FileContents{
-				Source: fmt.Sprintf("%s,%s", defaultIgnitionContentSource, contentBase64),
+	if profile.Spec.CPU.Reserved != nil {
+		reservedCpus := profile.Spec.CPU.Reserved
+		contentBase64 := base64.StdEncoding.EncodeToString([]byte("[Manager]\nCPUAffinity=" + string(*reservedCpus)))
+		ignitionConfig.Storage.Files = append(ignitionConfig.Storage.Files, igntypes.File{
+			Node: igntypes.Node{
+				Filesystem: defaultFileSystem,
+				Path:       "/etc/systemd/system.conf.d/setAffinity.conf",
 			},
-			Mode: &mode,
-		},
-	})
-
-	cpuInvertedMask, err := components.CPUListTo64BitsMaskList(string(*reservedCpus))
-	if err != nil {
-		return nil, err
-	}
-
-	preBootTuningService, err := getSystemdContent(
-		getPreBootTuningUnitOptions(string(*reservedCpus), cpuInvertedMask),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	rebootService, err := getSystemdContent(getRebootUnitOptions())
-	if err != nil {
-		return nil, err
-	}
-
-	ignitionConfig.Systemd = igntypes.Systemd{
-		Units: []igntypes.Unit{
-			{
-				Contents: preBootTuningService,
-				Enabled:  pointer.BoolPtr(true),
-				Name:     getSystemdService(preBootTuning),
+			FileEmbedded1: igntypes.FileEmbedded1{
+				Contents: igntypes.FileContents{
+					Source: fmt.Sprintf("%s,%s", defaultIgnitionContentSource, contentBase64),
+				},
+				Mode: &mode,
 			},
-			{
-				Contents: rebootService,
-				Enabled:  pointer.BoolPtr(true),
-				Name:     getSystemdService(reboot),
+		})
+
+		cpuInvertedMask, err := components.CPUListTo64BitsMaskList(string(*reservedCpus))
+		if err != nil {
+			return nil, err
+		}
+
+		preBootTuningService, err := getSystemdContent(
+			getPreBootTuningUnitOptions(string(*reservedCpus), cpuInvertedMask),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		rebootService, err := getSystemdContent(getRebootUnitOptions())
+		if err != nil {
+			return nil, err
+		}
+
+		ignitionConfig.Systemd = igntypes.Systemd{
+			Units: []igntypes.Unit{
+				{
+					Contents: preBootTuningService,
+					Enabled:  pointer.BoolPtr(true),
+					Name:     getSystemdService(preBootTuning),
+				},
+				{
+					Contents: rebootService,
+					Enabled:  pointer.BoolPtr(true),
+					Name:     getSystemdService(reboot),
+				},
 			},
-		},
+		}
 	}
 
 	if profile.Spec.HugePages != nil {
