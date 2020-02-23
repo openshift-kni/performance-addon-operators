@@ -343,7 +343,7 @@ var _ = Describe("Controller", func() {
 					}),
 				})))
 
-				reservedCPUMask, err := components.CPUListTo256BitsMaskList(string(*profile.Spec.CPU.Reserved))
+				reservedCPUMask, err := components.CPUListToMaskList(string(*profile.Spec.CPU.Reserved))
 				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("tuned.non_isolcpus=" + reservedCPUMask)))
 
 				By("Verifying KC update for reserved")
