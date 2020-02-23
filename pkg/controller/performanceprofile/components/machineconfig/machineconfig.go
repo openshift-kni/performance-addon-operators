@@ -134,7 +134,7 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 	}
 
 	if reservedCPUs != nil {
-		cpuMask, err := components.CPUListTo256BitsMaskList(string(*reservedCPUs))
+		cpuMask, err := components.CPUListToMaskList(string(*reservedCPUs))
 		if err != nil {
 			return nil, err
 		}
