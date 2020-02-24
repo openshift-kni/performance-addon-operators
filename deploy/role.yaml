@@ -5,6 +5,12 @@ metadata:
   name: performance-operator
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - '*'
+- apiGroups:
   - performance.openshift.io
   resources:
   - performanceprofiles
@@ -46,7 +52,6 @@ rules:
   - services
   - services/finalizers
   - configmaps
-  - events
   verbs:
   - '*'
 - apiGroups:
