@@ -35,6 +35,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
+    containerImage: REPLACE_IMAGE
   name: performance-addon-operator.v0.0.1
   namespace: placeholder
 spec:
@@ -54,6 +55,12 @@ spec:
     spec:
       clusterPermissions:
       - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - '*'
         - apiGroups:
           - performance.openshift.io
           resources:
@@ -124,7 +131,6 @@ spec:
           - services
           - services/finalizers
           - configmaps
-          - events
           verbs:
           - '*'
         - apiGroups:
