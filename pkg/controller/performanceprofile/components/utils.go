@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -108,12 +109,27 @@ func CPUListTo64BitsMaskList(cpulist string) (hexMask string, err error) {
 	return fmt.Sprintf("%s,%s", maskStr[:8], maskStr[8:]), nil
 }
 
-// CPUListTo256BitsMaskList converts a list of cpus into an inverted cpu mask represented
-// in a list of 256bit hexadecimal mask devided by a delimiter ","
-func CPUListTo256BitsMaskList(cpulist string) (hexMask string, err error) {
+// CPUListToMaskList converts a list of cpus into a cpu mask represented
+// in a list of hexadecimal mask devided by a delimiter ","
+func CPUListToMaskList(cpulist string) (hexMask string, err error) {
 	maskStr, err := CPUListToHexMask(cpulist)
 	if err != nil {
 		return "", nil
 	}
-	return fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s", maskStr[0:8], maskStr[8:16], maskStr[16:24], maskStr[24:32], maskStr[32:40], maskStr[40:48], maskStr[48:56], maskStr[56:64]), nil
+	index := 0
+	for index < (len(maskStr) - 8) {
+		if maskStr[index:index+8] != "00000000" {
+			break
+		}
+		index = index + 8
+	}
+	var b bytes.Buffer
+	for index <= (len(maskStr) - 16) {
+		b.WriteString(maskStr[index : index+8])
+		b.WriteString(",")
+		index = index + 8
+	}
+	b.WriteString(maskStr[index : index+8])
+	trimmedCPUMaskList := b.String()
+	return trimmedCPUMaskList, nil
 }
