@@ -11,7 +11,8 @@ spec:
     pages:
     - size: "1G"
       count: 2
+      node: 0
   realTimeKernel:
-    repoURL: "http://download-node-02.eng.bos.redhat.com/rhel-8/nightly/RHEL-8/latest-RHEL-8.1.1/compose/RT/x86_64/os"
+    enabled: true
   nodeSelector:
     node-role.kubernetes.io/performance: ""
