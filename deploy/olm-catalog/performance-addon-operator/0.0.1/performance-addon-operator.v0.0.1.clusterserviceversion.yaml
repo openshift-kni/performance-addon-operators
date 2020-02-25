@@ -21,6 +21,7 @@ metadata:
               "pages": [
                 {
                   "count": 2,
+                  "node": 0,
                   "size": "1G"
                 }
               ]
@@ -29,12 +30,13 @@ metadata:
               "node-role.kubernetes.io/performance": ""
             },
             "realTimeKernel": {
-              "repoURL": "http://download-node-02.eng.bos.redhat.com/rhel-8/nightly/RHEL-8/latest-RHEL-8.1.1/compose/RT/x86_64/os"
+              "enabled": true
             }
           }
         }
       ]
     capabilities: Basic Install
+    containerImage: REPLACE_IMAGE
   name: performance-addon-operator.v0.0.1
   namespace: placeholder
 spec:
