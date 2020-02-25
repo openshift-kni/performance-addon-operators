@@ -144,7 +144,7 @@ govet:
 	@echo "Running go vet"
 	go vet ./...
 
-generate: operator-sdk
+generate: generate-latest-dev-csv
 	@echo Updating generated files
 	@echo
 	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate k8s
