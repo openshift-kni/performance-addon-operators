@@ -85,6 +85,15 @@ var _ = Describe("performance", func() {
 		It(perfRtKernelPrebootTuningScript+" should exist on the nodes", func() {
 			checkFileExistence(workerRTNodes, perfRtKernelPrebootTuningScript)
 		})
+
+		It("Should inject systemd configuration files into initramfs", func() {
+			for _, node := range workerRTNodes {
+				ostreeStatus, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"rpm-ostree", "status", "-b"})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ostreeStatus).To(ContainSubstring("-I /etc/systemd/system.conf /etc/systemd/system.conf.d/setAffinity.conf"))
+			}
+		})
+
 	})
 
 	Context("FeatureGate - FeatureSet configuration", func() {
