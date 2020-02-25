@@ -3,6 +3,7 @@ module github.com/openshift-kni/performance-addon-operators
 go 1.13
 
 require (
+	github.com/RHsyseng/operator-utils v0.0.0-20200213165520-1a022eb07a43
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f
 	github.com/coreos/ignition v0.34.0
