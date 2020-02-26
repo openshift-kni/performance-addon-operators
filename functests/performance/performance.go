@@ -88,12 +88,23 @@ var _ = Describe("performance", func() {
 
 		It("Should inject systemd configuration files into initramfs", func() {
 			for _, node := range workerRTNodes {
-				ostreeStatus, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"rpm-ostree", "status", "-b"})
+				initramfsImagesPath, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"find", "/rootfs/boot/ostree/", "-name", "*.img"})
 				Expect(err).ToNot(HaveOccurred())
-				Expect(ostreeStatus).To(ContainSubstring("-I /etc/systemd/system.conf /etc/systemd/system.conf.d/setAffinity.conf"))
+				found := false
+				imagesPath := strings.Split(string(initramfsImagesPath), "\n")
+				for _, imagePath := range imagesPath[:2] {
+					initrd, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node,
+						[]string{"lsinitrd", strings.TrimSpace(imagePath)})
+					Expect(err).ToNot(HaveOccurred())
+					initrdString := string(initrd)
+					if strings.Contains(initrdString, "'/etc/systemd/system.conf /etc/systemd/system.conf.d/setAffinity.conf'") {
+						found = true
+						break
+					}
+				}
+				Expect(found).Should(BeTrue())
 			}
 		})
-
 	})
 
 	Context("FeatureGate - FeatureSet configuration", func() {
