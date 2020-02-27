@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 )
 
 var _ = Describe("[performance]Topology Manager", func() {
@@ -151,7 +152,7 @@ func getSriovPciDeviceNumaNode(sriovNode *corev1.Node, sriovPciDevice string) (s
 	return strings.Trim(string(numaNode), "\n"), nil
 }
 
-func getContainerCPUSet(sriovNode *corev1.Node, pod *corev1.Pod) ([]string, error) {
+func getContainerCPUSet(sriovNode *corev1.Node, pod *corev1.Pod) ([]int, error) {
 	podDir := fmt.Sprintf("kubepods-pod%s.slice", strings.ReplaceAll(string(pod.UID), "-", "_"))
 
 	containerID := strings.Trim(pod.Status.ContainerStatuses[0].ContainerID, "cri-o://")
@@ -160,33 +161,23 @@ func getContainerCPUSet(sriovNode *corev1.Node, pod *corev1.Pod) ([]string, erro
 	// we will use machine-config-daemon to get all information from the node, because it has
 	// mounted node filesystem under /rootfs
 	command := []string{"cat", path.Join("/rootfs", testutils.FilePathKubePodsSlice, podDir, containerDir, "cpuset.cpus")}
-	cpuSet, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, sriovNode, command)
+	output, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, sriovNode, command)
 	if err != nil {
 		return nil, err
 	}
 
-	results := []string{}
-	for _, cpuRange := range strings.Split(string(cpuSet), ",") {
-		if strings.Contains(cpuRange, "-") {
-			seq := strings.Split(cpuRange, "-")
-			if len(seq) != 2 {
-				return nil, fmt.Errorf("incorrect CPU range: %q", cpuRange)
-			}
-			// we will iterate over runes, so we should specify [0] to get it from string
-			for i := seq[0][0]; i <= seq[1][0]; i++ {
-				results = append(results, strings.Trim(string(i), "\n"))
-			}
-			continue
-		}
-		results = append(results, strings.Trim(cpuRange, "\n"))
+	cpus, err := cpuset.Parse(strings.Trim(string(output), "\n"))
+	if err != nil {
+		return nil, err
 	}
-	return results, nil
+
+	return cpus.ToSlice(), nil
 }
 
-func getCPUSetNumaNodes(sriovNode *corev1.Node, cpuSet []string) ([]string, error) {
+func getCPUSetNumaNodes(sriovNode *corev1.Node, cpuSet []int) ([]string, error) {
 	numaNodes := []string{}
 	for _, cpuID := range cpuSet {
-		cpuPath := path.Join("/rootfs", testutils.FilePathSysCPU, "cpu"+cpuID)
+		cpuPath := path.Join("/rootfs", testutils.FilePathSysCPU, fmt.Sprintf("cpu%d", cpuID))
 		cpuDirContent, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, sriovNode, []string{"ls", cpuPath})
 		if err != nil {
 			return nil, err
