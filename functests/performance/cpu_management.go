@@ -3,6 +3,7 @@ package performance
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -146,23 +147,32 @@ func execCommandOnWorker(cmd []string, workerRTNode *corev1.Node) string {
 	return strings.Trim(string(out), "\n")
 }
 
-func CPUListConverter(s string) ([]string, error) {
-	results := []string{}
-	for _, cpuRange := range strings.Split(string(s), ",") {
-		if strings.Contains(cpuRange, "-") {
-			seq := strings.Split(cpuRange, "-")
-			if len(seq) != 2 {
-				return nil, fmt.Errorf("incorrect CPU range: %q", cpuRange)
+func CPUListConverter(cpusetLine string) (cpusList []string, err error) {
+	elements := strings.Split(cpusetLine, ",")
+	for _, item := range elements {
+		cpuRange := strings.Split(item, "-")
+		if len(cpuRange) > 1 {
+			start, err := strconv.Atoi(cpuRange[0])
+			if err != nil {
+				return nil, err
 			}
-			// we will iterate over runes, so we should specify [0] to get it from string
-			for i := seq[0][0]; i <= seq[1][0]; i++ {
-				results = append(results, strings.Trim(string(i), "\n"))
+			end, err := strconv.Atoi(cpuRange[1])
+			if err != nil {
+				return nil, err
 			}
-			continue
+			// Add cpus to the list. Assuming it's a valid range.
+			for cpuNum := start; cpuNum <= end; cpuNum++ {
+				cpusList = append(cpusList, strconv.Itoa(cpuNum))
+			}
+		} else {
+			cpuNum, err := strconv.Atoi(cpuRange[0])
+			if err != nil {
+				return nil, err
+			}
+			cpusList = append(cpusList, strconv.Itoa(cpuNum))
 		}
-		results = append(results, strings.Trim(cpuRange, "\n"))
 	}
-	return results, nil
+	return
 }
 
 func getStressPod(nodeName string) *corev1.Pod {
