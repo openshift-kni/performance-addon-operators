@@ -5,6 +5,7 @@ import (
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 )
 
 const (
@@ -49,6 +50,12 @@ func ValidateParameters(profile *v1alpha1.PerformanceProfile) error {
 
 	if profile.Spec.HugePages != nil {
 		if err := validateHugepages(profile.Spec.HugePages); err != nil {
+			return err
+		}
+	}
+
+	if profile.Spec.NUMA != nil {
+		if err := validateNUMA(profile.Spec.NUMA); err != nil {
 			return err
 		}
 	}
@@ -121,6 +128,20 @@ func validateHugepages(hugepages *v1alpha1.HugePages) error {
 	// validate that we do not have allocations of hugepages of different sizes
 	if len(hugepagesSizes) > 1 {
 		return validationError("allocation of hugepages with different sizes not supported")
+	}
+	return nil
+}
+
+func validateNUMA(numa *v1alpha1.NUMA) error {
+	// validate NUMA topology policy matches allowed values
+	if numa.TopologyPolicy != nil {
+		policy := *numa.TopologyPolicy
+		if policy != kubeletconfigv1beta1.NoneTopologyManagerPolicy &&
+			policy != kubeletconfigv1beta1.BestEffortTopologyManagerPolicy &&
+			policy != kubeletconfigv1beta1.RestrictedTopologyManagerPolicy &&
+			policy != kubeletconfigv1beta1.SingleNumaNodeTopologyManager {
+			return validationError("unrecognized value for topologyPolicy")
+		}
 	}
 	return nil
 }

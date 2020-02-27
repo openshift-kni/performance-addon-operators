@@ -15,6 +15,8 @@ const (
 	IsolatedCPUs = performancev1alpha1.CPUSet("4-7")
 	// ReservedCPUs defines the reserved CPU set used for tests
 	ReservedCPUs = performancev1alpha1.CPUSet("0-3")
+	// SingleNUMAPolicy defines the topologyManager policy used for tests
+	SingleNUMAPolicy = "single-numa-node"
 
 	//MachineConfigLabelKey defines the MachineConfig label key of the test profile
 	MachineConfigLabelKey = "mcKey"
@@ -31,6 +33,7 @@ func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile 
 	size := HugePageSize
 	isolatedCPUs := IsolatedCPUs
 	reservedCPUs := ReservedCPUs
+	numaPolicy := SingleNUMAPolicy
 
 	return &performancev1alpha1.PerformanceProfile{
 		TypeMeta: metav1.TypeMeta{Kind: "PerformanceProfile"},
@@ -54,6 +57,9 @@ func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile 
 			},
 			RealTimeKernel: &performancev1alpha1.RealTimeKernel{
 				Enabled: pointer.BoolPtr(true),
+			},
+			NUMA: &performancev1alpha1.NUMA{
+				TopologyPolicy: &numaPolicy,
 			},
 			MachineConfigLabel: map[string]string{
 				MachineConfigLabelKey: MachineConfigLabelValue,

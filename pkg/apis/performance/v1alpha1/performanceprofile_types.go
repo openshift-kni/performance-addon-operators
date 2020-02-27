@@ -33,6 +33,9 @@ type PerformanceProfileSpec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// RealTimeKernel defines set of real time kernel related parameters.
 	RealTimeKernel *RealTimeKernel `json:"realTimeKernel,omitempty"`
+	// NUMA defines options related to topology aware affinities
+	// +optional
+	NUMA *NUMA `json:"numa,omitempty"`
 }
 
 // CPUSet defines the set of CPU's(0-3,8-11).
@@ -78,6 +81,14 @@ type HugePage struct {
 	// if not specified, pages will be allocated equally between NUMA nodes
 	// +optional
 	Node *int32 `json:"node,omitempty"`
+}
+
+// NUMA defines parameters related to topology awareness and affinity.
+type NUMA struct {
+	// Name of the policy applied when TopologyManager is enabled
+	// Operator defaults to "best-effort"
+	// +optional
+	TopologyPolicy *string `json:"topologyPolicy,omitempty"`
 }
 
 // RealTimeKernel defines the set of parameters relevant for the real time kernel.

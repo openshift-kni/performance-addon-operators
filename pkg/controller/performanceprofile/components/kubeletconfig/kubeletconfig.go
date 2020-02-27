@@ -15,12 +15,11 @@ import (
 )
 
 const (
-	cpuManagerPolicyStatic          = "static"
-	defaultKubeReservedCPU          = "1000m"
-	defaultKubeReservedMemory       = "500Mi"
-	defaultSystemReservedCPU        = "1000m"
-	defaultSystemReservedMemory     = "500Mi"
-	topologyManagerPolicyBestEffort = "best-effort"
+	cpuManagerPolicyStatic      = "static"
+	defaultKubeReservedCPU      = "1000m"
+	defaultKubeReservedMemory   = "500Mi"
+	defaultSystemReservedCPU    = "1000m"
+	defaultSystemReservedMemory = "500Mi"
 )
 
 // New returns new KubeletConfig object for performance sensetive workflows
@@ -33,7 +32,7 @@ func New(profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.Kube
 		},
 		CPUManagerPolicy:          cpuManagerPolicyStatic,
 		CPUManagerReconcilePeriod: metav1.Duration{Duration: 5 * time.Second},
-		TopologyManagerPolicy:     topologyManagerPolicyBestEffort,
+		TopologyManagerPolicy:     kubeletconfigv1beta1.BestEffortTopologyManagerPolicy,
 		KubeReserved: map[string]string{
 			"cpu":    defaultKubeReservedCPU,
 			"memory": defaultKubeReservedMemory,
@@ -46,6 +45,12 @@ func New(profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.Kube
 
 	if profile.Spec.CPU != nil && profile.Spec.CPU.Reserved != nil {
 		kubeletConfig.ReservedSystemCPUs = string(*profile.Spec.CPU.Reserved)
+	}
+
+	if profile.Spec.NUMA != nil {
+		if profile.Spec.NUMA.TopologyPolicy != nil {
+			kubeletConfig.TopologyManagerPolicy = string(*profile.Spec.NUMA.TopologyPolicy)
+		}
 	}
 
 	raw, err := json.Marshal(kubeletConfig)
