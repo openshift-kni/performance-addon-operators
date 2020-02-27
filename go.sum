@@ -1207,6 +1207,7 @@ k8s.io/kube-state-metrics v1.7.2/go.mod h1:U2Y6DRi07sS85rmVPmBFlmv+2peBcL8IWGjM+
 k8s.io/kubectl v0.17.0/go.mod h1:jIPrUAW656Vzn9wZCCe0PC+oTcu56u2HgFD21Xbfk1s=
 k8s.io/kubelet v0.17.0 h1:mUlrpp3y7gk1K++bRmXnS3+C2zmoj49GqxrlYWIlk90=
 k8s.io/kubelet v0.17.0/go.mod h1:e/JBCxucKuEV6JO6zYW+e72ib9eMsGO2Fah3iT5tiiI=
+k8s.io/kubernetes v1.17.0 h1:KQbF8IxJ4KsWqRFF4ppkS5/EGfpA/SjyyiEa8hvI/Os=
 k8s.io/kubernetes v1.17.0/go.mod h1:NbNV+69yL3eKiKDJ+ZEjqOplN3BFXKBeunzkoOy8WLo=
 k8s.io/legacy-cloud-providers v0.17.0/go.mod h1:DdzaepJ3RtRy+e5YhNtrCYwlgyK87j/5+Yfp0L9Syp8=
 k8s.io/metrics v0.17.0/go.mod h1:EH1D3YAwN6d7bMelrElnLhLg72l/ERStyv2SIQVt6Do=
