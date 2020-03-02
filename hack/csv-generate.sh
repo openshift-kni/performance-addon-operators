@@ -47,12 +47,15 @@ clean_tmp_csv
 echo "New CSV created at $FINAL_CSV_DIR"
 
 if [ -n "$DEV_BUILD" ]; then
+
+  echo "Copying dev CSV and CRDs manifests into cluster-ci kustomize override dir"
   SETUP_DIR=cluster-setup/ci-cluster/performance
   cp $FINAL_CSV_DIR/* ${SETUP_DIR}/
   # set correct namespace in CSV since this is going tpo be installed directly
   find ${SETUP_DIR}/ -type f -exec sed -i 's/namespace: placeholder/namespace: openshift-performance-addon/' {} \;
   # use REPLACE_IMAGE in var format, easier to use with kustomize + envsubst
   find ${SETUP_DIR}/ -type f -exec sed -i 's/REPLACE_IMAGE/${REPLACE_IMAGE}/g' {} \;
-  echo "Dev CSV and CRDs copied into cluster-ci kustomize override dir"
-fi
 
+  echo "Copying RBAC manifests into cluster-ci kustomize override dir"
+  cp deploy/{serviceaccount,role,rolebinding}.yaml ${SETUP_DIR}/
+fi

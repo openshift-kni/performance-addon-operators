@@ -5,6 +5,9 @@ bases:
   - ../../base/performance
 
 resources:
+  - serviceaccount.yaml
+  - role.yaml
+  - rolebinding.yaml
   - performance.openshift.io_performanceprofiles_crd.yaml
   - performance-addon-operator.v0.0.1.clusterserviceversion.yaml
 
