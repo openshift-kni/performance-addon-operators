@@ -5,7 +5,6 @@ bases:
   - ../../base/performance
 
 resources:
-  - operator_operatorgroup.yaml
   - operator_catalogsource.yaml
   - operator_subscription.yaml
 

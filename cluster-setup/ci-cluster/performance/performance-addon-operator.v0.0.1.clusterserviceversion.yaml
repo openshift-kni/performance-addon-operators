@@ -36,7 +36,7 @@ metadata:
       ]
     capabilities: Basic Install
   name: performance-addon-operator.v0.0.1
-  namespace: openshift-marketplace
+  namespace: openshift-performance-addon
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:

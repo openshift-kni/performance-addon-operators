@@ -4,4 +4,5 @@ kind: Kustomization
 resources:
   - machine_config_pool.yaml
   - operator_namespace.yaml
+  - operator_operatorgroup.yaml
   - performance_profile.yaml
