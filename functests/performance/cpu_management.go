@@ -3,16 +3,18 @@ package performance
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
@@ -30,8 +32,8 @@ var _ = Describe("[performance] CPU Management", func() {
 	var profile *performancev1alpha1.PerformanceProfile
 	var balanceIsolated bool
 	var reservedCPU, isolatedCPU string
-	var listReservedCPU []string
-	var listIsolatedCPU []string
+	var listReservedCPU []int
+	var listIsolatedCPU []int
 
 	BeforeEach(func() {
 		workerRTNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
@@ -53,15 +55,17 @@ var _ = Describe("[performance] CPU Management", func() {
 			balanceIsolated = *profile.Spec.CPU.BalanceIsolated
 		}
 
+		Expect(profile.Spec.CPU.Isolated).NotTo(BeNil())
 		isolatedCPU = string(*profile.Spec.CPU.Isolated)
-		Expect(isolatedCPU).ToNot(BeEmpty())
-		listIsolatedCPU, err = CPUListConverter(isolatedCPU)
+		isolatedCPUSet, err := cpuset.Parse(isolatedCPU)
 		Expect(err).ToNot(HaveOccurred())
+		listIsolatedCPU = isolatedCPUSet.ToSlice()
 
+		Expect(profile.Spec.CPU.Reserved).NotTo(BeNil())
 		reservedCPU = string(*profile.Spec.CPU.Reserved)
-		Expect(reservedCPU).ToNot(BeEmpty())
-		listReservedCPU, err = CPUListConverter(reservedCPU)
+		reservedCPUSet, err := cpuset.Parse(reservedCPU)
 		Expect(err).ToNot(HaveOccurred())
+		listReservedCPU = reservedCPUSet.ToSlice()
 	})
 
 	Describe("Verification of configuration on the worker node", func() {
@@ -105,7 +109,7 @@ var _ = Describe("[performance] CPU Management", func() {
 		})
 
 		table.DescribeTable("Verify CPU usage by stress PODs", func(guaranteed bool) {
-			var listCPU []string
+			var listCPU []int
 
 			testpod = getStressPod(workerRTNode.Name)
 			testpod.Namespace = testutils.NamespaceTesting
@@ -119,7 +123,9 @@ var _ = Describe("[performance] CPU Management", func() {
 			} else if balanceIsolated {
 				// when balanceIsolated is True - non-guaranteed pod can take ANY cpu
 				cmd := []string{"/bin/bash", "-c", "lscpu | grep On-line | awk '{print $4}'"}
-				listCPU, _ = CPUListConverter(execCommandOnWorker(cmd, workerRTNode))
+				cpus, err := cpuset.Parse(execCommandOnWorker(cmd, workerRTNode))
+				Expect(err).ToNot(HaveOccurred())
+				listCPU = cpus.ToSlice()
 			} else {
 				// when balanceIsolated is False - non-guaranteed pod should run on reserved cpu
 				listCPU = listReservedCPU
@@ -131,8 +137,14 @@ var _ = Describe("[performance] CPU Management", func() {
 			err = pods.WaitForCondition(testclient.Client, testpod, corev1.PodReady, corev1.ConditionTrue, 60*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 
-			cmd := []string{"/bin/bash", "-c", "ps -o psr $(pgrep -n stress) | tail -1"}
-			Expect(strings.Trim(execCommandOnWorker(cmd, workerRTNode), " ")).To(BeElementOf(listCPU))
+			output := execCommandOnWorker(
+				[]string{"/bin/bash", "-c", "ps -o psr $(pgrep -n stress) | tail -1"},
+				workerRTNode,
+			)
+			cpu, err := strconv.Atoi(strings.Trim(output, " "))
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(cpu).To(BeElementOf(listCPU))
 		},
 			table.Entry("Non-guaranteed POD can work on any CPU", false),
 			table.Entry("Guaranteed POD should work on isolated cpu", true),
@@ -144,25 +156,6 @@ func execCommandOnWorker(cmd []string, workerRTNode *corev1.Node) string {
 	out, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, workerRTNode, cmd)
 	Expect(err).ToNot(HaveOccurred())
 	return strings.Trim(string(out), "\n")
-}
-
-func CPUListConverter(s string) ([]string, error) {
-	results := []string{}
-	for _, cpuRange := range strings.Split(string(s), ",") {
-		if strings.Contains(cpuRange, "-") {
-			seq := strings.Split(cpuRange, "-")
-			if len(seq) != 2 {
-				return nil, fmt.Errorf("incorrect CPU range: %q", cpuRange)
-			}
-			// we will iterate over runes, so we should specify [0] to get it from string
-			for i := seq[0][0]; i <= seq[1][0]; i++ {
-				results = append(results, strings.Trim(string(i), "\n"))
-			}
-			continue
-		}
-		results = append(results, strings.Trim(cpuRange, "\n"))
-	}
-	return results, nil
 }
 
 func getStressPod(nodeName string) *corev1.Pod {
