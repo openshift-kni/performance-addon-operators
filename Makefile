@@ -144,16 +144,14 @@ govet:
 	@echo "Running go vet"
 	go vet ./...
 
-generate: generate-latest-dev-csv
+generate: deps-update gofmt generate-latest-dev-csv
 	@echo Updating generated files
 	@echo
 	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate k8s
-	@echo
-	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate crds
 
-verify-generate: generate
-	@echo "Verifying generated code"
+verify: golint govet generate
+	@echo "Verifying that all code is committed after updating deps and formatting and generating code"
 	hack/verify-generated.sh
 
-ci-job: gofmt golint govet verify-generate build unittests
+ci-job: verify build unittests
 
