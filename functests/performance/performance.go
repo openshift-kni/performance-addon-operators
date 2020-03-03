@@ -97,8 +97,7 @@ var _ = Describe("performance", func() {
 						[]string{"lsinitrd", strings.TrimSpace(imagePath)})
 					Expect(err).ToNot(HaveOccurred())
 					initrdString := string(initrd)
-					if (strings.Count(initrdString, "etc/systemd/system.conf") == 1) &&
-						(strings.Count(initrdString, "etc/systemd/system.conf.d/setAffinity.conf") == 1) {
+					if strings.Contains(initrdString, "'/etc/systemd/system.conf /etc/systemd/system.conf.d/setAffinity.conf'") {
 						found = true
 						break
 					}
