@@ -30,8 +30,8 @@ fi
 clean_tmp_csv
 
 # generate a temporary csv we'll use as a template
-$OPERATOR_SDK olm-catalog gen-csv --operator-name="performance-addon-operator" --csv-version="${TMP_CSV_VERSION}"
 $OPERATOR_SDK generate crds
+$OPERATOR_SDK generate csv --operator-name="performance-addon-operator" --csv-version="${TMP_CSV_VERSION}"
 
 # using the generated CSV, create the real CSV by injecting all the right data into it
 build/_output/bin/csv-generator \

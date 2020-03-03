@@ -28,7 +28,7 @@ TARGET_GOARCH=amd64
 CACHE_DIR="_cache"
 TOOLS_DIR="$(CACHE_DIR)/tools"
 
-OPERATOR_SDK_VERSION="v0.13.0"
+OPERATOR_SDK_VERSION="v0.15.2"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
@@ -134,7 +134,7 @@ unittests:
 
 gofmt:
 	@echo "Running gofmt"
-	gofmt -s -l `find . -path ./vendor -prune -o -type f -name '*.go' -print`
+	gofmt -s -w `find . -path ./vendor -prune -o -type f -name '*.go' -print`
 
 golint:
 	@echo "Running go lint"
@@ -144,16 +144,14 @@ govet:
 	@echo "Running go vet"
 	go vet ./...
 
-generate: generate-latest-dev-csv
+generate: deps-update gofmt generate-latest-dev-csv
 	@echo Updating generated files
 	@echo
 	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate k8s
-	@echo
-	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate crds
 
-verify-generate: generate
-	@echo "Verifying generated code"
+verify: golint govet generate
+	@echo "Verifying that all code is committed after updating deps and formatting and generating code"
 	hack/verify-generated.sh
 
-ci-job: gofmt golint govet verify-generate build unittests
+ci-job: verify build unittests
 
