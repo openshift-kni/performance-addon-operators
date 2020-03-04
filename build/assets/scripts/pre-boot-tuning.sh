@@ -7,8 +7,6 @@ SYSTEM_CONFIG_CUSTOM_FILE="/etc/systemd/system.conf.d/setAffinity.conf"
 
 if [ -f /etc/sysconfig/irqbalance ] && [ -f ${SYSTEM_CONFIG_CUSTOM_FILE} ] && grep -ls "IRQBALANCE_BANNED_CPUS=${RESERVED_CPU_MASK_INVERT}" /etc/sysconfig/irqbalance; then
     echo "Pre boot tuning configuration already applied"
-    echo "Setting kernel rcuo* threads to the housekeeping cpus"
-    pgrep rcuo* | while read line; do taskset -pc ${RESERVED_CPUS} $line || true; done
 else
     #Set IRQ balance banned cpus
     if [ ! -f /etc/sysconfig/irqbalance ]; then
