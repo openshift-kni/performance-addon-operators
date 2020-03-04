@@ -144,7 +144,7 @@ functests-only:
 	hack/run-functests.sh
 
 unittests:
-	GOFLAGS=-mod=vendor go test -v ./pkg/...
+	hack/unittests.sh
 
 gofmt:
 	@echo "Running gofmt"
@@ -168,4 +168,5 @@ verify: golint govet generate
 	hack/verify-generated.sh
 
 ci-job: verify build unittests
+
 
