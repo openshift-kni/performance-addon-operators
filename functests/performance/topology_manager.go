@@ -24,7 +24,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 )
 
-var _ = Describe("[performance]Topology Manager", func() {
+var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 	var workerRTNodes []corev1.Node
 
 	BeforeEach(func() {
@@ -34,7 +34,7 @@ var _ = Describe("[performance]Topology Manager", func() {
 		Expect(workerRTNodes).ToNot(BeEmpty())
 	})
 
-	It("should be enabled with the single-numa-node policy", func() {
+	It("[test_id:26932][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should be enabled with the best-effort policy", func() {
 		kubeletConfig, err := nodes.GetKubeletConfig(testclient.Client, &workerRTNodes[0])
 		Expect(err).ToNot(HaveOccurred())
 
@@ -104,7 +104,7 @@ var _ = Describe("[performance]Topology Manager", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("should allocate resources from the same NUMA node", func() {
+		It("[test_id:28527][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should allocate resources from the same NUMA node", func() {
 			sriovPciDevice, err := getSriovPciDeviceFromPod(testpod)
 			Expect(err).ToNot(HaveOccurred())
 

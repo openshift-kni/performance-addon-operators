@@ -27,7 +27,7 @@ const (
 	stressPod = "vish/stress"
 )
 
-var _ = Describe("[performance] CPU Management", func() {
+var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	var workerRTNode *corev1.Node
 	var profile *performancev1alpha1.PerformanceProfile
 	var balanceIsolated bool
@@ -69,14 +69,14 @@ var _ = Describe("[performance] CPU Management", func() {
 	})
 
 	Describe("Verification of configuration on the worker node", func() {
-		It("Verify CPU reservation on the node", func() {
+		It("[test_id:28528][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify CPU reservation on the node", func() {
 			By(fmt.Sprintf("Allocatable CPU should be less then capacity by %d", len(listReservedCPU)))
 			capacityCPU, _ := workerRTNode.Status.Capacity.Cpu().AsInt64()
 			allocatableCPU, _ := workerRTNode.Status.Allocatable.Cpu().AsInt64()
 			Expect(capacityCPU - allocatableCPU).To(Equal(int64(len(listReservedCPU))))
 		})
 
-		It("Verify CPU affinity mask, CPU reservation and CPU isolation on worker node", func() {
+		It("[test_id:28026][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify CPU affinity mask, CPU reservation and CPU isolation on worker node", func() {
 			By("checking isolated CPU")
 			cmd := []string{"cat", "/sys/devices/system/cpu/isolated"}
 			sysIsolatedCpus := execCommandOnWorker(cmd, workerRTNode)
@@ -97,7 +97,7 @@ var _ = Describe("[performance] CPU Management", func() {
 
 	})
 
-	Describe("Verification of cpu manager functionality", func() {
+	Describe("[test_id:27492][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verification of cpu manager functionality", func() {
 		var testpod *corev1.Pod
 
 		AfterEach(func() {

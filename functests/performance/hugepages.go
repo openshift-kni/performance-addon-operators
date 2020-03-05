@@ -50,7 +50,7 @@ var _ = Describe("[performance]Hugepages", func() {
 	})
 
 	Context("[rfe_id:27369]when NUMA node specified", func() {
-		It("[test_id:27752]should be allocated on the specifed NUMA node ", func() {
+		It("[test_id:27752][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should be allocated on the specifed NUMA node ", func() {
 			for _, page := range profile.Spec.HugePages.Pages {
 				if page.Node == nil {
 					continue
@@ -93,7 +93,7 @@ var _ = Describe("[performance]Hugepages", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("[test_id:27477] Huge pages support for container workloads", func() {
+		It("[test_id:27477][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Huge pages support for container workloads", func() {
 			hpSize := profile.Spec.HugePages.Pages[0].Size
 			hpSizeKb, err := machineconfig.GetHugepagesSizeKilobytes(hpSize)
 			Expect(err).ToNot(HaveOccurred())
