@@ -5,7 +5,7 @@ set -euo pipefail
 SYSTEM_CONFIG_FILE="/etc/systemd/system.conf"
 SYSTEM_CONFIG_CUSTOM_FILE="/etc/systemd/system.conf.d/setAffinity.conf"
 
-if [ -f /etc/sysconfig/irqbalance ] && [ -f ${SYSTEM_CONFIG_CUSTOM_FILE} ] && grep -ls "IRQBALANCE_BANNED_CPUS=${RESERVED_CPU_MASK_INVERT}" /etc/sysconfig/irqbalance; then
+if [ -f /etc/sysconfig/irqbalance ] && [ -f ${SYSTEM_CONFIG_CUSTOM_FILE} ] && rpm-ostree status -b | grep -q -e "-I ${SYSTEM_CONFIG_FILE} ${SYSTEM_CONFIG_CUSTOM_FILE}" && egrep -wq "^IRQBALANCE_BANNED_CPUS=${RESERVED_CPU_MASK_INVERT}" /etc/sysconfig/irqbalance; then
     echo "Pre boot tuning configuration already applied"
     echo "Setting kernel rcuo* threads to the housekeeping cpus"
     pgrep rcuo* | while read line; do taskset -pc ${RESERVED_CPUS} $line || true; done
@@ -21,7 +21,5 @@ else
         echo "IRQBALANCE_BANNED_CPUS=${RESERVED_CPU_MASK_INVERT}" >>/etc/sysconfig/irqbalance
     fi
 
-    rpm-ostree initramfs --enable --arg=-I --arg="${SYSTEM_CONFIG_FILE} ${SYSTEM_CONFIG_CUSTOM_FILE}" 
-
-    touch /var/reboot
+    rpm-ostree initramfs -r --enable --arg=-I --arg="${SYSTEM_CONFIG_FILE} ${SYSTEM_CONFIG_CUSTOM_FILE}" 
 fi
