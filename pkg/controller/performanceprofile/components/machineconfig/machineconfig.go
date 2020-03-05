@@ -117,8 +117,6 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 		"mce=off",
 		"skew_tick=1",
 		"processor.max_cstate=1",
-		"idle=poll",
-		"intel_pstate=disable",
 		"intel_idle.max_cstate=0",
 		"intel_iommu=on",
 		"iommu=pt",
