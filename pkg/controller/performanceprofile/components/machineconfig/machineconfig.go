@@ -88,11 +88,7 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 
 	mc.Spec.Config = *ignitionConfig
 
-	if profile.Spec.CPU.Isolated != nil && profile.Spec.CPU.BalanceIsolated != nil && *profile.Spec.CPU.BalanceIsolated == false {
-		mc.Spec.KernelArguments, err = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated, profile.Spec.CPU.Reserved)
-	} else {
-		mc.Spec.KernelArguments, err = getKernelArgs(profile.Spec.HugePages, nil, profile.Spec.CPU.Reserved)
-	}
+	mc.Spec.KernelArguments, err = getKernelArgs(profile.Spec.HugePages, profile.Spec.CPU.Isolated, profile.Spec.CPU.Reserved, profile.Spec.CPU.BalanceIsolated)
 
 	if err != nil {
 		return nil, err
@@ -111,14 +107,13 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	return mc, nil
 }
 
-func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet, reservedCPUs *performancev1alpha1.CPUSet) ([]string, error) {
+func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *performancev1alpha1.CPUSet, reservedCPUs *performancev1alpha1.CPUSet, balanceIsolated *bool) ([]string, error) {
 	kargs := []string{
 		"nohz=on",
 		"nosoftlockup",
 		"nmi_watchdog=0",
 		"audit=0",
 		"mce=off",
-		"irqaffinity=0",
 		"skew_tick=1",
 		"processor.max_cstate=1",
 		"idle=poll",
@@ -129,7 +124,11 @@ func getKernelArgs(hugePages *performancev1alpha1.HugePages, isolatedCPUs *perfo
 	}
 
 	if isolatedCPUs != nil {
-		kargs = append(kargs, fmt.Sprintf("isolcpus=%s", string(*isolatedCPUs)))
+		if balanceIsolated != nil && *balanceIsolated == false {
+			kargs = append(kargs, fmt.Sprintf("isolcpus=%s", string(*isolatedCPUs)))
+		}
+		kargs = append(kargs, fmt.Sprintf("nohz_full=%s", string(*isolatedCPUs)))
+		kargs = append(kargs, fmt.Sprintf("rcu_nocbs=%s", string(*isolatedCPUs)))
 	}
 
 	if reservedCPUs != nil {
