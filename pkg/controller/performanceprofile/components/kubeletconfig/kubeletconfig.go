@@ -27,6 +27,10 @@ const (
 func New(profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.KubeletConfig, error) {
 	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	kubeletConfig := &kubeletconfigv1beta1.KubeletConfiguration{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "kubelet.config.k8s.io/v1beta1",
+			Kind:       "KubeletConfiguration",
+		},
 		CPUManagerPolicy:          cpuManagerPolicyStatic,
 		CPUManagerReconcilePeriod: metav1.Duration{Duration: 5 * time.Second},
 		TopologyManagerPolicy:     topologyManagerPolicyBestEffort,
