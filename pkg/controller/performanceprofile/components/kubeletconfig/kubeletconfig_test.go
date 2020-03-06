@@ -25,7 +25,7 @@ var _ = Describe("Kubelet Config", func() {
 		selectorKey, selectorValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
 		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", selectorKey, selectorValue)))
 		Expect(manifest).To(ContainSubstring("reservedSystemCPUs: 0-3"))
-		Expect(manifest).To(ContainSubstring("topologyManagerPolicy: best-effort"))
+		Expect(manifest).To(ContainSubstring("topologyManagerPolicy: single-numa-node"))
 		Expect(manifest).To(ContainSubstring("cpuManagerPolicy: static"))
 	})
 })

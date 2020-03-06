@@ -34,7 +34,7 @@ var _ = Describe("[performance]Topology Manager", func() {
 		Expect(workerRTNodes).ToNot(BeEmpty())
 	})
 
-	It("should be enabled with the best-effort policy", func() {
+	It("should be enabled with the single-numa-node policy", func() {
 		kubeletConfig, err := nodes.GetKubeletConfig(testclient.Client, &workerRTNodes[0])
 		Expect(err).ToNot(HaveOccurred())
 
@@ -44,7 +44,7 @@ var _ = Describe("[performance]Topology Manager", func() {
 		Expect(enabled).To(BeTrue())
 
 		// verify topology manager poicy
-		Expect(kubeletConfig.TopologyManagerPolicy).To(Equal(kubeletconfigv1beta1.BestEffortTopologyManagerPolicy))
+		Expect(kubeletConfig.TopologyManagerPolicy).To(Equal(kubeletconfigv1beta1.SingleNumaNodeTopologyManager))
 	})
 
 	Context("with the SR-IOV devices and static CPU's", func() {

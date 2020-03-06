@@ -112,6 +112,14 @@ spec:
                 but does not have to match the node label in the NodeSelector of the
                 MachineConfigPool which targets this performance profile.
               type: object
+            numa:
+              description: NUMA defines options related to topology aware affinities
+              properties:
+                topologyPolicy:
+                  description: Name of the policy applied when TopologyManager is
+                    enabled Operator defaults to "best-effort"
+                  type: string
+              type: object
             realTimeKernel:
               description: RealTimeKernel defines set of real time kernel related
                 parameters.
