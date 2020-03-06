@@ -19,9 +19,8 @@ const expectedSystemdUnits = `
       - contents: |
           [Unit]
           Description=Preboot tuning patch
-          Wants=network-online.target
-          After=network-online.target
           Before=kubelet.service
+          Before=reboot.service
 
           [Service]
           Environment=RESERVED_CPUS=0-3
@@ -34,6 +33,22 @@ const expectedSystemdUnits = `
           WantedBy=multi-user.target
         enabled: true
         name: pre-boot-tuning.service
+      - contents: |
+          [Unit]
+          Description=Reboot initiated by pre-boot-tuning
+          Wants=network-online.target
+          After=network-online.target
+          Before=kubelet.service
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=true
+          ExecStart=/usr/local/bin/reboot.sh
+
+          [Install]
+          WantedBy=multi-user.target
+        enabled: true
+        name: reboot.service
 `
 
 const hugepagesAllocationService = `
