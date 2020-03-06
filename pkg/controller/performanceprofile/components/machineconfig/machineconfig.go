@@ -206,27 +206,27 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 			},
 		})
 
-		cpuInvertedMask, err := components.CPUListTo64BitsMaskList(string(*reservedCpus))
-		if err != nil {
-			return nil, err
-		}
+		//cpuInvertedMask, err := components.CPUListTo64BitsMaskList(string(*reservedCpus))
+		//if err != nil {
+		//	return nil, err
+		//}
 
-		preBootTuningService, err := getSystemdContent(
-			getPreBootTuningUnitOptions(string(*reservedCpus), cpuInvertedMask),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		ignitionConfig.Systemd = igntypes.Systemd{
-			Units: []igntypes.Unit{
-				{
-					Contents: preBootTuningService,
-					Enabled:  pointer.BoolPtr(true),
-					Name:     getSystemdService(preBootTuning),
-				},
-			},
-		}
+		//preBootTuningService, err := getSystemdContent(
+		//	getPreBootTuningUnitOptions(string(*reservedCpus), cpuInvertedMask),
+		//)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//
+		//ignitionConfig.Systemd = igntypes.Systemd{
+		//	Units: []igntypes.Unit{
+		//		{
+		//			Contents: preBootTuningService,
+		//			Enabled:  pointer.BoolPtr(true),
+		//			Name:     getSystemdService(preBootTuning),
+		//		},
+		//	},
+		//}
 	}
 
 	if profile.Spec.HugePages != nil {
