@@ -210,6 +210,11 @@ func (in *PerformanceProfileSpec) DeepCopyInto(out *PerformanceProfileSpec) {
 		*out = new(RealTimeKernel)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.AdditionalKernelArgs != nil {
+		in, out := &in.AdditionalKernelArgs, &out.AdditionalKernelArgs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.NUMA != nil {
 		in, out := &in.NUMA, &out.NUMA
 		*out = new(NUMA)

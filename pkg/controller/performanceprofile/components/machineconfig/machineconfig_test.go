@@ -75,14 +75,8 @@ const expectedBootArguments = `
   kernelArguments:
   - nohz=on
   - nosoftlockup
-  - nmi_watchdog=0
-  - audit=0
-  - mce=off
   - skew_tick=1
-  - processor.max_cstate=1
-  - idle=poll
   - intel_pstate=disable
-  - intel_idle.max_cstate=0
   - intel_iommu=on
   - iommu=pt
   - isolcpus=4-7
@@ -100,14 +94,8 @@ const expectedBootArgumentsWithoutIso = `
   kernelArguments:
   - nohz=on
   - nosoftlockup
-  - nmi_watchdog=0
-  - audit=0
-  - mce=off
   - skew_tick=1
-  - processor.max_cstate=1
-  - idle=poll
   - intel_pstate=disable
-  - intel_idle.max_cstate=0
   - intel_iommu=on
   - iommu=pt
   - nohz_full=4-7
@@ -118,6 +106,28 @@ const expectedBootArgumentsWithoutIso = `
   - hugepages=4
   - hugepagesz=2M
   - hugepages=1024
+`
+
+const expectedBootArgumentsWithoutAdditionalKerenlArgs = `
+  kernelArguments:
+  - nohz=on
+  - nosoftlockup
+  - skew_tick=1
+  - intel_pstate=disable
+  - intel_iommu=on
+  - iommu=pt
+  - nohz_full=4-7
+  - rcu_nocbs=4-7
+  - tuned.non_isolcpus=0000000f
+  - default_hugepagesz=1G
+  - hugepagesz=1G
+  - hugepages=4
+  - nmi_watchdog=0
+  - audit=0
+  - mce=off
+  - processor.max_cstate=1
+  - idle=poll
+  - intel_idle.max_cstate=0
 `
 
 var _ = Describe("Machine Config", func() {
@@ -165,6 +175,28 @@ var _ = Describe("Machine Config", func() {
 		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
 		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
 		Expect(manifest).To(ContainSubstring(expectedBootArgumentsWithoutIso))
+	})
+
+	It("should generate yaml with expected parameters and additional kernel arguments", func() {
+		profile := testutils.NewPerformanceProfile("test")
+		profile.Spec.AdditionalKernelArgs = append(profile.Spec.AdditionalKernelArgs,
+			"nmi_watchdog=0", "audit=0",
+			"mce=off",
+			"processor.max_cstate=1",
+			"idle=poll",
+			"intel_idle.max_cstate=0")
+		mc, err := New(testAssetsDir, profile)
+		Expect(err).ToNot(HaveOccurred())
+
+		y, err := yaml.Marshal(mc)
+		Expect(err).ToNot(HaveOccurred())
+
+		manifest := string(y)
+
+		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
+		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
+		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
+		Expect(manifest).To(ContainSubstring(expectedBootArgumentsWithoutAdditionalKerenlArgs))
 	})
 
 	Context("with hugepages with specified NUMA node", func() {
