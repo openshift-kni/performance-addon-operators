@@ -116,12 +116,11 @@ var _ = Describe("performance", func() {
 	Context("Additional kernel arguments added from perfomance profile", func() {
 		It("Should set additional kernel arguments on the machine", func() {
 			if profile.Spec.AdditionalKernelArgs != nil {
+				additionalArgs := strings.Join(profile.Spec.AdditionalKernelArgs, " ")
 				for _, node := range workerRTNodes {
 					cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat", "/proc/cmdline"})
 					Expect(err).ToNot(HaveOccurred())
-					for _, arg := range profile.Spec.AdditionalKernelArgs {
-						Expect(cmdline).To(ContainSubstring(arg))
-					}
+					Expect(cmdline).To(ContainSubstring(additionalArgs))
 				}
 			}
 		})
