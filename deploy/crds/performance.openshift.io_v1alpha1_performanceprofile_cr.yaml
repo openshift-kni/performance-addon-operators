@@ -9,7 +9,7 @@ spec:
   - "mce=off"
   - "processor.max_cstate=1"
   - "idle=poll"
-  - "intel_idle.max_cstate=0"  
+  - "intel_idle.max_cstate=0"
   cpu:
     isolated: "2-3"
     reserved: "0-1"
