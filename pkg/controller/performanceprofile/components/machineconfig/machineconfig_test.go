@@ -108,7 +108,7 @@ const expectedBootArgumentsWithoutIso = `
   - hugepages=1024
 `
 
-const expectedBootArgumentsWithoutAdditionalKerenlArgs = `
+const expectedBootArgumentsWithAdditionalKerenlArgs = `
   kernelArguments:
   - nohz=on
   - nosoftlockup
@@ -196,7 +196,7 @@ var _ = Describe("Machine Config", func() {
 		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
 		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
 		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
-		Expect(manifest).To(ContainSubstring(expectedBootArgumentsWithoutAdditionalKerenlArgs))
+		Expect(manifest).To(ContainSubstring(expectedBootArgumentsWithAdditionalKerenlArgs))
 	})
 
 	Context("with hugepages with specified NUMA node", func() {
