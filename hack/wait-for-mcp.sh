@@ -8,23 +8,21 @@ OC_TOOL="${OC_TOOL:-oc}"
 success=0
 iterations=0
 sleep_time=10
-max_iterations=180 # results in 30 minute timeout
+max_iterations=90 # results in 15 minute timeout
 
-# TODO the worker-rt MCP is paused to prevent https://bugzilla.redhat.com/show_bug.cgi?id=1792749 from happening
 # Let's gibe the operator some time to do its work before we unpause the MCP (see below)
-echo "[INFO] Waiting 5 min for letting the operator do its work"
-sleep 300
+echo "[INFO] Waiting a bit for letting the operator do its work"
+sleep 30
 
 until [[ $success -eq 1 ]] || [[ $iterations -eq $max_iterations ]]
 do
 
-  # See cooment above
   echo "[INFO] Unpausing  MCPs"
   set +e
   mcps=$(${OC_TOOL} get mcp --no-headers -o custom-columns=":metadata.name")
   for mcp in $mcps
   do
-      ${OC_TOOL} patch mcp "${mcp}" -p '{"spec":{"paused":false}}' --type=merge
+      ${OC_TOOL} patch mcp "${mcp}" -p '{"spec":{"paused":false}}' --type=merge &> /dev/null
   done
   set -e
 
@@ -34,27 +32,29 @@ do
   then
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))
-    echo "[INFO] Performace MC not picked up yet. $iterations_left retries left."
+    echo "[INFO] Performance MC not picked up yet. $iterations_left retries left."
     sleep $sleep_time
     continue
   fi
 
   echo "[INFO] Checking if MCP is updated"
-  if ! ${OC_TOOL} wait mcp/worker-rt --for condition=updated --timeout 1s
+  if ! ${OC_TOOL} wait mcp/worker-rt --for condition=updated --timeout 1s &> /dev/null
   then
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))
-    echo "[INFO] Performace MCP not updated yet. $iterations_left retries left."
-    sleep $sleep_time
-    continue
+    if [[ $iterations_left != 0  ]]; then
+      echo "[WARN] MCP not updated yet, retrying in $sleep_time sec, $iterations_left retries left"
+      sleep $sleep_time
+    fi
+  else
+    success=1
   fi
 
-  success=1
 
 done
 
 if [[ $success -eq 0 ]]; then
-  echo "[ERROR] MCP failed, giving up."
+  echo "[ERROR] MCP update failed, giving up."
   exit 1
 fi
 
