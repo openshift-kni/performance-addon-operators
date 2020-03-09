@@ -31,6 +31,11 @@ spec:
         spec:
           description: PerformanceProfileSpec defines the desired state of PerformanceProfile.
           properties:
+            additionalKernelArgs:
+              description: Addional kernel arguments.
+              items:
+                type: string
+              type: array
             cpu:
               description: CPU defines set of CPU related parameters.
               properties:

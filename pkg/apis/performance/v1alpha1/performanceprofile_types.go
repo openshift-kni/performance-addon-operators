@@ -33,6 +33,9 @@ type PerformanceProfileSpec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// RealTimeKernel defines set of real time kernel related parameters.
 	RealTimeKernel *RealTimeKernel `json:"realTimeKernel,omitempty"`
+	// Addional kernel arguments.
+	// +optional
+	AdditionalKernelArgs []string `json:"additionalKernelArgs,omitempty"`
 }
 
 // CPUSet defines the set of CPU's(0-3,8-11).
