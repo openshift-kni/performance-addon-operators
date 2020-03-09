@@ -12,6 +12,8 @@ import (
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
+	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	ocv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
@@ -45,12 +47,20 @@ const (
 var _ = Describe("performance", func() {
 
 	var workerRTNodes []corev1.Node
+	var profile *performancev1alpha1.PerformanceProfile
 
 	BeforeEach(func() {
 		var err error
 		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
+		profile, err = profiles.GetByNodeLabels(
+			testclient.Client,
+			map[string]string{
+				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
+			},
+		)
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	Context("Pre boot tuning adjusted by the Machine Config Operator ", func() {
@@ -100,6 +110,20 @@ var _ = Describe("performance", func() {
 			lsStr := string(ocv1.LatencySensitive)
 			By("Checking whether FeatureSet is configured as " + lsStr)
 			Expect(string(fg.Spec.FeatureSet)).Should(Equal(lsStr), "FeauterSet is not set to "+lsStr)
+		})
+	})
+
+	Context("Additional kernel arguments added from perfomance profile", func() {
+		It("Should set additional kernel arguments on the machine", func() {
+			if profile.Spec.AdditionalKernelArgs != nil {
+				for _, node := range workerRTNodes {
+					cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat", "/proc/cmdline"})
+					Expect(err).ToNot(HaveOccurred())
+					for _, arg := range profile.Spec.AdditionalKernelArgs {
+						Expect(cmdline).To(ContainSubstring(arg))
+					}
+				}
+			}
 		})
 	})
 
