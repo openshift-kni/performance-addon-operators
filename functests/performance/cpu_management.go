@@ -33,7 +33,7 @@ var _ = Describe("[performance] CPU Management", func() {
 	var balanceIsolated bool
 	var reservedCPU, isolatedCPU string
 	var listReservedCPU []int
-	var listIsolatedCPU []int
+	var reservedCPUSet cpuset.CPUSet
 
 	BeforeEach(func() {
 		workerRTNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
@@ -54,12 +54,6 @@ var _ = Describe("[performance] CPU Management", func() {
 		if profile.Spec.CPU.BalanceIsolated != nil {
 			balanceIsolated = *profile.Spec.CPU.BalanceIsolated
 		}
-
-		Expect(profile.Spec.CPU.Isolated).NotTo(BeNil())
-		isolatedCPU = string(*profile.Spec.CPU.Isolated)
-		isolatedCPUSet, err := cpuset.Parse(isolatedCPU)
-		Expect(err).ToNot(HaveOccurred())
-		listIsolatedCPU = isolatedCPUSet.ToSlice()
 
 		Expect(profile.Spec.CPU.Reserved).NotTo(BeNil())
 		reservedCPU = string(*profile.Spec.CPU.Reserved)
@@ -114,24 +108,24 @@ var _ = Describe("[performance] CPU Management", func() {
 			testpod = getStressPod(workerRTNode.Name)
 			testpod.Namespace = testutils.NamespaceTesting
 
+			//list worker cpus
+			cmd := []string{"/bin/bash", "-c", "lscpu | grep On-line | awk '{print $4}'"}
+			cpus, err := cpuset.Parse(execCommandOnWorker(cmd, workerRTNode))
+			Expect(err).ToNot(HaveOccurred())
+			listCPU = cpus.ToSlice()
+
 			if guaranteed {
-				listCPU = listIsolatedCPU
+				listCPU = cpus.Difference(reservedCPUSet).ToSlice()
 				testpod.Spec.Containers[0].Resources.Limits = map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceCPU:    resource.MustParse("1"),
 					corev1.ResourceMemory: resource.MustParse("1Gi"),
 				}
-			} else if balanceIsolated {
-				// when balanceIsolated is True - non-guaranteed pod can take ANY cpu
-				cmd := []string{"/bin/bash", "-c", "lscpu | grep On-line | awk '{print $4}'"}
-				cpus, err := cpuset.Parse(execCommandOnWorker(cmd, workerRTNode))
-				Expect(err).ToNot(HaveOccurred())
-				listCPU = cpus.ToSlice()
-			} else {
+			} else if !balanceIsolated {
 				// when balanceIsolated is False - non-guaranteed pod should run on reserved cpu
 				listCPU = listReservedCPU
 			}
 
-			err := testclient.Client.Create(context.TODO(), testpod)
+			err = testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
 			err = pods.WaitForCondition(testclient.Client, testpod, corev1.PodReady, corev1.ConditionTrue, 60*time.Second)
