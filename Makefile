@@ -51,6 +51,11 @@ dist:
 	mkdir -p build/_output/bin
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/performance-addon-operators ./cmd/manager
 
+dist-tools: dist-csv-generator dist-csv-replace-imageref
+
+dist-clean:
+	rm -rf build/_output/bin
+
 dist-csv-generator:
 	@if [ ! -x build/_output/bin/csv-generator ]; then\
 		echo "Building csv-generator tool";\
@@ -58,6 +63,15 @@ dist-csv-generator:
 		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/csv-generator ./tools/csv-generator;\
 	else \
 		echo "Using pre-built csv-generator tool";\
+	fi
+
+dist-csv-replace-imageref:
+	@if [ ! -x build/_output/bin/csv-replace-imageref ]; then\
+		echo "Building csv-replace-imageref tool";\
+		mkdir -p build/_output/bin;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/csv-replace-imageref ./tools/csv-replace-imageref;\
+	else \
+		echo "Using pre-built csv-replace-imageref tool";\
 	fi
 
 build-containers: registry-container operator-container
