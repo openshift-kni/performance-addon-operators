@@ -86,7 +86,11 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 			By("checking CPU affinity mask for kernel scheduler")
 			cmd = []string{"/bin/bash", "-c", "taskset -pc $(pgrep rcu_sched)"}
-			Expect(execCommandOnWorker(cmd, workerRTNode)).To(ContainSubstring(fmt.Sprintf("current affinity list: %s", reservedCPU)))
+			mask := strings.SplitAfter(execCommandOnWorker(cmd, workerRTNode), " ")
+			maskSet, err := cpuset.Parse(mask[len(mask)-1])
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(reservedCPUSet.IsSubsetOf(maskSet)).To(Equal(true))
 		})
 
 	})
