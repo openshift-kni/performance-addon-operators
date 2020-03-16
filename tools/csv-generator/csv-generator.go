@@ -12,34 +12,12 @@ import (
 	"strings"
 
 	"github.com/blang/semver"
-	yaml "github.com/ghodss/yaml"
+
+	"github.com/openshift-kni/performance-addon-operators/pkg/utils/csvtools"
+
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/lib/version"
-	appsv1 "k8s.io/api/apps/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
-
-type csvClusterPermissions struct {
-	ServiceAccountName string              `json:"serviceAccountName"`
-	Rules              []rbacv1.PolicyRule `json:"rules"`
-}
-
-type csvPermissions struct {
-	ServiceAccountName string              `json:"serviceAccountName"`
-	Rules              []rbacv1.PolicyRule `json:"rules"`
-}
-
-type csvDeployments struct {
-	Name string                `json:"name"`
-	Spec appsv1.DeploymentSpec `json:"spec,omitempty"`
-}
-
-type csvStrategySpec struct {
-	ClusterPermissions []csvClusterPermissions `json:"clusterPermissions"`
-	Permissions        []csvPermissions        `json:"permissions"`
-	Deployments        []csvDeployments        `json:"deployments"`
-}
 
 var (
 	csvVersion          = flag.String("csv-version", "", "the unified CSV version")
@@ -82,97 +60,11 @@ func copyFile(src string, dst string) {
 	}
 }
 
-func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
-
-	fmt.Printf("reading in csv at %s\n", filePath)
-	bytes, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		panic(err)
-	}
-
-	csvStruct := &csvv1.ClusterServiceVersion{}
-	err = yaml.Unmarshal(bytes, csvStruct)
-	if err != nil {
-		panic(err)
-	}
-
-	return csvStruct
-}
-
-func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
-
-	templateStrategySpec := &csvStrategySpec{}
-	err := json.Unmarshal(csv.Spec.InstallStrategy.StrategySpecRaw, templateStrategySpec)
-	if err != nil {
-		panic(err)
-	}
-
-	return templateStrategySpec
-}
-
-func marshallObject(obj interface{}, writer io.Writer) error {
-	jsonBytes, err := json.Marshal(obj)
-	if err != nil {
-		return err
-	}
-
-	var r unstructured.Unstructured
-	if err := json.Unmarshal(jsonBytes, &r.Object); err != nil {
-		return err
-	}
-
-	// remove status and metadata.creationTimestamp
-	unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
-	unstructured.RemoveNestedField(r.Object, "template", "metadata", "creationTimestamp")
-	unstructured.RemoveNestedField(r.Object, "spec", "template", "metadata", "creationTimestamp")
-	unstructured.RemoveNestedField(r.Object, "status")
-
-	deployments, exists, err := unstructured.NestedSlice(r.Object, "spec", "install", "spec", "deployments")
-	if exists {
-		for _, obj := range deployments {
-			deployment := obj.(map[string]interface{})
-			unstructured.RemoveNestedField(deployment, "metadata", "creationTimestamp")
-			unstructured.RemoveNestedField(deployment, "spec", "template", "metadata", "creationTimestamp")
-			unstructured.RemoveNestedField(deployment, "status")
-		}
-		unstructured.SetNestedSlice(r.Object, deployments, "spec", "install", "spec", "deployments")
-	}
-
-	jsonBytes, err = json.Marshal(r.Object)
-	if err != nil {
-		return err
-	}
-
-	yamlBytes, err := yaml.JSONToYAML(jsonBytes)
-	if err != nil {
-		return err
-	}
-
-	// fix double quoted strings by removing unneeded single quotes...
-	s := string(yamlBytes)
-	s = strings.Replace(s, " '\"", " \"", -1)
-	s = strings.Replace(s, "\"'\n", "\"\n", -1)
-
-	yamlBytes = []byte(s)
-
-	_, err = writer.Write([]byte("---\n"))
-	if err != nil {
-		return err
-	}
-
-	_, err = writer.Write(yamlBytes)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func generateUnifiedCSV(extraAnnotations, maintainers map[string]string) {
 
-	operatorCSV := unmarshalCSV(*operatorCSVTemplate)
+	operatorCSV := csvtools.UnmarshalCSV(*operatorCSVTemplate)
 
-	strategySpec := unmarshalStrategySpec(operatorCSV)
+	strategySpec := csvtools.UnmarshalStrategySpec(operatorCSV)
 
 	// this forces us to update this logic if another deployment is introduced.
 	if len(strategySpec.Deployments) != 1 {
@@ -257,7 +149,7 @@ Performance Addon Operator provides the ability to enable advanced node performa
 
 	// write CSV to out dir
 	writer := strings.Builder{}
-	marshallObject(operatorCSV, &writer)
+	csvtools.MarshallObject(operatorCSV, &writer)
 	outputFilename := filepath.Join(*outputDir, finalizedCsvFilename())
 	err = ioutil.WriteFile(outputFilename, []byte(writer.String()), 0644)
 	if err != nil {
