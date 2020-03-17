@@ -135,10 +135,6 @@ func getKernelArgs(profile *performancev1alpha1.PerformanceProfile) ([]string, e
 	}
 
 	if profile.Spec.HugePages != nil {
-		if profile.Spec.HugePages.DefaultHugePagesSize != nil {
-			kargs = append(kargs, fmt.Sprintf("default_hugepagesz=%s", *profile.Spec.HugePages.DefaultHugePagesSize))
-		}
-
 		for _, page := range profile.Spec.HugePages.Pages {
 			// we can not allocate hugepages on the specific NUMA node via kernel boot arguments
 			if page.Node != nil {

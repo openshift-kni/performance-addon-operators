@@ -25,7 +25,6 @@ metadata:
               "reserved": "0-1"
             },
             "hugepages": {
-              "defaultHugepagesSize": "1G",
               "pages": [
                 {
                   "count": 2,

@@ -47,7 +47,6 @@ func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile 
 				Reserved: &reservedCPUs,
 			},
 			HugePages: &performancev1alpha1.HugePages{
-				DefaultHugePagesSize: &size,
 				Pages: []performancev1alpha1.HugePage{
 					{
 						Count: 4,

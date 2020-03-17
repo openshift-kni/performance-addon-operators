@@ -111,13 +111,6 @@ func IsPaused(profile *v1alpha1.PerformanceProfile) bool {
 }
 
 func validateHugepages(hugepages *v1alpha1.HugePages) error {
-	// validate that default hugepages size has correct value, currently we support only 2M and 1G(x86_64 architecture)
-	if hugepages.DefaultHugePagesSize != nil {
-		defaultSize := *hugepages.DefaultHugePagesSize
-		if defaultSize != hugepagesSize1G && defaultSize != hugepagesSize2M {
-			return validationError(fmt.Sprintf("hugepages default size should be equal to %q or %q", hugepagesSize1G, hugepagesSize2M))
-		}
-	}
 	hugepagesSizes := map[v1alpha1.HugePageSize]string{}
 	for _, page := range hugepages.Pages {
 		hugepagesSizes[page.Size] = ""

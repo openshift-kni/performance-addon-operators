@@ -58,15 +58,6 @@ var _ = Describe("PerformanceProfile", func() {
 
 		})
 
-		It("should reject on incorrect default hugepages size", func() {
-			incorrectDefaultSize := v1alpha1.HugePageSize("!#@")
-			profile.Spec.HugePages.DefaultHugePagesSize = &incorrectDefaultSize
-
-			err := ValidateParameters(profile)
-			Expect(err).Should(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("hugepages default size should be equal"))
-		})
-
 		It("should reject hugepages allocation with different sizes", func() {
 			profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1alpha1.HugePage{
 				Count: 128,

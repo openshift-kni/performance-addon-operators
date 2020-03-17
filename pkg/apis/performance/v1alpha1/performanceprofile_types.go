@@ -68,8 +68,6 @@ type HugePageSize string
 
 // HugePages defines set of huge pages that we want to allocate on the boot.
 type HugePages struct {
-	// DefaultHugePagesSize defines huge pages default size under kernel boot parameters.
-	DefaultHugePagesSize *HugePageSize `json:"defaultHugepagesSize,omitempty"`
 	// Pages defines huge pages that we want to allocate on the boot time.
 	Pages []HugePage `json:"pages,omitempty"`
 }

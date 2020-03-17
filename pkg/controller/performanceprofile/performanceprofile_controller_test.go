@@ -394,7 +394,6 @@ var _ = Describe("Controller", func() {
 			It("should update MC when Hugepages params change without node added", func() {
 				size := performancev1alpha1.HugePageSize("2M")
 				profile.Spec.HugePages = &performancev1alpha1.HugePages{
-					DefaultHugePagesSize: &size,
 					Pages: []performancev1alpha1.HugePage{
 						{
 							Count: 8,
@@ -416,7 +415,6 @@ var _ = Describe("Controller", func() {
 				mc := &mcov1.MachineConfig{}
 				err := r.client.Get(context.TODO(), key, mc)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("default_hugepagesz=2M")))
 				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("hugepagesz=2M")))
 				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("hugepages=8")))
 
@@ -425,7 +423,6 @@ var _ = Describe("Controller", func() {
 			It("should update MC when Hugepages params change with node added", func() {
 				size := performancev1alpha1.HugePageSize("2M")
 				profile.Spec.HugePages = &performancev1alpha1.HugePages{
-					DefaultHugePagesSize: &size,
 					Pages: []performancev1alpha1.HugePage{
 						{
 							Count: 8,
@@ -448,7 +445,6 @@ var _ = Describe("Controller", func() {
 				mc := &mcov1.MachineConfig{}
 				err := r.client.Get(context.TODO(), key, mc)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("default_hugepagesz=2M")))
 				Expect(mc.Spec.KernelArguments).ToNot(ContainElement(ContainSubstring(`"hugepagesz`)))
 				Expect(mc.Spec.KernelArguments).ToNot(ContainElement(ContainSubstring(`"hugepages`)))
 
