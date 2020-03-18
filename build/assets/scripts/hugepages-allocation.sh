@@ -11,3 +11,8 @@ if [ ! -f  ${hugepages_file} ]; then
 fi
 
 echo ${HUGEPAGES_COUNT} > ${hugepages_file}
+
+if [ $(cat ${hugepages_file}) -ne ${HUGEPAGES_COUNT} ]; then
+    echo "ERROR: ${hugepages_file} does not have the expected number of hugepages ${HUGEPAGES_COUNT}"
+    exit 1
+fi
