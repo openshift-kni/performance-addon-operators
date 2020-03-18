@@ -16,6 +16,8 @@ import (
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
+	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -26,15 +28,23 @@ import (
 
 var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 	var workerRTNodes []corev1.Node
+	var profile *performancev1alpha1.PerformanceProfile
 
 	BeforeEach(func() {
 		var err error
 		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
+		profile, err = profiles.GetByNodeLabels(
+			testclient.Client,
+			map[string]string{
+				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
+			},
+		)
+		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("[test_id:26932][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should be enabled with the best-effort policy", func() {
+	It("[test_id:26932][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should be enabled with the policy specified in profile", func() {
 		kubeletConfig, err := nodes.GetKubeletConfig(testclient.Client, &workerRTNodes[0])
 		Expect(err).ToNot(HaveOccurred())
 
@@ -43,8 +53,12 @@ var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 		Expect(ok).To(BeTrue())
 		Expect(enabled).To(BeTrue())
 
-		// verify topology manager poicy
-		Expect(kubeletConfig.TopologyManagerPolicy).To(Equal(kubeletconfigv1beta1.SingleNumaNodeTopologyManager))
+		// verify topology manager policy
+		if profile.Spec.NUMA != nil && profile.Spec.NUMA.TopologyPolicy != nil {
+			Expect(kubeletConfig.TopologyManagerPolicy).To(Equal(*profile.Spec.NUMA.TopologyPolicy))
+		} else {
+			Expect(kubeletConfig.TopologyManagerPolicy).To(Equal(kubeletconfigv1beta1.BestEffortTopologyManagerPolicy))
+		}
 	})
 
 	Context("with the SR-IOV devices and static CPU's", func() {
