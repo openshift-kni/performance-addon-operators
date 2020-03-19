@@ -146,10 +146,8 @@ var _ = Describe("[rfe_id:27368]performance", func() {
 		})
 	})
 
-	// openshift node real time kernel verification
-	// (performance-addon-operators/build/assets/tuned/openshift-node-real-time-kernel)
 	Context("Tuned kernel parameters", func() {
-		It("[test_id:28466][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should contain configuration injected through openshift-node-real-time-kernel profile", func() {
+		It("[test_id:28466][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should contain configuration injected through openshift-node-performance profile", func() {
 			sysctlMap := map[string]string{
 				"kernel.hung_task_timeout_secs": "600",
 				"kernel.nmi_watchdog":           "0",
@@ -159,7 +157,7 @@ var _ = Describe("[rfe_id:27368]performance", func() {
 			}
 
 			key := types.NamespacedName{
-				Name:      components.GetComponentName(profileName, components.ProfileNameWorkerRT),
+				Name:      components.GetComponentName(profileName, components.ProfileNamePerformance),
 				Namespace: components.NamespaceNodeTuningOperator,
 			}
 			tuned := &tunedv1.Tuned{}
@@ -170,10 +168,8 @@ var _ = Describe("[rfe_id:27368]performance", func() {
 		})
 	})
 
-	// openshift node network latency profile verification
-	// (performance-addon-operators/build/assets/tuned/openshift-node-network-latency)
 	Context("Network latency parameters adjusted by the Node Tuning Operator", func() {
-		It("[test_id:28467][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should contain configuration injected through the openshift-node-network-latency profile", func() {
+		It("[test_id:28467][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should contain configuration injected through the openshift-node-performance profile", func() {
 			sysctlMap := map[string]string{
 				"net.ipv4.tcp_fastopen":           "3",
 				"kernel.sched_min_granularity_ns": "10000000",
@@ -183,12 +179,12 @@ var _ = Describe("[rfe_id:27368]performance", func() {
 				"kernel.sched_migration_cost_ns":  "5000000",
 			}
 			key := types.NamespacedName{
-				Name:      components.ProfileNameNetworkLatency,
+				Name:      components.ProfileNamePerformance,
 				Namespace: components.NamespaceNodeTuningOperator,
 			}
 			tuned := &tunedv1.Tuned{}
 			err := testclient.Client.Get(context.TODO(), key, tuned)
-			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+components.ProfileNameNetworkLatency)
+			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+components.ProfileNamePerformance)
 			validatTunedActiveProfile(workerRTNodes)
 			execSysctlOnWorkers(workerRTNodes, sysctlMap)
 		})
@@ -212,7 +208,7 @@ func execSysctlOnWorkers(workerNodes []corev1.Node, sysctlMap map[string]string)
 func validatTunedActiveProfile(nodes []corev1.Node) {
 	var err error
 	var out []byte
-	activeProfileName := components.GetComponentName(profileName, components.ProfileNameWorkerRT)
+	activeProfileName := components.GetComponentName(profileName, components.ProfileNamePerformance)
 	for _, node := range nodes {
 		tuned := tunedForNode(&node)
 		tunedName := tuned.ObjectMeta.Name

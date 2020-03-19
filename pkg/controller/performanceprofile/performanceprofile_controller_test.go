@@ -133,17 +133,11 @@ var _ = Describe("Controller", func() {
 			err = r.client.Get(context.TODO(), key, fg)
 			Expect(err).ToNot(HaveOccurred())
 
-			// verify tuned LatencySensitive creation
-			tunedLatency := &tunedv1.Tuned{}
-			key.Name = components.ProfileNameNetworkLatency
+			// verify tuned performance creation
+			tunedPerformance := &tunedv1.Tuned{}
+			key.Name = components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 			key.Namespace = components.NamespaceNodeTuningOperator
-			err = r.client.Get(context.TODO(), key, tunedLatency)
-			Expect(err).ToNot(HaveOccurred())
-
-			// verify tuned tuned real-time kernel creation
-			tunedRTKernel := &tunedv1.Tuned{}
-			key.Name = components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
-			err = r.client.Get(context.TODO(), key, tunedRTKernel)
+			err = r.client.Get(context.TODO(), key, tunedPerformance)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -234,17 +228,11 @@ var _ = Describe("Controller", func() {
 			err = r.client.Get(context.TODO(), key, fg)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 
-			// verify tuned LatencySensitive wasn't created
-			tunedLatency := &tunedv1.Tuned{}
-			key.Name = components.ProfileNameNetworkLatency
+			// verify tuned Performance wasn't created
+			tunedPerformance := &tunedv1.Tuned{}
+			key.Name = components.ProfileNamePerformance
 			key.Namespace = components.NamespaceNodeTuningOperator
-			err = r.client.Get(context.TODO(), key, tunedLatency)
-			Expect(errors.IsNotFound(err)).To(BeTrue())
-
-			// verify tuned tuned real-time kernel wasn't created
-			tunedRTKernel := &tunedv1.Tuned{}
-			key.Name = components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
-			err = r.client.Get(context.TODO(), key, tunedRTKernel)
+			err = r.client.Get(context.TODO(), key, tunedPerformance)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 		})
 
@@ -252,8 +240,7 @@ var _ = Describe("Controller", func() {
 			var mc *mcov1.MachineConfig
 			var kc *mcov1.KubeletConfig
 			var fg *configv1.FeatureGate
-			var tunedRTKernel *tunedv1.Tuned
-			var tunedNetworkLatency *tunedv1.Tuned
+			var tunedPerformance *tunedv1.Tuned
 
 			BeforeEach(func() {
 				var err error
@@ -265,16 +252,13 @@ var _ = Describe("Controller", func() {
 
 				fg = featuregate.NewLatencySensitive()
 
-				tunedRTKernel, err = tuned.NewWorkerRealTimeKernel(assetsDir, profile)
-				Expect(err).ToNot(HaveOccurred())
-
-				tunedNetworkLatency, err = tuned.NewNetworkLatency(assetsDir)
+				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profile)
 				Expect(err).ToNot(HaveOccurred())
 
 			})
 
 			It("should not record new create event", func() {
-				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -291,7 +275,7 @@ var _ = Describe("Controller", func() {
 
 			It("should update MC when RT kernel gets disabled", func() {
 				profile.Spec.RealTimeKernel.Enabled = pointer.BoolPtr(false)
-				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -317,7 +301,7 @@ var _ = Describe("Controller", func() {
 					Isolated: &isolated,
 				}
 
-				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -354,7 +338,7 @@ var _ = Describe("Controller", func() {
 
 				By("Verifying Tuned update for isolated")
 				key = types.NamespacedName{
-					Name:      components.GetComponentName(profile.Name, components.ProfileNameWorkerRT),
+					Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
 					Namespace: components.NamespaceNodeTuningOperator,
 				}
 				t := &tunedv1.Tuned{}
@@ -375,7 +359,7 @@ var _ = Describe("Controller", func() {
 					BalanceIsolated: pointer.BoolPtr(false),
 				}
 
-				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -403,7 +387,7 @@ var _ = Describe("Controller", func() {
 					},
 				}
 
-				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -435,7 +419,7 @@ var _ = Describe("Controller", func() {
 					},
 				}
 
-				r := newFakeReconciler(profile, mc, kc, fg, tunedNetworkLatency, tunedRTKernel)
+				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -484,13 +468,10 @@ var _ = Describe("Controller", func() {
 
 			fg := featuregate.NewLatencySensitive()
 
-			tunedLatency, err := tuned.NewNetworkLatency(assetsDir)
+			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
 
-			tunedRTKernel, err := tuned.NewWorkerRealTimeKernel(assetsDir, profile)
-			Expect(err).ToNot(HaveOccurred())
-
-			r := newFakeReconciler(profile, mc, kc, fg, tunedLatency, tunedRTKernel)
+			r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
 			result, err := r.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(reconcile.Result{}))
@@ -516,16 +497,10 @@ var _ = Describe("Controller", func() {
 			// err = r.client.Get(context.TODO(), key, fg)
 			// Expect(errors.IsNotFound(err)).To(Equal(true))
 
-			// verify tuned latency deletion
-			key.Name = components.ProfileNameNetworkLatency
-			key.Namespace = components.NamespaceNodeTuningOperator
-			err = r.client.Get(context.TODO(), key, tunedLatency)
-			Expect(errors.IsNotFound(err)).To(Equal(true))
-
 			// verify tuned real-time kernel deletion
-			key.Name = components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
+			key.Name = components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 			key.Namespace = components.NamespaceNodeTuningOperator
-			err = r.client.Get(context.TODO(), key, tunedRTKernel)
+			err = r.client.Get(context.TODO(), key, tunedPerformance)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 
 			// verify finalizer deletion

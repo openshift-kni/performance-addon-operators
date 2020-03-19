@@ -17,10 +17,8 @@ const (
 const (
 	// NamespaceNodeTuningOperator defines the tuned profiles namespace
 	NamespaceNodeTuningOperator = "openshift-cluster-node-tuning-operator"
-	// ProfileNameNetworkLatency defines the network latency tuned profile name
-	ProfileNameNetworkLatency = "openshift-node-network-latency"
-	// ProfileNameWorkerRT defines the real time kernel performance tuned profile name
-	ProfileNameWorkerRT = "openshift-node-real-time-kernel"
+	// ProfileNamePerformance defines the performance tuned profile name
+	ProfileNamePerformance = "openshift-node-performance"
 )
 
 const (

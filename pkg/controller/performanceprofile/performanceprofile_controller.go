@@ -338,28 +338,16 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 		return nil, err
 	}
 
-	// get mutated network latency tuned
-	networkLatencyTuned, err := tuned.NewNetworkLatency(r.assetsDir)
-	if err != nil {
-		return nil, err
-	}
-	if err := controllerutil.SetControllerReference(profile, networkLatencyTuned, r.scheme); err != nil {
-		return nil, err
-	}
-	networkLatencyTunedMutated, err := r.getMutatedTuned(networkLatencyTuned)
+	// get mutated performance tuned
+	performanceTuned, err := tuned.NewNodePerformance(r.assetsDir, profile)
 	if err != nil {
 		return nil, err
 	}
 
-	// get mutated real time kernel tuned
-	realTimeKernelTuned, err := tuned.NewWorkerRealTimeKernel(r.assetsDir, profile)
-	if err != nil {
+	if err := controllerutil.SetControllerReference(profile, performanceTuned, r.scheme); err != nil {
 		return nil, err
 	}
-	if err := controllerutil.SetControllerReference(profile, realTimeKernelTuned, r.scheme); err != nil {
-		return nil, err
-	}
-	realTimeKernelTunedMutated, err := r.getMutatedTuned(realTimeKernelTuned)
+	performanceTunedMutated, err := r.getMutatedTuned(performanceTuned)
 	if err != nil {
 		return nil, err
 	}
@@ -367,8 +355,7 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 	updated := mcMutated != nil ||
 		kcMutated != nil ||
 		fgMutated != nil ||
-		networkLatencyTunedMutated != nil ||
-		realTimeKernelTunedMutated != nil
+		performanceTunedMutated != nil
 
 	// does not update any resources, if it no changes to relevant objects and just continue to the status update
 	if !updated {
@@ -381,14 +368,8 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 		}
 	}
 
-	if networkLatencyTunedMutated != nil {
-		if err := r.createOrUpdateTuned(networkLatencyTunedMutated); err != nil {
-			return nil, err
-		}
-	}
-
-	if realTimeKernelTunedMutated != nil {
-		if err := r.createOrUpdateTuned(realTimeKernelTunedMutated); err != nil {
+	if performanceTunedMutated != nil {
+		if err := r.createOrUpdateTuned(performanceTunedMutated); err != nil {
 			return nil, err
 		}
 	}
@@ -416,12 +397,8 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 }
 
 func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alpha1.PerformanceProfile) error {
-	tunedName := components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
+	tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 	if err := r.deleteTuned(tunedName, components.NamespaceNodeTuningOperator); err != nil {
-		return err
-	}
-
-	if err := r.deleteTuned(components.ProfileNameNetworkLatency, components.NamespaceNodeTuningOperator); err != nil {
 		return err
 	}
 
@@ -444,14 +421,9 @@ func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alp
 }
 
 func (r *ReconcilePerformanceProfile) isComponentsExist(profile *performancev1alpha1.PerformanceProfile) bool {
-	tunedName := components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
+	tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 	if _, err := r.getTuned(tunedName, components.NamespaceNodeTuningOperator); !errors.IsNotFound(err) {
 		klog.Infof("Tuned %q custom resource is still exists under the namespace %q", tunedName, components.NamespaceNodeTuningOperator)
-		return true
-	}
-
-	if _, err := r.getTuned(components.ProfileNameNetworkLatency, components.NamespaceNodeTuningOperator); !errors.IsNotFound(err) {
-		klog.Infof("Tuned %q custom resource is still exists under the namespace %q", components.ProfileNameNetworkLatency, components.NamespaceNodeTuningOperator)
 		return true
 	}
 

@@ -16,10 +16,6 @@ import (
 )
 
 const (
-	labelKeyNetworkLatency = "tuned.openshift.io/network-latency"
-)
-
-const (
 	templateIsolatedCpus    = "IsolatedCpus"
 	templateReservedCpumask = "ReservedCpumask"
 )
@@ -41,38 +37,8 @@ func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.Tune
 	}
 }
 
-// NewNetworkLatency returns Tuned profile for network latency sensitive workflows
-func NewNetworkLatency(assetsDir string) (*tunedv1.Tuned, error) {
-	name := components.ProfileNameNetworkLatency
-	profileData, err := getProfileData(getProfilePath(name, assetsDir), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	profiles := []tunedv1.TunedProfile{
-		{
-			Name: &name,
-			Data: &profileData,
-		},
-	}
-
-	priority := uint64(30)
-	recommends := []tunedv1.TunedRecommend{
-		{
-			Profile:  &name,
-			Priority: &priority,
-			Match: []tunedv1.TunedMatch{
-				{
-					Label: pointer.StringPtr(labelKeyNetworkLatency),
-				},
-			},
-		},
-	}
-	return new(name, profiles, recommends), nil
-}
-
-// NewWorkerRealTimeKernel returns tuned profile for performance sensitive workflows on top of real time kernel
-func NewWorkerRealTimeKernel(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*tunedv1.Tuned, error) {
+// NewNodePerformance returns tuned profile for performance sensitive workflows
+func NewNodePerformance(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*tunedv1.Tuned, error) {
 
 	templateArgs := make(map[string]string)
 
@@ -88,13 +54,13 @@ func NewWorkerRealTimeKernel(assetsDir string, profile *performancev1alpha1.Perf
 		templateArgs[templateReservedCpumask] = cpuMask
 	}
 
-	profileData, err := getProfileData(getProfilePath(components.ProfileNameWorkerRT, assetsDir), templateArgs)
+	profileData, err := getProfileData(getProfilePath(components.ProfileNamePerformance, assetsDir), templateArgs)
 
 	if err != nil {
 		return nil, err
 	}
 
-	name := components.GetComponentName(profile.Name, components.ProfileNameWorkerRT)
+	name := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 	profiles := []tunedv1.TunedProfile{
 		{
 			Name: &name,
