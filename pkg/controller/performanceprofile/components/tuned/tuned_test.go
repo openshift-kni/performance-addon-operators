@@ -20,14 +20,14 @@ const expectedMatchSelector = `
 `
 
 var _ = Describe("Tuned", func() {
-	Context("with worker real time kerbnel profile", func() {
+	Context("with worker performance profile", func() {
 		It("should generate yaml with expected parameters", func() {
 			profile := testutils.NewPerformanceProfile("test")
 			profile.Spec.NodeSelector = map[string]string{
 				"label1": "label1",
 				"label2": "label2",
 			}
-			tuned, err := NewWorkerRealTimeKernel(testAssetsDir, profile)
+			tuned, err := NewNodePerformance(testAssetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
 			y, err := yaml.Marshal(tuned)
 			Expect(err).ToNot(HaveOccurred())
