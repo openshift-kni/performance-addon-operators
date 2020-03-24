@@ -17,6 +17,11 @@ func init() {
 }
 
 const (
+	// RoleWorker contains the worker role
+	RoleWorker = "worker"
+)
+
+const (
 	// LabelRole contains the key for the role label
 	LabelRole = "node-role.kubernetes.io"
 	// LabelHostname contains the key for the hostname label
