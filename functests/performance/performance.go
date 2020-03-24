@@ -179,7 +179,7 @@ var _ = Describe("[rfe_id:27368]performance", func() {
 				"kernel.sched_migration_cost_ns":  "5000000",
 			}
 			key := types.NamespacedName{
-				Name:      components.ProfileNamePerformance,
+				Name:      components.GetComponentName(profileName, components.ProfileNamePerformance),
 				Namespace: components.NamespaceNodeTuningOperator,
 			}
 			tuned := &tunedv1.Tuned{}
