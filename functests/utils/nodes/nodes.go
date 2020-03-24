@@ -8,6 +8,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
+	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -30,6 +31,20 @@ func GetByRole(c client.Client, role string) ([]corev1.Node, error) {
 		return nil, err
 	}
 	return nodes.Items, nil
+}
+
+// GetNonRTWorkers returns list of nodes with no worker-rt label
+func GetNonRTWorkers() ([]corev1.Node, error) {
+	nonRTWorkerNodes := []corev1.Node{}
+
+	workerNodes, err := GetByRole(testclient.Client, testutils.RoleWorker)
+	for _, node := range workerNodes {
+		if _, ok := node.Labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT)]; ok {
+			continue
+		}
+		nonRTWorkerNodes = append(nonRTWorkerNodes, node)
+	}
+	return nonRTWorkerNodes, err
 }
 
 // FilterByResource returns all nodes with the specified allocated resource greater than 0
