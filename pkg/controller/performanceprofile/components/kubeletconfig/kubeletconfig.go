@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
+	utilpointer "k8s.io/utils/pointer"
 )
 
 const (
@@ -41,6 +42,7 @@ func New(profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.Kube
 			"cpu":    defaultSystemReservedCPU,
 			"memory": defaultSystemReservedMemory,
 		},
+		CPUCFSQuota: utilpointer.BoolPtr(false),
 	}
 
 	if profile.Spec.CPU != nil && profile.Spec.CPU.Reserved != nil {
