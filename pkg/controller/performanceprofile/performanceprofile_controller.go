@@ -289,7 +289,15 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	if result != nil {
 		return *result, nil
 	}
-	//UPDATE MACHINE CONFIG
+
+	conditions = r.getConditionsByMCPStatus(instance)
+	if conditions != nil {
+		err := r.updateStatus(instance, conditions)
+		if err != nil {
+			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+			return reconcile.Result{}, err
+		}
+	}
 
 	return reconcile.Result{}, nil
 }

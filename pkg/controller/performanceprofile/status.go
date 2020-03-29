@@ -1,11 +1,14 @@
 package performanceprofile
 
 import (
+	"bytes"
 	"context"
+	"reflect"
 	"time"
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -143,4 +146,40 @@ func (r *ReconcilePerformanceProfile) getProgressingConditions(reason string, me
 			LastTransitionTime: metav1.Time{Time: now},
 		},
 	}
+}
+
+func (r *ReconcilePerformanceProfile) getConditionsByMCPStatus(profile *performancev1alpha1.PerformanceProfile) []conditionsv1.Condition {
+
+	mcpList := &mcov1.MachineConfigPoolList{}
+	err := r.client.List(context.TODO(), mcpList)
+	if err != nil {
+		return nil
+	}
+
+	reason := bytes.Buffer{}
+	reason.WriteString("Matching Machine Config Pools: ")
+
+	message := bytes.Buffer{}
+
+	for _, mcp := range mcpList.Items {
+		if reflect.DeepEqual(profile.Spec.MachineConfigPoolSelector, mcp.Spec.MachineConfigSelector.MatchLabels) {
+			for _, condition := range mcp.Status.Conditions {
+				if condition.Type == mcov1.MachineConfigPoolDegraded && condition.Status == corev1.ConditionTrue {
+					reason.WriteString(mcp.GetName() + " ")
+					message.WriteString(mcp.GetName() + " Reason: " + condition.Reason + " \n")
+					message.WriteString(mcp.GetName() + " Message: " + condition.Message + " \n")
+
+				}
+			}
+		}
+	}
+	reason.WriteString("are in a Degraded state.")
+	messageString := message.String()
+
+	if len(messageString) == 0 {
+		return nil
+	}
+
+	reasonString := reason.String()
+	return r.getDegradedConditions(reasonString, messageString)
 }
