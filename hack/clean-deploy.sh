@@ -2,8 +2,8 @@
 
 # expect oc to be in PATH by default
 OC_TOOL="${OC_TOOL:-oc}"
-nodeSelector="$(oc get performanceprofile ci -o=jsonpath='{.spec.nodeSelector}'  | awk -F'[/:]' '{print $2}')"
-mcp="$(oc get mcp -l machineconfiguration.openshift.io/role=$nodeSelector -o name | awk -F "/" '{print $2}')"
+nodeSelector="$(${OC_TOOL} get performanceprofile ci -o=jsonpath='{.spec.nodeSelector}'  | awk -F'[/:]' '{print $2}')"
+mcp="$(${OC_TOOL} get mcp -l machineconfiguration.openshift.io/role=$nodeSelector -o name | awk -F "/" '{print $2}')"
 
 # Remove node label
 echo "[INFO]: Unlabeling worker nodes"
