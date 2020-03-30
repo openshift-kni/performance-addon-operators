@@ -3,10 +3,10 @@ package performance
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,6 +30,10 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 	var profile *performancev1alpha1.PerformanceProfile
 	var err error
 
+	chkKernel := []string{"uname", "-a"}
+	chkCmdLine := []string{"cat", "/proc/cmdline"}
+	chkKubeletConfig := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
+
 	BeforeEach(func() {
 		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
 		Expect(err).ToNot(HaveOccurred())
@@ -43,80 +47,92 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("Verifies that all performance profile parameters can be updated", func() {
-		// timeout should be based on the number of worker nodes
-		timeout := time.Duration(len(workerRTNodes) * mcpUpdateTimeout)
-		newCmdLineArgs := map[string]string{
-			"default_hugepagesz": "2M",
-			"hugepagesz":         "2M",
-			"hugepages":          "5",
-			"tuned.non_isolcpus": "00000009",
-			"isolcpus":           "1-2",
-			"new-argument":       "test",
-		}
+	Context("Verify that all performance profile parameters can be updated", func() {
+		var removedKernelArgs string
 
-		By("Verifying that mcp is updated")
-		waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
-
-		By("Making changes in profile")
 		hpSize := performancev1alpha1.HugePageSize("2M")
 		isolated := performancev1alpha1.CPUSet("1-2")
 		reserved := performancev1alpha1.CPUSet("0,3")
 		policy := "best-effort"
 		f := false
 
-		profile.Spec.HugePages = &performancev1alpha1.HugePages{
-			DefaultHugePagesSize: &hpSize,
-			Pages: []performancev1alpha1.HugePage{
-				{
-					Count: 5,
-					Size:  hpSize,
+		// Modify profile and verify that MCO successfully updated the node
+		testutils.BeforeAll(func() {
+			// timeout should be based on the number of worker nodes
+			timeout := time.Duration(len(workerRTNodes) * mcpUpdateTimeout)
+
+			By("Modifying profile")
+			profile.Spec.HugePages = &performancev1alpha1.HugePages{
+				DefaultHugePagesSize: &hpSize,
+				Pages: []performancev1alpha1.HugePage{
+					{
+						Count: 5,
+						Size:  hpSize,
+					},
 				},
-			},
-		}
-		profile.Spec.CPU = &performancev1alpha1.CPU{
-			BalanceIsolated: &f,
-			Reserved:        &reserved,
-			Isolated:        &isolated,
-		}
-		profile.Spec.NUMA = &performancev1alpha1.NUMA{
-			TopologyPolicy: &policy,
-		}
-		profile.Spec.RealTimeKernel = &performancev1alpha1.RealTimeKernel{
-			Enabled: &f,
-		}
-
-		var removedKernelArgs string
-		if profile.Spec.AdditionalKernelArgs == nil {
-			By("AdditionalKernelArgs is empty. Checking only adding new arguments")
-			profile.Spec.AdditionalKernelArgs = append(profile.Spec.AdditionalKernelArgs, "new-argument=test")
-		} else {
-			removedKernelArgs = profile.Spec.AdditionalKernelArgs[0]
-			profile.Spec.AdditionalKernelArgs = append(profile.Spec.AdditionalKernelArgs[1:], "new-argument=test")
-		}
-
-		By("Applying changes in performance profile and waiting until mcp will start updating")
-		Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
-		waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
-
-		By("Waiting when mcp finishes updates and verifying new parameters applied")
-		waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
-
-		for _, node := range workerRTNodes {
-			checkCmdLineArgs(node, newCmdLineArgs)
-
-			cmd := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
-			Expect(execCommandOnWorker(cmd, &node)).To(ContainSubstring(fmt.Sprintf(`"reservedSystemCPUs":"%s"`, reserved)))
-			Expect(execCommandOnWorker(cmd, &node)).To(ContainSubstring(fmt.Sprintf(`"topologyManagerPolicy":"%s"`, policy)))
-
-			cmd = []string{"uname", "-a"}
-			Expect(execCommandOnWorker(cmd, &node)).NotTo(ContainSubstring("PREEMPT RT"), "Node should have non-RT kernel")
-
-			if removedKernelArgs != "" {
-				cmd = []string{"cat", "/proc/cmdline"}
-				Expect(execCommandOnWorker(cmd, &node)).NotTo(ContainSubstring(removedKernelArgs), fmt.Sprintf("%s should be removed from /proc/cmdline", removedKernelArgs))
 			}
-		}
+			profile.Spec.CPU = &performancev1alpha1.CPU{
+				BalanceIsolated: &f,
+				Reserved:        &reserved,
+				Isolated:        &isolated,
+			}
+			profile.Spec.NUMA = &performancev1alpha1.NUMA{
+				TopologyPolicy: &policy,
+			}
+			profile.Spec.RealTimeKernel = &performancev1alpha1.RealTimeKernel{
+				Enabled: &f,
+			}
+
+			if profile.Spec.AdditionalKernelArgs == nil {
+				By("AdditionalKernelArgs is empty. Checking only adding new arguments")
+				profile.Spec.AdditionalKernelArgs = append(profile.Spec.AdditionalKernelArgs, "new-argument=test")
+			} else {
+				removedKernelArgs = profile.Spec.AdditionalKernelArgs[0]
+				profile.Spec.AdditionalKernelArgs = append(profile.Spec.AdditionalKernelArgs[1:], "new-argument=test")
+			}
+
+			By("Verifying that mcp is ready for update")
+			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
+
+			By("Applying changes in performance profile and waiting until mcp will start updating")
+			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
+
+			By("Waiting when mcp finishes updates")
+			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
+		})
+
+		table.DescribeTable("Verify that profile parameters were updated", func(cmd, parameter []string, shouldContain bool) {
+			for _, node := range workerRTNodes {
+				for _, param := range parameter {
+					if shouldContain {
+						Expect(execCommandOnWorker(cmd, &node)).To(ContainSubstring(param))
+					} else {
+						Expect(execCommandOnWorker(cmd, &node)).NotTo(ContainSubstring(param))
+					}
+				}
+			}
+		},
+			table.Entry("[test_id:28024] verify that hugepages size and count updated", chkCmdLine, []string{"default_hugepagesz=2M", "hugepagesz=2M", "hugepages=5"}, true),
+			table.Entry("[test_id:28070] verify that hugepages updated (NUMA node unspecified)", chkCmdLine, []string{"hugepagesz=2M"}, true),
+			table.Entry("[test_id:28025] verify that cpu affinity mask was updated", chkCmdLine, []string{"tuned.non_isolcpus=00000009"}, true),
+			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"isolcpus=1-2"}, true),
+			table.Entry("[test_id:28935] verify that reservedSystemCPUs was updated", chkKubeletConfig, []string{`"reservedSystemCPUs":"0,3"`}, true),
+			table.Entry("[test_id:28760] verify that topologyManager was updated", chkKubeletConfig, []string{`"topologyManagerPolicy":"best-effort"`}, true),
+			table.Entry("[test_id:27738] verify that realTimeKernerl was updated", chkKernel, []string{"PREEMPT RT"}, false),
+		)
+
+		It("[test_id:28612]Verify that Kernel arguments can me updated (added, removed) thru performance profile", func() {
+			for _, node := range workerRTNodes {
+				// Verifying that new argument was added
+				Expect(execCommandOnWorker(chkCmdLine, &node)).To(ContainSubstring("new-argument=test"))
+
+				// Verifying that one of old arguments was removed
+				if removedKernelArgs != "" {
+					Expect(execCommandOnWorker(chkCmdLine, &node)).NotTo(ContainSubstring(removedKernelArgs), fmt.Sprintf("%s should be removed from /proc/cmdline", removedKernelArgs))
+				}
+			}
+		})
 	})
 
 	It("[test_id:28440]Verifies that nodeSelector can be updated in performance profile", func() {
@@ -155,11 +171,8 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 		By("Waiting when MCP finishes updates and verifying new node has updated configuration")
 		waitForMcpCondition(newRole, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, mcpUpdateTimeout)
 
-		cmd := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
-		Expect(execCommandOnWorker(cmd, newWorkerNode)).To(ContainSubstring("topologyManagerPolicy"))
-
-		cmd = []string{"cat", "/proc/cmdline"}
-		Expect(execCommandOnWorker(cmd, newWorkerNode)).To(ContainSubstring("tuned.non_isolcpus"))
+		Expect(execCommandOnWorker(chkKubeletConfig, newWorkerNode)).To(ContainSubstring("topologyManagerPolicy"))
+		Expect(execCommandOnWorker(chkCmdLine, newWorkerNode)).To(ContainSubstring("tuned.non_isolcpus"))
 	})
 })
 
@@ -179,24 +192,6 @@ func waitForMcpCondition(mcpName string, conditionType machineconfigv1.MachineCo
 		}
 		return corev1.ConditionUnknown
 	}, timeout*time.Minute, 30*time.Second).Should(Equal(conditionStatus))
-}
-
-func checkCmdLineArgs(node corev1.Node, cmdLineArgs map[string]string) {
-	out, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat", "/proc/cmdline"})
-	Expect(err).ToNot(HaveOccurred())
-	allArgs := strings.Split(strings.TrimSpace(string(out)), " ")
-	argsMap := make(map[string]string)
-	for _, arg := range allArgs {
-		if strings.Contains(arg, "=") {
-			parts := strings.Split(arg, "=")
-			argsMap[parts[0]] = parts[1]
-		} else {
-			argsMap[arg] = ""
-		}
-	}
-	for param, expected := range cmdLineArgs {
-		Expect(argsMap[param]).To(Equal(expected), fmt.Sprintf("parameter %s value is not %s.", param, expected))
-	}
 }
 
 func newMCP(mcpName string, nodeSelector map[string]string) *machineconfigv1.MachineConfigPool {
