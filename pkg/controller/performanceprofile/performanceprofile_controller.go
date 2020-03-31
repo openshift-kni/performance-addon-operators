@@ -275,7 +275,10 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	conditions := r.getAvailableConditions()
+	conditions := r.getConditionsByMCPStatus(instance)
+	if conditions == nil {
+		conditions = r.getAvailableConditions()
+	}
 	if err := r.updateStatus(instance, conditions); err != nil {
 		klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
 		// we still want to requeue after some, also in case of error, to avoid chance of multiple reboots
@@ -288,15 +291,6 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 
 	if result != nil {
 		return *result, nil
-	}
-
-	conditions = r.getConditionsByMCPStatus(instance)
-	if conditions != nil {
-		err := r.updateStatus(instance, conditions)
-		if err != nil {
-			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
-			return reconcile.Result{}, err
-		}
 	}
 
 	return reconcile.Result{}, nil
