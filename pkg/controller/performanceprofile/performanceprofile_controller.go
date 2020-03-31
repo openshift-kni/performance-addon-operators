@@ -304,7 +304,6 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 
 func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []reconcile.Request {
 
-	klog.Infof("Getting performance profile requests from machine config pool %q", namespacedName(o.Meta).String())
 	mcp := &mcov1.MachineConfigPool{}
 
 	if err := r.client.Get(context.Background(),
@@ -328,8 +327,10 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 	for k := range ppList.Items {
 		if hasMatchingLabels(&ppList.Items[k], mcp) {
 			requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&ppList.Items[k])})
+			klog.Infof("Adding performance profile %q request from machine config pool %q", ppList.Items[k].GetName(), namespacedName(o.Meta).String())
 		}
 	}
+
 	return requests
 }
 
