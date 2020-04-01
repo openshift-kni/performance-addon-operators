@@ -148,11 +148,12 @@ func (r *ReconcilePerformanceProfile) getProgressingConditions(reason string, me
 	}
 }
 
-func (r *ReconcilePerformanceProfile) getConditionsByMCPStatus(profile *performancev1alpha1.PerformanceProfile) []conditionsv1.Condition {
+func (r *ReconcilePerformanceProfile) getMCPConditionsByProfile(profile *performancev1alpha1.PerformanceProfile) []conditionsv1.Condition {
 
 	mcpList := &mcov1.MachineConfigPoolList{}
-	err := r.client.List(context.TODO(), mcpList)
-	if err != nil {
+
+	if err := r.client.List(context.TODO(), mcpList); err != nil {
+		klog.Warningf("Cannot list Machine config pools to match with profile %q : %v", profile.Name, err)
 		return nil
 	}
 

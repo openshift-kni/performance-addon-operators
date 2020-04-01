@@ -275,7 +275,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	conditions := r.getConditionsByMCPStatus(instance)
+	conditions := r.getMCPConditionsByProfile(instance)
 	if conditions == nil {
 		conditions = r.getAvailableConditions()
 	}
@@ -301,7 +301,7 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 	mcp := &mcov1.MachineConfigPool{}
 
 	if err := r.client.Get(context.Background(),
-		client.ObjectKey{
+		types.NamespacedName{
 			Namespace: o.Meta.GetNamespace(),
 			Name:      o.Meta.GetName(),
 		},
