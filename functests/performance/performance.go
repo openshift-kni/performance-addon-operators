@@ -214,8 +214,8 @@ func validatTunedActiveProfile(nodes []corev1.Node) {
 		tunedName := tuned.ObjectMeta.Name
 		By(fmt.Sprintf("executing the command cat /etc/tuned/active_profile inside the pod %s", tunedName))
 		Eventually(func() string {
-			out, err = exec.Command("oc", "rsh", "-n", tuned.ObjectMeta.Namespace,
-				tunedName, "cat", "/etc/tuned/active_profile").CombinedOutput()
+			out, err = exec.Command("oc", "exec", "-i", "-n", tuned.ObjectMeta.Namespace,
+				tunedName, "--", "cat", "/etc/tuned/active_profile").CombinedOutput()
 			return strings.TrimSpace(string(out))
 		}, testTimeout*time.Second, testPollInterval*time.Second).Should(Equal(activeProfileName),
 			fmt.Sprintf("active_profile is not set to %s. %v", activeProfileName, err))

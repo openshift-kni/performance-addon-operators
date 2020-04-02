@@ -87,11 +87,13 @@ func ExecCommandOnMachineConfigDaemon(c client.Client, node *corev1.Node, comman
 	}
 
 	initialArgs := []string{
-		"rsh",
+		"exec",
+		"-i",
 		"-n", testutils.NamespaceMachineConfigOperator,
 		"-c", testutils.ContainerMachineConfigDaemon,
 		"--request-timeout", "30",
 		mcd.Name,
+		"--",
 	}
 	initialArgs = append(initialArgs, command...)
 	return exec.Command("oc", initialArgs...).CombinedOutput()

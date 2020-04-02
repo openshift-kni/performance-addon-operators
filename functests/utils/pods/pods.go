@@ -113,9 +113,11 @@ func GetLogs(c *kubernetes.Clientset, pod *corev1.Pod) (string, error) {
 // ExecCommandOnPod returns the output of the command execution on the pod
 func ExecCommandOnPod(c client.Client, pod *corev1.Pod, command []string) ([]byte, error) {
 	initialArgs := []string{
-		"rsh",
+		"exec",
+		"-i",
 		"-n", pod.Namespace,
 		pod.Name,
+		"--",
 	}
 	initialArgs = append(initialArgs, command...)
 	return exec.Command("oc", initialArgs...).CombinedOutput()
