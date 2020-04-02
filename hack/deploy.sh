@@ -28,9 +28,15 @@ do
 
   # be verbose on last iteration only
   if [[ $iterations -eq $((max_iterations - 1)) ]] || [[ -n "${VERBOSE}" ]]; then
-    ${OC_TOOL} kustomize $feature_dir | envsubst | ${OC_TOOL} apply -f -
+    # WORKAROUND for https://github.com/kubernetes/kubernetes/pull/89539:
+    # oc / kubectl reject multiple manifests atm as soon as one "kind" in them does not exist yet
+    # so we need to apply one manifest by one
+    # since xargs' delimiter is limited to one char only or a control code, we replace the manifest delimiter "---"
+    # with a "vertical tab (\v)", which should never be used in (at least our) manifests.
+    # revert the sed | xargs steps when the fix landed in oc
+    ${OC_TOOL} kustomize $feature_dir | envsubst | sed "s|---|\v|g" | xargs -d '\v' -I {} bash -c "echo '{}' | ${OC_TOOL} apply -f -"
   else
-    ${OC_TOOL} kustomize $feature_dir | envsubst | ${OC_TOOL} apply -f - &> /dev/null
+    ${OC_TOOL} kustomize $feature_dir | envsubst | sed "s|---|\v|g" | xargs -d '\v' -I {} bash -c "echo '{}' | ${OC_TOOL} apply -f - &> /dev/null"
   fi
 
   # shellcheck disable=SC2181
