@@ -7,6 +7,7 @@ import (
 	"time"
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -163,7 +164,7 @@ func (r *ReconcilePerformanceProfile) getMCPConditionsByProfile(profile *perform
 	message := bytes.Buffer{}
 
 	for _, mcp := range mcpList.Items {
-		if reflect.DeepEqual(profile.Spec.MachineConfigPoolSelector, mcp.Spec.MachineConfigSelector.MatchLabels) {
+		if reflect.DeepEqual(profileutil.GetMachineConfigPoolSelector(profile), mcp.Spec.MachineConfigSelector.MatchLabels) {
 			for _, condition := range mcp.Status.Conditions {
 				if condition.Type == mcov1.MachineConfigPoolDegraded && condition.Status == corev1.ConditionTrue {
 					reason.WriteString(mcp.GetName() + " ")

@@ -513,7 +513,7 @@ func hasMatchingLabels(performanceprofile *performancev1alpha1.PerformanceProfil
 		return false
 	}
 
-	if !selector.Matches(labels.Set(performanceprofile.Spec.MachineConfigPoolSelector)) {
+	if !selector.Matches(labels.Set(profileutil.GetMachineConfigPoolSelector(performanceprofile))) {
 		return false
 	}
 	return true
