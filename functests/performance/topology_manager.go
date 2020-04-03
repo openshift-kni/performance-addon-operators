@@ -140,7 +140,7 @@ var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 
 func getSriovPciDeviceFromPod(pod *corev1.Pod) (string, error) {
 	envBytes, err := exec.Command(
-		"oc", "rsh", "-n", pod.Namespace, pod.Name, "env",
+		"oc", "exec", "-i", "-n", pod.Namespace, pod.Name, "--", "env",
 	).CombinedOutput()
 	if err != nil {
 		return "", err
