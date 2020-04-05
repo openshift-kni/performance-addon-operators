@@ -135,7 +135,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler, mapMCPToPC handler.ToReque
 		return err
 	}
 
-	// we do not want initiate reconcile loop on the configuration or pause fields update
 	mcpPredicates := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if e.MetaOld == nil {
@@ -162,9 +161,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, mapMCPToPC handler.ToReque
 			mcpNewCopy.Spec.Paused = mcpOld.Spec.Paused
 			mcpNewCopy.Spec.Configuration = mcpOld.Spec.Configuration
 
-			return !reflect.DeepEqual(mcpOld.Spec, mcpNewCopy.Spec) ||
-				!reflect.DeepEqual(mcpOld.Status, mcpNewCopy.Status) ||
-				!apiequality.Semantic.DeepEqual(e.MetaNew.GetLabels(), e.MetaOld.GetLabels())
+			return !reflect.DeepEqual(mcpOld.Status.Conditions, mcpNewCopy.Status.Conditions)
 		},
 	}
 
@@ -275,7 +272,17 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	conditions := r.getMCPConditionsByProfile(instance)
+	conditions, err := r.getMCPConditionsByProfile(instance)
+	if err != nil {
+		conditions := r.getDegradedConditions(conditionReasonComponentsCreationFailed, err.Error())
+		if err := r.updateStatus(instance, conditions); err != nil {
+			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, err
+	}
+
+	// if conditions were not added due to machine config pool status change then set as availble
 	if conditions == nil {
 		conditions = r.getAvailableConditions()
 	}
@@ -300,7 +307,7 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 
 	mcp := &mcov1.MachineConfigPool{}
 
-	if err := r.client.Get(context.Background(),
+	if err := r.client.Get(context.TODO(),
 		types.NamespacedName{
 			Namespace: o.Meta.GetNamespace(),
 			Name:      o.Meta.GetName(),
@@ -312,7 +319,7 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 	}
 
 	ppList := &performancev1alpha1.PerformanceProfileList{}
-	if err := r.client.List(context.Background(), ppList); err != nil {
+	if err := r.client.List(context.TODO(), ppList); err != nil {
 		klog.Errorf("No-op: Unable to list performance profiles: %v", err)
 		return nil
 	}
@@ -321,7 +328,6 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 	for k := range ppList.Items {
 		if hasMatchingLabels(&ppList.Items[k], mcp) {
 			requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&ppList.Items[k])})
-			klog.Infof("Adding performance profile %q request from machine config pool %q", ppList.Items[k].GetName(), namespacedName(o.Meta).String())
 		}
 	}
 
