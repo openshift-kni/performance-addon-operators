@@ -19,7 +19,7 @@
 
 IMAGE_BUILD_CMD ?= "docker"
 IMAGE_REGISTRY ?= "quay.io"
-REGISTRY_NAMESPACE ?= ""
+REGISTRY_NAMESPACE ?= "openshift-kni"
 IMAGE_TAG ?= "latest"
 
 TARGET_GOOS=linux
@@ -74,6 +74,15 @@ dist-csv-replace-imageref:
 		echo "Using pre-built csv-replace-imageref tool";\
 	fi
 
+dist-docs-generator:
+	@if [ ! -x build/_output/bin/docs-generator ]; then\
+		echo "Building docs-generator tool";\
+		mkdir -p build/_output/bin;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/docs-generator ./tools/docs-generator;\
+	else \
+		echo "Using pre-built docs-generator tool";\
+	fi
+
 build-containers: registry-container operator-container
 
 operator-container: build
@@ -113,6 +122,9 @@ generate-latest-dev-csv: operator-sdk dist-csv-generator
 	@echo Generating developer csv
 	@echo
 	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" CSV_VERSION=$(OPERATOR_DEV_CSV) hack/csv-generate.sh
+
+generate-docs: dist-docs-generator
+	hack/docs-generate.sh
 
 deps-update:
 	go mod tidy && \
@@ -158,7 +170,7 @@ govet:
 	@echo "Running go vet"
 	go vet ./...
 
-generate: deps-update gofmt generate-latest-dev-csv
+generate: deps-update gofmt generate-latest-dev-csv generate-docs
 	@echo Updating generated files
 	@echo
 	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate k8s

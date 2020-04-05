@@ -54,50 +54,7 @@ Functional testing allows us to exercise and validate our API on a live cluster.
 * Exercise and validate behavior by posting/mutating/deleting manifests and observing the desired state is reached.
 * As a general rule of thumb for test condition timeouts, take the time you typically observe an action taking and double it for the timeout value.
 
-# Deploying Operator on Test Cluster
+# CI
 
-Developers can build and deploy the operator from the source tree using make targets.
-
-```
-export REGISTRY_NAMESPACE=<your quay.io namespace>
-make build-containers
-make push-containers
-```
-
-Make sure your images are made public in your quay.io account.
-
-Then deploy the operator using this make target.
-
-```
-make cluster-deploy
-```
-
-This simply posts the manifests for now. You can perform your own introspection into the cluster to determine if the deployment was successful,
-or verify the deployment by running the functional tests.
-
-## Manual introspection
-
-Verify the install by checking the csv is posted.
-
-```
-$ oc get csv --all-namespaces | grep performance-addon
-openshift-performance-addon            performance-addon-operator.v0.0.1   Performance Addon Operator   0.0.1                InstallReady
-```
-
-That the catalog container and the operator are running.
-
-```
-$ oc get pods --all-namespaces | grep performance
-openshift-marketplace            performance-addon-operator-catalogsource-87bjk     1/1     Running   0     2m
-openshift-performance-addon      performance-operator-6ff4977f8b-ljk42              1/1     Running   0    19s
-```
-
-TODO - revise this once deployment validation is included in `make cluster-deploy`
-
-## Run functional tests
-
-```
-make functests
-```
-
-
+On every Pull Request the Openshift CI will run some source code validation checks and the performance operator unit and functional tests.
+Please check the CI logs in case of a failed test. If you need help, don't hesitate to ping one of the maintainers on the PR.
