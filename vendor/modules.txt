@@ -454,7 +454,7 @@ k8s.io/utils/pointer
 k8s.io/utils/buffer
 k8s.io/utils/trace
 k8s.io/utils/integer
-# kubevirt.io/qe-tools v0.1.4
+# kubevirt.io/qe-tools v0.1.6
 kubevirt.io/qe-tools/pkg/ginkgo-reporters
 kubevirt.io/qe-tools/pkg/polarion-xml
 # sigs.k8s.io/controller-runtime v0.4.0
