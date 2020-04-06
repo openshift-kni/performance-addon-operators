@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	conditionReasonValidationFailed         = "validation failed"
-	conditionReasonComponentsCreationFailed = "failed to create components"
-	conditionReasonMCPDegraded              = "MCP degraded"
-	conditionFailedGettingMCPStatus         = "failed getting MCP status"
+	conditionReasonValidationFailed         = "ValidationFailed"
+	conditionReasonComponentsCreationFailed = "ComponentCreationFailed"
+	conditionReasonMCPDegraded              = "MCPDegraded"
+	conditionFailedGettingMCPStatus         = "GettingMCPStatusFailed"
 )
 
 func (r *ReconcilePerformanceProfile) updateStatus(profile *performancev1alpha1.PerformanceProfile, conditions []conditionsv1.Condition) error {
