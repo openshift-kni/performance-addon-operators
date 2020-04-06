@@ -135,41 +135,83 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 		})
 	})
 
-	It("[test_id:28440]Verifies that nodeSelector can be updated in performance profile", func() {
-		var newWorkerNode *corev1.Node
-		newRole := "worker-test"
-		newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
-		newNodeSelector := map[string]string{newLabel: ""}
+	Context("Verifies that nodeSelector can be updated", func() {
 
-		By("Skipping test if cluster does not have another available worker node")
+		AfterEach(func() {
+			// need to revert back nodeSelector, otherwise all other tests will be failed
+			profile.Spec.NodeSelector = map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): ""}
+			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+		})
 
-		nonRTWorkerNodes, err := nodes.GetNonRTWorkers()
-		Expect(err).ToNot(HaveOccurred())
+		It("[test_id:28440]Verifies that nodeSelector can be updated in performance profile", func() {
+			var newWorkerNode *corev1.Node
+			newRole := "worker-test"
+			newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
+			newNodeSelector := map[string]string{newLabel: ""}
 
-		if len(nonRTWorkerNodes) == 0 {
-			Skip("Skipping test - performance worker nodes do not exist in the cluster")
+			By("Skipping test if cluster does not have another available worker node")
+
+			nonRTWorkerNodes, err := nodes.GetNonRTWorkers()
+			Expect(err).ToNot(HaveOccurred())
+
+			if len(nonRTWorkerNodes) == 0 {
+				Skip("Skipping test - performance worker nodes do not exist in the cluster")
+			}
+
+			newWorkerNode = &nonRTWorkerNodes[0]
+			newWorkerNode.Labels[newLabel] = ""
+			Expect(testclient.Client.Update(context.TODO(), newWorkerNode)).ToNot(HaveOccurred())
+
+			By("Creating new MachineConfigPool")
+			mcp := newMCP(newRole, newNodeSelector)
+			err = testclient.Client.Create(context.TODO(), mcp)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Updating Node Selector performance profile")
+			profile.Spec.NodeSelector = newNodeSelector
+			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+			waitForMcpCondition(newRole, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, mcpUpdateTimeout)
+
+			By("Waiting when MCP finishes updates and verifying new node has updated configuration")
+			waitForMcpCondition(newRole, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, mcpUpdateTimeout)
+
+			_, err = nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, newWorkerNode, []string{"ls", "/rootfs/" + testutils.PerfRtKernelPrebootTuningScript})
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("cannot find the file %s", testutils.PerfRtKernelPrebootTuningScript))
+			Expect(execCommandOnWorker(chkKubeletConfig, newWorkerNode)).To(ContainSubstring("topologyManagerPolicy"))
+			Expect(execCommandOnWorker(chkCmdLine, newWorkerNode)).To(ContainSubstring("tuned.non_isolcpus"))
+		})
+	})
+
+	It("[test_id:27484]Verifies that node is reverted to plain worker when the extra labels are removed", func() {
+		node := workerRTNodes[0]
+
+		By("Deleting cnf labels from the node")
+		for l := range profile.Spec.NodeSelector {
+			delete(node.Labels, l)
+		}
+		Expect(testclient.Client.Update(context.TODO(), &node)).ToNot(HaveOccurred())
+		waitForMcpCondition(testutils.RoleWorker, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, mcpUpdateTimeout)
+
+		By("Waiting when MCP Worker complete updates and verifying that node reverted back configuration")
+		waitForMcpCondition(testutils.RoleWorker, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, mcpUpdateTimeout)
+
+		// Check if node is Ready
+		for i := range node.Status.Conditions {
+			if node.Status.Conditions[i].Type == corev1.NodeReady {
+				Expect(node.Status.Conditions[i].Status).To(Equal(corev1.ConditionTrue))
+			}
 		}
 
-		newWorkerNode = &nonRTWorkerNodes[0]
-		newWorkerNode.Labels[newLabel] = ""
-		Expect(testclient.Client.Update(context.TODO(), newWorkerNode)).ToNot(HaveOccurred())
+		// check that the pre-boot-tuning script and service removed
+		out, _ := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"ls", "/rootfs/" + testutils.PerfRtKernelPrebootTuningScript})
+		Expect(out).To(ContainSubstring("No such file or directory"))
+		out, _ = nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"ls", "/rootfs/" + "/etc/systemd/system/pre-boot-tuning.service"})
+		Expect(out).To(ContainSubstring("No such file or directory"))
 
-		By("Creating new MachineConfigPool")
-		mcp := newMCP(newRole, newNodeSelector)
-		err = testclient.Client.Create(context.TODO(), mcp)
-		Expect(err).ToNot(HaveOccurred())
-
-		By("Updating Node Selector performance profile")
-		profile.Spec.NodeSelector = newNodeSelector
-		Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
-		waitForMcpCondition(newRole, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, mcpUpdateTimeout)
-
-		By("Waiting when MCP finishes updates and verifying new node has updated configuration")
-		waitForMcpCondition(newRole, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, mcpUpdateTimeout)
-
-		Expect(execCommandOnWorker(chkKubeletConfig, newWorkerNode)).To(ContainSubstring("topologyManagerPolicy"))
-		Expect(execCommandOnWorker(chkCmdLine, newWorkerNode)).To(ContainSubstring("tuned.non_isolcpus"))
-		Expect(execCommandOnWorker(chkKernel, newWorkerNode)).ToNot(ContainSubstring("PREEMPT RT"))
+		// check that the configs reverted
+		Expect(execCommandOnWorker(chkKernel, &node)).NotTo(ContainSubstring("PREEMPT RT"))
+		Expect(execCommandOnWorker(chkCmdLine, &node)).NotTo(ContainSubstring("tuned.non_isolcpus"))
+		Expect(execCommandOnWorker(chkKubeletConfig, &node)).NotTo(ContainSubstring("reservedSystemCPUs"))
 	})
 })
 

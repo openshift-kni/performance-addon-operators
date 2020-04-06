@@ -91,9 +91,8 @@ var _ = Describe("[rfe_id:27368]performance", func() {
 		})
 
 		// Check /usr/local/bin/pre-boot-tuning.sh existence under worker's rootfs
-		const perfRtKernelPrebootTuningScript = "/usr/local/bin/pre-boot-tuning.sh"
 		It("[test_id:28523][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] /usr/local/bin/pre-boot-tuning.sh should exist on the nodes", func() {
-			checkFileExistence(workerRTNodes, perfRtKernelPrebootTuningScript)
+			checkFileExistence(workerRTNodes, testutils.PerfRtKernelPrebootTuningScript)
 		})
 
 		It("[test_id:28525][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should inject systemd configuration files into initramfs", func() {
