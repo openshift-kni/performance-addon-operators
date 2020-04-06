@@ -46,8 +46,7 @@ const finalizer = "foreground-deletion"
 // Add creates a new PerformanceProfile Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	r := newReconciler(mgr)
-	return add(mgr, r, r.ppRequestsFromMCP)
+	return add(mgr, newReconciler(mgr))
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -61,7 +60,7 @@ func newReconciler(mgr manager.Manager) *ReconcilePerformanceProfile {
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler, mapMCPToPC handler.ToRequestsFunc) error {
+func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 	// Create a new controller
 	c, err := controller.New("performanceprofile-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -165,7 +164,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, mapMCPToPC handler.ToReque
 		},
 	}
 
-	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfigPool{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: mapMCPToPC}, mcpPredicates)
+	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfigPool{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: (handler.ToRequestsFunc)(r.ppRequestsFromMCP)}, mcpPredicates)
 	if err != nil {
 		return err
 	}
@@ -274,7 +273,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 
 	conditions, err := r.getMCPConditionsByProfile(instance)
 	if err != nil {
-		conditions := r.getDegradedConditions(conditionReasonComponentsCreationFailed, err.Error())
+		conditions := r.getDegradedConditions(conditionFailedGettingMCPStatus, err.Error())
 		if err := r.updateStatus(instance, conditions); err != nil {
 			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
 			return reconcile.Result{}, err
@@ -314,13 +313,13 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 		},
 		mcp,
 	); err != nil {
-		klog.Errorf("No-op: Unable to retrieve mcp %q from store: %v", namespacedName(o.Meta).String(), err)
+		klog.Errorf("Unable to retrieve mcp %q from store: %v", namespacedName(o.Meta).String(), err)
 		return nil
 	}
 
 	ppList := &performancev1alpha1.PerformanceProfileList{}
 	if err := r.client.List(context.TODO(), ppList); err != nil {
-		klog.Errorf("No-op: Unable to list performance profiles: %v", err)
+		klog.Errorf("Unable to list performance profiles: %v", err)
 		return nil
 	}
 

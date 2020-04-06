@@ -18,6 +18,8 @@ import (
 const (
 	conditionReasonValidationFailed         = "validation failed"
 	conditionReasonComponentsCreationFailed = "failed to create components"
+	conditionReasonMCPDegraded              = "MCP degraded"
+	conditionFailedGettingMCPStatus         = "failed getting MCP status"
 )
 
 func (r *ReconcilePerformanceProfile) updateStatus(profile *performancev1alpha1.PerformanceProfile, conditions []conditionsv1.Condition) error {
@@ -159,11 +161,7 @@ func (r *ReconcilePerformanceProfile) getMCPConditionsByProfile(profile *perform
 	}
 
 	mcpItems := removeMCPDuplicateEntries(mcpList.Items)
-
 	performanceProfileLabels := labels.Set(profileutil.GetMachineConfigPoolSelector(profile))
-
-	reason := bytes.Buffer{}
-	reason.WriteString("Matching Machine Config Pools are in a degraded state")
 	message := bytes.Buffer{}
 
 	for _, mcp := range mcpItems {
@@ -191,8 +189,7 @@ func (r *ReconcilePerformanceProfile) getMCPConditionsByProfile(profile *perform
 		return nil, nil
 	}
 
-	reasonString := reason.String()
-	return r.getDegradedConditions(reasonString, messageString), nil
+	return r.getDegradedConditions(conditionReasonMCPDegraded, messageString), nil
 }
 
 func removeMCPDuplicateEntries(mcps []mcov1.MachineConfigPool) []mcov1.MachineConfigPool {
