@@ -142,19 +142,15 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 		newNodeSelector := map[string]string{newLabel: ""}
 
 		By("Skipping test if cluster does not have another available worker node")
-		workerNodes, err := nodes.GetByRole(testclient.Client, "worker")
+
+		nonRTWorkerNodes, err := nodes.GetNonRTWorkers()
 		Expect(err).ToNot(HaveOccurred())
 
-		for _, node := range workerNodes {
-			if _, ok := node.Labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT)]; ok {
-				continue
-			}
-			newWorkerNode = &node
-			break
+		if len(nonRTWorkerNodes) == 0 {
+			Skip("Skipping test - performance worker nodes do not exist in the cluster")
 		}
-		if newWorkerNode == nil {
-			Skip("Skipping test because there are no additional worker nodes")
-		}
+
+		newWorkerNode = &nonRTWorkerNodes[0]
 		newWorkerNode.Labels[newLabel] = ""
 		Expect(testclient.Client.Update(context.TODO(), newWorkerNode)).ToNot(HaveOccurred())
 
@@ -173,6 +169,7 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 
 		Expect(execCommandOnWorker(chkKubeletConfig, newWorkerNode)).To(ContainSubstring("topologyManagerPolicy"))
 		Expect(execCommandOnWorker(chkCmdLine, newWorkerNode)).To(ContainSubstring("tuned.non_isolcpus"))
+		Expect(execCommandOnWorker(chkKernel, newWorkerNode)).ToNot(ContainSubstring("PREEMPT RT"))
 	})
 })
 

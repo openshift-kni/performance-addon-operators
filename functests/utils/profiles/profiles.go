@@ -28,7 +28,7 @@ func GetByNodeLabels(c client.Client, nodeLabels map[string]string) (*performanc
 	}
 
 	if result == nil {
-		return nil, fmt.Errorf("failed to found performance profile with specified node selector %v", nodeLabels)
+		return nil, fmt.Errorf("failed to find performance profile with specified node selector %v", nodeLabels)
 	}
 
 	return result, nil
