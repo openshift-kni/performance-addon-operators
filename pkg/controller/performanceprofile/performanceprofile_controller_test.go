@@ -446,6 +446,63 @@ var _ = Describe("Controller", func() {
 				})))
 
 			})
+
+			It("should update status when MCP is degraded", func() {
+				mcpReason := "mcpReason"
+				mcpMessage := "MCP message"
+
+				mcp := &mcov1.MachineConfigPool{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: mcov1.GroupVersion.String(),
+						Kind:       "MachineConfigPool",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "mcp-test",
+					},
+					Spec: mcov1.MachineConfigPoolSpec{
+						MachineConfigSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key:      testutils.MachineConfigPoolLabelKey,
+									Operator: metav1.LabelSelectorOpIn,
+									Values:   []string{testutils.MachineConfigPoolLabelValue},
+								},
+							},
+						},
+					},
+					Status: mcov1.MachineConfigPoolStatus{
+						Conditions: []mcov1.MachineConfigPoolCondition{
+							{
+								Type:    mcov1.MachineConfigPoolNodeDegraded,
+								Status:  corev1.ConditionTrue,
+								Reason:  mcpReason,
+								Message: mcpMessage,
+							},
+						},
+					},
+				}
+
+				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance, mcp)
+
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				updatedProfile := &performancev1alpha1.PerformanceProfile{}
+				key := types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: metav1.NamespaceNone,
+				}
+				Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+
+				// verify performance profile status
+				Expect(len(updatedProfile.Status.Conditions)).To(Equal(4))
+
+				// verify profile conditions
+				degradedCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionDegraded)
+				Expect(degradedCondition).ToNot(BeNil())
+				Expect(degradedCondition.Status).To(Equal(corev1.ConditionTrue))
+				Expect(degradedCondition.Reason).To(Equal(conditionReasonMCPDegraded))
+				Expect(degradedCondition.Message).To(ContainSubstring(mcpMessage))
+			})
 		})
 
 	})

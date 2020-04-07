@@ -15,11 +15,13 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
-
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 
@@ -48,7 +50,7 @@ func Add(mgr manager.Manager) error {
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager) *ReconcilePerformanceProfile {
 	return &ReconcilePerformanceProfile{
 		client:    mgr.GetClient(),
 		scheme:    mgr.GetScheme(),
@@ -58,7 +60,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 	// Create a new controller
 	c, err := controller.New("performanceprofile-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -132,7 +134,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// we do not want initiate reconcile loop on the configuration or pause fields update
 	mcpPredicates := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if e.MetaOld == nil {
@@ -159,17 +160,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			mcpNewCopy.Spec.Paused = mcpOld.Spec.Paused
 			mcpNewCopy.Spec.Configuration = mcpOld.Spec.Configuration
 
-			return !reflect.DeepEqual(mcpOld.Spec, mcpNewCopy.Spec) ||
-				!reflect.DeepEqual(mcpOld.Status, mcpNewCopy.Status) ||
-				!apiequality.Semantic.DeepEqual(e.MetaNew.GetLabels(), e.MetaOld.GetLabels())
+			return !reflect.DeepEqual(mcpOld.Status.Conditions, mcpNewCopy.Status.Conditions)
 		},
 	}
 
-	// Watch for changes to machine config pools owned by our controller
-	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfigPool{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &performancev1alpha1.PerformanceProfile{},
-	}, mcpPredicates)
+	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfigPool{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: (handler.ToRequestsFunc)(r.ppRequestsFromMCP)}, mcpPredicates)
 	if err != nil {
 		return err
 	}
@@ -276,7 +271,20 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	conditions := r.getAvailableConditions()
+	conditions, err := r.getMCPConditionsByProfile(instance)
+	if err != nil {
+		conditions := r.getDegradedConditions(conditionFailedGettingMCPStatus, err.Error())
+		if err := r.updateStatus(instance, conditions); err != nil {
+			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, err
+	}
+
+	// if conditions were not added due to machine config pool status change then set as availble
+	if conditions == nil {
+		conditions = r.getAvailableConditions()
+	}
 	if err := r.updateStatus(instance, conditions); err != nil {
 		klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
 		// we still want to requeue after some, also in case of error, to avoid chance of multiple reboots
@@ -292,6 +300,37 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []reconcile.Request {
+
+	mcp := &mcov1.MachineConfigPool{}
+
+	if err := r.client.Get(context.TODO(),
+		types.NamespacedName{
+			Namespace: o.Meta.GetNamespace(),
+			Name:      o.Meta.GetName(),
+		},
+		mcp,
+	); err != nil {
+		klog.Errorf("Unable to retrieve mcp %q from store: %v", namespacedName(o.Meta).String(), err)
+		return nil
+	}
+
+	ppList := &performancev1alpha1.PerformanceProfileList{}
+	if err := r.client.List(context.TODO(), ppList); err != nil {
+		klog.Errorf("Unable to list performance profiles: %v", err)
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for k := range ppList.Items {
+		if hasMatchingLabels(&ppList.Items[k], mcp) {
+			requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&ppList.Items[k])})
+		}
+	}
+
+	return requests
 }
 
 func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alpha1.PerformanceProfile) (*reconcile.Result, error) {
@@ -459,4 +498,28 @@ func removeFinalizer(profile *performancev1alpha1.PerformanceProfile, finalizer 
 		finalizers = append(finalizers, f)
 	}
 	profile.Finalizers = finalizers
+}
+
+func namespacedName(obj metav1.Object) types.NamespacedName {
+	return types.NamespacedName{
+		Namespace: obj.GetNamespace(),
+		Name:      obj.GetName(),
+	}
+}
+
+func hasMatchingLabels(performanceprofile *performancev1alpha1.PerformanceProfile, mcp *mcov1.MachineConfigPool) bool {
+
+	selector, err := metav1.LabelSelectorAsSelector(mcp.Spec.MachineConfigSelector)
+	if err != nil {
+		return false
+	}
+	// If a deployment with a nil or empty selector creeps in, it should match nothing, not everything.
+	if selector.Empty() {
+		return false
+	}
+
+	if !selector.Matches(labels.Set(profileutil.GetMachineConfigPoolSelector(performanceprofile))) {
+		return false
+	}
+	return true
 }
