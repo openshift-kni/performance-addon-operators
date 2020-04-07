@@ -30,7 +30,7 @@ require (
 	k8s.io/kubelet v0.0.0
 	k8s.io/kubernetes v1.17.0
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
-	kubevirt.io/qe-tools v0.1.4
+	kubevirt.io/qe-tools v0.1.6
 	sigs.k8s.io/controller-runtime v0.4.0
 )
 
