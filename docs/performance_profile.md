@@ -114,7 +114,7 @@ PerformanceProfileSpec defines the desired state of PerformanceProfile.
 | machineConfigLabel | MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile. Defaults to \"machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>\" | map[string]string | false |
 | machineConfigPoolSelector | MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector of resources like KubeletConfigs created by the operator. Defaults to \"machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>\" | map[string]string | false |
 | nodeSelector | NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator. It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool which targets this performance profile. | map[string]string | false |
-| realTimeKernel | RealTimeKernel defines set of real time kernel related parameters. | *[RealTimeKernel](#realtimekernel) | false |
+| realTimeKernel | RealTimeKernel defines set of real time kernel related parameters. RT kernel won't be installed when not set. | *[RealTimeKernel](#realtimekernel) | false |
 | additionalKernelArgs | Addional kernel arguments. | []string | false |
 | numa | NUMA defines options related to topology aware affinities | *[NUMA](#numa) | false |
 
@@ -136,6 +136,6 @@ RealTimeKernel defines the set of parameters relevant for the real time kernel.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| enabled | Enabled defines if the real time kernel packages should be installed | *bool | false |
+| enabled | Enabled defines if the real time kernel packages should be installed. Defaults to \"false\" | *bool | false |
 
 [Back to TOC](#table-of-contents)
