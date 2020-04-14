@@ -2,6 +2,7 @@ package performance
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
@@ -27,7 +29,8 @@ const (
 
 var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", func() {
 	var workerRTNodes []corev1.Node
-	var profile *performancev1alpha1.PerformanceProfile
+	var profile, initialProfile *performancev1alpha1.PerformanceProfile
+	var timeout time.Duration
 	var err error
 
 	chkKernel := []string{"uname", "-a"}
@@ -38,6 +41,9 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
+		// timeout should be based on the number of worker-rt nodes
+		timeout = time.Duration(len(workerRTNodes) * mcpUpdateTimeout)
+
 		profile, err = profiles.GetByNodeLabels(
 			testclient.Client,
 			map[string]string{
@@ -58,10 +64,9 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 
 		// Modify profile and verify that MCO successfully updated the node
 		testutils.BeforeAll(func() {
-			// timeout should be based on the number of worker nodes
-			timeout := time.Duration(len(workerRTNodes) * mcpUpdateTimeout)
-
 			By("Modifying profile")
+			initialProfile = profile.DeepCopy()
+
 			profile.Spec.HugePages = &performancev1alpha1.HugePages{
 				DefaultHugePagesSize: &hpSize,
 				Pages: []performancev1alpha1.HugePage{
@@ -132,6 +137,26 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 					Expect(execCommandOnWorker(chkCmdLine, &node)).NotTo(ContainSubstring(removedKernelArgs), fmt.Sprintf("%s should be removed from /proc/cmdline", removedKernelArgs))
 				}
 			}
+		})
+
+		It("Reverts back all profile configuration", func() {
+			// BUG: CNF-385. Workaround - we have to remove hugepages first
+			profile.Spec.HugePages = nil
+			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
+
+			// return initial configuration
+			spec, err := json.Marshal(initialProfile.Spec)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(testclient.Client.Patch(context.TODO(), profile,
+				client.ConstantPatch(
+					types.JSONPatchType,
+					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec", "value": %s }]`, spec)),
+				),
+			)).ToNot(HaveOccurred())
+			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
 		})
 	})
 
