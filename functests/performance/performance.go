@@ -44,7 +44,7 @@ const (
 	testPollInterval = 2
 )
 
-var _ = Describe("[rfe_id:27368]performance", func() {
+var _ = Describe("[rfe_id:27368][performance]", func() {
 
 	var workerRTNodes []corev1.Node
 	var profile *performancev1alpha1.PerformanceProfile
