@@ -185,6 +185,8 @@ func fmtRawDoc(rawDoc string) string {
 	postDoc = strings.Replace(postDoc, "\n", "\\n", -1)
 	postDoc = strings.Replace(postDoc, "\t", "\\t", -1)
 	postDoc = strings.Replace(postDoc, "|", "\\|", -1)
+	postDoc = strings.Replace(postDoc, "<", "&lt;", -1)
+	postDoc = strings.Replace(postDoc, ">", "&gt;", -1)
 
 	return postDoc
 }
