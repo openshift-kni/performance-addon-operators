@@ -24,7 +24,7 @@ max_iterations=90 # results in 15 minute timeout
 until [[ $success -eq 1 ]] || [[ $iterations -eq $max_iterations ]]
 do
   echo "[INFO] Checking if MCP is updated"
-  if ! ${OC_TOOL} wait mcp/worker --for condition=updated --timeout 1s
+  if ! ${OC_TOOL} wait mcp/worker --for condition=Updated --timeout 1s
   then
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))

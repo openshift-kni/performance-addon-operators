@@ -38,7 +38,7 @@ do
   fi
 
   echo "[INFO] Checking if MCP is updated"
-  if ! ${OC_TOOL} wait mcp/worker-rt --for condition=updated --timeout 1s &> /dev/null
+  if ! ${OC_TOOL} wait mcp/worker-rt --for condition=Updated --timeout 1s &> /dev/null
   then
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))
