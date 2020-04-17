@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
@@ -136,11 +137,15 @@ var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", fu
 	})
 
 	Context("Verifies that nodeSelector can be updated", func() {
-
 		AfterEach(func() {
 			// need to revert back nodeSelector, otherwise all other tests will be failed
-			profile.Spec.NodeSelector = map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): ""}
-			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+			nodeSelector := fmt.Sprintf(`"%s/%s": ""`, testutils.LabelRole, testutils.RoleWorkerRT)
+			Expect(testclient.Client.Patch(context.TODO(), profile,
+				client.ConstantPatch(
+					types.JSONPatchType,
+					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/nodeSelector", "value": {%s} }]`, nodeSelector)),
+				),
+			)).ToNot(HaveOccurred())
 		})
 
 		It("[test_id:28440]Verifies that nodeSelector can be updated in performance profile", func() {
