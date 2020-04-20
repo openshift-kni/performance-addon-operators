@@ -37,6 +37,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	chkCmdLine := []string{"cat", "/proc/cmdline"}
 	chkKubeletConfig := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
 
+	nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): ""}
+
 	BeforeEach(func() {
 		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
 		Expect(err).ToNot(HaveOccurred())
@@ -46,9 +48,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 
 		profile, err = profiles.GetByNodeLabels(
 			testclient.Client,
-			map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
-			},
+			nodeLabel,
 		)
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -165,39 +165,35 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		})
 	})
 
-	Context("Verifies that nodeSelector can be updated", func() {
-		AfterEach(func() {
-			// need to revert back nodeSelector, otherwise all other tests will be failed
-			nodeSelector := fmt.Sprintf(`"%s/%s": ""`, testutils.LabelRole, testutils.RoleWorkerRT)
-			Expect(testclient.Client.Patch(context.TODO(), profile,
-				client.ConstantPatch(
-					types.JSONPatchType,
-					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/nodeSelector", "value": {%s} }]`, nodeSelector)),
-				),
-			)).ToNot(HaveOccurred())
+	Context("Updating of nodeSelector parameter and node labels", func() {
+		var mcp *machineconfigv1.MachineConfigPool
+		var newCnfNode *corev1.Node
+
+		newRole := "worker-test"
+		newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
+		newNodeSelector := map[string]string{newLabel: ""}
+
+		testutils.BeforeAll(func() {
+			nonRTWorkerNodes, err := nodes.GetNonRTWorkers()
+			Expect(err).ToNot(HaveOccurred())
+			if len(nonRTWorkerNodes) != 0 {
+				newCnfNode = &nonRTWorkerNodes[0]
+			}
+		})
+
+		JustBeforeEach(func() {
+			if newCnfNode == nil {
+				Skip("Skipping the test - cluster does not have another available worker node ")
+			}
 		})
 
 		It("[test_id:28440]Verifies that nodeSelector can be updated in performance profile", func() {
-			var newWorkerNode *corev1.Node
-			newRole := "worker-test"
-			newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
-			newNodeSelector := map[string]string{newLabel: ""}
-
-			By("Skipping test if cluster does not have another available worker node")
-
-			nonRTWorkerNodes, err := nodes.GetNonRTWorkers()
-			Expect(err).ToNot(HaveOccurred())
-
-			if len(nonRTWorkerNodes) == 0 {
-				Skip("Skipping test - performance worker nodes do not exist in the cluster")
-			}
-
-			newWorkerNode = &nonRTWorkerNodes[0]
-			newWorkerNode.Labels[newLabel] = ""
-			Expect(testclient.Client.Update(context.TODO(), newWorkerNode)).ToNot(HaveOccurred())
+			nodeLabel = newNodeSelector
+			newCnfNode.Labels[newLabel] = ""
+			Expect(testclient.Client.Update(context.TODO(), newCnfNode)).ToNot(HaveOccurred())
 
 			By("Creating new MachineConfigPool")
-			mcp := newMCP(newRole, newNodeSelector)
+			mcp = newMCP(newRole, newNodeSelector)
 			err = testclient.Client.Create(context.TODO(), mcp)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -209,57 +205,74 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			By("Waiting when MCP finishes updates and verifying new node has updated configuration")
 			waitForMcpCondition(newRole, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, mcpUpdateTimeout)
 
-			_, err = nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, newWorkerNode, []string{"ls", "/rootfs/" + testutils.PerfRtKernelPrebootTuningScript})
+			_, err = nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, newCnfNode, []string{"ls", "/rootfs/" + testutils.PerfRtKernelPrebootTuningScript})
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("cannot find the file %s", testutils.PerfRtKernelPrebootTuningScript))
 
-			kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, newWorkerNode)
+			kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, newCnfNode)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKubeletConfig))
 			Expect(kblcfg).To(ContainSubstring("topologyManagerPolicy"))
 
-			cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, newWorkerNode)
+			cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, newCnfNode)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
 			Expect(cmdline).To(ContainSubstring("tuned.non_isolcpus"))
 		})
-	})
 
-	It("[test_id:27484]Verifies that node is reverted to plain worker when the extra labels are removed", func() {
-		node := workerRTNodes[0]
-
-		By("Deleting cnf labels from the node")
-		for l := range profile.Spec.NodeSelector {
-			delete(node.Labels, l)
-		}
-		Expect(testclient.Client.Update(context.TODO(), &node)).ToNot(HaveOccurred())
-		waitForMcpCondition(testutils.RoleWorker, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, mcpUpdateTimeout)
-
-		By("Waiting when MCP Worker complete updates and verifying that node reverted back configuration")
-		waitForMcpCondition(testutils.RoleWorker, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, mcpUpdateTimeout)
-
-		// Check if node is Ready
-		for i := range node.Status.Conditions {
-			if node.Status.Conditions[i].Type == corev1.NodeReady {
-				Expect(node.Status.Conditions[i].Status).To(Equal(corev1.ConditionTrue))
+		It("[test_id:27484]Verifies that node is reverted to plain worker when the extra labels are removed", func() {
+			By("Deleting cnf labels from the node")
+			for l := range profile.Spec.NodeSelector {
+				delete(newCnfNode.Labels, l)
 			}
-		}
+			label, err := json.Marshal(newCnfNode.Labels)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(testclient.Client.Patch(context.TODO(), newCnfNode,
+				client.ConstantPatch(
+					types.JSONPatchType,
+					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/metadata/labels", "value": %s }]`, label)),
+				),
+			)).ToNot(HaveOccurred())
+			waitForMcpCondition(testutils.RoleWorker, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, mcpUpdateTimeout)
 
-		// check that the pre-boot-tuning script and service removed
-		out, _ := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"ls", "/rootfs/" + testutils.PerfRtKernelPrebootTuningScript})
-		Expect(out).To(ContainSubstring("No such file or directory"))
-		out, _ = nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"ls", "/rootfs/" + "/etc/systemd/system/pre-boot-tuning.service"})
-		Expect(out).To(ContainSubstring("No such file or directory"))
+			By("Waiting when MCP Worker complete updates and verifying that node reverted back configuration")
+			waitForMcpCondition(testutils.RoleWorker, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, mcpUpdateTimeout)
 
-		// check that the configs reverted
-		kernel, err := nodes.ExecCommandOnNode(chkKernel, &node)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKernel))
-		Expect(kernel).NotTo(ContainSubstring("PREEMPT RT"))
+			// Check if node is Ready
+			for i := range newCnfNode.Status.Conditions {
+				if newCnfNode.Status.Conditions[i].Type == corev1.NodeReady {
+					Expect(newCnfNode.Status.Conditions[i].Status).To(Equal(corev1.ConditionTrue))
+				}
+			}
 
-		cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, &node)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
-		Expect(cmdline).NotTo(ContainSubstring("tuned.non_isolcpus"))
+			// check that the pre-boot-tuning script and service removed
+			out, _ := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, newCnfNode, []string{"ls", "/rootfs/" + testutils.PerfRtKernelPrebootTuningScript})
+			Expect(out).To(ContainSubstring("No such file or directory"))
+			out, _ = nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, newCnfNode, []string{"ls", "/rootfs/" + "/etc/systemd/system/pre-boot-tuning.service"})
+			Expect(out).To(ContainSubstring("No such file or directory"))
 
-		kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, &node)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKubeletConfig))
-		Expect(kblcfg).NotTo(ContainSubstring("reservedSystemCPUs"))
+			// check that the configs reverted
+			kernel, err := nodes.ExecCommandOnNode(chkKernel, newCnfNode)
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKernel))
+			Expect(kernel).NotTo(ContainSubstring("PREEMPT RT"))
+
+			cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, newCnfNode)
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
+			Expect(cmdline).NotTo(ContainSubstring("tuned.non_isolcpus"))
+
+			kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, newCnfNode)
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKubeletConfig))
+			Expect(kblcfg).NotTo(ContainSubstring("reservedSystemCPUs"))
+		})
+
+		It("Reverts back nodeSelector and cleaning up leftovers", func() {
+			nodeSelector := fmt.Sprintf(`"%s/%s": ""`, testutils.LabelRole, testutils.RoleWorkerRT)
+			Expect(testclient.Client.Patch(context.TODO(), profile,
+				client.ConstantPatch(
+					types.JSONPatchType,
+					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/nodeSelector", "value": {%s} }]`, nodeSelector)),
+				),
+			)).ToNot(HaveOccurred())
+			Expect(testclient.Client.Delete(context.TODO(), mcp)).ToNot(HaveOccurred())
+			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
+		})
 	})
 })
 
