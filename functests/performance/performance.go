@@ -52,8 +52,8 @@ var _ = Describe("[rfe_id:27368]performance", func() {
 	BeforeEach(func() {
 		var err error
 		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(workerRTNodes).ToNot(BeEmpty())
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for node with role %q: %v", testutils.RoleWorkerRT, err))
+		Expect(workerRTNodes).ToNot(BeEmpty(), fmt.Sprintf("no nodes with role %q found", testutils.RoleWorkerRT))
 		profile, err = profiles.GetByNodeLabels(
 			testclient.Client,
 			map[string]string{
