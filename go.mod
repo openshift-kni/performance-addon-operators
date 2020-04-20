@@ -9,7 +9,7 @@ require (
 	github.com/coreos/ignition v0.34.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.4 // indirect
-	github.com/onsi/ginkgo v1.10.3
+	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-00010101000000-000000000000
@@ -19,7 +19,7 @@ require (
 	github.com/operator-framework/operator-sdk v0.13.0
 	github.com/spf13/pflag v1.0.5
 	github.com/vincent-petithory/dataurl v0.0.0-20191104211930-d1553a71de50 // indirect
-	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
+	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
 	k8s.io/api v0.18.0
 	k8s.io/apimachinery v0.18.0

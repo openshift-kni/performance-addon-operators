@@ -1,4 +1,4 @@
-package performance
+package __performance_update
 
 import (
 	"context"
@@ -110,10 +110,12 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		table.DescribeTable("Verify that profile parameters were updated", func(cmd, parameter []string, shouldContain bool) {
 			for _, node := range workerRTNodes {
 				for _, param := range parameter {
+					result, err := nodes.ExecCommandOnNode(cmd, &node)
+					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", cmd))
 					if shouldContain {
-						Expect(execCommandOnWorker(cmd, &node)).To(ContainSubstring(param))
+						Expect(result).To(ContainSubstring(param))
 					} else {
-						Expect(execCommandOnWorker(cmd, &node)).NotTo(ContainSubstring(param))
+						Expect(result).NotTo(ContainSubstring(param))
 					}
 				}
 			}
@@ -129,12 +131,15 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 
 		It("[test_id:28612]Verify that Kernel arguments can me updated (added, removed) thru performance profile", func() {
 			for _, node := range workerRTNodes {
+				cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, &node)
+				Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
+
 				// Verifying that new argument was added
-				Expect(execCommandOnWorker(chkCmdLine, &node)).To(ContainSubstring("new-argument=test"))
+				Expect(cmdline).To(ContainSubstring("new-argument=test"))
 
 				// Verifying that one of old arguments was removed
 				if removedKernelArgs != "" {
-					Expect(execCommandOnWorker(chkCmdLine, &node)).NotTo(ContainSubstring(removedKernelArgs), fmt.Sprintf("%s should be removed from /proc/cmdline", removedKernelArgs))
+					Expect(cmdline).NotTo(ContainSubstring(removedKernelArgs), fmt.Sprintf("%s should be removed from /proc/cmdline", removedKernelArgs))
 				}
 			}
 		})
@@ -206,8 +211,14 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 
 			_, err = nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, newWorkerNode, []string{"ls", "/rootfs/" + testutils.PerfRtKernelPrebootTuningScript})
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("cannot find the file %s", testutils.PerfRtKernelPrebootTuningScript))
-			Expect(execCommandOnWorker(chkKubeletConfig, newWorkerNode)).To(ContainSubstring("topologyManagerPolicy"))
-			Expect(execCommandOnWorker(chkCmdLine, newWorkerNode)).To(ContainSubstring("tuned.non_isolcpus"))
+
+			kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, newWorkerNode)
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKubeletConfig))
+			Expect(kblcfg).To(ContainSubstring("topologyManagerPolicy"))
+
+			cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, newWorkerNode)
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
+			Expect(cmdline).To(ContainSubstring("tuned.non_isolcpus"))
 		})
 	})
 
@@ -238,9 +249,17 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		Expect(out).To(ContainSubstring("No such file or directory"))
 
 		// check that the configs reverted
-		Expect(execCommandOnWorker(chkKernel, &node)).NotTo(ContainSubstring("PREEMPT RT"))
-		Expect(execCommandOnWorker(chkCmdLine, &node)).NotTo(ContainSubstring("tuned.non_isolcpus"))
-		Expect(execCommandOnWorker(chkKubeletConfig, &node)).NotTo(ContainSubstring("reservedSystemCPUs"))
+		kernel, err := nodes.ExecCommandOnNode(chkKernel, &node)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKernel))
+		Expect(kernel).NotTo(ContainSubstring("PREEMPT RT"))
+
+		cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, &node)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
+		Expect(cmdline).NotTo(ContainSubstring("tuned.non_isolcpus"))
+
+		kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, &node)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKubeletConfig))
+		Expect(kblcfg).NotTo(ContainSubstring("reservedSystemCPUs"))
 	})
 })
 

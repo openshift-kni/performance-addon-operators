@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/ghodss/yaml"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
@@ -97,6 +98,15 @@ func ExecCommandOnMachineConfigDaemon(c client.Client, node *corev1.Node, comman
 	}
 	initialArgs = append(initialArgs, command...)
 	return testutils.ExecAndLogCommand("oc", initialArgs...)
+}
+
+// ExecCommandOnNode executes given command on given node and returns the result
+func ExecCommandOnNode(cmd []string, node *corev1.Node) (string, error) {
+	out, err := ExecCommandOnMachineConfigDaemon(testclient.Client, node, cmd)
+	if err != nil {
+		return "", err
+	}
+	return strings.Trim(string(out), "\n"), nil
 }
 
 // GetKubeletConfig returns KubeletConfiguration loaded from the node /etc/kubernetes/kubelet.conf
