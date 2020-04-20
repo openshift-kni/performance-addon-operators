@@ -33,6 +33,7 @@ var (
 
 	annotationsFile = flag.String("inject-annotations-from", "", "inject metadata annotations from given file")
 	maintainersFile = flag.String("maintainers-from", "", "add maintainers list from given file")
+	descriptionFile = flag.String("description-from", "", "replace the description with the content of the given file")
 
 	semverVersion *semver.Version
 )
@@ -60,7 +61,13 @@ func copyFile(src string, dst string) {
 	}
 }
 
-func generateUnifiedCSV(extraAnnotations, maintainers map[string]string) {
+type csvUserData struct {
+	Description      string
+	ExtraAnnotations map[string]string
+	Maintainers      map[string]string
+}
+
+func generateUnifiedCSV(userData csvUserData) {
 
 	operatorCSV := csvtools.UnmarshalCSV(*operatorCSVTemplate)
 
@@ -89,7 +96,7 @@ func generateUnifiedCSV(extraAnnotations, maintainers map[string]string) {
 	operatorCSV.Spec.InstallStrategy.StrategySpecRaw = updatedStrat
 
 	operatorCSV.Annotations["containerImage"] = *operatorImage
-	for key, value := range extraAnnotations {
+	for key, value := range userData.ExtraAnnotations {
 		operatorCSV.Annotations[key] = value
 	}
 
@@ -133,8 +140,8 @@ Performance Addon Operator provides the ability to enable advanced node performa
 
 	operatorCSV.Spec.DisplayName = "Performance Addon Operator"
 
-	if maintainers != nil {
-		for name, email := range maintainers {
+	if userData.Maintainers != nil {
+		for name, email := range userData.Maintainers {
 			operatorCSV.Spec.Maintainers = append(operatorCSV.Spec.Maintainers, csvv1.Maintainer{
 				Name:  name,
 				Email: email,
@@ -159,14 +166,17 @@ Performance Addon Operator provides the ability to enable advanced node performa
 	fmt.Printf("CSV written to %s\n", outputFilename)
 }
 
-func readKeyValueMapFromFileOrPanic(filename string) map[string]string {
-	kvMap := make(map[string]string)
+func readFileOrPanic(filename string) []byte {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
-	err = json.Unmarshal(data, &kvMap)
-	if err != nil {
+	return data
+}
+
+func readKeyValueMapFromFileOrPanic(filename string) map[string]string {
+	kvMap := make(map[string]string)
+	if err := json.Unmarshal(readFileOrPanic(filename), &kvMap); err != nil {
 		panic(err)
 	}
 	return kvMap
@@ -192,14 +202,21 @@ func main() {
 		panic(err)
 	}
 
-	extraAnnotations := make(map[string]string)
-	if *annotationsFile != "" {
-		extraAnnotations = readKeyValueMapFromFileOrPanic(*annotationsFile)
+	userData := csvUserData{
+		Description: `
+Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.`,
+		ExtraAnnotations: make(map[string]string),
+		Maintainers:      make(map[string]string),
 	}
 
-	maintainers := make(map[string]string)
+	if *annotationsFile != "" {
+		userData.ExtraAnnotations = readKeyValueMapFromFileOrPanic(*annotationsFile)
+	}
 	if *maintainersFile != "" {
-		maintainers = readKeyValueMapFromFileOrPanic(*maintainersFile)
+		userData.Maintainers = readKeyValueMapFromFileOrPanic(*maintainersFile)
+	}
+	if *descriptionFile != "" {
+		userData.Description = string(readFileOrPanic(*descriptionFile))
 	}
 
 	// start with a fresh output directory if it already exists
@@ -208,5 +225,5 @@ func main() {
 	// create output directory
 	os.MkdirAll(*outputDir, os.FileMode(0775))
 
-	generateUnifiedCSV(extraAnnotations, maintainers)
+	generateUnifiedCSV(userData)
 }
