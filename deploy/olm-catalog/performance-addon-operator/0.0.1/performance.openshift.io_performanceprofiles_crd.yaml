@@ -127,11 +127,11 @@ spec:
               type: object
             realTimeKernel:
               description: RealTimeKernel defines set of real time kernel related
-                parameters.
+                parameters. RT kernel won't be installed when not set.
               properties:
                 enabled:
                   description: Enabled defines if the real time kernel packages should
-                    be installed
+                    be installed. Defaults to "false"
                   type: boolean
               type: object
           type: object
