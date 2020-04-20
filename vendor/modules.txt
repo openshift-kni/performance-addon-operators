@@ -182,7 +182,7 @@ github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
 # github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible => github.com/openshift/api v0.0.0-20191220175332-378bec237e34
 github.com/openshift/api/config/v1
-# github.com/openshift/cluster-node-tuning-operator v0.0.0-00010101000000-000000000000 => github.com/openshift/cluster-node-tuning-operator v0.0.0-20191217222311-500135cb8754
+# github.com/openshift/cluster-node-tuning-operator v0.0.0-00010101000000-000000000000 => github.com/openshift/cluster-node-tuning-operator v0.0.0-20200408190329-b227599f61b0
 github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned
 github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1
 # github.com/openshift/custom-resource-status v0.0.0-20190822192428-e62f2f3b79f3
@@ -227,9 +227,9 @@ go.mongodb.org/mongo-driver/bson/primitive
 go.mongodb.org/mongo-driver/x/bsonx/bsoncore
 # go4.org v0.0.0-20190313082347-94abd6928b1d
 go4.org/errorutil
-# golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
+# golang.org/x/crypto v0.0.0-20200220183623-bac4c82f6975
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
+# golang.org/x/net v0.0.0-20200202094626-16171245cfb2
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/html
@@ -294,9 +294,9 @@ gopkg.in/fsnotify.v1
 gopkg.in/inf.v0
 # gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 gopkg.in/tomb.v1
-# gopkg.in/yaml.v2 v2.2.4
+# gopkg.in/yaml.v2 v2.2.8
 gopkg.in/yaml.v2
-# k8s.io/api v0.17.0 => k8s.io/api v0.17.0
+# k8s.io/api v0.18.0 => k8s.io/api v0.17.0
 k8s.io/api/admission/v1beta1
 k8s.io/api/admissionregistration/v1
 k8s.io/api/admissionregistration/v1beta1
@@ -338,7 +338,7 @@ k8s.io/api/settings/v1alpha1
 k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
-# k8s.io/apimachinery v0.17.0 => k8s.io/apimachinery v0.17.0
+# k8s.io/apimachinery v0.18.0 => k8s.io/apimachinery v0.17.0
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/api/meta
@@ -477,7 +477,7 @@ k8s.io/kube-state-metrics/pkg/metrics_store
 k8s.io/kubelet/config/v1beta1
 # k8s.io/kubernetes v1.17.0 => k8s.io/kubernetes v1.17.0
 k8s.io/kubernetes/pkg/kubelet/cm/cpuset
-# k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
+# k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
 k8s.io/utils/buffer
 k8s.io/utils/integer
 k8s.io/utils/pointer
@@ -518,5 +518,5 @@ sigs.k8s.io/controller-runtime/pkg/webhook
 sigs.k8s.io/controller-runtime/pkg/webhook/admission
 sigs.k8s.io/controller-runtime/pkg/webhook/internal/certwatcher
 sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
-# sigs.k8s.io/yaml v1.1.0
+# sigs.k8s.io/yaml v1.2.0
 sigs.k8s.io/yaml

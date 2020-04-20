@@ -19,17 +19,15 @@ require (
 	github.com/operator-framework/operator-sdk v0.13.0
 	github.com/spf13/pflag v1.0.5
 	github.com/vincent-petithory/dataurl v0.0.0-20191104211930-d1553a71de50 // indirect
-	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413 // indirect
-	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
 	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
-	k8s.io/api v0.17.0
-	k8s.io/apimachinery v0.17.0
+	k8s.io/api v0.18.0
+	k8s.io/apimachinery v0.18.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/kubelet v0.0.0
 	k8s.io/kubernetes v1.17.0
-	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
+	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
 	kubevirt.io/qe-tools v0.1.6
 	sigs.k8s.io/controller-runtime v0.4.0
 )
@@ -67,7 +65,7 @@ replace (
 	github.com/mtrmac/gpgme => github.com/mtrmac/gpgme v0.1.1
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20191220175332-378bec237e34 // release-4.4
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20191205152420-9faca5198b4f // release-4.4
-	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20191217222311-500135cb8754 // release-4.4
+	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20200408190329-b227599f61b0 // release-4.5
 	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.0-20200123151440-ca3e3e1921f3 // release-4.4
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
 )
