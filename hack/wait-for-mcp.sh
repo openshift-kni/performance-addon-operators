@@ -8,7 +8,7 @@ OC_TOOL="${OC_TOOL:-oc}"
 success=0
 iterations=0
 sleep_time=10
-max_iterations=90 # results in 15 minute timeout
+max_iterations=180 # results in 30 minute timeout
 
 # Let's gibe the operator some time to do its work before we unpause the MCP (see below)
 echo "[INFO] Waiting a bit for letting the operator do its work"
