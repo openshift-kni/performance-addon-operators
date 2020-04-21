@@ -27,7 +27,7 @@ const (
 	mcpUpdateTimeout = 20
 )
 
-var _ = Describe("[rfe_id:28761] Updating parameters in performance profile", func() {
+var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance profile", func() {
 	var workerRTNodes []corev1.Node
 	var profile, initialProfile *performancev1alpha1.PerformanceProfile
 	var timeout time.Duration
