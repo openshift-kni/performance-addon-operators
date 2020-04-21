@@ -4,26 +4,19 @@ package __performance_update_test
 
 import (
 	"context"
-	"flag"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/reporters"
 	. "github.com/onsi/gomega"
 
 	ginkgo_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/junit"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/namespaces"
 )
-
-var junitPath *string
-
-func init() {
-	junitPath = flag.String("junit", "junit.xml", "the path for the junit format report")
-}
 
 var _ = BeforeSuite(func() {
 	// create test namespace
@@ -44,8 +37,6 @@ func TestPerformanceUpdate(t *testing.T) {
 	if ginkgo_reporters.Polarion.Run {
 		rr = append(rr, &ginkgo_reporters.Polarion)
 	}
-	if junitPath != nil {
-		rr = append(rr, reporters.NewJUnitReporter(*junitPath))
-	}
+	rr = append(rr, junit.NewJUnitReporter("performance_update"))
 	RunSpecsWithDefaultAndCustomReporters(t, "Performance Addon Operator Update e2e tests", rr)
 }

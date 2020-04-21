@@ -16,4 +16,4 @@ fi
 # -r: run suites recursively
 # --keepGoing: don't stop on failing suite
 # -requireSuite: fail if tests are not executed because of missing suite
-GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --keepGoing -requireSuite functests -- -junit /tmp/artifacts/unit_report.xml
+GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --keepGoing -requireSuite functests -- -junitDir /tmp/artifacts
