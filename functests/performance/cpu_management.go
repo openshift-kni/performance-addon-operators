@@ -152,7 +152,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 func execCommandOnWorker(cmd []string, workerRTNode *corev1.Node) string {
 	out, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, workerRTNode, cmd)
-	Expect(err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	return strings.Trim(string(out), "\n")
 }
 

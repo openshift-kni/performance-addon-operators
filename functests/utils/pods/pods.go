@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"os/exec"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +14,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 )
 
 // GetBusybox returns pod with the busybox image
@@ -111,7 +112,7 @@ func GetLogs(c *kubernetes.Clientset, pod *corev1.Pod) (string, error) {
 }
 
 // ExecCommandOnPod returns the output of the command execution on the pod
-func ExecCommandOnPod(c client.Client, pod *corev1.Pod, command []string) ([]byte, error) {
+func ExecCommandOnPod(pod *corev1.Pod, command []string) ([]byte, error) {
 	initialArgs := []string{
 		"exec",
 		"-i",
@@ -120,5 +121,5 @@ func ExecCommandOnPod(c client.Client, pod *corev1.Pod, command []string) ([]byt
 		"--",
 	}
 	initialArgs = append(initialArgs, command...)
-	return exec.Command("oc", initialArgs...).CombinedOutput()
+	return testutils.ExecAndLogCommand("oc", initialArgs...)
 }

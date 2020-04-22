@@ -3,7 +3,6 @@ package performance
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"path"
 	"regexp"
 	"strings"
@@ -139,9 +138,7 @@ var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 })
 
 func getSriovPciDeviceFromPod(pod *corev1.Pod) (string, error) {
-	envBytes, err := exec.Command(
-		"oc", "exec", "-i", "-n", pod.Namespace, pod.Name, "--", "env",
-	).CombinedOutput()
+	envBytes, err := pods.ExecCommandOnPod(pod, []string{"env"})
 	if err != nil {
 		return "", err
 	}
