@@ -4,19 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
-
-	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
-	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
-	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
-	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	ocv1 "github.com/openshift/api/config/v1"
-	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -28,6 +18,16 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
+	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
+	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	ocv1 "github.com/openshift/api/config/v1"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 )
 
 var profileName string
@@ -213,8 +213,7 @@ func validatTunedActiveProfile(nodes []corev1.Node) {
 		tunedName := tuned.ObjectMeta.Name
 		By(fmt.Sprintf("executing the command cat /etc/tuned/active_profile inside the pod %s", tunedName))
 		Eventually(func() string {
-			out, err = exec.Command("oc", "exec", "-i", "-n", tuned.ObjectMeta.Namespace,
-				tunedName, "--", "cat", "/etc/tuned/active_profile").CombinedOutput()
+			out, err = pods.ExecCommandOnPod(tuned, []string{"cat", "/etc/tuned/active_profile"})
 			return strings.TrimSpace(string(out))
 		}, testTimeout*time.Second, testPollInterval*time.Second).Should(Equal(activeProfileName),
 			fmt.Sprintf("active_profile is not set to %s. %v", activeProfileName, err))

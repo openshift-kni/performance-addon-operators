@@ -3,7 +3,6 @@ package nodes
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"path"
 
 	"github.com/ghodss/yaml"
@@ -85,6 +84,7 @@ func ExecCommandOnMachineConfigDaemon(c client.Client, node *corev1.Node, comman
 	if err != nil {
 		return nil, err
 	}
+	klog.Infof("found mcd %s for node %s", mcd.Name, node.Name)
 
 	initialArgs := []string{
 		"exec",
@@ -96,9 +96,7 @@ func ExecCommandOnMachineConfigDaemon(c client.Client, node *corev1.Node, comman
 		"--",
 	}
 	initialArgs = append(initialArgs, command...)
-	res, err := exec.Command("oc", initialArgs...).CombinedOutput()
-	klog.Infof("run on node %q command 'oc %v': err=%v", node.Name, initialArgs, err)
-	return res, err
+	return testutils.ExecAndLogCommand("oc", initialArgs...)
 }
 
 // GetKubeletConfig returns KubeletConfiguration loaded from the node /etc/kubernetes/kubelet.conf
