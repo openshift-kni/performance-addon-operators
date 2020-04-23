@@ -16,10 +16,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 )
 
-// GetBusybox returns pod with the busybox image
-func GetBusybox() *corev1.Pod {
+// GetTestPod returns pod with the busybox image
+func GetTestPod() *corev1.Pod {
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "test-",
@@ -31,7 +32,7 @@ func GetBusybox() *corev1.Pod {
 			Containers: []corev1.Container{
 				{
 					Name:    "test",
-					Image:   "busybox",
+					Image:   images.For(images.TestUtils),
 					Command: []string{"sleep", "10h"},
 				},
 			},

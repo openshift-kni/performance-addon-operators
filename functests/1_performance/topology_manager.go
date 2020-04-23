@@ -87,7 +87,7 @@ var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 				err = pods.WaitForDeletion(testclient.Client, testpod, 60*time.Second)
 				Expect(err).ToNot(HaveOccurred())
 			}
-			testpod = pods.GetBusybox()
+			testpod = pods.GetTestPod()
 			testpod.Namespace = testutils.NamespaceTesting
 			testpod.Spec.Containers[0].Resources.Requests = map[corev1.ResourceName]resource.Quantity{
 				corev1.ResourceCPU:      resource.MustParse("1"),

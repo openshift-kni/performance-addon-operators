@@ -33,7 +33,7 @@ var _ = Describe("[performance]RT Kernel", func() {
 		Eventually(func() string {
 
 			// run uname -a in a busybox pod and get logs
-			testpod = pods.GetBusybox()
+			testpod = pods.GetTestPod()
 			testpod.Namespace = testutils.NamespaceTesting
 			testpod.Spec.Containers[0].Command = []string{"uname", "-a"}
 			testpod.Spec.RestartPolicy = corev1.RestartPolicyNever
