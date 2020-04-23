@@ -1,4 +1,4 @@
-package performance
+package __performance
 
 import (
 	"context"
@@ -71,7 +71,8 @@ var _ = Describe("[performance]RT Kernel", func() {
 		}
 
 		cmd := []string{"uname", "-a"}
-		kernel := execCommandOnWorker(cmd, &nonRTWorkerNodes[0])
+		kernel, err := nodes.ExecCommandOnNode(cmd, &nonRTWorkerNodes[0])
+		Expect(err).ToNot(HaveOccurred(), "failed to execute uname")
 		Expect(kernel).To(ContainSubstring("Linux"), "Node should have Linux string")
 		Expect(kernel).NotTo(ContainSubstring("PREEMPT RT"), "Node should have non-RT kernel")
 	})

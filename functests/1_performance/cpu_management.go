@@ -1,4 +1,4 @@
-package performance
+package __performance
 
 import (
 	"context"
@@ -73,7 +73,8 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		It("[test_id:28026][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify CPU affinity mask, CPU reservation and CPU isolation on worker node", func() {
 			By("checking isolated CPU")
 			cmd := []string{"cat", "/sys/devices/system/cpu/isolated"}
-			sysIsolatedCpus := execCommandOnWorker(cmd, workerRTNode)
+			sysIsolatedCpus, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred())
 			if balanceIsolated {
 				Expect(sysIsolatedCpus).To(BeEmpty())
 			} else {
@@ -82,11 +83,15 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 			By("checking reserved CPU in kubelet config file")
 			cmd = []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
-			Expect(execCommandOnWorker(cmd, workerRTNode)).To(ContainSubstring(fmt.Sprintf(`"reservedSystemCPUs":"%s"`, reservedCPU)))
+			conf, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred(), "failed to cat kubelet.conf")
+			Expect(conf).To(ContainSubstring(fmt.Sprintf(`"reservedSystemCPUs":"%s"`, reservedCPU)))
 
 			By("checking CPU affinity mask for kernel scheduler")
 			cmd = []string{"/bin/bash", "-c", "taskset -pc $(pgrep rcu_sched)"}
-			mask := strings.SplitAfter(execCommandOnWorker(cmd, workerRTNode), " ")
+			sched, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred(), "failed to execute taskset")
+			mask := strings.SplitAfter(sched, " ")
 			maskSet, err := cpuset.Parse(mask[len(mask)-1])
 			Expect(err).ToNot(HaveOccurred())
 
@@ -114,7 +119,9 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 			//list worker cpus
 			cmd := []string{"/bin/bash", "-c", "lscpu | grep On-line | awk '{print $4}'"}
-			cpus, err := cpuset.Parse(execCommandOnWorker(cmd, workerRTNode))
+			lscpu, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred(), "failed to execute lscpu")
+			cpus, err := cpuset.Parse(lscpu)
 			Expect(err).ToNot(HaveOccurred())
 			listCPU = cpus.ToSlice()
 
@@ -135,10 +142,11 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			err = pods.WaitForCondition(testclient.Client, testpod, corev1.PodReady, corev1.ConditionTrue, 60*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 
-			output := execCommandOnWorker(
+			output, err := nodes.ExecCommandOnNode(
 				[]string{"/bin/bash", "-c", "ps -o psr $(pgrep -n stress) | tail -1"},
 				workerRTNode,
 			)
+			Expect(err).ToNot(HaveOccurred(), "failed to get cpu of stress process")
 			cpu, err := strconv.Atoi(strings.Trim(output, " "))
 			Expect(err).ToNot(HaveOccurred())
 
@@ -149,12 +157,6 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		)
 	})
 })
-
-func execCommandOnWorker(cmd []string, workerRTNode *corev1.Node) string {
-	out, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, workerRTNode, cmd)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	return strings.Trim(string(out), "\n")
-}
 
 func getStressPod(nodeName string) *corev1.Pod {
 	return &corev1.Pod{

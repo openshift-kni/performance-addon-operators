@@ -1,4 +1,4 @@
-package performance
+package __performance
 
 import (
 	"context"

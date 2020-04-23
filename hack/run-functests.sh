@@ -6,7 +6,14 @@ if [ $? -ne 0 ]; then
 	go install github.com/onsi/ginkgo/ginkgo
 fi
 
-# after running "updating profile" tests - some other functional tests might be failed, so it's better to run them separately
-GOFLAGS=-mod=vendor ginkgo functests -- -junit /tmp/artifacts/unit_report.xml -ginkgo.skip "Updating parameters in performance profile"
-GOFLAGS=-mod=vendor ginkgo functests -- -junit /tmp/artifacts/updating_profile_unit_report.xml -ginkgo.focus "Updating parameters in performance profile"
+NO_COLOR=""
+if ! which tput &> /dev/null 2>&1 || [[ $(tput -T$TERM colors) -le 8 ]]; then
+  echo "Terminal does not seem to support colored output, disabling it"
+  NO_COLOR="-noColor"
+fi
 
+# -v: print out the text and location for each spec before running it and flush output to stdout in realtime
+# -r: run suites recursively
+# --keepGoing: don't stop on failing suite
+# -requireSuite: fail if tests are not executed because of missing suite
+GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --keepGoing -requireSuite functests -- -junitDir /tmp/artifacts
