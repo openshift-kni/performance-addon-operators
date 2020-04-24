@@ -26,19 +26,8 @@ do
   done
   set -e
 
-  echo "[INFO] Checking if MCP picked up the performance MC"
-  # No output means that the new machine config wasn't picked by MCO yet
-  if [ -z "$(${OC_TOOL} get mcp worker-rt -o jsonpath='{.spec.configuration.source[?(@.name=="performance-ci")].name}')" ]
-  then
-    iterations=$((iterations + 1))
-    iterations_left=$((max_iterations - iterations))
-    echo "[INFO] Performance MC not picked up yet. $iterations_left retries left."
-    sleep $sleep_time
-    continue
-  fi
-
   echo "[INFO] Checking if MCP is updated"
-  if ! ${OC_TOOL} wait mcp/worker-rt --for condition=Updated --timeout 1s &> /dev/null
+  if ! ${OC_TOOL} wait mcp/worker-cnf --for condition=Updated --timeout 1s &> /dev/null
   then
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))

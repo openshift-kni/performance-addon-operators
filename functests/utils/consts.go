@@ -9,10 +9,18 @@ import (
 // RoleWorkerRT contains the worker-rt role
 var RoleWorkerRT string
 
+// ProfileName contains the name of performance profile
+var ProfileName string
+
 func init() {
 	RoleWorkerRT = os.Getenv("ROLE_WORKER_RT")
 	if RoleWorkerRT == "" {
-		RoleWorkerRT = "worker-rt"
+		RoleWorkerRT = "worker-cnf"
+	}
+
+	ProfileName = os.Getenv("PROFILE_NAME")
+	if ProfileName == "" {
+		ProfileName = "performance"
 	}
 }
 
@@ -69,4 +77,9 @@ const (
 const (
 	// PerfRtKernelPrebootTuningScript contains the file name of performance pre-boot tuning script that runs on rt nodes
 	PerfRtKernelPrebootTuningScript = "/usr/local/bin/pre-boot-tuning.sh"
+)
+
+const (
+	// McpUpdateTimeout contains the default timeout for updating MCP (in minutes)
+	McpUpdateTimeout = 20
 )

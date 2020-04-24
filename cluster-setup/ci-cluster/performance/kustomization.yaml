@@ -4,5 +4,3 @@ kind: Kustomization
 bases:
   - ../../base/performance
 
-patchesStrategicMerge:
-  - performance_profile.patch.yaml
