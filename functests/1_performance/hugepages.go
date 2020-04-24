@@ -16,6 +16,7 @@ import (
 
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
@@ -25,7 +26,6 @@ import (
 
 const (
 	pathHugepages2048kB = "/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages"
-	centosImage         = "centos:latest"
 )
 
 var _ = Describe("[performance]Hugepages", func() {
@@ -115,10 +115,6 @@ var _ = Describe("[performance]Hugepages", func() {
 			err = pods.WaitForCondition(testclient.Client, testpod, corev1.PodReady, corev1.ConditionTrue, 180*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 
-			cmd1 := []string{"yum", "install", "-y", "libhugetlbfs-utils", "libhugetlbfs", "tmux"}
-			_, err = pods.ExecCommandOnPod(testpod, cmd1)
-			Expect(err).ToNot(HaveOccurred())
-
 			cmd2 := []string{"/bin/bash", "-c", "tmux new -d 'LD_PRELOAD=libhugetlbfs.so HUGETLB_MORECORE=yes top -b > /dev/null'"}
 			_, err = pods.ExecCommandOnPod(testpod, cmd2)
 			Expect(err).ToNot(HaveOccurred())
@@ -168,7 +164,7 @@ func getCentosPod(nodeName string) *corev1.Pod {
 			Containers: []corev1.Container{
 				{
 					Name:    "test",
-					Image:   centosImage,
+					Image:   images.For(images.TestUtils),
 					Command: []string{"sleep", "10h"},
 					VolumeMounts: []corev1.VolumeMount{
 						{

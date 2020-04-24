@@ -17,14 +17,11 @@ import (
 	. "github.com/onsi/gomega"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
-)
-
-const (
-	stressPod = "vish/stress"
 )
 
 var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
@@ -170,7 +167,7 @@ func getStressPod(nodeName string) *corev1.Pod {
 			Containers: []corev1.Container{
 				{
 					Name:  "stress-test",
-					Image: stressPod,
+					Image: images.For(images.Stresser),
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse("1"),
