@@ -38,7 +38,7 @@ var _ = Describe("[performance]RT Kernel", func() {
 			testpod.Spec.Containers[0].Command = []string{"uname", "-a"}
 			testpod.Spec.RestartPolicy = corev1.RestartPolicyNever
 			testpod.Spec.NodeSelector = map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
+				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
 			}
 
 			if err := testclient.Client.Create(context.TODO(), testpod); err != nil {

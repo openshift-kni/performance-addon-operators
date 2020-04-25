@@ -56,7 +56,7 @@ echo "[INFO] Deleting OperatorGroup and CatalogSource"
 $OC_TOOL -n openshift-performance-addon delete operatorgroup openshift-performance-addon-operatorgroup
 $OC_TOOL -n openshift-marketplace delete catalogsource performance-addon-operator-catalogsource
 
-# Delete worker-rt MCP
+# Delete worker-cnf MCP
 echo "[INFO] Deleting $mcp MCP"
 $OC_TOOL delete mcp $mcp
 

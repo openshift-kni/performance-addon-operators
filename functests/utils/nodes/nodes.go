@@ -33,13 +33,13 @@ func GetByRole(c client.Client, role string) ([]corev1.Node, error) {
 	return nodes.Items, nil
 }
 
-// GetNonRTWorkers returns list of nodes with no worker-rt label
+// GetNonRTWorkers returns list of nodes with no worker-cnf label
 func GetNonRTWorkers() ([]corev1.Node, error) {
 	nonRTWorkerNodes := []corev1.Node{}
 
 	workerNodes, err := GetByRole(testclient.Client, testutils.RoleWorker)
 	for _, node := range workerNodes {
-		if _, ok := node.Labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT)]; ok {
+		if _, ok := node.Labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF)]; ok {
 			continue
 		}
 		nonRTWorkerNodes = append(nonRTWorkerNodes, node)

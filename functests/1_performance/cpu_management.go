@@ -33,7 +33,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	var reservedCPUSet cpuset.CPUSet
 
 	BeforeEach(func() {
-		workerRTNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
+		workerRTNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorkerCNF)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
 		workerRTNode = &workerRTNodes[0]
@@ -41,7 +41,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		profile, err = profiles.GetByNodeLabels(
 			testclient.Client,
 			map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
+				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
 			},
 		)
 		Expect(err).ToNot(HaveOccurred())

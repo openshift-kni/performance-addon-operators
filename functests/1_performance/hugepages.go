@@ -34,7 +34,7 @@ var _ = Describe("[performance]Hugepages", func() {
 
 	BeforeEach(func() {
 		var err error
-		workerRTNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
+		workerRTNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorkerCNF)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
 		workerRTNode = &workerRTNodes[0]
@@ -42,7 +42,7 @@ var _ = Describe("[performance]Hugepages", func() {
 		profile, err = profiles.GetByNodeLabels(
 			testclient.Client,
 			map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
+				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
 			},
 		)
 		Expect(err).ToNot(HaveOccurred())

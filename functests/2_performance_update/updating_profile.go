@@ -37,13 +37,13 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	chkCmdLine := []string{"cat", "/proc/cmdline"}
 	chkKubeletConfig := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
 
-	nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): ""}
+	nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): ""}
 
 	BeforeEach(func() {
-		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
+		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerCNF)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
-		// timeout should be based on the number of worker-rt nodes
+		// timeout should be based on the number of worker-cnf nodes
 		timeout = time.Duration(len(workerRTNodes) * mcpUpdateTimeout)
 
 		profile, err = profiles.GetByNodeLabels(
@@ -97,14 +97,14 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			}
 
 			By("Verifying that mcp is ready for update")
-			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
 
 			By("Applying changes in performance profile and waiting until mcp will start updating")
 			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
-			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
 
 			By("Waiting when mcp finishes updates")
-			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
 		})
 
 		table.DescribeTable("Verify that profile parameters were updated", func(cmd, parameter []string, shouldContain bool) {
@@ -170,8 +170,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			// BUG: CNF-385. Workaround - we have to remove hugepages first
 			profile.Spec.HugePages = nil
 			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
-			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
-			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
 
 			// return initial configuration
 			spec, err := json.Marshal(initialProfile.Spec)
@@ -182,8 +182,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec", "value": %s }]`, spec)),
 				),
 			)).ToNot(HaveOccurred())
-			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
-			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
 		})
 	})
 
@@ -285,7 +285,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		})
 
 		It("Reverts back nodeSelector and cleaning up leftovers", func() {
-			nodeSelector := fmt.Sprintf(`"%s/%s": ""`, testutils.LabelRole, testutils.RoleWorkerRT)
+			nodeSelector := fmt.Sprintf(`"%s/%s": ""`, testutils.LabelRole, testutils.RoleWorkerCNF)
 			Expect(testclient.Client.Patch(context.TODO(), profile,
 				client.ConstantPatch(
 					types.JSONPatchType,
@@ -293,7 +293,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 				),
 			)).ToNot(HaveOccurred())
 			Expect(testclient.Client.Delete(context.TODO(), mcp)).ToNot(HaveOccurred())
-			waitForMcpCondition(testutils.RoleWorkerRT, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
+			waitForMcpCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue, timeout)
 		})
 	})
 })

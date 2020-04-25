@@ -31,13 +31,13 @@ var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 
 	BeforeEach(func() {
 		var err error
-		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
+		workerRTNodes, err = nodes.GetByRole(testclient.Client, testutils.RoleWorkerCNF)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
 		profile, err = profiles.GetByNodeLabels(
 			testclient.Client,
 			map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
+				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
 			},
 		)
 		Expect(err).ToNot(HaveOccurred())
@@ -72,7 +72,7 @@ var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 				Skip(
 					fmt.Sprintf(
 						"The environment does not have nodes with role %q and available %q resources",
-						testutils.RoleWorkerRT,
+						testutils.RoleWorkerCNF,
 						string(testutils.ResourceSRIOV),
 					),
 				)

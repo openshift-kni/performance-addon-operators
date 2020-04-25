@@ -19,4 +19,4 @@ spec:
       count: 1
       node: 0
   nodeSelector:
-    node-role.kubernetes.io/worker-rt: ""
+    node-role.kubernetes.io/worker-cnf: ""

@@ -137,9 +137,9 @@ cluster-deploy:
 	@echo "Deploying operator"
 	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/deploy.sh
 
-cluster-label-worker-rt:
-	@echo "Adding worker-rt label to worker nodes"
-	hack/label-worker-rt.sh
+cluster-label-worker-cnf:
+	@echo "Adding worker-cnf label to worker nodes"
+	hack/label-worker-cnf.sh
 
 cluster-wait-for-mcp:
 	@echo "Waiting for MCP to be updated"
@@ -149,7 +149,7 @@ cluster-clean:
 	@echo "Deleting operator"
 	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/clean-deploy.sh
 
-functests: cluster-label-worker-rt cluster-wait-for-mcp functests-only
+functests: cluster-label-worker-cnf cluster-wait-for-mcp functests-only
 
 functests-only:
 	@echo "Running Functional Tests"

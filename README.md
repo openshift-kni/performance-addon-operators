@@ -59,10 +59,10 @@ The deployment will will be retried in a loop until everything is deployed succe
 Now you need to label the nodes which should be tuned. This can be done with
 
 ```
-make cluster-label-worker-rt
+make cluster-label-worker-cnf
 ```
 
-This will label 1 worker node with the `worker-rt` role, and OCP's `Machine Config Operator` will start tuning this node.
+This will label 1 worker node with the `worker-cnf` role, and OCP's `Machine Config Operator` will start tuning this node.
 
 In order to wait until MCO is ready, you can watch the `MachineConfigPool` until it is marked as updated with 
 
