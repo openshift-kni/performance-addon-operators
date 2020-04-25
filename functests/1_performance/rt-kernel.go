@@ -24,7 +24,7 @@ var _ = Describe("[performance]RT Kernel", func() {
 			return
 		}
 		if err := testclient.Client.Delete(context.TODO(), testpod); err == nil {
-			pods.WaitForDeletion(testclient.Client, testpod, 60*time.Second)
+			pods.WaitForDeletion(testpod, 60*time.Second)
 		}
 	})
 
@@ -45,7 +45,7 @@ var _ = Describe("[performance]RT Kernel", func() {
 				return ""
 			}
 
-			if err := pods.WaitForPhase(testclient.Client, testpod, corev1.PodSucceeded, 60*time.Second); err != nil {
+			if err := pods.WaitForPhase(testpod, corev1.PodSucceeded, 60*time.Second); err != nil {
 				return ""
 			}
 

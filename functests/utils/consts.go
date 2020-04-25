@@ -9,10 +9,18 @@ import (
 // RoleWorkerCNF contains role name of cnf worker nodes
 var RoleWorkerCNF string
 
+// PerformanceProfileName contains the name of the PerformanceProfile created for tests
+var PerformanceProfileName string
+
 func init() {
 	RoleWorkerCNF = os.Getenv("ROLE_WORKER_CNF")
 	if RoleWorkerCNF == "" {
 		RoleWorkerCNF = "worker-cnf"
+	}
+
+	PerformanceProfileName = os.Getenv("PERF_TEST_PROFILE")
+	if PerformanceProfileName == "" {
+		PerformanceProfileName = "performance"
 	}
 }
 

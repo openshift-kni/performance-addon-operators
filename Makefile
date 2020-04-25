@@ -41,6 +41,8 @@ FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE
 
 OPERATOR_DEV_CSV="0.0.1"
 
+CLUSTER ?= "ci"
+
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 
@@ -135,13 +137,15 @@ deploy: cluster-deploy
 
 cluster-deploy:
 	@echo "Deploying operator"
-	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/deploy.sh
+	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) CLUSTER=$(CLUSTER) hack/deploy.sh
 
 cluster-label-worker-cnf:
 	@echo "Adding worker-cnf label to worker nodes"
 	hack/label-worker-cnf.sh
 
 cluster-wait-for-mcp:
+    # NOTE: for CI this is done in the config suite of the functests!
+    # Use this when deploying manifests manually with CLUSTER=manual
 	@echo "Waiting for MCP to be updated"
 	hack/wait-for-mcp.sh
 
@@ -149,7 +153,7 @@ cluster-clean:
 	@echo "Deleting operator"
 	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/clean-deploy.sh
 
-functests: cluster-label-worker-cnf cluster-wait-for-mcp functests-only
+functests: cluster-label-worker-cnf functests-only
 
 functests-only:
 	@echo "Running Functional Tests"

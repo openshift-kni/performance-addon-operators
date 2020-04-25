@@ -33,13 +33,12 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	var reservedCPUSet cpuset.CPUSet
 
 	BeforeEach(func() {
-		workerRTNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorkerCNF)
+		workerRTNodes, err := nodes.GetByRole(testutils.RoleWorkerCNF)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
 		workerRTNode = &workerRTNodes[0]
 
 		profile, err = profiles.GetByNodeLabels(
-			testclient.Client,
 			map[string]string{
 				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
 			},
@@ -104,7 +103,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			err := testclient.Client.Delete(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = pods.WaitForDeletion(testclient.Client, testpod, 60*time.Second)
+			err = pods.WaitForDeletion(testpod, 60*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -136,7 +135,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			err = testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = pods.WaitForCondition(testclient.Client, testpod, corev1.PodReady, corev1.ConditionTrue, 60*time.Second)
+			err = pods.WaitForCondition(testpod, corev1.PodReady, corev1.ConditionTrue, 60*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 
 			output, err := nodes.ExecCommandOnNode(

@@ -28,7 +28,7 @@ do
 
   echo "[INFO] Checking if MCP picked up the performance MC"
   # No output means that the new machine config wasn't picked by MCO yet
-  if [ -z "$(${OC_TOOL} get mcp worker-cnf -o jsonpath='{.spec.configuration.source[?(@.name=="performance-ci")].name}')" ]
+  if [ -z "$(${OC_TOOL} get mcp worker-cnf -o jsonpath='{.spec.configuration.source[?(@.name=="performance-manual")].name}')" ]
   then
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))

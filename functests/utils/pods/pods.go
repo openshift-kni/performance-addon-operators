@@ -13,9 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
+	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 )
 
@@ -41,14 +40,14 @@ func GetTestPod() *corev1.Pod {
 }
 
 // WaitForDeletion waits until the pod will be removed from the cluster
-func WaitForDeletion(c client.Client, pod *corev1.Pod, timeout time.Duration) error {
+func WaitForDeletion(pod *corev1.Pod, timeout time.Duration) error {
 	key := types.NamespacedName{
 		Name:      pod.Name,
 		Namespace: pod.Namespace,
 	}
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
 		pod := &corev1.Pod{}
-		if err := c.Get(context.TODO(), key, pod); errors.IsNotFound(err) {
+		if err := testclient.Client.Get(context.TODO(), key, pod); errors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, nil
@@ -56,14 +55,14 @@ func WaitForDeletion(c client.Client, pod *corev1.Pod, timeout time.Duration) er
 }
 
 // WaitForCondition waits until the pod will have specified condition type with the expected status
-func WaitForCondition(c client.Client, pod *corev1.Pod, conditionType corev1.PodConditionType, conditionStatus corev1.ConditionStatus, timeout time.Duration) error {
+func WaitForCondition(pod *corev1.Pod, conditionType corev1.PodConditionType, conditionStatus corev1.ConditionStatus, timeout time.Duration) error {
 	key := types.NamespacedName{
 		Name:      pod.Name,
 		Namespace: pod.Namespace,
 	}
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
 		updatedPod := &corev1.Pod{}
-		if err := c.Get(context.TODO(), key, updatedPod); err != nil {
+		if err := testclient.Client.Get(context.TODO(), key, updatedPod); err != nil {
 			return false, nil
 		}
 
@@ -77,14 +76,14 @@ func WaitForCondition(c client.Client, pod *corev1.Pod, conditionType corev1.Pod
 }
 
 // WaitForPhase waits until the pod will have specified phase
-func WaitForPhase(c client.Client, pod *corev1.Pod, phase corev1.PodPhase, timeout time.Duration) error {
+func WaitForPhase(pod *corev1.Pod, phase corev1.PodPhase, timeout time.Duration) error {
 	key := types.NamespacedName{
 		Name:      pod.Name,
 		Namespace: pod.Namespace,
 	}
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
 		updatedPod := &corev1.Pod{}
-		if err := c.Get(context.TODO(), key, updatedPod); err != nil {
+		if err := testclient.Client.Get(context.TODO(), key, updatedPod); err != nil {
 			return false, nil
 		}
 
