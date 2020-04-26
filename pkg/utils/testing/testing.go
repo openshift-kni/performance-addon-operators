@@ -11,6 +11,8 @@ import (
 const (
 	// HugePageSize defines the huge page size used for tests
 	HugePageSize = performancev1alpha1.HugePageSize("1G")
+	// HugePagesCount defines the huge page count used for tests
+	HugePagesCount = 4
 	// IsolatedCPUs defines the isolated CPU set used for tests
 	IsolatedCPUs = performancev1alpha1.CPUSet("4-7")
 	// ReservedCPUs defines the reserved CPU set used for tests
@@ -50,7 +52,7 @@ func NewPerformanceProfile(name string) *performancev1alpha1.PerformanceProfile 
 				DefaultHugePagesSize: &size,
 				Pages: []performancev1alpha1.HugePage{
 					{
-						Count: 4,
+						Count: HugePagesCount,
 						Size:  size,
 					},
 				},

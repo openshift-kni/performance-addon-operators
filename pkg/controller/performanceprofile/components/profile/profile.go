@@ -24,6 +24,8 @@ func ValidateParameters(profile *v1alpha1.PerformanceProfile) error {
 		return validationError("you should provide CPU section")
 	}
 
+	//FIXME - add validation for IsolatedCPUs otherwise the is no point creating the tuned profile.
+
 	if profile.Spec.MachineConfigLabel != nil && len(profile.Spec.MachineConfigLabel) > 1 {
 		return validationError("you should provide only 1 MachineConfigLabel")
 	}
@@ -120,6 +122,7 @@ func validateHugepages(hugepages *v1alpha1.HugePages) error {
 	}
 	hugepagesSizes := map[v1alpha1.HugePageSize]string{}
 	for _, page := range hugepages.Pages {
+		//FIXME - add validation for size and count existance
 		hugepagesSizes[page.Size] = ""
 	}
 
@@ -129,6 +132,7 @@ func validateHugepages(hugepages *v1alpha1.HugePages) error {
 	if len(hugepagesSizes) > 1 {
 		return validationError("allocation of hugepages with different sizes not supported")
 	}
+
 	return nil
 }
 

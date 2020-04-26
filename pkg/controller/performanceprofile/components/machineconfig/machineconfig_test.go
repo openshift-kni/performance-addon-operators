@@ -50,7 +50,6 @@ const expectedSystemdUnits = `
         enabled: true
         name: reboot.service
 `
-
 const hugepagesAllocationService = `
       - contents: |
           [Unit]
@@ -69,62 +68,6 @@ const hugepagesAllocationService = `
           WantedBy=multi-user.target
         enabled: true
         name: hugepages-allocation-1048576kB-NUMA0.service
-`
-
-const expectedBootArguments = `
-  kernelArguments:
-  - nohz=on
-  - nosoftlockup
-  - skew_tick=1
-  - intel_pstate=disable
-  - intel_iommu=on
-  - iommu=pt
-  - isolcpus=4-7
-  - rcu_nocbs=4-7
-  - tuned.non_isolcpus=0000000f
-  - default_hugepagesz=1G
-  - hugepagesz=1G
-  - hugepages=4
-  - hugepagesz=2M
-  - hugepages=1024
-`
-
-const expectedBootArgumentsWithoutIso = `
-  kernelArguments:
-  - nohz=on
-  - nosoftlockup
-  - skew_tick=1
-  - intel_pstate=disable
-  - intel_iommu=on
-  - iommu=pt
-  - rcu_nocbs=4-7
-  - tuned.non_isolcpus=0000000f
-  - default_hugepagesz=1G
-  - hugepagesz=1G
-  - hugepages=4
-  - hugepagesz=2M
-  - hugepages=1024
-`
-
-const expectedBootArgumentsWithAdditionalKerenlArgs = `
-  kernelArguments:
-  - nohz=on
-  - nosoftlockup
-  - skew_tick=1
-  - intel_pstate=disable
-  - intel_iommu=on
-  - iommu=pt
-  - rcu_nocbs=4-7
-  - tuned.non_isolcpus=0000000f
-  - default_hugepagesz=1G
-  - hugepagesz=1G
-  - hugepages=4
-  - nmi_watchdog=0
-  - audit=0
-  - mce=off
-  - processor.max_cstate=1
-  - idle=poll
-  - intel_idle.max_cstate=0
 `
 
 var _ = Describe("Machine Config", func() {
@@ -149,7 +92,6 @@ var _ = Describe("Machine Config", func() {
 		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
 		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
 		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
-		Expect(manifest).To(ContainSubstring(expectedBootArguments))
 	})
 
 	It("should generate yaml with expected parameters when balanced isolated defaults to true", func() {
@@ -171,7 +113,6 @@ var _ = Describe("Machine Config", func() {
 		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
 		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
 		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
-		Expect(manifest).To(ContainSubstring(expectedBootArgumentsWithoutIso))
 	})
 
 	It("should generate yaml with expected parameters and additional kernel arguments", func() {
@@ -193,7 +134,6 @@ var _ = Describe("Machine Config", func() {
 		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
 		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
 		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
-		Expect(manifest).To(ContainSubstring(expectedBootArgumentsWithAdditionalKerenlArgs))
 	})
 
 	Context("with hugepages with specified NUMA node", func() {

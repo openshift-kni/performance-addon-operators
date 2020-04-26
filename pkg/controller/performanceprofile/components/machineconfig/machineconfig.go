@@ -89,8 +89,6 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 
 	mc.Spec.Config = *ignitionConfig
 
-	mc.Spec.KernelArguments, err = getKernelArgs(profile)
-
 	if err != nil {
 		return nil, err
 	}
@@ -106,54 +104,6 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	}
 
 	return mc, nil
-}
-
-func getKernelArgs(profile *performancev1alpha1.PerformanceProfile) ([]string, error) {
-	kargs := []string{
-		"nohz=on",
-		"nosoftlockup",
-		"skew_tick=1",
-		"intel_pstate=disable",
-		"intel_iommu=on",
-		"iommu=pt",
-	}
-
-	if profile.Spec.CPU.Isolated != nil {
-		if profile.Spec.CPU.BalanceIsolated != nil && *profile.Spec.CPU.BalanceIsolated == false {
-			kargs = append(kargs, fmt.Sprintf("isolcpus=%s", *profile.Spec.CPU.Isolated))
-		}
-		kargs = append(kargs, fmt.Sprintf("rcu_nocbs=%s", *profile.Spec.CPU.Isolated))
-	}
-
-	if profile.Spec.CPU.Reserved != nil {
-		cpuMask, err := components.CPUListToMaskList(string(*profile.Spec.CPU.Reserved))
-		if err != nil {
-			return nil, err
-		}
-		kargs = append(kargs, fmt.Sprintf("tuned.non_isolcpus=%s", cpuMask))
-	}
-
-	if profile.Spec.HugePages != nil {
-		if profile.Spec.HugePages.DefaultHugePagesSize != nil {
-			kargs = append(kargs, fmt.Sprintf("default_hugepagesz=%s", *profile.Spec.HugePages.DefaultHugePagesSize))
-		}
-
-		for _, page := range profile.Spec.HugePages.Pages {
-			// we can not allocate hugepages on the specific NUMA node via kernel boot arguments
-			if page.Node != nil {
-				continue
-			}
-
-			kargs = append(kargs, fmt.Sprintf("hugepagesz=%s", string(page.Size)))
-			kargs = append(kargs, fmt.Sprintf("hugepages=%d", page.Count))
-		}
-	}
-
-	if profile.Spec.AdditionalKernelArgs != nil {
-		kargs = append(kargs, profile.Spec.AdditionalKernelArgs...)
-	}
-
-	return kargs, nil
 }
 
 func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*igntypes.Config, error) {
