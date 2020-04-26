@@ -10,6 +10,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog"
+
 	ginkgo_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
@@ -21,13 +24,17 @@ import (
 var _ = BeforeSuite(func() {
 	// create test namespace
 	err := testclient.Client.Create(context.TODO(), namespaces.TestingNamespace)
+	if errors.IsAlreadyExists(err) {
+		klog.Warning("test namespace already exists, that is unexpected")
+		return
+	}
 	Expect(err).ToNot(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
 	err := testclient.Client.Delete(context.TODO(), namespaces.TestingNamespace)
 	Expect(err).ToNot(HaveOccurred())
-	err = namespaces.WaitForDeletion(testclient.Client, testutils.NamespaceTesting, 5*time.Minute)
+	err = namespaces.WaitForDeletion(testutils.NamespaceTesting, 5*time.Minute)
 })
 
 func TestPerformance(t *testing.T) {

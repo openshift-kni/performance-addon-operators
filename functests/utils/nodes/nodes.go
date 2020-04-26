@@ -20,26 +20,30 @@ import (
 )
 
 // GetByRole returns all nodes with the specified role
-func GetByRole(c client.Client, role string) ([]corev1.Node, error) {
+func GetByRole(role string) ([]corev1.Node, error) {
 	selector, err := labels.Parse(fmt.Sprintf("%s/%s=", testutils.LabelRole, role))
 	if err != nil {
 		return nil, err
 	}
+	return GetBySelector(selector)
+}
 
+// GetBySelector returns all nodes with the specified selector
+func GetBySelector(selector labels.Selector) ([]corev1.Node, error) {
 	nodes := &corev1.NodeList{}
-	if err := c.List(context.TODO(), nodes, &client.ListOptions{LabelSelector: selector}); err != nil {
+	if err := testclient.Client.List(context.TODO(), nodes, &client.ListOptions{LabelSelector: selector}); err != nil {
 		return nil, err
 	}
 	return nodes.Items, nil
 }
 
-// GetNonRTWorkers returns list of nodes with no worker-rt label
+// GetNonRTWorkers returns list of nodes with no worker-cnf label
 func GetNonRTWorkers() ([]corev1.Node, error) {
 	nonRTWorkerNodes := []corev1.Node{}
 
-	workerNodes, err := GetByRole(testclient.Client, testutils.RoleWorker)
+	workerNodes, err := GetByRole(testutils.RoleWorker)
 	for _, node := range workerNodes {
-		if _, ok := node.Labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT)]; ok {
+		if _, ok := node.Labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF)]; ok {
 			continue
 		}
 		nonRTWorkerNodes = append(nonRTWorkerNodes, node)
@@ -61,7 +65,7 @@ func FilterByResource(nodes []corev1.Node, resource corev1.ResourceName) []corev
 }
 
 // GetMachineConfigDaemonByNode returns the machine-config-daemon pod that runs on the specified node
-func GetMachineConfigDaemonByNode(c client.Client, node *corev1.Node) (*corev1.Pod, error) {
+func GetMachineConfigDaemonByNode(node *corev1.Node) (*corev1.Pod, error) {
 	listOptions := &client.ListOptions{
 		Namespace:     testutils.NamespaceMachineConfigOperator,
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}),
@@ -69,7 +73,7 @@ func GetMachineConfigDaemonByNode(c client.Client, node *corev1.Node) (*corev1.P
 	}
 
 	mcds := &corev1.PodList{}
-	if err := c.List(context.TODO(), mcds, listOptions); err != nil {
+	if err := testclient.Client.List(context.TODO(), mcds, listOptions); err != nil {
 		return nil, err
 	}
 
@@ -80,8 +84,8 @@ func GetMachineConfigDaemonByNode(c client.Client, node *corev1.Node) (*corev1.P
 }
 
 // ExecCommandOnMachineConfigDaemon returns the output of the command execution on the machine-config-daemon pod that runs on the specified node
-func ExecCommandOnMachineConfigDaemon(c client.Client, node *corev1.Node, command []string) ([]byte, error) {
-	mcd, err := GetMachineConfigDaemonByNode(c, node)
+func ExecCommandOnMachineConfigDaemon(node *corev1.Node, command []string) ([]byte, error) {
+	mcd, err := GetMachineConfigDaemonByNode(node)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +106,7 @@ func ExecCommandOnMachineConfigDaemon(c client.Client, node *corev1.Node, comman
 
 // ExecCommandOnNode executes given command on given node and returns the result
 func ExecCommandOnNode(cmd []string, node *corev1.Node) (string, error) {
-	out, err := ExecCommandOnMachineConfigDaemon(testclient.Client, node, cmd)
+	out, err := ExecCommandOnMachineConfigDaemon(node, cmd)
 	if err != nil {
 		return "", err
 	}
@@ -110,9 +114,9 @@ func ExecCommandOnNode(cmd []string, node *corev1.Node) (string, error) {
 }
 
 // GetKubeletConfig returns KubeletConfiguration loaded from the node /etc/kubernetes/kubelet.conf
-func GetKubeletConfig(c client.Client, node *corev1.Node) (*kubeletconfigv1beta1.KubeletConfiguration, error) {
+func GetKubeletConfig(node *corev1.Node) (*kubeletconfigv1beta1.KubeletConfiguration, error) {
 	command := []string{"cat", path.Join("/rootfs", testutils.FilePathKubeletConfig)}
-	kubeletBytes, err := ExecCommandOnMachineConfigDaemon(c, node, command)
+	kubeletBytes, err := ExecCommandOnMachineConfigDaemon(node, command)
 	if err != nil {
 		return nil, err
 	}

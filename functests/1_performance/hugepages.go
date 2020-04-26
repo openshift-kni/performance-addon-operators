@@ -34,15 +34,14 @@ var _ = Describe("[performance]Hugepages", func() {
 
 	BeforeEach(func() {
 		var err error
-		workerRTNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
+		workerRTNodes, err := nodes.GetByRole(testutils.RoleWorkerCNF)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
 		workerRTNode = &workerRTNodes[0]
 
 		profile, err = profiles.GetByNodeLabels(
-			testclient.Client,
 			map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
+				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
 			},
 		)
 		Expect(err).ToNot(HaveOccurred())
@@ -89,7 +88,7 @@ var _ = Describe("[performance]Hugepages", func() {
 			err := testclient.Client.Delete(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = pods.WaitForDeletion(testclient.Client, testpod, 60*time.Second)
+			err = pods.WaitForDeletion(testpod, 60*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -112,7 +111,7 @@ var _ = Describe("[performance]Hugepages", func() {
 			}
 			err = testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
-			err = pods.WaitForCondition(testclient.Client, testpod, corev1.PodReady, corev1.ConditionTrue, 180*time.Second)
+			err = pods.WaitForCondition(testpod, corev1.PodReady, corev1.ConditionTrue, 180*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 
 			cmd2 := []string{"/bin/bash", "-c", "tmux new -d 'LD_PRELOAD=libhugetlbfs.so HUGETLB_MORECORE=yes top -b > /dev/null'"}
@@ -137,7 +136,7 @@ var _ = Describe("[performance]Hugepages", func() {
 
 func checkHugepagesStatus(path string, workerRTNode *corev1.Node) int {
 	command := []string{"cat", path}
-	out, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, workerRTNode, command)
+	out, err := nodes.ExecCommandOnMachineConfigDaemon(workerRTNode, command)
 	Expect(err).ToNot(HaveOccurred())
 	n, err := strconv.Atoi(strings.Trim(string(out), "\n"))
 	Expect(err).ToNot(HaveOccurred())

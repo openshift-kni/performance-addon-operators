@@ -18,7 +18,7 @@ success=0
 iterations=0
 sleep_time=10
 max_iterations=30 # results in 5 minute timeout
-feature_dir=cluster-setup/ci-cluster/performance/
+feature_dir=cluster-setup/${CLUSTER}-cluster/performance/
 
 until [[ $success -eq 1 ]] || [[ $iterations -eq $max_iterations ]]
 do

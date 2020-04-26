@@ -41,7 +41,7 @@ If you want to use the performance operator's upstream images,
 Deploy the operator by running:
 
 ```
-make cluster-deploy
+CLUSTER=manual make cluster-deploy
 ```
 
 This will deploy
@@ -54,15 +54,20 @@ This will deploy
   - a `Subscription`
 - a `PerformanceProfile`
 
-The deployment will will be retried in a loop until everything is deployed successfully, or until it times out.
+The deployment will be retried in a loop until everything is deployed successfully, or until it times out.
+
+> Note: `CLUSTER=manual` lets the deploy script use the `cluster-setup/manual-cluster/performance/` kustomization directory.
+In CI the `cluster-setup/ci-cluster/performance/` dir will be used. The difference is that the CI cluster will deploy
+the PerformanceProfile in the test code, while the `manual` cluster includes it in the kustomize based deployment.
+
 
 Now you need to label the nodes which should be tuned. This can be done with
 
 ```
-make cluster-label-worker-rt
+make cluster-label-worker-cnf
 ```
 
-This will label 1 worker node with the `worker-rt` role, and OCP's `Machine Config Operator` will start tuning this node.
+This will label 1 worker node with the `worker-cnf` role, and OCP's `Machine Config Operator` will start tuning this node.
 
 In order to wait until MCO is ready, you can watch the `MachineConfigPool` until it is marked as updated with 
 
@@ -71,6 +76,8 @@ make cluster-wait-for-mcp
 ```
 
 > Note: Be aware this can take quite a while (many minutes)
+
+> Note: in CI this step is skipped, because the test code will wait for the MCP being up to date.
 
 # Troubleshooting
 
@@ -86,7 +93,7 @@ Unit tests can be executed with `make unittests`.
 ## Func tests
 
 The functional tests are located in `/functests`. They can be executed with `make functests-only` on a cluster with a
-deployed Performance Operator and updated MCP.
+deployed Performance Operator and configured MCP and nodes. It will create its own Performance profile!
 
 # Contributing
 
