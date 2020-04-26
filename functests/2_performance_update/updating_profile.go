@@ -144,6 +144,28 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			}
 		})
 
+		It("[test_id:22764] verify that realTimeKernel is default when realTimeKernel field does not exist", func() {
+			conditionUpdating := machineconfigv1.MachineConfigPoolUpdating
+
+			if profile.Spec.RealTimeKernel == nil || *profile.Spec.RealTimeKernel.Enabled == true {
+				Skip("Skipping test - This test expects RT Kernel to be disabled. Found it to be enabled or nil.")
+			}
+
+			By("Applying changes in performance profile")
+			profile.Spec.RealTimeKernel = nil
+			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+
+			Expect(profile.Spec.RealTimeKernel).To(BeNil())
+			By("Checking that the updating MCP status will consistently stay false")
+			Consistently(func() corev1.ConditionStatus {
+				return getMcpStatus(testutils.RoleWorkerRT, conditionUpdating)
+			}, 30, 5).Should(Equal(corev1.ConditionFalse))
+
+			for _, node := range workerRTNodes {
+				Expect(nodes.ExecCommandOnNode(chkKernel, &node)).NotTo(ContainSubstring("PREEMPT RT"))
+			}
+		})
+
 		It("Reverts back all profile configuration", func() {
 			// BUG: CNF-385. Workaround - we have to remove hugepages first
 			profile.Spec.HugePages = nil
@@ -276,21 +298,26 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	})
 })
 
-func waitForMcpCondition(mcpName string, conditionType machineconfigv1.MachineConfigPoolConditionType, conditionStatus corev1.ConditionStatus, timeout time.Duration) {
+func getMcpStatus(mcpName string, conditionType machineconfigv1.MachineConfigPoolConditionType) corev1.ConditionStatus {
 	mcp := &machineconfigv1.MachineConfigPool{}
 	key := types.NamespacedName{
 		Name:      mcpName,
 		Namespace: "",
 	}
-	Eventually(func() corev1.ConditionStatus {
-		err := testclient.Client.Get(context.TODO(), key, mcp)
-		Expect(err).ToNot(HaveOccurred())
-		for i := range mcp.Status.Conditions {
-			if mcp.Status.Conditions[i].Type == conditionType {
-				return mcp.Status.Conditions[i].Status
-			}
+	err := testclient.Client.Get(context.TODO(), key, mcp)
+	Expect(err).ToNot(HaveOccurred())
+
+	for i := range mcp.Status.Conditions {
+		if mcp.Status.Conditions[i].Type == conditionType {
+			return mcp.Status.Conditions[i].Status
 		}
-		return corev1.ConditionUnknown
+	}
+	return corev1.ConditionUnknown
+}
+
+func waitForMcpCondition(mcpName string, conditionType machineconfigv1.MachineConfigPoolConditionType, conditionStatus corev1.ConditionStatus, timeout time.Duration) {
+	EventuallyWithOffset(1, func() corev1.ConditionStatus {
+		return getMcpStatus(mcpName, conditionType)
 	}, timeout*time.Minute, 30*time.Second).Should(Equal(conditionStatus))
 }
 
