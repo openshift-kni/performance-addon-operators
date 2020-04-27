@@ -47,7 +47,7 @@ make cluster-deploy
 This will deploy
 
 - a `MachineConfigPool` for the nodes which will be tuned
-- all manifests for letting OCP's `Operator Lifecylce Manager (OLM)` deploy the Performance Operator:
+- all manifests for letting OCP's `Operator Lifecycle Manager (OLM)` deploy the Performance Operator:
   - a `CatalogSource`
   - a `Namespace`
   - a `OperatorGroup`
