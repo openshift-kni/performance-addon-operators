@@ -30,7 +30,6 @@ const (
 	// MCKernelDefault is the value of the kernel setting in MachineConfig for the default kernel
 	MCKernelDefault = "default"
 
-	preBootTuning       = "pre-boot-tuning"
 	reboot              = "reboot"
 	hugepagesAllocation = "hugepages-allocation"
 	bashScriptsDir      = "/usr/local/bin"
@@ -60,11 +59,9 @@ const (
 )
 
 const (
-	environmentHugepagesSize           = "HUGEPAGES_SIZE"
-	environmentHugepagesCount          = "HUGEPAGES_COUNT"
-	environmentNUMANode                = "NUMA_NODE"
-	environmentReservedCpus            = "RESERVED_CPUS"
-	environmentReservedCPUMaskInverted = "RESERVED_CPU_MASK_INVERT"
+	environmentHugepagesSize  = "HUGEPAGES_SIZE"
+	environmentHugepagesCount = "HUGEPAGES_COUNT"
+	environmentNUMANode       = "NUMA_NODE"
 )
 
 // New returns new machine configuration object for performance sensetive workflows
@@ -118,7 +115,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		},
 	}
 
-	for _, script := range []string{preBootTuning, hugepagesAllocation, reboot} {
+	for _, script := range []string{hugepagesAllocation, reboot} {
 		content, err := ioutil.ReadFile(fmt.Sprintf("%s/scripts/%s.sh", assetsDir, script))
 		if err != nil {
 			return nil, err
@@ -136,55 +133,6 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 				Mode: &mode,
 			},
 		})
-	}
-
-	if profile.Spec.CPU.Reserved != nil {
-		reservedCpus := profile.Spec.CPU.Reserved
-		contentBase64 := base64.StdEncoding.EncodeToString([]byte("[Manager]\nCPUAffinity=" + string(*reservedCpus)))
-		ignitionConfig.Storage.Files = append(ignitionConfig.Storage.Files, igntypes.File{
-			Node: igntypes.Node{
-				Filesystem: defaultFileSystem,
-				Path:       "/etc/systemd/system.conf.d/setAffinity.conf",
-			},
-			FileEmbedded1: igntypes.FileEmbedded1{
-				Contents: igntypes.FileContents{
-					Source: fmt.Sprintf("%s,%s", defaultIgnitionContentSource, contentBase64),
-				},
-				Mode: &mode,
-			},
-		})
-
-		cpuInvertedMask, err := components.CPUListTo64BitsMaskList(string(*reservedCpus))
-		if err != nil {
-			return nil, err
-		}
-
-		preBootTuningService, err := getSystemdContent(
-			getPreBootTuningUnitOptions(string(*reservedCpus), cpuInvertedMask),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		rebootService, err := getSystemdContent(getRebootUnitOptions())
-		if err != nil {
-			return nil, err
-		}
-
-		ignitionConfig.Systemd = igntypes.Systemd{
-			Units: []igntypes.Unit{
-				{
-					Contents: preBootTuningService,
-					Enabled:  pointer.BoolPtr(true),
-					Name:     getSystemdService(preBootTuning),
-				},
-				{
-					Contents: rebootService,
-					Enabled:  pointer.BoolPtr(true),
-					Name:     getSystemdService(reboot),
-				},
-			},
-		}
 	}
 
 	if profile.Spec.HugePages != nil {
@@ -208,6 +156,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 				return nil, err
 			}
 
+			// FIXME add rebootService ? (if not then remove reboot script completly)
 			ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
 				Contents: hugepagesService,
 				Enabled:  pointer.BoolPtr(true),
@@ -238,54 +187,6 @@ func getSystemdContent(options []*unit.UnitOption) (string, error) {
 		return "", err
 	}
 	return string(outBytes), nil
-}
-
-func getRebootUnitOptions() []*unit.UnitOption {
-	return []*unit.UnitOption{
-		// [Unit]
-		// Description
-		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Reboot initiated by pre-boot-tuning"),
-		// Wants
-		unit.NewUnitOption(systemdSectionUnit, systemdWants, systemdTargetNetworkOnline),
-		// After
-		unit.NewUnitOption(systemdSectionUnit, systemdAfter, systemdTargetNetworkOnline),
-		// Before
-		unit.NewUnitOption(systemdSectionUnit, systemdBefore, systemdServiceKubelet),
-		// [Service]
-		// Type
-		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
-		// RemainAfterExit
-		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
-		// ExecStart
-		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(reboot)),
-		// [Install]
-		// WantedBy
-		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
-	}
-}
-
-func getPreBootTuningUnitOptions(reservedCpus string, cpuInvertedMask string) []*unit.UnitOption {
-	return []*unit.UnitOption{
-		// [Unit]
-		// Description
-		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Preboot tuning patch"),
-		// Before
-		unit.NewUnitOption(systemdSectionUnit, systemdBefore, systemdServiceKubelet),
-		unit.NewUnitOption(systemdSectionUnit, systemdBefore, getSystemdService(reboot)),
-		// [Service]
-		// Environment
-		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCpus, reservedCpus)),
-		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentReservedCPUMaskInverted, cpuInvertedMask)),
-		// Type
-		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
-		// RemainAfterExit
-		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
-		// ExecStart
-		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(preBootTuning)),
-		// [Install]
-		// WantedBy
-		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
-	}
 }
 
 // GetHugepagesSizeKilobytes retruns hugepages size in kilobytes

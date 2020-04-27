@@ -2,7 +2,6 @@ package performanceprofile
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"regexp"
 	"time"
@@ -311,26 +310,9 @@ var _ = Describe("Controller", func() {
 					Namespace: metav1.NamespaceNone,
 				}
 
-				By("Verifying MC update for isolated")
-				mc := &mcov1.MachineConfig{}
-				err := r.client.Get(context.TODO(), key, mc)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(mc.Spec.KernelArguments).ToNot(ContainElement(ContainSubstring(`"isolcpus`)))
-
-				By("Verifying MC update for reserved")
-
-				contentBase64 := base64.StdEncoding.EncodeToString([]byte("[Manager]\nCPUAffinity=" + string(*profile.Spec.CPU.Reserved)))
-				Expect(mc.Spec.Config.Storage.Files).To(ContainElement(MatchFields(IgnoreMissing|IgnoreExtras, Fields{
-					"FileEmbedded1": MatchFields(IgnoreMissing|IgnoreExtras, Fields{
-						"Contents": MatchFields(IgnoreMissing|IgnoreExtras, Fields{
-							"Source": ContainSubstring(contentBase64),
-						}),
-					}),
-				})))
-
 				By("Verifying KC update for reserved")
 				kc := &mcov1.KubeletConfig{}
-				err = r.client.Get(context.TODO(), key, kc)
+				err := r.client.Get(context.TODO(), key, kc)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(kc.Spec.KubeletConfig.Raw)).To(ContainSubstring(fmt.Sprintf(`"reservedSystemCPUs":"%s"`, string(*profile.Spec.CPU.Reserved))))
 
