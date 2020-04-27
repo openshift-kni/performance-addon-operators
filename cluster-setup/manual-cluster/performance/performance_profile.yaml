@@ -23,3 +23,5 @@ spec:
     enabled: true
   numa:
     topologyPolicy: "single-numa-node"
+  nodeSelector:
+    node-role.kubernetes.io/worker-cnf: ""
