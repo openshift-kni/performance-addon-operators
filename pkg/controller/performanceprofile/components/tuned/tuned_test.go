@@ -12,12 +12,8 @@ import (
 
 const testAssetsDir = "../../../../../build/assets"
 const expectedMatchSelector = `
-  - match:
-    - label: label1
-      match:
-      - label: label2
-        value: label2
-      value: label1
+  - machineConfigLabels:
+      mcKey: mcValue
 `
 
 var cmdlineCPUsPartitioning = regexp.MustCompile(`\s*cmdline_cpu_part=\+\s*nohz=on\s+rcu_nocbs=\${isolated_cores}\s+tuned.non_isolcpus=\${not_isolated_cpumask}\s+intel_pstate=disable\s+nosoftlockup\s*`)
@@ -31,10 +27,6 @@ var _ = Describe("Tuned", func() {
 	Context("with worker performance profile", func() {
 		It("should generate yaml with expected parameters", func() {
 			profile := testutils.NewPerformanceProfile("test")
-			profile.Spec.NodeSelector = map[string]string{
-				"label1": "label1",
-				"label2": "label2",
-			}
 			tuned, err := NewNodePerformance(testAssetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
 			y, err := yaml.Marshal(tuned)

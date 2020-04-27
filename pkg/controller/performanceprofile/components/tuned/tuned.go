@@ -4,17 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"sort"
 	"strconv"
 	"strings"
 	"text/template"
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	profile2 "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 )
 
 const (
@@ -91,23 +90,12 @@ func NewNodePerformance(assetsDir string, profile *performancev1alpha1.Performan
 		},
 	}
 
-	// we should sort our matches, otherwise we can not predict the order of nested matches
-	sortedKeys := []string{}
-	for k := range profile.Spec.NodeSelector {
-		sortedKeys = append(sortedKeys, k)
-	}
-	sort.Strings(sortedKeys)
-
 	priority := uint64(30)
-	copyNodeSelector := map[string]string{}
-	for k, v := range profile.Spec.NodeSelector {
-		copyNodeSelector[k] = v
-	}
 	recommends := []tunedv1.TunedRecommend{
 		{
-			Profile:  &name,
-			Priority: &priority,
-			Match:    getProfileMatches(sortedKeys, copyNodeSelector),
+			Profile:             &name,
+			Priority:            &priority,
+			MachineConfigLabels: profile2.GetMachineConfigLabel(profile),
 		},
 	}
 	return new(name, profiles, recommends), nil
@@ -129,22 +117,4 @@ func getProfileData(profileOperatorlPath string, data interface{}) (string, erro
 		return "", err
 	}
 	return profile.String(), nil
-}
-
-func getProfileMatches(sortedKeys []string, matchNodeLabels map[string]string) []tunedv1.TunedMatch {
-	matches := []tunedv1.TunedMatch{}
-	for _, label := range sortedKeys {
-		value, ok := matchNodeLabels[label]
-		if !ok {
-			continue
-		}
-
-		delete(matchNodeLabels, label)
-		matches = append(matches, tunedv1.TunedMatch{
-			Label: pointer.StringPtr(label),
-			Value: pointer.StringPtr(value),
-			Match: getProfileMatches(sortedKeys, matchNodeLabels),
-		})
-	}
-	return matches
 }
