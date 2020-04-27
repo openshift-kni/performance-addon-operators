@@ -1,5 +1,5 @@
 [main]
-summary=summary=Openshift node optimized for deterministic performance at the cost of increased power consumption, focused on low latency network performance. Based on Tuned 2.11 and Cluster node tuning (oc 4.5)
+summary=Openshift node optimized for deterministic performance at the cost of increased power consumption, focused on low latency network performance. Based on Tuned 2.11 and Cluster node tuning (oc 4.5)
 include=openshift-node,cpu-partitioning
 
 # Inheritance of base profiles legend:
