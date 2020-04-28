@@ -2,15 +2,21 @@
 
 # expect oc to be in PATH by default
 OC_TOOL="${OC_TOOL:-oc}"
-nodeSelector="$(${OC_TOOL} get performanceprofile ci -o=jsonpath='{.spec.nodeSelector}'  | awk -F'[/:]' '{print $2}')"
-mcp="$(${OC_TOOL} get mcp -l machineconfiguration.openshift.io/role=$nodeSelector -o name | awk -F "/" '{print $2}')"
 
-# Remove node label
-echo "[INFO]: Unlabeling worker nodes"
-nodes=$(${OC_TOOL} get nodes --selector="node-role.kubernetes.io/${nodeSelector}" -o name)
-for node in $nodes
+profiles=$(${OC_TOOL} get performanceprofile -o name)
+for profileName in $profiles
 do
-    ${OC_TOOL} label $node node-role.kubernetes.io/${nodeSelector}-
+  nodeSelector="$(${OC_TOOL} get $profileName -o=jsonpath='{.spec.nodeSelector}'  | awk -F'[/:]' '{print $2}')"
+
+  if [[ $nodeSelector != "worker" ]]; then
+    mcps+=($(${OC_TOOL} get mcp -l machineconfiguration.openshift.io/role=$nodeSelector -o name | awk -F "/" '{print $2}'))
+    nodes=$(${OC_TOOL} get nodes --selector="node-role.kubernetes.io/${nodeSelector}" -o name)
+    for node in $nodes
+    do
+        echo "[INFO]: Unlabeling node $node"
+        ${OC_TOOL} label $node node-role.kubernetes.io/${nodeSelector}-
+    done
+  fi
 done
 
 # Give MCO some time to notice change
@@ -57,8 +63,11 @@ $OC_TOOL -n openshift-performance-addon delete operatorgroup openshift-performan
 $OC_TOOL -n openshift-marketplace delete catalogsource performance-addon-operator-catalogsource
 
 # Delete worker-cnf MCP
-echo "[INFO] Deleting $mcp MCP"
-$OC_TOOL delete mcp $mcp
+for mcp in $mcps
+do
+    echo "[INFO] Deleting MCP $mcp"
+    $OC_TOOL delete mcp $mcp
+done
 
 # Delete ns
 echo "[INFO] Deleting Namespace"
