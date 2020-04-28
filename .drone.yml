@@ -1,0 +1,71 @@
+kind: pipeline
+type: docker
+name: release
+
+workspace:
+  # This should align with WORKDIR of openshift-ci/Dockerfile.tools
+  path: /go/src/github.com/openshift-kni/performance-addon-operators
+
+trigger:
+  ref:
+    include:
+    # Only release on tags with semver
+    # But glob pattern is a bit limited for this... and extended glob does not seem to work
+    # With this we will be fine until 4.9.x, but we do not catch all invalid tags
+    - refs/tags/[0-9].[0-9].[0-9]*
+
+steps:
+  - name: build-tools-image
+    image: plugins/docker
+    settings:
+      dockerfile: openshift-ci/Dockerfile.tools
+      username:
+        from_secret: QUAY_USER
+      password:
+        from_secret: QUAY_PASSWORD
+      registry: quay.io
+      # This only works if github user == quay user!
+      repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-build-tools
+      tags:
+      - ${DRONE_TAG}
+
+  - name: build
+    image: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-build-tools:${DRONE_TAG}
+    environment:
+      CSV_VERSION: ${DRONE_TAG}
+      REGISTRY_NAMESPACE: ${DRONE_REPO_NAMESPACE}
+      IMAGE_TAG: ${DRONE_TAG}
+    commands:
+      - make build generate-csv
+
+  - name: build-operator-image
+    image: plugins/docker
+    settings:
+      dockerfile: openshift-ci/Dockerfile.deploy
+      username:
+        from_secret: QUAY_USER
+      password:
+        from_secret: QUAY_PASSWORD
+      build_args:
+      - BIN_DIR=build/_output/bin/
+      - ASSETS_DIR=build/assets
+      registry: quay.io
+      # This only works if github user == quay user!
+      repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator
+      auto_tag: true
+
+  - name: build-registry-image
+    image: plugins/docker
+    settings:
+      dockerfile: openshift-ci/Dockerfile.registry.upstream.dev
+      username:
+        from_secret: QUAY_USER
+      password:
+        from_secret: QUAY_PASSWORD
+      build_args:
+        # This only works if github user == quay user!
+        - FULL_OPERATOR_IMAGE=quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator:${DRONE_TAG}
+      registry: quay.io
+      # This only works if github user == quay user!
+      repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-registry
+      auto_tag: true
