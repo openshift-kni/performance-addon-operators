@@ -93,11 +93,11 @@ operator-container: build
 		echo "REGISTRY_NAMESPACE env-var must be set to your $(IMAGE_REGISTRY) namespace";\
 		exit 1;\
 	fi
-	$(IMAGE_BUILD_CMD) build --no-cache -f build/Dockerfile -t $(FULL_OPERATOR_IMAGE) build/
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.deploy -t $(FULL_OPERATOR_IMAGE) --build-arg BIN_DIR="_output/bin/" --build-arg ASSETS_DIR="assets" build/
 
 registry-container: generate-latest-dev-csv
 	@echo "Building the performance-addon-operator registry image"
-	$(IMAGE_BUILD_CMD) build --no-cache -t "$(FULL_REGISTRY_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)" -f deploy/Dockerfile .
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.registry.upstream.dev -t "$(FULL_REGISTRY_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)"  .
 
 push-containers:
 	$(IMAGE_BUILD_CMD) push $(FULL_OPERATOR_IMAGE)
