@@ -39,8 +39,6 @@ OPERATOR_IMAGE_NAME="performance-addon-operator"
 FULL_OPERATOR_IMAGE ?= "$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
 FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
 
-OPERATOR_DEV_CSV="0.0.1"
-
 CLUSTER ?= "ci"
 
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
@@ -123,7 +121,7 @@ generate-csv: operator-sdk dist-csv-generator
 generate-latest-dev-csv: operator-sdk dist-csv-generator
 	@echo Generating developer csv
 	@echo
-	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" CSV_VERSION=$(OPERATOR_DEV_CSV) hack/csv-generate.sh
+	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" hack/csv-generate.sh -dev
 
 generate-docs: dist-docs-generator
 	hack/docs-generate.sh

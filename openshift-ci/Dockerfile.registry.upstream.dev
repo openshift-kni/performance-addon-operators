@@ -1,8 +1,9 @@
 FROM quay.io/openshift/origin-operator-registry:4.5
 
 ARG FULL_OPERATOR_IMAGE=quay.io/openshift-kni/performance-addon-operator:latest
+ARG OLM_SOURCE=deploy/olm-catalog
 
-COPY deploy/olm-catalog /registry/performance-addon-operator-catalog
+COPY ${OLM_SOURCE} /registry/performance-addon-operator-catalog
 
 # replaces performance-addon-operator image with the one built by openshift ci
 RUN find /registry/performance-addon-operator-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|${FULL_OPERATOR_IMAGE}|g" {} \; || :

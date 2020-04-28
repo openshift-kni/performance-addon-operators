@@ -32,7 +32,7 @@ steps:
   - name: build
     image: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-build-tools:${DRONE_TAG}
     environment:
-      CSV_VERSION: ${DRONE_TAG}
+      CSV_VERSION: ${DRONE_SEMVER_SHORT}
       REGISTRY_NAMESPACE: ${DRONE_REPO_NAMESPACE}
       IMAGE_TAG: ${DRONE_TAG}
     commands:
@@ -65,6 +65,7 @@ steps:
       build_args:
         # This only works if github user == quay user!
         - FULL_OPERATOR_IMAGE=quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator:${DRONE_TAG}
+        - OLM_SOURCE=build/_output/olm-catalog
       registry: quay.io
       # This only works if github user == quay user!
       repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-registry
