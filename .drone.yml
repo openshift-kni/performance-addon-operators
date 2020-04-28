@@ -36,7 +36,8 @@ steps:
       REGISTRY_NAMESPACE: ${DRONE_REPO_NAMESPACE}
       IMAGE_TAG: ${DRONE_TAG}
     commands:
-      - make build generate-csv
+      - git fetch --tags # Needed for the release note
+      - make build generate-csv release-note
 
   - name: build-operator-image
     image: plugins/docker
@@ -70,3 +71,23 @@ steps:
       # This only works if github user == quay user!
       repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-registry
       auto_tag: true
+
+  - name: github-release
+    image: plugins/github-release
+    settings:
+      api_key:
+        from_secret: GITHUB_TOKEN
+      title: ${DRONE_TAG}
+      note: build/_output/release-note.md
+      files:
+        - build/_output/olm-catalog/performance-addon-operator/${DRONE_SEMVER_SHORT}/*
+      checksum:
+        - sha256
+      draft: false # Setting this to true does not assign the release note to a tag...
+      prerelease: true # So use prerelease
+      overwrite: false
+    when:
+      ref:
+        exclude:
+          # do not create github releases when the tag contains the word "test"
+          - refs/tags/*test*
