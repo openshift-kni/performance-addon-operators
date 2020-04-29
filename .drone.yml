@@ -60,9 +60,9 @@ steps:
   - name: validate-operator-imgage
     image: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator:${DRONE_TAG}
     commands:
-      - ls /usr/local/bin/ | grep performance-operator
-      # FIXME as soon as we report the correct version here
-      - "/usr/local/bin/performance-operator 2>&1 | grep 'Operator Version: 0.0.1'"
+      - ls /usr/local/bin/performance-operator
+      - "/usr/local/bin/performance-operator 2>&1 | grep \"Operator Version: ${DRONE_TAG}\""
+      - "/usr/local/bin/performance-operator 2>&1 | grep \"Git Commit: ${DRONE_COMMIT}\""
 
   - name: build-registry-image
     image: plugins/docker

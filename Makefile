@@ -22,6 +22,12 @@ FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE
 
 CLUSTER ?= "ci"
 
+GIT_VERSION=$$(git describe --always --tags)
+VERSION=$${CI_UPSTREAM_VERSION:-$(GIT_VERSION)}
+GIT_COMMIT=$$(git rev-list -1 HEAD)
+COMMIT=$${CI_UPSTREAM_COMMIT:-$(GIT_COMMIT)}
+BUILD_DATE=$$(date --utc -Iseconds)
+
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 
@@ -31,8 +37,13 @@ build: gofmt golint govet dist
 .PHONY: dist
 dist:
 	@echo "Building operator binary"
-	mkdir -p build/_output/bin
-	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/performance-addon-operators ./cmd/manager
+	mkdir -p build/_output/bin; \
+    LDFLAGS="-s -w "; \
+    LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.Version=$(VERSION) "; \
+    LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.GitCommit=$(COMMIT) "; \
+    LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.BuildDate=$(BUILD_DATE) "; \
+	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="$$LDFLAGS" \
+	  -mod=vendor -o build/_output/bin/performance-addon-operators ./cmd/manager
 
 .PHONY: dist-tools
 dist-tools: dist-csv-generator dist-csv-replace-imageref
