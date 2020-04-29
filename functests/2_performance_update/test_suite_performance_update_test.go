@@ -22,6 +22,7 @@ import (
 )
 
 var _ = BeforeSuite(func() {
+	Expect(testclient.ClientsEnabled).To(BeTrue())
 	// create test namespace
 	err := testclient.Client.Create(context.TODO(), namespaces.TestingNamespace)
 	if errors.IsAlreadyExists(err) {
