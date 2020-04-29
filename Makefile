@@ -197,3 +197,7 @@ ci-job: verify build unittests
 .PHONY: release-note
 release-note:
 	hack/release-note.sh
+
+.PHONY: generate-release-tags
+generate-release-tags:
+	hack/generate-release-tags.sh

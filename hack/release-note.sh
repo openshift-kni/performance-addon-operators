@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # This is generating a release note, which will be used for github releases
 
 RELEASE_NOTE_FILE="build/_output/release-note.md"
