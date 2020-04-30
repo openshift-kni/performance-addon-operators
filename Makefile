@@ -174,7 +174,7 @@ functests-only:
 
 .PHONY: unittests
 unittests:
-	GOFLAGS=-mod=vendor go test -v ./pkg/...
+	hack/unittests.sh
 
 .PHONY: gofmt
 gofmt:

@@ -106,3 +106,68 @@ steps:
         exclude:
           # do not create github releases when the tag contains the word "test"
           - refs/tags/*test*
+
+---
+
+# This pipeline builds the build tool image for each branch, so it does not need to be build for every PR update
+# Builds based on changed files are supported by drone.io extensions only, which can't be installed on cloud.drone.io
+# See https://github.com/drone/drone/issues/1021#issuecomment-596127812
+
+kind: pipeline
+type: docker
+name: build-tools
+
+trigger:
+  event:
+    include:
+      - push
+  branch:
+    include:
+      - master
+      - release-*
+
+steps:
+  - name: build-tools-image
+    image: plugins/docker
+    settings:
+      dockerfile: openshift-ci/Dockerfile.tools
+      username:
+        from_secret: QUAY_USER
+      password:
+        from_secret: QUAY_PASSWORD
+      registry: quay.io
+      # This only works if github user == quay user!
+      repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-build-tools
+      tags:
+        - ${DRONE_BRANCH}
+
+---
+
+# This pipeline runs unit tests and creates coverage reports for coveralls.io
+kind: pipeline
+type: docker
+name: coverage
+
+workspace:
+  # This should align with WORKDIR of openshift-ci/Dockerfile.tools
+  path: /go/src/github.com/openshift-kni/performance-addon-operators
+
+trigger:
+  event:
+    include:
+      - push
+      - pull_request
+  branch:
+    include:
+      - master
+      - release-*
+
+steps:
+  - name: coverage
+    image: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-build-tools:${DRONE_BRANCH}
+    environment:
+      COVERALLS_TOKEN:
+        from_secret: COVERALLS_REPO_TOKEN
+    commands:
+      - make unittests
+
