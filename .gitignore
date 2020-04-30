@@ -2,8 +2,7 @@
 build/_output
 build/_test
 _cache
-tools/csv-generator/csv-generator
-tools/csv-replace-imageref/csv-replace-imageref
+.tags
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 ### Emacs ###
 # -*- mode: gitignore; -*-

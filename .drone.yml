@@ -1,0 +1,108 @@
+kind: pipeline
+type: docker
+name: release
+
+workspace:
+  # This should align with WORKDIR of openshift-ci/Dockerfile.tools
+  path: /go/src/github.com/openshift-kni/performance-addon-operators
+
+trigger:
+  ref:
+    include:
+    # Only release on tags with semver
+    # But glob pattern is a bit limited for this, and extended glob does not seem to work
+    # With this we will be fine for m.m.pp-bb[.pre], but we do not catch all invalid tags
+    - refs/tags/[0-9].[0-9].[0-9]-[0-9]*
+    - refs/tags/[0-9].[0-9].[0-9][0-9]-[0-9]*
+    - refs/tags/[0-9].[0-9].[0-9]-[0-9][0-9]*
+    - refs/tags/[0-9].[0-9].[0-9][0-9]-[0-9][0-9]*
+
+steps:
+  - name: build-tools-image
+    image: plugins/docker
+    settings:
+      dockerfile: openshift-ci/Dockerfile.tools
+      username:
+        from_secret: QUAY_USER
+      password:
+        from_secret: QUAY_PASSWORD
+      registry: quay.io
+      # This only works if github user == quay user!
+      repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-build-tools
+      tags:
+      - ${DRONE_TAG}
+
+  - name: build
+    image: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-build-tools:${DRONE_TAG}
+    environment:
+      CSV_VERSION: ${DRONE_SEMVER_SHORT}
+      REGISTRY_NAMESPACE: ${DRONE_REPO_NAMESPACE}
+      IMAGE_TAG: ${DRONE_TAG}
+    commands:
+      - git fetch --tags # Needed for the release note
+      - TAG=${DRONE_TAG} make build generate-csv release-note generate-release-tags
+
+  - name: build-operator-image
+    image: plugins/docker
+    settings:
+      dockerfile: openshift-ci/Dockerfile.deploy
+      username:
+        from_secret: QUAY_USER
+      password:
+        from_secret: QUAY_PASSWORD
+      build_args:
+      - BIN_DIR=build/_output/bin/
+      - ASSETS_DIR=build/assets
+      registry: quay.io
+      # This only works if github user == quay user!
+      repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator
+
+  - name: validate-operator-imgage
+    image: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator:${DRONE_TAG}
+    commands:
+      - ls /usr/local/bin/ | grep performance-operator
+      # FIXME as soon as we report the correct version here
+      - "/usr/local/bin/performance-operator 2>&1 | grep 'Operator Version: 0.0.1'"
+
+  - name: build-registry-image
+    image: plugins/docker
+    settings:
+      dockerfile: openshift-ci/Dockerfile.registry.upstream.dev
+      username:
+        from_secret: QUAY_USER
+      password:
+        from_secret: QUAY_PASSWORD
+      build_args:
+        # This only works if github user == quay user!
+        - FULL_OPERATOR_IMAGE=quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator:${DRONE_TAG}
+        - OLM_SOURCE=build/_output/olm-catalog
+      registry: quay.io
+      # This only works if github user == quay user!
+      repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-registry
+
+  - name: validate-registry-image
+    image: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-registry:${DRONE_TAG}
+    commands:
+      - sqlite3 /registry/bundles.db "select * from package" | grep "performance-addon-operator|${DRONE_SEMVER_SHORT}"
+      - sqlite3 /registry/bundles.db "select * from channel" | grep "${DRONE_SEMVER_SHORT}|performance-addon-operator|performance-addon-operator.v${DRONE_SEMVER_SHORT}"
+      - sqlite3 /registry/bundles.db "select * from operatorbundle" | grep "\"image\":\"quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator:${DRONE_TAG}\""
+
+  - name: github-release
+    image: plugins/github-release
+    settings:
+      api_key:
+        from_secret: GITHUB_TOKEN
+      title: ${DRONE_TAG}
+      note: build/_output/release-note.md
+      files:
+        - build/_output/olm-catalog/performance-addon-operator/${DRONE_SEMVER_SHORT}/*
+      checksum:
+        - sha256
+      draft: false # Setting this to true does not assign the release note to a tag...
+      prerelease: true # So use prerelease
+      overwrite: false
+    when:
+      ref:
+        exclude:
+          # do not create github releases when the tag contains the word "test"
+          - refs/tags/*test*

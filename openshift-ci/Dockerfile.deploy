@@ -1,10 +1,12 @@
-FROM registry.access.redhat.com/ubi7/ubi-minimal:latest
-LABEL com.redhat.delivery.appregistry=true
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+ARG BIN_DIR=
+ARG ASSETS_DIR=build/assets
 
 ENV LANG=en_US.utf8
 
-COPY build/assets /assets
-COPY performance-addon-operators /usr/local/bin/performance-operator
+COPY ${ASSETS_DIR} /assets
+COPY ${BIN_DIR}performance-addon-operators /usr/local/bin/performance-operator
 USER 1001
 
 ENTRYPOINT [ "/usr/local/bin/performance-operator" ]
