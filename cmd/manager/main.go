@@ -45,6 +45,8 @@ var (
 
 func printVersion() {
 	klog.Infof("Operator Version: %s", version.Version)
+	klog.Infof("Git Commit: %s", version.GitCommit)
+	klog.Infof("Build Date: %s", version.BuildDate)
 	klog.Infof("Go Version: %s", runtime.Version())
 	klog.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
 	klog.Infof("Version of operator-sdk: %v", sdkVersion.Version)
