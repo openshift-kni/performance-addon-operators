@@ -1,15 +1,18 @@
-FROM fedora:31
+FROM centos:7
 
-ENV GOPATH /go
-ENV GOBIN /go/bin
-ENV GOCACHE /go/.cache
-ENV GOVERSION 1.13.5
+USER root
+
 ENV HOME /root
-ENV PATH=$PATH:/root/.gimme/versions/go"$GOVERSION".linux.amd64/bin:$GOBIN
+ENV GOROOT /usr/local/go
+ENV GOVERSION 1.13.5
+ENV GOPATH /go
+ENV GOBIN ${GOPATH}/bin
+ENV PATH=${PATH}:${GOROOT}/bin:${GOBIN}
+
 ARG GO_PACKAGE_PATH=github.com/openshift-kni/performance-addon-operators
 
 # rpms required for building and running test suites
-RUN dnf -y install \
+RUN yum --setopt=install_weak_deps=False -y install \
     gcc \
     git \
     make \
@@ -18,18 +21,20 @@ RUN dnf -y install \
     skopeo \
     findutils \
     python2 \
-    && dnf clean all
+    && yum clean all
 
 RUN mkdir ~/bin && \
-    # install Go using gimme
-    curl -sL -o /usr/local/bin/gimme https://raw.githubusercontent.com/travis-ci/gimme/master/gimme && \
-    chmod +x /usr/local/bin/gimme && \
-    eval "$(gimme $GOVERSION)" && \
-    cat $GIMME_ENV >> $HOME/.bashrc && \
+    # install go
+    curl -JL https://dl.google.com/go/go${GOVERSION}.linux-amd64.tar.gz -o go.tar.gz && \
+    tar -C /usr/local -xzf go.tar.gz && \
+    rm go.tar.gz && \
     # get required golang tools and OC client
     go get github.com/onsi/ginkgo/ginkgo && \
-    go get github.com/onsi/gomega/... && \
-    go get -u golang.org/x/lint/golint && \
+    go get golang.org/x/lint/golint && \
+    go get github.com/mattn/goveralls && \
+    go clean -cache -modcache && \
+    rm -rf ${GOPATH}/src/* && \
+    rm -rf ${GOPATH}/pkg/* && \
     export latest_oc_client_version=$(curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/ 2>/dev/null | grep -o \"openshift-client-linux-4.*tar.gz\" | tr -d \") && \
     curl -JL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/${latest_oc_client_version} -o oc.tar.gz && \
     tar -xzvf oc.tar.gz && \
@@ -37,14 +42,8 @@ RUN mkdir ~/bin && \
     rm -f oc.tar.gz && \
     echo 'alias kubectl="oc"' >> ~/.bashrc
 
-RUN export TMP_BIN=$(mktemp -d) && \
-    mv $GOBIN/* $TMP_BIN/ && \
-    rm -rf ${GOPATH} ${GOCACHE} && \
-    mkdir -p ${GOPATH}/src/${GO_PACKAGE_PATH}/ && \
-    mkdir -p ${GOBIN} && \
-    chmod -R 775 ${GOPATH} && \
-    mv $TMP_BIN/* ${GOBIN} && \
-    rm -rf $TMP_BIN
+RUN mkdir -p ${GOPATH}/src/${GO_PACKAGE_PATH}/ && \
+    chmod -R 775 ${GOPATH}
 
 WORKDIR ${GOPATH}/src/${GO_PACKAGE_PATH}
 
