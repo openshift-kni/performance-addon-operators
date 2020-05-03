@@ -111,7 +111,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			table.Entry("[test_id:28024] verify that hugepages size and count updated", chkCmdLine, []string{"default_hugepagesz=2M", "hugepagesz=2M", "hugepages=5"}, true),
 			table.Entry("[test_id:28070] verify that hugepages updated (NUMA node unspecified)", chkCmdLine, []string{"hugepagesz=2M"}, true),
 			table.Entry("[test_id:28025] verify that cpu affinity mask was updated", chkCmdLine, []string{"tuned.non_isolcpus=00000009"}, true),
-			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"isolcpus=1-2"}, true),
+			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"isolated_cores=1-2"}, true),
+			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"systemd.cpu_affinity=0,3"}, true),
 			table.Entry("[test_id:28935] verify that reservedSystemCPUs was updated", chkKubeletConfig, []string{`"reservedSystemCPUs":"0,3"`}, true),
 			table.Entry("[test_id:28760] verify that topologyManager was updated", chkKubeletConfig, []string{`"topologyManagerPolicy":"best-effort"`}, true),
 			table.Entry("[test_id:27738] verify that realTimeKernerl was updated", chkKernel, []string{"PREEMPT RT"}, false),
@@ -215,9 +216,6 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			By("Waiting when MCP finishes updates and verifying new node has updated configuration")
 			mcps.WaitForCondition(newRole, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 
-			_, err = nodes.ExecCommandOnMachineConfigDaemon(newCnfNode, []string{"ls", "/rootfs/" + testutils.PerfRtKernelPrebootTuningScript})
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("cannot find the file %s", testutils.PerfRtKernelPrebootTuningScript))
-
 			kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, newCnfNode)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKubeletConfig))
 			Expect(kblcfg).To(ContainSubstring("topologyManagerPolicy"))
@@ -251,12 +249,6 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 					Expect(newCnfNode.Status.Conditions[i].Status).To(Equal(corev1.ConditionTrue))
 				}
 			}
-
-			// check that the pre-boot-tuning script and service removed
-			out, _ := nodes.ExecCommandOnMachineConfigDaemon(newCnfNode, []string{"ls", "/rootfs/" + testutils.PerfRtKernelPrebootTuningScript})
-			Expect(out).To(ContainSubstring("No such file or directory"))
-			out, _ = nodes.ExecCommandOnMachineConfigDaemon(newCnfNode, []string{"ls", "/rootfs/" + "/etc/systemd/system/pre-boot-tuning.service"})
-			Expect(out).To(ContainSubstring("No such file or directory"))
 
 			// check that the configs reverted
 			kernel, err := nodes.ExecCommandOnNode(chkKernel, newCnfNode)
