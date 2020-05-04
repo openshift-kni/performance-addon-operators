@@ -3,7 +3,7 @@
 
 # DO NPOT MERGE
 echo "************ TEST *************"
-ehco "whoami"
+echo "whoami"
 whoami
 ls -latr /home/ci
 
