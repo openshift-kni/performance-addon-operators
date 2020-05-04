@@ -30,3 +30,8 @@
 - check machine config damons of the relevant nodes  
   `$ oc get pod -A -o=wide | grep machine-config-daemon`  
   `$ oc logs -n ... `
+- check tuned damons of the relevant nodes  
+  `$ oc get pod -A -o=wide | grep tuned`  
+  `$ oc logs -n ... `  
+- check logs of cluster-node-tuning-operator `Pod`  
+  `$ oc logs -n ... `
