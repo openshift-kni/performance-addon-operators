@@ -30,7 +30,6 @@ const (
 	// MCKernelDefault is the value of the kernel setting in MachineConfig for the default kernel
 	MCKernelDefault = "default"
 
-	reboot              = "reboot"
 	hugepagesAllocation = "hugepages-allocation"
 	bashScriptsDir      = "/usr/local/bin"
 )
@@ -115,7 +114,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 		},
 	}
 
-	for _, script := range []string{hugepagesAllocation, reboot} {
+	for _, script := range []string{hugepagesAllocation} {
 		content, err := ioutil.ReadFile(fmt.Sprintf("%s/scripts/%s.sh", assetsDir, script))
 		if err != nil {
 			return nil, err
@@ -156,7 +155,6 @@ func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.Performanc
 				return nil, err
 			}
 
-			// FIXME add rebootService ? (if not then remove reboot script completly)
 			ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
 				Contents: hugepagesService,
 				Enabled:  pointer.BoolPtr(true),
