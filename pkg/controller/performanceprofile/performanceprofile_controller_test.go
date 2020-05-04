@@ -407,7 +407,6 @@ var _ = Describe("Controller", func() {
 				cmdlineHugepages := regexp.MustCompile(`\s*cmdline_hugepages=\+\s*`)
 				Expect(cmdlineHugepages.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
 
-				// TODO remove (?)
 				By("Verifying MC update")
 				key = types.NamespacedName{
 					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),

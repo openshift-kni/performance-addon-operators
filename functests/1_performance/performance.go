@@ -79,8 +79,6 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 		})
 
-		// FIXME - add new test for systemd.cpuaffinity
-
 	})
 	Context("FeatureGate - FeatureSet configuration", func() {
 		It("[test_id:28529][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] FeatureGates with LatencySensitive should exist", func() {
@@ -106,7 +104,6 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 					cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/proc/cmdline"})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(cmdline).To(ContainSubstring(additionalArgs))
-					//TODO - might need to test without the exact substring
 				}
 			}
 		})
