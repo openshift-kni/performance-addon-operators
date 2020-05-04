@@ -1,5 +1,6 @@
 FROM centos:7
 
+ENV HOME=/home/ci
 ENV GOROOT /usr/local/go
 ENV GOVERSION 1.13.5
 ENV GOPATH /go
@@ -20,7 +21,8 @@ RUN yum --setopt=install_weak_deps=False -y install \
     python2 \
     && yum clean all
 
-RUN mkdir ~/bin && \
+RUN mkdir -p $HOME && \
+    chmod -R 777 $HOME && \
     # install go
     curl -JL https://dl.google.com/go/go${GOVERSION}.linux-amd64.tar.gz -o go.tar.gz && \
     tar -C /usr/local -xzf go.tar.gz && \
