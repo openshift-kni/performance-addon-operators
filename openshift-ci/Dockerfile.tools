@@ -22,7 +22,6 @@ RUN yum --setopt=install_weak_deps=False -y install \
     && yum clean all
 
 RUN mkdir -p $HOME && \
-    chmod -R 777 $HOME && \
     # install go
     curl -JL https://dl.google.com/go/go${GOVERSION}.linux-amd64.tar.gz -o go.tar.gz && \
     tar -C /usr/local -xzf go.tar.gz && \
@@ -39,7 +38,8 @@ RUN mkdir -p $HOME && \
     tar -xzvf oc.tar.gz && \
     mv oc /usr/local/bin/oc && \
     rm -f oc.tar.gz && \
-    echo 'alias kubectl="oc"' >> ~/.bashrc
+    echo 'alias kubectl="oc"' >> ~/.bashrc && \
+    chmod -R 777 $HOME
 
 RUN mkdir -p ${GOPATH}/src/${GO_PACKAGE_PATH}/ && \
     chmod -R 775 ${GOPATH}
