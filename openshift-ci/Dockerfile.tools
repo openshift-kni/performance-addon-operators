@@ -1,6 +1,5 @@
 FROM centos:7
 
-ENV HOME /root
 ENV GOROOT /usr/local/go
 ENV GOVERSION 1.13.5
 ENV GOPATH /go
