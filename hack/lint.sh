@@ -1,5 +1,12 @@
 #!/bin/bash
 
+
+# DO NPOT MERGE
+echo "************ TEST *************"
+ehco "whoami"
+whoami
+ls -latr /home/ci
+
 which golint
 if [ $? -ne 0 ]; then
 	echo "Downloading golint tool"
