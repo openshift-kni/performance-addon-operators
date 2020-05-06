@@ -20,12 +20,14 @@ OUT_CSV_FILE="${OUT_CSV_DIR}/${PACKAGE_NAME}.v${CSV_VERSION}.clusterserviceversi
 EXTRA_ANNOTATIONS=""
 MAINTAINERS=""
 
+if [ -n "$DESCRIPTION_FILE" ]; then
+	DESCRIPTION="-description-from=$DESCRIPTION_FILE"
+fi
 if [ -n "$MAINTAINERS_FILE" ]; then
 	MAINTAINERS="-maintainers-from=$MAINTAINERS_FILE"
 fi
-
 if [ -n "$ANNOTATIONS_FILE" ]; then
-	EXTRA_ANNOTATIONS="-inject-annotations-from=$ANNOTATIONS_FILE"
+	EXTRA_ANNOTATIONS="-annotations-from=$ANNOTATIONS_FILE"
 fi
 
 clean_package() {
@@ -60,6 +62,7 @@ build/_output/bin/csv-generator \
 	--olm-bundle-directory "$OUT_CSV_DIR" \
 	--replaces-csv-version "$REPLACES_CSV_VERSION" \
 	--skip-range "$CSV_SKIP_RANGE" \
+	"${DESCRIPTION}" \
 	"${MAINTAINERS}" \
 	"${EXTRA_ANNOTATIONS}"
 
