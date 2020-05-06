@@ -31,7 +31,7 @@ var (
 
 	outputDir = flag.String("olm-bundle-directory", "", "The directory to output the unified CSV and CRDs to")
 
-	annotationsFile = flag.String("inject-annotations-from", "", "inject metadata annotations from given file")
+	annotationsFile = flag.String("annotations-from", "", "add metadata annotations from given file")
 	maintainersFile = flag.String("maintainers-from", "", "add maintainers list from given file")
 	descriptionFile = flag.String("description-from", "", "replace the description with the content of the given file")
 
@@ -137,6 +137,9 @@ func generateUnifiedCSV(userData csvUserData) {
 	// Set Description
 	operatorCSV.Spec.Description = `
 Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.`
+	if userData.Description != "" {
+		operatorCSV.Spec.Description = userData.Description
+	}
 
 	operatorCSV.Spec.DisplayName = "Performance Addon Operator"
 
