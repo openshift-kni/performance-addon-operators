@@ -31,7 +31,7 @@ var (
 
 	outputDir = flag.String("olm-bundle-directory", "", "The directory to output the unified CSV and CRDs to")
 
-	annotationsFile = flag.String("inject-annotations-from", "", "inject metadata annotations from given file")
+	annotationsFile = flag.String("annotations-from", "", "add metadata annotations from given file")
 	maintainersFile = flag.String("maintainers-from", "", "add maintainers list from given file")
 	descriptionFile = flag.String("description-from", "", "replace the description with the content of the given file")
 
