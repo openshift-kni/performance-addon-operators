@@ -37,13 +37,18 @@ contribution. See the [DCO](DCO) file for details.
 * Use Status.Conditions and Events to represent and record transient states that a CR exists in.
 * Avoid introducing Status.Phase enums if possible. The pitfall of a Phase enum is that it often gets treated as a FSM, when in reality that isn't always the case. [Source](https://github.com/kubernetes/kubernetes/issues/7856)
 
-# Unit Testing
+# Unit Testing and Coverage
 
 Unit testing allows us to validate our reconcile loops under specific conditions to ensure no unexpected changes in behavior are introduced.
 
 * Use mock clients to simulate reconcile loops.
 * Execute reconcile loop to validate execution under specific conditions.
 * Validate reconcile execution by introspecting API calls that were made during the execution. [Example](https://github.com/operator-framework/operator-sdk-samples/blob/master/go/memcached-operator/pkg/controller/memcached/memcached_controller_test.go)
+
+Unit tests can be executed with `make unittests`. This will also create unit test coverage reports, their location will be reported.
+Every PR will also run unit tests with coverage, and the status will be reported on the PR. Make sure the coverage doesn't decrease,
+by writing unit tests for new code. PRs for increasing the coverage for existing code are very welcome, too.
+The current coverage on master and release branches can also be seen at [coveralls.io](https://coveralls.io/github/openshift-kni/performance-addon-operators).
 
 # Functional Testing
 

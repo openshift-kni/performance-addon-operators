@@ -1,5 +1,8 @@
 # Performance Addon Operator
 
+[![Drone.io Status](https://cloud.drone.io/api/badges/openshift-kni/performance-addon-operators/status.svg?ref=refs/heads/master)](https://cloud.drone.io/openshift-kni/performance-addon-operators/)
+[![Coverage Status](https://coveralls.io/repos/github/openshift-kni/performance-addon-operators/badge.svg?branch=master)](https://coveralls.io/github/openshift-kni/performance-addon-operators?branch=master)
+
 The `Performance Operator` optimizes OpenShift clusters for applications sensitive to cpu and network latency.
 
 The operator was created using the operator-sdk:
