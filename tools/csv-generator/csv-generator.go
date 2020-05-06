@@ -238,6 +238,9 @@ func generateUnifiedCSV(extraAnnotations, maintainers map[string]string) {
 	// Set Description
 	operatorCSV.Spec.Description = `
 Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.`
+	if userData.Description != "" {
+		operatorCSV.Spec.Description = userData.Description
+	}
 
 	operatorCSV.Spec.DisplayName = "Performance Addon Operator"
 
