@@ -4,8 +4,16 @@ set -e
 
 export GOROOT=$(go env GOROOT)
 
+PREV="4.4.0"
+LATEST="4.5.0"
+
 IS_DEV=$( [[ $1 = "-dev" ]] && echo true || echo false )
-CSV_VERSION=$( [[ $IS_DEV = true ]] && echo "0.0.1" || echo "$CSV_VERSION" )
+
+if [[ $IS_DEV = true ]] || [[ -z "$CSV_VERSION" ]]; then
+  CSV_VERSION=$LATEST
+  REPLACES_CSV_VERSION=$PREV
+fi
+
 
 PACKAGE_NAME="performance-addon-operator"
 
@@ -31,7 +39,6 @@ if [ -n "$ANNOTATIONS_FILE" ]; then
 fi
 
 clean_package() {
-	rm -rf "$PACKAGE_DIR"
 	mkdir -p "$CSV_DIR"
 	rm -rf "$OUT_DIR"
 	mkdir -p "$OUT_CSV_DIR"
@@ -45,26 +52,29 @@ fi
 # clean up all old data first
 clean_package
 
-# generate a temporary csv we'll use as a template
-$OPERATOR_SDK generate crds
-$OPERATOR_SDK generate csv \
-  --operator-name="${PACKAGE_NAME}" \
-  --csv-version="${CSV_VERSION}" \
-  --csv-channel="${CSV_VERSION}" \
-  --default-channel=true \
-  --update-crds
+# do not generate new CRD/CSV for old versions
+if [[ "$CSV_VERSION" != "$PREV" ]]; then
+  $OPERATOR_SDK generate crds
 
-# using the generated CSV, create the real CSV by injecting all the right data into it
-build/_output/bin/csv-generator \
-	--csv-version "${CSV_VERSION}" \
-	--operator-csv-template-file "${CSV_FILE}" \
-	--operator-image "${FULL_OPERATOR_IMAGE}" \
-	--olm-bundle-directory "$OUT_CSV_DIR" \
-	--replaces-csv-version "$REPLACES_CSV_VERSION" \
-	--skip-range "$CSV_SKIP_RANGE" \
-	"${DESCRIPTION}" \
-	"${MAINTAINERS}" \
-	"${EXTRA_ANNOTATIONS}"
+  # generate a temporary csv we'll use as a template
+  $OPERATOR_SDK generate csv \
+    --operator-name="${PACKAGE_NAME}" \
+    --csv-version="${CSV_VERSION}" \
+    --csv-channel="${CSV_VERSION}" \
+    --default-channel=true \
+    --update-crds
+
+  # using the generated CSV, create the real CSV by injecting all the right data into it
+  build/_output/bin/csv-generator \
+    --csv-version "${CSV_VERSION}" \
+    --operator-csv-template-file "${CSV_FILE}" \
+    --operator-image "${FULL_OPERATOR_IMAGE}" \
+    --olm-bundle-directory "$OUT_CSV_DIR" \
+    --replaces-csv-version "$REPLACES_CSV_VERSION" \
+    --skip-range "$CSV_SKIP_RANGE" \
+    "${MAINTAINERS}" \
+    "${EXTRA_ANNOTATIONS}"
+fi
 
 # copy remaining manifests to final location
 cp -a --no-clobber $PACKAGE_DIR/ $OUT_DIR/
