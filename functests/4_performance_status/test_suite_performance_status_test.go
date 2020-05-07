@@ -37,7 +37,7 @@ var _ = AfterSuite(func() {
 	err = namespaces.WaitForDeletion(testutils.NamespaceTesting, 5*time.Minute)
 })
 
-func TestPerformanceUpdate(t *testing.T) {
+func TestPerformanceStatus(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	rr := []Reporter{}

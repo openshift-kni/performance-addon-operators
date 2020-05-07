@@ -66,7 +66,7 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 				},
 				NodeSelector: nodeSelector,
 				RealTimeKernel: &performancev1alpha1.RealTimeKernel{
-					Enabled: pointer.BoolPtr(true),
+					Enabled: pointer.BoolPtr(false),
 				},
 				AdditionalKernelArgs: []string{
 					"nmi_watchdog=0",

@@ -1,8 +1,13 @@
-package __performance
+package __performance_rtkernel
 
 import (
 	"context"
 	"fmt"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
+	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -12,12 +17,17 @@ import (
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 
 	corev1 "k8s.io/api/core/v1"
 )
 
 var _ = Describe("[performance]RT Kernel", func() {
 	var testpod *corev1.Pod
+	var performanceProfile *performancev1alpha1.PerformanceProfile
+	var err error
+
+	nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): ""}
 
 	AfterEach(func() {
 		if testpod == nil {
@@ -29,6 +39,22 @@ var _ = Describe("[performance]RT Kernel", func() {
 	})
 
 	It("[test_id:26861][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should have RT kernel enabled", func() {
+
+		performanceProfile, err = profiles.GetByNodeLabels(nodeLabel)
+		Expect(err).ToNot(HaveOccurred())
+
+		performanceProfile.Spec.RealTimeKernel = &performancev1alpha1.RealTimeKernel{
+			Enabled: pointer.BoolPtr(true),
+		}
+
+		err = testclient.Client.Update(context.TODO(), performanceProfile)
+		if err != nil {
+			klog.Error(fmt.Sprintf("Enabling RT Kernel in PerformanceProfile %s failed", performanceProfile.Name))
+		}
+
+		mcps.WaitForCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
+		mcps.WaitForCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
+		mcps.WaitForCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 
 		Eventually(func() string {
 
