@@ -172,6 +172,11 @@ functests-only:
 	@echo "Running Functional Tests"
 	hack/run-functests.sh
 
+.PHONY: operator-upgrade-tests
+operator-upgrade-tests:
+	@echo "Running Operator Upgrade Tests"
+	hack/run-upgrade-tests.sh
+
 .PHONY: unittests
 unittests:
 	hack/unittests.sh
