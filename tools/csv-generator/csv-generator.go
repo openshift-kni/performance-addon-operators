@@ -12,34 +12,12 @@ import (
 	"strings"
 
 	"github.com/blang/semver"
-	yaml "github.com/ghodss/yaml"
+
+	"github.com/openshift-kni/performance-addon-operators/pkg/utils/csvtools"
+
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/operator-framework/operator-lifecycle-manager/pkg/lib/version"
-	appsv1 "k8s.io/api/apps/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
-
-type csvClusterPermissions struct {
-	ServiceAccountName string              `json:"serviceAccountName"`
-	Rules              []rbacv1.PolicyRule `json:"rules"`
-}
-
-type csvPermissions struct {
-	ServiceAccountName string              `json:"serviceAccountName"`
-	Rules              []rbacv1.PolicyRule `json:"rules"`
-}
-
-type csvDeployments struct {
-	Name string                `json:"name"`
-	Spec appsv1.DeploymentSpec `json:"spec,omitempty"`
-}
-
-type csvStrategySpec struct {
-	ClusterPermissions []csvClusterPermissions `json:"clusterPermissions"`
-	Permissions        []csvPermissions        `json:"permissions"`
-	Deployments        []csvDeployments        `json:"deployments"`
-}
 
 var (
 	csvVersion          = flag.String("csv-version", "", "the unified CSV version")
@@ -53,8 +31,9 @@ var (
 
 	outputDir = flag.String("olm-bundle-directory", "", "The directory to output the unified CSV and CRDs to")
 
-	annotationsFile = flag.String("inject-annotations-from", "", "inject metadata annotations from given file")
+	annotationsFile = flag.String("annotations-from", "", "add metadata annotations from given file")
 	maintainersFile = flag.String("maintainers-from", "", "add maintainers list from given file")
+	descriptionFile = flag.String("description-from", "", "replace the description with the content of the given file")
 
 	semverVersion *semver.Version
 )
@@ -82,97 +61,17 @@ func copyFile(src string, dst string) {
 	}
 }
 
-func unmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
-
-	fmt.Printf("reading in csv at %s\n", filePath)
-	bytes, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		panic(err)
-	}
-
-	csvStruct := &csvv1.ClusterServiceVersion{}
-	err = yaml.Unmarshal(bytes, csvStruct)
-	if err != nil {
-		panic(err)
-	}
-
-	return csvStruct
+type csvUserData struct {
+	Description      string
+	ExtraAnnotations map[string]string
+	Maintainers      map[string]string
 }
 
-func unmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *csvStrategySpec {
+func generateUnifiedCSV(userData csvUserData) {
 
-	templateStrategySpec := &csvStrategySpec{}
-	err := json.Unmarshal(csv.Spec.InstallStrategy.StrategySpecRaw, templateStrategySpec)
-	if err != nil {
-		panic(err)
-	}
+	operatorCSV := csvtools.UnmarshalCSV(*operatorCSVTemplate)
 
-	return templateStrategySpec
-}
-
-func marshallObject(obj interface{}, writer io.Writer) error {
-	jsonBytes, err := json.Marshal(obj)
-	if err != nil {
-		return err
-	}
-
-	var r unstructured.Unstructured
-	if err := json.Unmarshal(jsonBytes, &r.Object); err != nil {
-		return err
-	}
-
-	// remove status and metadata.creationTimestamp
-	unstructured.RemoveNestedField(r.Object, "metadata", "creationTimestamp")
-	unstructured.RemoveNestedField(r.Object, "template", "metadata", "creationTimestamp")
-	unstructured.RemoveNestedField(r.Object, "spec", "template", "metadata", "creationTimestamp")
-	unstructured.RemoveNestedField(r.Object, "status")
-
-	deployments, exists, err := unstructured.NestedSlice(r.Object, "spec", "install", "spec", "deployments")
-	if exists {
-		for _, obj := range deployments {
-			deployment := obj.(map[string]interface{})
-			unstructured.RemoveNestedField(deployment, "metadata", "creationTimestamp")
-			unstructured.RemoveNestedField(deployment, "spec", "template", "metadata", "creationTimestamp")
-			unstructured.RemoveNestedField(deployment, "status")
-		}
-		unstructured.SetNestedSlice(r.Object, deployments, "spec", "install", "spec", "deployments")
-	}
-
-	jsonBytes, err = json.Marshal(r.Object)
-	if err != nil {
-		return err
-	}
-
-	yamlBytes, err := yaml.JSONToYAML(jsonBytes)
-	if err != nil {
-		return err
-	}
-
-	// fix double quoted strings by removing unneeded single quotes...
-	s := string(yamlBytes)
-	s = strings.Replace(s, " '\"", " \"", -1)
-	s = strings.Replace(s, "\"'\n", "\"\n", -1)
-
-	yamlBytes = []byte(s)
-
-	_, err = writer.Write([]byte("---\n"))
-	if err != nil {
-		return err
-	}
-
-	_, err = writer.Write(yamlBytes)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func generateUnifiedCSV(extraAnnotations, maintainers map[string]string) {
-
-	operatorCSV := unmarshalCSV(*operatorCSVTemplate)
-
-	strategySpec := unmarshalStrategySpec(operatorCSV)
+	strategySpec := csvtools.UnmarshalStrategySpec(operatorCSV)
 
 	// this forces us to update this logic if another deployment is introduced.
 	if len(strategySpec.Deployments) != 1 {
@@ -197,7 +96,7 @@ func generateUnifiedCSV(extraAnnotations, maintainers map[string]string) {
 	operatorCSV.Spec.InstallStrategy.StrategySpecRaw = updatedStrat
 
 	operatorCSV.Annotations["containerImage"] = *operatorImage
-	for key, value := range extraAnnotations {
+	for key, value := range userData.ExtraAnnotations {
 		operatorCSV.Annotations[key] = value
 	}
 
@@ -238,11 +137,14 @@ func generateUnifiedCSV(extraAnnotations, maintainers map[string]string) {
 	// Set Description
 	operatorCSV.Spec.Description = `
 Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.`
+	if userData.Description != "" {
+		operatorCSV.Spec.Description = userData.Description
+	}
 
 	operatorCSV.Spec.DisplayName = "Performance Addon Operator"
 
-	if maintainers != nil {
-		for name, email := range maintainers {
+	if userData.Maintainers != nil {
+		for name, email := range userData.Maintainers {
 			operatorCSV.Spec.Maintainers = append(operatorCSV.Spec.Maintainers, csvv1.Maintainer{
 				Name:  name,
 				Email: email,
@@ -257,7 +159,7 @@ Performance Addon Operator provides the ability to enable advanced node performa
 
 	// write CSV to out dir
 	writer := strings.Builder{}
-	marshallObject(operatorCSV, &writer)
+	csvtools.MarshallObject(operatorCSV, &writer)
 	outputFilename := filepath.Join(*outputDir, finalizedCsvFilename())
 	err = ioutil.WriteFile(outputFilename, []byte(writer.String()), 0644)
 	if err != nil {
@@ -267,14 +169,17 @@ Performance Addon Operator provides the ability to enable advanced node performa
 	fmt.Printf("CSV written to %s\n", outputFilename)
 }
 
-func readKeyValueMapFromFileOrPanic(filename string) map[string]string {
-	kvMap := make(map[string]string)
+func readFileOrPanic(filename string) []byte {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
-	err = json.Unmarshal(data, &kvMap)
-	if err != nil {
+	return data
+}
+
+func readKeyValueMapFromFileOrPanic(filename string) map[string]string {
+	kvMap := make(map[string]string)
+	if err := json.Unmarshal(readFileOrPanic(filename), &kvMap); err != nil {
 		panic(err)
 	}
 	return kvMap
@@ -300,14 +205,21 @@ func main() {
 		panic(err)
 	}
 
-	extraAnnotations := make(map[string]string)
-	if *annotationsFile != "" {
-		extraAnnotations = readKeyValueMapFromFileOrPanic(*annotationsFile)
+	userData := csvUserData{
+		Description: `
+Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.`,
+		ExtraAnnotations: make(map[string]string),
+		Maintainers:      make(map[string]string),
 	}
 
-	maintainers := make(map[string]string)
+	if *annotationsFile != "" {
+		userData.ExtraAnnotations = readKeyValueMapFromFileOrPanic(*annotationsFile)
+	}
 	if *maintainersFile != "" {
-		maintainers = readKeyValueMapFromFileOrPanic(*maintainersFile)
+		userData.Maintainers = readKeyValueMapFromFileOrPanic(*maintainersFile)
+	}
+	if *descriptionFile != "" {
+		userData.Description = string(readFileOrPanic(*descriptionFile))
 	}
 
 	// start with a fresh output directory if it already exists
@@ -316,5 +228,5 @@ func main() {
 	// create output directory
 	os.MkdirAll(*outputDir, os.FileMode(0775))
 
-	generateUnifiedCSV(extraAnnotations, maintainers)
+	generateUnifiedCSV(userData)
 }
