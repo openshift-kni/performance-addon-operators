@@ -1,7 +1,7 @@
 IMAGE_BUILD_CMD ?= "docker"
 IMAGE_REGISTRY ?= "quay.io"
 REGISTRY_NAMESPACE ?= "openshift-kni"
-IMAGE_TAG ?= "latest"
+IMAGE_TAG ?= "4.5-snapshot"
 
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
