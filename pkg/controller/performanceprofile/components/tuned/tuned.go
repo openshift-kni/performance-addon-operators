@@ -10,7 +10,7 @@ import (
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	profile2 "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	componentsprofile "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,7 +95,7 @@ func NewNodePerformance(assetsDir string, profile *performancev1alpha1.Performan
 		{
 			Profile:             &name,
 			Priority:            &priority,
-			MachineConfigLabels: profile2.GetMachineConfigLabel(profile),
+			MachineConfigLabels: componentsprofile.GetMachineConfigLabel(profile),
 		},
 	}
 	return new(name, profiles, recommends), nil
