@@ -44,8 +44,8 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    containerImage: quay.io/openshift-kni/performance-addon-operator:4.5-snapshot
-  name: performance-addon-operator.v4.5.0
+    containerImage: REPLACE_IMAGE
+  name: performance-addon-operator.v4.6.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -126,7 +126,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: performance-operator
-                image: quay.io/openshift-kni/performance-addon-operator:4.5-snapshot
+                image: REPLACE_IMAGE
                 imagePullPolicy: Always
                 name: performance-operator
                 resources: {}
@@ -187,5 +187,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  replaces: performance-addon-operator.v4.4.0
-  version: 4.5.0
+  replaces: performance-addon-operator.v4.5.0
+  version: 4.6.0

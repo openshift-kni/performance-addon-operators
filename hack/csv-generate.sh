@@ -4,8 +4,9 @@ set -e
 
 export GOROOT=$(go env GOROOT)
 
-PREV="4.4.0"
-LATEST="4.5.0"
+OLD="4.4.0"
+PREV="4.5.0"
+LATEST="4.6.0"
 
 IS_DEV=$( [[ $1 = "-dev" ]] && echo true || echo false )
 
@@ -53,7 +54,7 @@ fi
 clean_package
 
 # do not generate new CRD/CSV for old versions
-if [[ "$CSV_VERSION" != "$PREV" ]]; then
+if [[ "$CSV_VERSION" != "$PREV" ]] && [[ "$CSV_VERSION" != "$OLD" ]]; then
   $OPERATOR_SDK generate crds
 
   # generate a temporary csv we'll use as a template
