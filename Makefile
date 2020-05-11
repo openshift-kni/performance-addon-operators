@@ -20,7 +20,7 @@
 IMAGE_BUILD_CMD ?= "docker"
 IMAGE_REGISTRY ?= "quay.io"
 REGISTRY_NAMESPACE ?= ""
-IMAGE_TAG ?= "latest"
+IMAGE_TAG ?= "4.4-snapshot"
 
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
