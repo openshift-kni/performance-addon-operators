@@ -85,10 +85,6 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 
 	mc.Spec.Config = *ignitionConfig
 
-	if err != nil {
-		return nil, err
-	}
-
 	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
 		profile.Spec.RealTimeKernel.Enabled != nil &&
 		*profile.Spec.RealTimeKernel.Enabled

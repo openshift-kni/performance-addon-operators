@@ -3,6 +3,7 @@ package tuned
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
@@ -58,7 +59,7 @@ var _ = Describe("Tuned", func() {
 			Expect(cmdlineRealtimeWithoutCPUBalancing.MatchString(manifest)).To(BeTrue())
 		})
 
-		It("should generate yaml with expected parameters for additional kernel args", func() {
+		It("should generate yaml with expected parameters for additional kernel arguments", func() {
 			profile := testutils.NewPerformanceProfile("test")
 			profile.Spec.AdditionalKernelArgs = additionalArgs
 			tuned, err := NewNodePerformance(testAssetsDir, profile)
@@ -67,6 +68,26 @@ var _ = Describe("Tuned", func() {
 			Expect(err).ToNot(HaveOccurred())
 			manifest := string(y)
 			Expect(cmdlineAdditionalArg.MatchString(manifest)).To(BeTrue())
+		})
+
+		It("should not allocate hugepages on the specific NUMA node via kernel arguments", func() {
+			profile := testutils.NewPerformanceProfile("test")
+			dummyNode := int32(1)
+			tuned, err := NewNodePerformance(testAssetsDir, profile)
+			Expect(err).ToNot(HaveOccurred())
+			y, err := yaml.Marshal(tuned)
+			Expect(err).ToNot(HaveOccurred())
+			manifest := string(y)
+			Expect(strings.Count(manifest, "hugepagesz=")).Should(BeNumerically("==", 2))
+			Expect(strings.Count(manifest, "hugepages=")).Should(BeNumerically("==", 3))
+			profile.Spec.HugePages.Pages[0].Node = &dummyNode
+			tuned, err = NewNodePerformance(testAssetsDir, profile)
+			Expect(err).ToNot(HaveOccurred())
+			y, err = yaml.Marshal(tuned)
+			Expect(err).ToNot(HaveOccurred())
+			manifest = string(y)
+			Expect(strings.Count(manifest, "hugepagesz=")).Should(BeNumerically("==", 1))
+			Expect(strings.Count(manifest, "hugepages=")).Should(BeNumerically("==", 2))
 		})
 
 	})

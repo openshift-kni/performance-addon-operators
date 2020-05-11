@@ -35,6 +35,18 @@ const hugepagesAllocationService = `
 `
 
 var _ = Describe("Machine Config", func() {
+
+	Context("machine config creation ", func() {
+		It("should create machine config with valid assests", func() {
+			profile := testutils.NewPerformanceProfile("test")
+			profile.Spec.HugePages.Pages[0].Node = pointer.Int32Ptr(0)
+			_, err := New(testAssetsDir, profile)
+			Expect(err).ToNot(HaveOccurred())
+			_, err = New("../../../../../build/invalid/assets", profile)
+			Expect(err).Should(HaveOccurred(), "should fail with missing CPU")
+		})
+	})
+
 	Context("with hugepages with specified NUMA node", func() {
 		var manifest string
 
@@ -62,5 +74,6 @@ var _ = Describe("Machine Config", func() {
 		It("should add systemd unit to allocate hugepages", func() {
 			Expect(manifest).To(ContainSubstring(hugepagesAllocationService))
 		})
+
 	})
 })
