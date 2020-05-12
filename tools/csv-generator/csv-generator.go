@@ -80,7 +80,7 @@ func generateUnifiedCSV(userData csvUserData) {
 
 	strategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Image = *operatorImage
 
-	// Inject deplay names and descriptions for our crds
+	// Inject display names and descriptions for our crds
 	for i, definition := range operatorCSV.Spec.CustomResourceDefinitions.Owned {
 		switch definition.Name {
 		case "performanceprofiles.performance.openshift.io":
