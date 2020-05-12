@@ -3,7 +3,7 @@ FROM quay.io/openshift/origin-operator-registry:4.4
 COPY deploy/olm-catalog /registry/performance-addon-operator-catalog
 
 # replaces performance-addon-operator image with the one built by openshift ci
-RUN find /registry/performance-addon-operator-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|quay.io/openshift-kni/performance-addon-operator:v4.4|g" {} \; || :
+RUN find /registry/performance-addon-operator-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|quay.io/openshift-kni/performance-addon-operator:4.4-snapshot|g" {} \; || :
 
 # Initialize the database
 RUN initializer --manifests /registry/performance-addon-operator-catalog --output bundles.db
