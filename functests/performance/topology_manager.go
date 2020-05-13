@@ -34,7 +34,7 @@ var _ = Describe("[performance]Topology Manager", func() {
 		Expect(workerRTNodes).ToNot(BeEmpty())
 	})
 
-	It("should be enabled with the best-effort policy", func() {
+	It("[test_id:26932][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should be enabled with the best-effort policy", func() {
 		kubeletConfig, err := nodes.GetKubeletConfig(testclient.Client, &workerRTNodes[0])
 		Expect(err).ToNot(HaveOccurred())
 

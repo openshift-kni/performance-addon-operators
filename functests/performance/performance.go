@@ -65,7 +65,7 @@ var _ = Describe("performance", func() {
 
 	Context("Pre boot tuning adjusted by the Machine Config Operator ", func() {
 
-		It("Should set workqueue CPU mask", func() {
+		It("[test_id:27081][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should set workqueue CPU mask", func() {
 			for _, node := range workerRTNodes {
 				By("Getting tuned.non_isolcpus kernel argument")
 				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, &node, []string{"cat", "/proc/cmdline"})
@@ -92,13 +92,13 @@ var _ = Describe("performance", func() {
 
 		// Check /usr/local/bin/pre-boot-tuning.sh existence under worker's rootfs
 		const perfRtKernelPrebootTuningScript = "/usr/local/bin/pre-boot-tuning.sh"
-		It(perfRtKernelPrebootTuningScript+" should exist on the nodes", func() {
+		It("[test_id:28523][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] /usr/local/bin/pre-boot-tuning.sh should exist on the nodes", func() {
 			checkFileExistence(workerRTNodes, perfRtKernelPrebootTuningScript)
 		})
 	})
 
 	Context("FeatureGate - FeatureSet configuration", func() {
-		It("FeatureGates with LatencySensitive should exist", func() {
+		It("[test_id:28529][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] FeatureGates with LatencySensitive should exist", func() {
 			key := types.NamespacedName{
 				Name:      components.FeatureGateLatencySensetiveName,
 				Namespace: metav1.NamespaceNone,
@@ -114,7 +114,7 @@ var _ = Describe("performance", func() {
 	})
 
 	Context("Additional kernel arguments added from perfomance profile", func() {
-		It("Should set additional kernel arguments on the machine", func() {
+		It("[test_id:28611][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should set additional kernel arguments on the machine", func() {
 			if profile.Spec.AdditionalKernelArgs != nil {
 				additionalArgs := strings.Join(profile.Spec.AdditionalKernelArgs, " ")
 				for _, node := range workerRTNodes {
@@ -129,7 +129,7 @@ var _ = Describe("performance", func() {
 	// openshift node real time kernel verification
 	// (performance-addon-operators/build/assets/tuned/openshift-node-real-time-kernel)
 	Context("Tuned kernel parameters", func() {
-		It("Should contain configuration injected through openshift-node-real-time-kernel profile", func() {
+		It("[test_id:28466][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should contain configuration injected through openshift-node-real-time-kernel profile", func() {
 			sysctlMap := map[string]string{
 				"kernel.hung_task_timeout_secs": "600",
 				"kernel.nmi_watchdog":           "0",
@@ -153,7 +153,7 @@ var _ = Describe("performance", func() {
 	// openshift node network latency profile verification
 	// (performance-addon-operators/build/assets/tuned/openshift-node-network-latency)
 	Context("Network latency parameters adjusted by the Node Tuning Operator", func() {
-		It("Should contain configuration injected through the openshift-node-network-latency profile", func() {
+		It("[test_id:28467][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should contain configuration injected through the openshift-node-network-latency profile", func() {
 			sysctlMap := map[string]string{
 				"net.ipv4.tcp_fastopen":           "3",
 				"kernel.sched_min_granularity_ns": "10000000",

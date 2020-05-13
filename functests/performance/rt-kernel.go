@@ -28,7 +28,7 @@ var _ = Describe("[performance]RT Kernel", func() {
 		}
 	})
 
-	It("should have RT kernel enabled", func() {
+	It("[test_id:26861][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should have RT kernel enabled", func() {
 
 		Eventually(func() string {
 
