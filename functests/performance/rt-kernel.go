@@ -10,6 +10,7 @@ import (
 
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 
 	corev1 "k8s.io/api/core/v1"
@@ -57,6 +58,22 @@ var _ = Describe("[performance]RT Kernel", func() {
 
 		}, 15*time.Minute, 30*time.Second).Should(ContainSubstring("PREEMPT RT"))
 
+	})
+
+	It("[test_id:28526][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Non worker-cnf node should not have RT kernel installed", func() {
+
+		By("Skipping test if cluster does not have another available worker node")
+		nonRTWorkerNodes, err := nodes.GetNonRTWorkers()
+		Expect(err).ToNot(HaveOccurred())
+
+		if len(nonRTWorkerNodes) == 0 {
+			Skip("Skipping test because there are no additional non-cnf worker nodes")
+		}
+
+		cmd := []string{"uname", "-a"}
+		kernel := execCommandOnWorker(cmd, &nonRTWorkerNodes[0])
+		Expect(kernel).To(ContainSubstring("Linux"), "Node should have Linux string")
+		Expect(kernel).NotTo(ContainSubstring("PREEMPT RT"), "Node should have non-RT kernel")
 	})
 
 })
