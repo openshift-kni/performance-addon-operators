@@ -2,8 +2,8 @@ package performanceprofile
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/featuregate"
@@ -310,29 +310,9 @@ var _ = Describe("Controller", func() {
 					Namespace: metav1.NamespaceNone,
 				}
 
-				By("Verifying MC update for isolated")
-				mc := &mcov1.MachineConfig{}
-				err := r.client.Get(context.TODO(), key, mc)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(mc.Spec.KernelArguments).ToNot(ContainElement(ContainSubstring(`"isolcpus`)))
-
-				By("Verifying MC update for reserved")
-
-				contentBase64 := base64.StdEncoding.EncodeToString([]byte("[Manager]\nCPUAffinity=" + string(*profile.Spec.CPU.Reserved)))
-				Expect(mc.Spec.Config.Storage.Files).To(ContainElement(MatchFields(IgnoreMissing|IgnoreExtras, Fields{
-					"FileEmbedded1": MatchFields(IgnoreMissing|IgnoreExtras, Fields{
-						"Contents": MatchFields(IgnoreMissing|IgnoreExtras, Fields{
-							"Source": ContainSubstring(contentBase64),
-						}),
-					}),
-				})))
-
-				reservedCPUMask, err := components.CPUListToMaskList(string(*profile.Spec.CPU.Reserved))
-				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("tuned.non_isolcpus=" + reservedCPUMask)))
-
 				By("Verifying KC update for reserved")
 				kc := &mcov1.KubeletConfig{}
-				err = r.client.Get(context.TODO(), key, kc)
+				err := r.client.Get(context.TODO(), key, kc)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(kc.Spec.KubeletConfig.Raw)).To(ContainSubstring(fmt.Sprintf(`"reservedSystemCPUs":"%s"`, string(*profile.Spec.CPU.Reserved))))
 
@@ -345,12 +325,9 @@ var _ = Describe("Controller", func() {
 				err = r.client.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(*t.Spec.Profile[0].Data).To(ContainSubstring("isolated_cores=" + string(*profile.Spec.CPU.Isolated)))
-
-				By("Verifying Tuned update for isolated")
-				Expect(*t.Spec.Profile[0].Data).To(ContainSubstring("/sys/bus/workqueue/devices/writeback/cpumask = " + reservedCPUMask))
 			})
 
-			It("should add isolcpus to MC kargs when balanced set to false", func() {
+			It("should add isolcpus to tuned profile when balanced set to false", func() {
 				reserved := performancev1alpha1.CPUSet("0-1")
 				isolated := performancev1alpha1.CPUSet("2-3")
 				profile.Spec.CPU = &performancev1alpha1.CPU{
@@ -364,15 +341,14 @@ var _ = Describe("Controller", func() {
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 				key := types.NamespacedName{
-					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
-					Namespace: metav1.NamespaceNone,
+					Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
+					Namespace: components.NamespaceNodeTuningOperator,
 				}
-
-				By("Verifying MC update for isolated")
-				mc := &mcov1.MachineConfig{}
-				err := r.client.Get(context.TODO(), key, mc)
+				t := &tunedv1.Tuned{}
+				err := r.client.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("isolcpus=" + string(*profile.Spec.CPU.Isolated))))
+				cmdlineRealtimeWithoutCPUBalancing := regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolated_cores=` + string(*profile.Spec.CPU.Isolated) + `\s*`)
+				Expect(cmdlineRealtimeWithoutCPUBalancing.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
 			})
 
 			It("should update MC when Hugepages params change without node added", func() {
@@ -391,22 +367,19 @@ var _ = Describe("Controller", func() {
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
+				By("Verifying Tuned profile update")
 				key := types.NamespacedName{
-					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
-					Namespace: metav1.NamespaceNone,
+					Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
+					Namespace: components.NamespaceNodeTuningOperator,
 				}
-
-				By("Verifying MC update")
-				mc := &mcov1.MachineConfig{}
-				err := r.client.Get(context.TODO(), key, mc)
+				t := &tunedv1.Tuned{}
+				err := r.client.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("default_hugepagesz=2M")))
-				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("hugepagesz=2M")))
-				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("hugepages=8")))
-
+				cmdlineHugepages := regexp.MustCompile(`\s*cmdline_hugepages=\+\s*default_hugepagesz=2M\s+hugepagesz=2M\s+hugepages=8\s*`)
+				Expect(cmdlineHugepages.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
 			})
 
-			It("should update MC when Hugepages params change with node added", func() {
+			It("should update Tuned when Hugepages params change with node added", func() {
 				size := performancev1alpha1.HugePageSize("2M")
 				profile.Spec.HugePages = &performancev1alpha1.HugePages{
 					DefaultHugePagesSize: &size,
@@ -423,19 +396,25 @@ var _ = Describe("Controller", func() {
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
+				By("Verifying Tuned update")
 				key := types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
+					Namespace: components.NamespaceNodeTuningOperator,
+				}
+				t := &tunedv1.Tuned{}
+				err := r.client.Get(context.TODO(), key, t)
+				Expect(err).ToNot(HaveOccurred())
+				cmdlineHugepages := regexp.MustCompile(`\s*cmdline_hugepages=\+\s*`)
+				Expect(cmdlineHugepages.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
+
+				By("Verifying MC update")
+				key = types.NamespacedName{
 					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
 					Namespace: metav1.NamespaceNone,
 				}
-
-				By("Verifying MC update")
 				mc := &mcov1.MachineConfig{}
-				err := r.client.Get(context.TODO(), key, mc)
+				err = r.client.Get(context.TODO(), key, mc)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(mc.Spec.KernelArguments).To(ContainElement(ContainSubstring("default_hugepagesz=2M")))
-				Expect(mc.Spec.KernelArguments).ToNot(ContainElement(ContainSubstring(`"hugepagesz`)))
-				Expect(mc.Spec.KernelArguments).ToNot(ContainElement(ContainSubstring(`"hugepages`)))
-
 				Expect(mc.Spec.Config.Systemd.Units).To(ContainElement(MatchFields(IgnoreMissing|IgnoreExtras, Fields{
 					"Contents": And(
 						ContainSubstring("Description=Hugepages"),

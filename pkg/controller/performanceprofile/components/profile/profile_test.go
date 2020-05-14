@@ -25,6 +25,14 @@ var _ = Describe("PerformanceProfile", func() {
 
 	Describe("Validation", func() {
 
+		It("should have CPU fields populated", func() {
+			Expect(ValidateParameters(profile)).ShouldNot(HaveOccurred(), "should pass with populated CPU fields")
+			profile.Spec.CPU.Isolated = nil
+			Expect(ValidateParameters(profile)).Should(HaveOccurred(), "should fail with missing CPU Isolated field")
+			profile.Spec.CPU = nil
+			Expect(ValidateParameters(profile)).Should(HaveOccurred(), "should fail with missing CPU")
+		})
+
 		It("should have 0 or 1 MachineConfigLabels", func() {
 			Expect(ValidateParameters(profile)).ShouldNot(HaveOccurred(), "should pass with 1 MachineConfigLabel")
 

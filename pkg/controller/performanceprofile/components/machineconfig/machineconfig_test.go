@@ -9,48 +9,11 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 )
 
 const testAssetsDir = "../../../../../build/assets"
-const expectedSystemdUnits = `
-      - contents: |
-          [Unit]
-          Description=Preboot tuning patch
-          Before=kubelet.service
-          Before=reboot.service
-
-          [Service]
-          Environment=RESERVED_CPUS=0-3
-          Environment=RESERVED_CPU_MASK_INVERT=ffffffff,fffffff0
-          Type=oneshot
-          RemainAfterExit=true
-          ExecStart=/usr/local/bin/pre-boot-tuning.sh
-
-          [Install]
-          WantedBy=multi-user.target
-        enabled: true
-        name: pre-boot-tuning.service
-      - contents: |
-          [Unit]
-          Description=Reboot initiated by pre-boot-tuning
-          Wants=network-online.target
-          After=network-online.target
-          Before=kubelet.service
-
-          [Service]
-          Type=oneshot
-          RemainAfterExit=true
-          ExecStart=/usr/local/bin/reboot.sh
-
-          [Install]
-          WantedBy=multi-user.target
-        enabled: true
-        name: reboot.service
-`
-
 const hugepagesAllocationService = `
       - contents: |
           [Unit]
@@ -71,129 +34,17 @@ const hugepagesAllocationService = `
         name: hugepages-allocation-1048576kB-NUMA0.service
 `
 
-const expectedBootArguments = `
-  kernelArguments:
-  - nohz=on
-  - nosoftlockup
-  - skew_tick=1
-  - intel_pstate=disable
-  - intel_iommu=on
-  - iommu=pt
-  - isolcpus=4-7
-  - rcu_nocbs=4-7
-  - tuned.non_isolcpus=0000000f
-  - default_hugepagesz=1G
-  - hugepagesz=1G
-  - hugepages=4
-  - hugepagesz=2M
-  - hugepages=1024
-`
-
-const expectedBootArgumentsWithoutIso = `
-  kernelArguments:
-  - nohz=on
-  - nosoftlockup
-  - skew_tick=1
-  - intel_pstate=disable
-  - intel_iommu=on
-  - iommu=pt
-  - rcu_nocbs=4-7
-  - tuned.non_isolcpus=0000000f
-  - default_hugepagesz=1G
-  - hugepagesz=1G
-  - hugepages=4
-  - hugepagesz=2M
-  - hugepages=1024
-`
-
-const expectedBootArgumentsWithAdditionalKerenlArgs = `
-  kernelArguments:
-  - nohz=on
-  - nosoftlockup
-  - skew_tick=1
-  - intel_pstate=disable
-  - intel_iommu=on
-  - iommu=pt
-  - rcu_nocbs=4-7
-  - tuned.non_isolcpus=0000000f
-  - default_hugepagesz=1G
-  - hugepagesz=1G
-  - hugepages=4
-  - nmi_watchdog=0
-  - audit=0
-  - mce=off
-  - processor.max_cstate=1
-  - idle=poll
-  - intel_idle.max_cstate=0
-`
-
 var _ = Describe("Machine Config", func() {
-	It("should generate yaml with expected parameters", func() {
-		profile := testutils.NewPerformanceProfile("test")
-		profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, performancev1alpha1.HugePage{
-			Count: 1024,
-			Size:  "2M",
+
+	Context("machine config creation ", func() {
+		It("should create machine config with valid assests", func() {
+			profile := testutils.NewPerformanceProfile("test")
+			profile.Spec.HugePages.Pages[0].Node = pointer.Int32Ptr(0)
+			_, err := New(testAssetsDir, profile)
+			Expect(err).ToNot(HaveOccurred())
+			_, err = New("../../../../../build/invalid/assets", profile)
+			Expect(err).Should(HaveOccurred(), "should fail with missing CPU")
 		})
-		f := false
-		profile.Spec.CPU.BalanceIsolated = &f
-		mc, err := New(testAssetsDir, profile)
-		Expect(err).ToNot(HaveOccurred())
-
-		Expect(mc.Spec.KernelType).To(Equal(MCKernelRT))
-
-		y, err := yaml.Marshal(mc)
-		Expect(err).ToNot(HaveOccurred())
-
-		manifest := string(y)
-
-		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
-		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
-		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
-		Expect(manifest).To(ContainSubstring(expectedBootArguments))
-	})
-
-	It("should generate yaml with expected parameters when balanced isolated defaults to true", func() {
-		profile := testutils.NewPerformanceProfile("test")
-		profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, performancev1alpha1.HugePage{
-			Count: 1024,
-			Size:  "2M",
-		})
-		mc, err := New(testAssetsDir, profile)
-		Expect(err).ToNot(HaveOccurred())
-
-		Expect(mc.Spec.KernelType).To(Equal(MCKernelRT))
-
-		y, err := yaml.Marshal(mc)
-		Expect(err).ToNot(HaveOccurred())
-
-		manifest := string(y)
-
-		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
-		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
-		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
-		Expect(manifest).To(ContainSubstring(expectedBootArgumentsWithoutIso))
-	})
-
-	It("should generate yaml with expected parameters and additional kernel arguments", func() {
-		profile := testutils.NewPerformanceProfile("test")
-		profile.Spec.AdditionalKernelArgs = append(profile.Spec.AdditionalKernelArgs,
-			"nmi_watchdog=0", "audit=0",
-			"mce=off",
-			"processor.max_cstate=1",
-			"idle=poll",
-			"intel_idle.max_cstate=0")
-		mc, err := New(testAssetsDir, profile)
-		Expect(err).ToNot(HaveOccurred())
-
-		y, err := yaml.Marshal(mc)
-		Expect(err).ToNot(HaveOccurred())
-
-		manifest := string(y)
-
-		labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
-		Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
-		Expect(manifest).To(ContainSubstring(expectedSystemdUnits))
-		Expect(manifest).To(ContainSubstring(expectedBootArgumentsWithAdditionalKerenlArgs))
 	})
 
 	Context("with hugepages with specified NUMA node", func() {
@@ -223,5 +74,6 @@ var _ = Describe("Machine Config", func() {
 		It("should add systemd unit to allocate hugepages", func() {
 			Expect(manifest).To(ContainSubstring(hugepagesAllocationService))
 		})
+
 	})
 })
