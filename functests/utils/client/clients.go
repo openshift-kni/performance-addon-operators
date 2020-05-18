@@ -19,6 +19,10 @@ import (
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+
+	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+
 	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
 )
 
@@ -46,6 +50,14 @@ func init() {
 	}
 
 	if err := tunedv1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Exit(err.Error())
+	}
+
+	if err := apiextensionsv1beta1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Exit(err.Error())
+	}
+
+	if err := operatorsv1alpha1.AddToScheme(scheme.Scheme); err != nil {
 		klog.Exit(err.Error())
 	}
 
