@@ -95,27 +95,34 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			mcps.WaitForCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 		})
 
-		table.DescribeTable("Verify that profile parameters were updated", func(cmd, parameter []string, shouldContain bool) {
+		table.DescribeTable("Verify that profile parameters were updated", func(cmd, parameter []string, shouldContain bool, useRegex bool) {
 			for _, node := range workerRTNodes {
 				for _, param := range parameter {
 					result, err := nodes.ExecCommandOnNode(cmd, &node)
 					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", cmd))
+
+					matcher := ContainSubstring(param)
+					if useRegex {
+						matcher = MatchRegexp(param)
+					}
+
 					if shouldContain {
-						Expect(result).To(ContainSubstring(param))
+						Expect(result).To(matcher)
 					} else {
-						Expect(result).NotTo(ContainSubstring(param))
+						Expect(result).NotTo(matcher)
 					}
 				}
 			}
 		},
-			table.Entry("[test_id:28024] verify that hugepages size and count updated", chkCmdLine, []string{"default_hugepagesz=2M", "hugepagesz=2M", "hugepages=5"}, true),
-			table.Entry("[test_id:28070] verify that hugepages updated (NUMA node unspecified)", chkCmdLine, []string{"hugepagesz=2M"}, true),
-			table.Entry("[test_id:28025] verify that cpu affinity mask was updated", chkCmdLine, []string{"tuned.non_isolcpus=00000009"}, true),
-			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"isolated_cores=1-2"}, true),
-			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"systemd.cpu_affinity=0,3"}, true),
-			table.Entry("[test_id:28935] verify that reservedSystemCPUs was updated", chkKubeletConfig, []string{`"reservedSystemCPUs":"0,3"`}, true),
-			table.Entry("[test_id:28760] verify that topologyManager was updated", chkKubeletConfig, []string{`"topologyManagerPolicy":"best-effort"`}, true),
-			table.Entry("[test_id:27738] verify that realTimeKernerl was updated", chkKernel, []string{"PREEMPT RT"}, false),
+			table.Entry("[test_id:28024] verify that hugepages size and count updated", chkCmdLine, []string{"default_hugepagesz=2M", "hugepagesz=2M", "hugepages=5"}, true, false),
+			table.Entry("[test_id:28070] verify that hugepages updated (NUMA node unspecified)", chkCmdLine, []string{"hugepagesz=2M"}, true, false),
+			table.Entry("[test_id:28025] verify that cpu affinity mask was updated", chkCmdLine, []string{"tuned.non_isolcpus=00000009"}, true, false),
+			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"isolated_cores=1-2"}, true, false),
+			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"systemd.cpu_affinity=0,3"}, true, false),
+			// kubelet.conf changed formatting, there is a space after colons atm. Let's deal with both cases with a regex
+			table.Entry("[test_id:28935] verify that reservedSystemCPUs was updated", chkKubeletConfig, []string{`"reservedSystemCPUs": ?"0,3"`}, true, true),
+			table.Entry("[test_id:28760] verify that topologyManager was updated", chkKubeletConfig, []string{`"topologyManagerPolicy": ?"best-effort"`}, true, true),
+			table.Entry("[test_id:27738] verify that realTimeKernerl was updated", chkKernel, []string{"PREEMPT RT"}, false, false),
 		)
 
 		It("[test_id:28612]Verify that Kernel arguments can me updated (added, removed) thru performance profile", func() {
