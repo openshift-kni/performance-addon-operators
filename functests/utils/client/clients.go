@@ -6,7 +6,6 @@ import (
 
 	. "github.com/onsi/gomega"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -104,27 +103,12 @@ func NewK8s() (*kubernetes.Clientset, error) {
 
 func GetWithRetry(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 	var err error
-	EventuallyWithOffset(1, func() bool {
-		err = Client.Get(context.TODO(), key, obj)
-		retry := doRetry(err)
-		if retry {
+	EventuallyWithOffset(1, func() error {
+		err = Client.Get(ctx, key, obj)
+		if err != nil {
 			klog.Infof("Getting %s failed, retrying: %v", key.Name, err)
-		} else if err != nil {
-			klog.Infof("Getting %s failed, not retrying: %v", key.Name, err)
 		}
-		return retry
-	}, 1*time.Minute, 10*time.Second).Should(BeFalse(), "Max numbers of retries reached")
+		return err
+	}, 1*time.Minute, 10*time.Second).ShouldNot(HaveOccurred(), "Max numbers of retries reached")
 	return err
-}
-
-func doRetry(err error) bool {
-	if errors.IsServiceUnavailable(err) ||
-		errors.IsTimeout(err) ||
-		errors.IsServerTimeout(err) ||
-		errors.IsTooManyRequests(err) ||
-		errors.IsInternalError(err) ||
-		errors.IsUnexpectedServerError(err) {
-		return true
-	}
-	return false
 }
