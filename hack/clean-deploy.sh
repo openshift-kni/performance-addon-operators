@@ -26,7 +26,7 @@ sleep 10
 success=0
 iterations=0
 sleep_time=10
-max_iterations=90 # results in 15 minute timeout
+max_iterations=180 # results in 30 minute timeout
 until [[ $success -eq 1 ]] || [[ $iterations -eq $max_iterations ]]
 do
   echo "[INFO] Checking if MCP is updated"
