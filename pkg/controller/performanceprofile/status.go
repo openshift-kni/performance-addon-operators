@@ -6,12 +6,14 @@ import (
 	"time"
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 )
 
@@ -50,7 +52,15 @@ func (r *ReconcilePerformanceProfile) updateStatus(profile *performancev1alpha1.
 		}
 	}
 
-	// Note: add checks for new status fields when added
+	if profileCopy.Status.Tuned == nil {
+		tunedNamespacedname := types.NamespacedName{
+			Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
+			Namespace: components.NamespaceNodeTuningOperator,
+		}
+		tunedStatus := tunedNamespacedname.String()
+		profileCopy.Status.Tuned = &tunedStatus
+		modified = true
+	}
 
 	if !modified {
 		return nil

@@ -105,6 +105,9 @@ type PerformanceProfileStatus struct {
 	// conditions represents the latest available observations of current state.
 	// +optional
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"`
+	// tuned represents the current generate tuned custom resource from the performance profile.
+	// +optional
+	Tuned *string `json:"tuned,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

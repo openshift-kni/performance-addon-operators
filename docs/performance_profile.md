@@ -111,8 +111,8 @@ PerformanceProfileSpec defines the desired state of PerformanceProfile.
 | ----- | ----------- | ------ | -------- |
 | cpu | CPU defines set of CPU related parameters. | *[CPU](#cpu) | false |
 | hugepages | HugePages defines set of huge pages related parameters. | *[HugePages](#hugepages) | false |
-| machineConfigLabel | MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile. Defaults to \"machineconfiguration.openshift.io/role=&lt;same role as in NodeSelector label key&gt;\" | map[string]string | false |
-| machineConfigPoolSelector | MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector of resources like KubeletConfigs created by the operator. Defaults to \"machineconfiguration.openshift.io/role=&lt;same role as in NodeSelector label key&gt;\" | map[string]string | false |
+| machineConfigLabel | MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile. Defaults to \"machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>\" | map[string]string | false |
+| machineConfigPoolSelector | MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector of resources like KubeletConfigs created by the operator. Defaults to \"machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>\" | map[string]string | false |
 | nodeSelector | NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator. It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool which targets this performance profile. | map[string]string | false |
 | realTimeKernel | RealTimeKernel defines set of real time kernel related parameters. RT kernel won't be installed when not set. | *[RealTimeKernel](#realtimekernel) | false |
 | additionalKernelArgs | Addional kernel arguments. | []string | false |
@@ -127,6 +127,7 @@ PerformanceProfileStatus defines the observed state of PerformanceProfile.
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | conditions | conditions represents the latest available observations of current state. | []conditionsv1.Condition | false |
+| tuned | tuned represents the current generate tuned custom resource from the performance profile. | *string | false |
 
 [Back to TOC](#table-of-contents)
 

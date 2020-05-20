@@ -166,6 +166,10 @@ spec:
                 - type
                 type: object
               type: array
+            tuned:
+              description: tuned represents the current generate tuned custom resource
+                from the performance profile.
+              type: string
           type: object
       type: object
   version: v1alpha1
