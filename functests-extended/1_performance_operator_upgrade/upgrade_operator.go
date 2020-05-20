@@ -2,13 +2,12 @@ package __performance_operator_upgrade
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -17,45 +16,51 @@ import (
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 )
 
+var fromVersion string
+var toVersion string
+
+func init() {
+	flag.StringVar(&fromVersion, "fromVersion", "", "the version to start with")
+	flag.StringVar(&toVersion, "toVersion", "", "the version to update to")
+}
+
 var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrades", func() {
 
-	It("[test_id:29811] upgrades performance profile operator - 4.4.0 to 4.5.0", func() {
+	It("[test_id:30876] upgrades performance profile operator", func() {
 		operatorNamespace := "openshift-performance-addon"
 		subscriptionName := "performance-addon-operator"
-		previousVersion := "4.4.0"
-		currentVersion := "4.5.0"
 
-		By(fmt.Sprintf("Verifying that %s channel is active", previousVersion))
+		Expect(fromVersion).ToNot(BeEmpty(), "fromVersion not set")
+		Expect(toVersion).ToNot(BeEmpty(), "toVersion not set")
+
+		By(fmt.Sprintf("Upgrading from %s to %s", fromVersion, toVersion))
+
+		By(fmt.Sprintf("Verifying that %s channel is active", fromVersion))
 		subscription := getSubscription(subscriptionName, operatorNamespace)
-		Expect(subscription.Spec.Channel).To(Equal(previousVersion))
-		Expect(subscription.Status.CurrentCSV).To(ContainSubstring(previousVersion))
+		Expect(subscription.Spec.Channel).To(Equal(fromVersion))
+		Expect(subscription.Status.CurrentCSV).To(ContainSubstring(fromVersion))
 
 		// CSV is pointed to previous image tag and CRD is an old version
 		csv := getCSV(subscription.Status.CurrentCSV, operatorNamespace)
-		Expect(csv.ObjectMeta.Annotations["containerImage"]).To(ContainSubstring(previousVersion))
+		// channel 4.y.z might still use snapshot image 4.y-snapshot, so only major and minor version will match.
+		fromMajorMinor := string([]rune(fromVersion)[0:3])
+		Expect(csv.ObjectMeta.Annotations["containerImage"]).To(ContainSubstring(fromMajorMinor))
 
-		crd := getCRD(csv.Spec.CustomResourceDefinitions.Owned[0].Name)
-		Expect(crd.Spec.Validation.OpenAPIV3Schema).NotTo(ContainSubstring("topologyPolicy"))
-
-		By(fmt.Sprintf("Switch subscription channel to %s version", currentVersion))
+		By(fmt.Sprintf("Switch subscription channel to %s version", toVersion))
 		Expect(testclient.Client.Patch(context.TODO(), subscription,
 			client.ConstantPatch(
 				types.JSONPatchType,
-				[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/channel", "value": "%s" }]`, currentVersion)),
+				[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/channel", "value": "%s" }]`, toVersion)),
 			),
 		)).ToNot(HaveOccurred())
 
-		By(fmt.Sprintf("Verifying that channel was updated to %s", currentVersion))
-		subscriptionWaitForUpdate(subscription.Name, operatorNamespace, currentVersion)
+		By(fmt.Sprintf("Verifying that channel was updated to %s", toVersion))
+		subscriptionWaitForUpdate(subscription.Name, operatorNamespace, toVersion)
 
 		// CSV is updated and pointed to right image tag
 		subscription = getSubscription(subscriptionName, operatorNamespace)
 		csv = getCSV(subscription.Status.CurrentCSV, operatorNamespace)
 		csvWaitForPhaseWithConditionReason(csv.Name, operatorNamespace, olmv1alpha1.CSVPhaseSucceeded, olmv1alpha1.CSVReasonInstallSuccessful)
-
-		// CRD should be current version with all new features
-		crd = getCRD(csv.Spec.CustomResourceDefinitions.Owned[0].Name)
-		Expect(crd.Spec.Validation.OpenAPIV3Schema).To(ContainSubstring("topologyPolicy"))
 	})
 })
 
@@ -66,7 +71,7 @@ func getSubscription(name, namespace string) *olmv1alpha1.Subscription {
 		Namespace: namespace,
 	}
 	err := testclient.GetWithRetry(context.TODO(), key, subs)
-	Expect(err).ToNot(HaveOccurred(), "Failed getting subscription")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "Failed getting subscription")
 	return subs
 }
 
@@ -77,30 +82,19 @@ func getCSV(name, namespace string) *olmv1alpha1.ClusterServiceVersion {
 		Namespace: namespace,
 	}
 	err := testclient.GetWithRetry(context.TODO(), key, csv)
-	Expect(err).ToNot(HaveOccurred(), "Failed getting CSV")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "Failed getting CSV")
 	return csv
 }
 
-func getCRD(name string) *v1beta1.CustomResourceDefinition {
-	crd := &v1beta1.CustomResourceDefinition{}
-	key := types.NamespacedName{
-		Name:      name,
-		Namespace: metav1.NamespaceNone,
-	}
-	err := testclient.GetWithRetry(context.TODO(), key, crd)
-	Expect(err).ToNot(HaveOccurred(), "Failed getting CRD")
-	return crd
-}
-
 func subscriptionWaitForUpdate(subsName, namespace, channel string) {
-	Eventually(func() string {
+	EventuallyWithOffset(1, func() string {
 		subs := getSubscription(subsName, namespace)
 		return subs.Status.CurrentCSV
 	}, 5*time.Minute, 15*time.Second).Should(ContainSubstring(channel))
 }
 
 func csvWaitForPhaseWithConditionReason(csvName, namespace string, phase olmv1alpha1.ClusterServiceVersionPhase, reason olmv1alpha1.ConditionReason) {
-	Eventually(func() olmv1alpha1.ClusterServiceVersionPhase {
+	EventuallyWithOffset(1, func() olmv1alpha1.ClusterServiceVersionPhase {
 		csv := getCSV(csvName, namespace)
 		if csv.Status.Reason == reason {
 			return csv.Status.Phase

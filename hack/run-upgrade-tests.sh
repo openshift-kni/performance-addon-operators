@@ -19,6 +19,7 @@ fi
 # -r: run suites recursively
 # --keepGoing: don't stop on failing suite
 # -requireSuite: fail if tests are not executed because of missing suite
-GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --keepGoing -requireSuite functests-extended -- -junitDir /tmp/artifacts
+# HEADS UP: fromVersion needs to match the channel in cluster-setup/upgrade-test-cluster/performance/operator_subscription.patch.yaml
+GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --keepGoing -requireSuite functests-extended -- -junitDir /tmp/artifacts -fromVersion 4.5.0 -toVersion 4.6.0
 
-IMAGE_TAG="4.5-snapshot" make cluster-clean
+make cluster-clean
