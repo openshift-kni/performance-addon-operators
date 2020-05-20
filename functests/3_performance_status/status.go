@@ -12,6 +12,8 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	v1 "github.com/openshift/custom-resource-status/conditions/v1"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +36,29 @@ var _ = Describe("Status testing of performance profile", func() {
 		nodeAnnotationCurrentConfig := "machineconfiguration.openshift.io/currentConfig"
 		nodeAnnotationDesiredConfig := "machineconfiguration.openshift.io/desiredConfig"
 		nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): ""}
+
+		It("Tuned status field tied to Performance Profile", func() {
+			profile, err := profiles.GetByNodeLabels(
+				map[string]string{
+					fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
+				},
+			)
+			Expect(err).ToNot(HaveOccurred())
+			key := types.NamespacedName{
+				Name:      components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance),
+				Namespace: components.NamespaceNodeTuningOperator,
+			}
+			tuned := &tunedv1.Tuned{}
+			err = testclient.Client.Get(context.TODO(), key, tuned)
+			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator Tuned object "+key.String())
+			tunedNamespacedname := types.NamespacedName{
+				Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
+				Namespace: components.NamespaceNodeTuningOperator,
+			}
+			tunedStatus := tunedNamespacedname.String()
+			Expect(profile.Status.Tuned).NotTo(BeNil())
+			Expect(*profile.Status.Tuned).To(Equal(tunedStatus))
+		})
 
 		It("[test_id:29673] Machine config pools status tied to Performance Profile", func() {
 			node := &workerCNFNodes[0]
