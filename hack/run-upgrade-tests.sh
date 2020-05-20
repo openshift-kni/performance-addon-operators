@@ -15,6 +15,10 @@ if ! which tput &> /dev/null 2>&1 || [[ $(tput -T$TERM colors) -lt 8 ]]; then
   NO_COLOR="-noColor"
 fi
 
+# fail if any of the following fails
+err=0
+trap 'err=1' ERR
+
 # -v: print out the text and location for each spec before running it and flush output to stdout in realtime
 # -r: run suites recursively
 # --keepGoing: don't stop on failing suite
@@ -23,3 +27,6 @@ fi
 GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --keepGoing -requireSuite functests-extended -- -junitDir /tmp/artifacts -fromVersion 4.5.0 -toVersion 4.6.0
 
 make cluster-clean
+
+# fail if any of the above failed
+test $err = 0
