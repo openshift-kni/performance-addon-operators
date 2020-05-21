@@ -1,4 +1,4 @@
-package performance
+package __performance
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
@@ -25,7 +26,6 @@ import (
 
 const (
 	pathHugepages2048kB = "/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages"
-	centosImage         = "centos:latest"
 )
 
 var _ = Describe("[performance]Hugepages", func() {
@@ -34,15 +34,14 @@ var _ = Describe("[performance]Hugepages", func() {
 
 	BeforeEach(func() {
 		var err error
-		workerRTNodes, err := nodes.GetByRole(testclient.Client, testutils.RoleWorkerRT)
+		workerRTNodes, err := nodes.GetByRole(testutils.RoleWorkerCNF)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(workerRTNodes).ToNot(BeEmpty())
 		workerRTNode = &workerRTNodes[0]
 
 		profile, err = profiles.GetByNodeLabels(
-			testclient.Client,
 			map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerRT): "",
+				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
 			},
 		)
 		Expect(err).ToNot(HaveOccurred())
@@ -50,7 +49,7 @@ var _ = Describe("[performance]Hugepages", func() {
 	})
 
 	Context("[rfe_id:27369]when NUMA node specified", func() {
-		It("[test_id:27752]should be allocated on the specifed NUMA node ", func() {
+		It("[test_id:27752][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should be allocated on the specifed NUMA node ", func() {
 			for _, page := range profile.Spec.HugePages.Pages {
 				if page.Node == nil {
 					continue
@@ -89,11 +88,11 @@ var _ = Describe("[performance]Hugepages", func() {
 			err := testclient.Client.Delete(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = pods.WaitForDeletion(testclient.Client, testpod, 60*time.Second)
+			err = pods.WaitForDeletion(testpod, 60*time.Second)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("[test_id:27477] Huge pages support for container workloads", func() {
+		It("[test_id:27477][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Huge pages support for container workloads", func() {
 			hpSize := profile.Spec.HugePages.Pages[0].Size
 			hpSizeKb, err := machineconfig.GetHugepagesSizeKilobytes(hpSize)
 			Expect(err).ToNot(HaveOccurred())
@@ -112,15 +111,11 @@ var _ = Describe("[performance]Hugepages", func() {
 			}
 			err = testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
-			err = pods.WaitForCondition(testclient.Client, testpod, corev1.PodReady, corev1.ConditionTrue, 180*time.Second)
-			Expect(err).ToNot(HaveOccurred())
-
-			cmd1 := []string{"yum", "install", "-y", "libhugetlbfs-utils", "libhugetlbfs", "tmux"}
-			_, err = pods.ExecCommandOnPod(testclient.Client, testpod, cmd1)
+			err = pods.WaitForCondition(testpod, corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
 			Expect(err).ToNot(HaveOccurred())
 
 			cmd2 := []string{"/bin/bash", "-c", "tmux new -d 'LD_PRELOAD=libhugetlbfs.so HUGETLB_MORECORE=yes top -b > /dev/null'"}
-			_, err = pods.ExecCommandOnPod(testclient.Client, testpod, cmd2)
+			_, err = pods.ExecCommandOnPod(testpod, cmd2)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("checking free hugepages - one should be used by pod")
@@ -141,7 +136,7 @@ var _ = Describe("[performance]Hugepages", func() {
 
 func checkHugepagesStatus(path string, workerRTNode *corev1.Node) int {
 	command := []string{"cat", path}
-	out, err := nodes.ExecCommandOnMachineConfigDaemon(testclient.Client, workerRTNode, command)
+	out, err := nodes.ExecCommandOnMachineConfigDaemon(workerRTNode, command)
 	Expect(err).ToNot(HaveOccurred())
 	n, err := strconv.Atoi(strings.Trim(string(out), "\n"))
 	Expect(err).ToNot(HaveOccurred())
@@ -168,7 +163,7 @@ func getCentosPod(nodeName string) *corev1.Pod {
 			Containers: []corev1.Container{
 				{
 					Name:    "test",
-					Image:   centosImage,
+					Image:   images.Test(),
 					Command: []string{"sleep", "10h"},
 					VolumeMounts: []corev1.VolumeMount{
 						{

@@ -6,13 +6,21 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// RoleWorkerRT contains the worker-rt role
-var RoleWorkerRT string
+// RoleWorkerCNF contains role name of cnf worker nodes
+var RoleWorkerCNF string
+
+// PerformanceProfileName contains the name of the PerformanceProfile created for tests
+var PerformanceProfileName string
 
 func init() {
-	RoleWorkerRT = os.Getenv("ROLE_WORKER_RT")
-	if RoleWorkerRT == "" {
-		RoleWorkerRT = "worker-rt"
+	RoleWorkerCNF = os.Getenv("ROLE_WORKER_CNF")
+	if RoleWorkerCNF == "" {
+		RoleWorkerCNF = "worker-cnf"
+	}
+
+	PerformanceProfileName = os.Getenv("PERF_TEST_PROFILE")
+	if PerformanceProfileName == "" {
+		PerformanceProfileName = "performance"
 	}
 }
 
@@ -64,4 +72,9 @@ const (
 const (
 	// ContainerMachineConfigDaemon contains the name of the machine-config-daemon container
 	ContainerMachineConfigDaemon = "machine-config-daemon"
+)
+
+const (
+	// PerfRtKernelPrebootTuningScript contains the file name of performance pre-boot tuning script that runs on rt nodes
+	PerfRtKernelPrebootTuningScript = "/usr/local/bin/pre-boot-tuning.sh"
 )

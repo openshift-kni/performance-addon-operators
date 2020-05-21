@@ -1,17 +1,28 @@
 package client
 
 import (
-	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
-	configv1 "github.com/openshift/api/config/v1"
-	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
-	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+	"context"
+	"time"
 
+	. "github.com/onsi/gomega"
+
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+
+	configv1 "github.com/openshift/api/config/v1"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+
+	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+
+	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
 )
 
 var (
@@ -19,6 +30,8 @@ var (
 	Client client.Client
 	// K8sClient defines k8s client to run subresource operations, for example you should use it to get pod logs
 	K8sClient *kubernetes.Clientset
+	// ClientsEnabled tells if the client from the package can be used
+	ClientsEnabled bool
 )
 
 func init() {
@@ -39,35 +52,63 @@ func init() {
 		klog.Exit(err.Error())
 	}
 
-	Client = New()
-	K8sClient = NewK8s()
+	if err := apiextensionsv1beta1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Exit(err.Error())
+	}
+
+	if err := operatorsv1alpha1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Exit(err.Error())
+	}
+
+	var err error
+	Client, err = New()
+	if err != nil {
+		klog.Info("Failed to initialize client, check the KUBECONFIG env variable", err.Error())
+		ClientsEnabled = false
+		return
+	}
+	K8sClient, err = NewK8s()
+	if err != nil {
+		klog.Info("Failed to initialize k8s client, check the KUBECONFIG env variable", err.Error())
+		ClientsEnabled = false
+		return
+	}
+	ClientsEnabled = true
 }
 
 // New returns a controller-runtime client.
-func New() client.Client {
+func New() (client.Client, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
-		klog.Exit(err.Error())
+		return nil, err
 	}
 
 	c, err := client.New(cfg, client.Options{})
-	if err != nil {
-		klog.Exit(err.Error())
-	}
-
-	return c
+	return c, err
 }
 
 // NewK8s returns a kubernetes clientset
-func NewK8s() *kubernetes.Clientset {
+func NewK8s() (*kubernetes.Clientset, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
-		klog.Exit(err.Error())
+		return nil, err
 	}
 
 	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		klog.Exit(err.Error())
 	}
-	return clientset
+	return clientset, nil
+}
+
+func GetWithRetry(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+	var err error
+	EventuallyWithOffset(1, func() error {
+		err = Client.Get(ctx, key, obj)
+		if err != nil {
+			klog.Infof("Getting %s failed, retrying: %v", key.Name, err)
+		}
+		return err
+	}, 1*time.Minute, 10*time.Second).ShouldNot(HaveOccurred(), "Max numbers of retries reached")
+	return err
 }
