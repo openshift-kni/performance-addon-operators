@@ -37,7 +37,7 @@ var _ = Describe("Status testing of performance profile", func() {
 		nodeAnnotationDesiredConfig := "machineconfiguration.openshift.io/desiredConfig"
 		nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): ""}
 
-		It("Tuned status field tied to Performance Profile", func() {
+		It("[test_id:30894] Tuned status field tied to Performance Profile", func() {
 			profile, err := profiles.GetByNodeLabels(
 				map[string]string{
 					fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
