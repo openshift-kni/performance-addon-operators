@@ -347,7 +347,7 @@ var _ = Describe("Controller", func() {
 				t := &tunedv1.Tuned{}
 				err := r.client.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
-				cmdlineRealtimeWithoutCPUBalancing := regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolated_cores=` + string(*profile.Spec.CPU.Isolated) + `\s*`)
+				cmdlineRealtimeWithoutCPUBalancing := regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=\s*`)
 				Expect(cmdlineRealtimeWithoutCPUBalancing.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
 			})
 

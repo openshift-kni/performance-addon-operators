@@ -54,6 +54,15 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 	Context("Pre boot tuning adjusted by tuned ", func() {
 
+		It("Should set CPU affinity kernel argument", func() {
+			for _, node := range workerRTNodes {
+				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/proc/cmdline"})
+				Expect(err).ToNot(HaveOccurred())
+				// since systemd.cpu_affinity is calculated on node level using tuned we can check only the key in this context.
+				Expect(cmdline).To(ContainSubstring("systemd.cpu_affinity="))
+			}
+		})
+
 		It("[test_id:27081][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should set workqueue CPU mask", func() {
 			for _, node := range workerRTNodes {
 				By("Getting tuned.non_isolcpus kernel argument")
