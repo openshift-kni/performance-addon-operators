@@ -54,7 +54,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 	Context("Pre boot tuning adjusted by tuned ", func() {
 
-		It("Should set CPU affinity kernel argument", func() {
+		It("[test_id:31198] Should set CPU affinity kernel argument", func() {
 			for _, node := range workerRTNodes {
 				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/proc/cmdline"})
 				Expect(err).ToNot(HaveOccurred())
