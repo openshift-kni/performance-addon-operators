@@ -133,7 +133,7 @@ generate-latest-dev-csv: operator-sdk dist-csv-generator
 generate-docs: dist-docs-generator
 	hack/docs-generate.sh
 
-.PHONY: eps-update
+.PHONY: deps-update
 deps-update:
 	go mod tidy && \
 	go mod vendor

@@ -1,6 +1,6 @@
 // +build !unittests
 
-package __performance_operator_upgrade
+package __performance_operator_upgrade_test
 
 import (
 	"context"
