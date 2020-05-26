@@ -49,7 +49,7 @@ var _ = Describe("Status testing of performance profile", func() {
 				Namespace: components.NamespaceNodeTuningOperator,
 			}
 			tuned := &tunedv1.Tuned{}
-			err = testclient.Client.Get(context.TODO(), key, tuned)
+			err = testclient.GetWithRetry(context.TODO(), key, tuned)
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator Tuned object "+key.String())
 			tunedNamespacedname := types.NamespacedName{
 				Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
