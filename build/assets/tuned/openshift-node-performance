@@ -85,7 +85,7 @@ initrd_add_dir=
 # overrides cpu-partitioning cmdline
 cmdline_cpu_part=+nohz=on rcu_nocbs=${isolated_cores} tuned.non_isolcpus=${not_isolated_cpumask} intel_pstate=disable nosoftlockup
 {{if .StaticIsolation}}
-cmdline_realtime=+tsc=nowatchdog intel_iommu=on iommu=pt isolated_cores={{.IsolatedCpus}} systemd.cpu_affinity=${not_isolated_cores_expanded}
+cmdline_realtime=+tsc=nowatchdog intel_iommu=on iommu=pt isolcpus=${isolated_cores} systemd.cpu_affinity=${not_isolated_cores_expanded}
 {{else}}
 cmdline_realtime=+tsc=nowatchdog intel_iommu=on iommu=pt systemd.cpu_affinity=${not_isolated_cores_expanded}
 {{end}}

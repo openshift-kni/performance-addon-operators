@@ -19,7 +19,7 @@ const expectedMatchSelector = `
 
 var cmdlineCPUsPartitioning = regexp.MustCompile(`\s*cmdline_cpu_part=\+\s*nohz=on\s+rcu_nocbs=\${isolated_cores}\s+tuned.non_isolcpus=\${not_isolated_cpumask}\s+intel_pstate=disable\s+nosoftlockup\s*`)
 var cmdlineRealtimeWithCPUBalancing = regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+systemd.cpu_affinity=\${not_isolated_cores_expanded}\s*`)
-var cmdlineRealtimeWithoutCPUBalancing = regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolated_cores=4-7\s+systemd.cpu_affinity=\${not_isolated_cores_expanded}\s*`)
+var cmdlineRealtimeWithoutCPUBalancing = regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=\${isolated_cores}\s+systemd.cpu_affinity=\${not_isolated_cores_expanded}\s*`)
 var cmdlineHugepages = regexp.MustCompile(`\s*cmdline_hugepages=\+\s*default_hugepagesz=1G\s+hugepagesz=1G\s+hugepages=4\s*`)
 var cmdlineAdditionalArg = regexp.MustCompile(`\s*cmdline_additionalArg=\+\s*test1=val1\s+test2=val2\s*`)
 var additionalArgs = []string{"test1=val1", "test2=val2"}
