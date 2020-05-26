@@ -4,5 +4,4 @@ metadata:
   name: performance-addon-operator
   namespace: openshift-performance-addon
 spec:
-  channel: 4.4.0
-
+  channel: REPLACE_CHANNEL
