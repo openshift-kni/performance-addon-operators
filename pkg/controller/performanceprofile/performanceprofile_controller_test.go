@@ -426,6 +426,27 @@ var _ = Describe("Controller", func() {
 
 			})
 
+			It("should update status with generated tuned", func() {
+				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+				key := types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
+					Namespace: components.NamespaceNodeTuningOperator,
+				}
+				t := &tunedv1.Tuned{}
+				err := r.client.Get(context.TODO(), key, t)
+				Expect(err).ToNot(HaveOccurred())
+				tunedNamespacedName := namespacedName(t).String()
+				updatedProfile := &performancev1alpha1.PerformanceProfile{}
+				key = types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: metav1.NamespaceNone,
+				}
+				Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+				Expect(updatedProfile.Status.Tuned).NotTo(BeNil())
+				Expect(*updatedProfile.Status.Tuned).To(Equal(tunedNamespacedName))
+			})
+
 			It("should update status when MCP is degraded", func() {
 				mcpReason := "mcpReason"
 				mcpMessage := "MCP message"
