@@ -10,7 +10,7 @@ Default tunings are applied with the [openshift-performance](https://github.com/
 
 ## Additional kernel arguments
 
-When creating a [performance profile CR](../deploy/crds/performance.openshift.io_v1alpha1_performanceprofile_cr.yaml) , a default set of kernel arguments are created from the [openshift-performance](https://github.com/openshift-kni/performance-addon-operators/blob/master/build/assets/tuned/openshift-node-performance) base profile in addition to tuned generated argument and include:
+When creating a [performance profile CR](../deploy/crds/performance.openshift.io_v1alpha1_performanceprofile_cr.yaml) , a default set of kernel arguments are created from the [openshift-performance](https://github.com/openshift-kni/performance-addon-operators/blob/master/build/assets/tuned/openshift-node-performance) base profile in addition to tuned generated argument and can include for example:
 
 `nohz=on rcu_nocbs=<isolated_cores> tuned.non_isolcpus=<not_isolated_cpumask> intel_pstate=disable nosoftlockup tsc=nowatchdog intel_iommu=on iommu=pt systemd.cpu_affinity=<not_isolated_cores> isolcpus=<isolated_cores> default_hugepagesz=<DefaultHugepagesSize> hugepagesz=<hugepages_size> hugepages=<hugepages_>`
 
@@ -36,11 +36,14 @@ spec:
 
 > Note: These arguments will be added on top of the default arguments mentioned above. Editing these additional arguments could be done when editing the CR. 
 
+> Note: This should be used for simple additions, for more complex operations see the following custom tunings section.
+
 ## Custom tunings 
 
 To perform hotfixes on top of the tuned [openshift-performance](https://github.com/openshift-kni/performance-addon-operators/blob/master/build/assets/tuned/openshift-node-performance) base profile, a tuned custom profile (A child profile) will be used to apply the desired changes.
 This profile will inherit the base tuned profile and override its fields where needed. 
 
+For complete details about customizing tuned see : [Customizing Tuned profiles](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/monitoring_and_managing_system_status_and_performance/customizing-tuned-profiles_monitoring-and-managing-system-status-and-performance).
 
 ### Getting the current deployed tuned profile
 
@@ -49,11 +52,13 @@ In order to apply changes we will need to get the name of the deployed tuned pro
 ```
 #oc describe performanceprofile <profile name> | grep Tuned
 Tuned:  <tuned namespace>/<tuned name>
+#oc get <tuned name> -n <tuned namespace> -o yaml | grep "name:"
+name: <tuned profile name>
 
 ```
 Any tuned profile created for custom tunings will need to inherit from this tuned profile: 
 
-`include=<tuned name>`
+`include=<tuned profile name>`
 
 for example:
 
@@ -108,10 +113,12 @@ spec:
 
 ```
 
-The kernel arguments generated after initial profile deployment:
+Example of the kernel arguments generated after initial profile deployment:
 
 `sh-4.2# cat /proc/cmdline
 BOOT_IMAGE=(hd0,gpt1)/ostree/rhcos-35750ad692eb3cc24529d0bc23857ad3cc29340d39912b43e3a40d255f05f740/vmlinuz-4.18.0-147.8.1.rt24.101.el8_1.x86_64 rhcos.root=crypt_rootfs console=tty0 console=ttyS0,115200n8 rd.luks.options=discard ostree=/ostree/boot.1/rhcos/35750ad692eb3cc24529d0bc23857ad3cc29340d39912b43e3a40d255f05f740/0 ignition.platform.id=gcp skew_tick=1 nmi_watchdog=0 audit=0 mce=off processor.max_cstate=1 `**idle=poll**` intel_idle.max_cstate=0 nohz=on rcu_nocbs=1-3 tuned.non_isolcpus=00000001 intel_pstate=disable nosoftlockup default_hugepagesz=1G tsc=nowatchdog intel_iommu=on iommu=pt systemd.cpu_affinity=0`
+
+>Note: check /proc/cmdline on the nodes to get the current kernel arguments list. 
 
 #### Removing kernel argument
 
