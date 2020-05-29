@@ -35,3 +35,7 @@
   `$ oc logs -n ... `  
 - check logs of cluster-node-tuning-operator `Pod`  
   `$ oc logs -n ... `
+
+## Configuration hotfixes
+
+In case a performance configuration needs to be amended please refer to [configuration hotfixes.](./configuration_hotfixes.md) 
