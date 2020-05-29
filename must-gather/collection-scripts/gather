@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# resource list
+resources=()
+
+# performance operator namespace
+resources+=(ns/openshift-performance-addon)
+
+# performance operator profiles
+resources+=(performanceprofile)
+
+# machine/node resources
+resources+=(nodes machineconfigs machineconfigpools featuregates kubeletconfigs)
+
+# run the collection of resources using must-gather
+for resource in ${resources[@]}; do
+  /usr/bin/oc adm inspect --dest-dir must-gather --all-namespaces ${resource}
+done
+
+exit 0
+
