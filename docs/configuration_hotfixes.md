@@ -52,13 +52,21 @@ In order to apply changes we will need to get the name of the deployed tuned pro
 ```
 #oc describe performanceprofile <profile name> | grep Tuned
 Tuned:  <tuned namespace>/<tuned name>
-#oc get <tuned name> -n <tuned namespace> -o yaml | grep "name:"
-name: <tuned profile name>
 
 ```
 Any tuned profile created for custom tunings will need to inherit from this tuned profile: 
 
-`include=<tuned profile name>`
+`include=<tuned name>`
+
+The custom Tuned CR should be under the same tuned namespace:
+
+```
+apiVersion: tuned.openshift.io/v1
+kind: Tuned
+metadata:
+  name: ...
+  namespace: <tuned namespace>
+```
 
 for example:
 
