@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: perf-node-gather-daemonset
+  namespace: perf-node-gather
+  labels:
+spec:
+  selector:
+    matchLabels:
+      name: perf-node-gather-daemonset
+  template:
+    metadata:
+      labels:
+        name: perf-node-gather-daemonset
+    spec:
+      serviceaccount: perf-node-gather
+      serviceAccountName: perf-node-gather
+      terminationGracePeriodSeconds: 0
+      hostNetwork: true
+      containers:
+      - name: node-probe
+        image: MUST_GATHER_IMAGE
+        command: ["/bin/bash", "-c", "echo ok > /tmp/healthy && sleep INF"]
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "50Mi"
+          limits:
+            cpu: "100m"
+            memory: "50Mi"
+        readinessProbe:
+          exec:
+            command:
+              - cat
+              - /tmp/healthy
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          privileged: true
