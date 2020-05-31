@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE_TAG="4.5-snapshot" CLUSTER="upgrade-test" make cluster-deploy
+IMAGE_TAG="4.6-snapshot" CLUSTER="upgrade-test" make cluster-deploy
 make cluster-wait-for-mcp
 
 which ginkgo

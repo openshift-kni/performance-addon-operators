@@ -45,6 +45,7 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 		// channel 4.y.z might still use snapshot image 4.y-snapshot, so only major and minor version will match.
 		fromMajorMinor := string([]rune(fromVersion)[0:3])
 		Expect(csv.ObjectMeta.Annotations["containerImage"]).To(ContainSubstring(fromMajorMinor))
+		fromImage := csv.ObjectMeta.Annotations["containerImage"]
 
 		By(fmt.Sprintf("Switch subscription channel to %s version", toVersion))
 		Expect(testclient.Client.Patch(context.TODO(), subscription,
@@ -61,6 +62,9 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 		subscription = getSubscription(subscriptionName, operatorNamespace)
 		csv = getCSV(subscription.Status.CurrentCSV, operatorNamespace)
 		csvWaitForPhaseWithConditionReason(csv.Name, operatorNamespace, olmv1alpha1.CSVPhaseSucceeded, olmv1alpha1.CSVReasonInstallSuccessful)
+		toMajorMinor := string([]rune(toVersion)[0:3])
+		Expect(csv.Spec.Version).To(ContainSubstring(toMajorMinor))
+		Expect(csv.ObjectMeta.Annotations["containerImage"]).NotTo(Equal(fromImage))
 	})
 })
 
