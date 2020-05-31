@@ -63,7 +63,7 @@ $OC_TOOL -n openshift-performance-addon delete operatorgroup openshift-performan
 $OC_TOOL -n openshift-marketplace delete catalogsource performance-addon-operator
 
 # Delete worker-cnf MCP
-for mcp in $mcps
+for mcp in "${mcps[@]}"
 do
     echo "[INFO] Deleting MCP $mcp"
     $OC_TOOL delete mcp $mcp
