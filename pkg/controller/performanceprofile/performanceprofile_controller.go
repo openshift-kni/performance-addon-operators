@@ -7,12 +7,10 @@ import (
 
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/featuregate"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
-	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -109,15 +107,6 @@ func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 
 	// Watch for changes to kubelet configs owned by our controller
 	err = c.Watch(&source.Kind{Type: &mcov1.KubeletConfig{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &performancev1alpha1.PerformanceProfile{},
-	}, p)
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to feature gates owned by our controller
-	err = c.Watch(&source.Kind{Type: &configv1.FeatureGate{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &performancev1alpha1.PerformanceProfile{},
 	}, p)
@@ -353,17 +342,6 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 		return nil, err
 	}
 
-	// get mutated feature gate
-	fg := featuregate.NewLatencySensitive()
-	// TOOD: uncomment once https://bugzilla.redhat.com/show_bug.cgi?id=1788061 fixed
-	// if err := controllerutil.SetControllerReference(profile, fg, r.scheme); err != nil {
-	// 	return err
-	// }
-	fgMutated, err := r.getMutatedFeatureGate(fg)
-	if err != nil {
-		return nil, err
-	}
-
 	// get mutated kubelet config
 	kc, err := kubeletconfig.New(profile)
 	if err != nil {
@@ -393,7 +371,6 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 
 	updated := mcMutated != nil ||
 		kcMutated != nil ||
-		fgMutated != nil ||
 		performanceTunedMutated != nil
 
 	// does not update any resources, if it no changes to relevant objects and just continue to the status update
@@ -413,18 +390,6 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 		}
 	}
 
-	if fgMutated != nil {
-		if err := r.createOrUpdateFeatureGate(fgMutated); err != nil {
-			return nil, err
-		}
-
-		// feature gate resource should be updated before KubeletConfig creation, otherwise
-		// we will lack TopologyManager feature gate under the kubelet configuration
-		// see - https://bugzilla.redhat.com/show_bug.cgi?id=1788061#c3
-		// we want to give time to the kubelet-config controllers to get updated feature gate resource
-		return &reconcile.Result{RequeueAfter: 10 * time.Second}, nil
-	}
-
 	if kcMutated != nil {
 		if err := r.createOrUpdateKubeletConfig(kcMutated); err != nil {
 			return nil, err
@@ -440,11 +405,6 @@ func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1alp
 	if err := r.deleteTuned(tunedName, components.NamespaceNodeTuningOperator); err != nil {
 		return err
 	}
-
-	// TOOD: uncomment once https://bugzilla.redhat.com/show_bug.cgi?id=1788061 fixed
-	// if err := r.deleteFeatureGate(components.FeatureGateLatencySensetiveName); err != nil {
-	// 	return err
-	// }
 
 	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	if err := r.deleteKubeletConfig(name); err != nil {

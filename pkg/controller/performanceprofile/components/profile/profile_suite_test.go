@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestFeatureGate(t *testing.T) {
+func TestProfile(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Kubelet Config Suite")
+	RunSpecs(t, "Profile Suite")
 }

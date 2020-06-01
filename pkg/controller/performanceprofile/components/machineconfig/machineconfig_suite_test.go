@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestFeatureGate(t *testing.T) {
+func TestMachineConfig(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Machine Config Suite")
 }

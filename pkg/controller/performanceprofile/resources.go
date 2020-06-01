@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"reflect"
 
-	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
@@ -169,72 +168,6 @@ func (r *ReconcilePerformanceProfile) deleteKubeletConfig(name string) error {
 		return err
 	}
 	return r.client.Delete(context.TODO(), kc)
-}
-
-func (r *ReconcilePerformanceProfile) getFeatureGate(name string) (*configv1.FeatureGate, error) {
-	fg := &configv1.FeatureGate{}
-	key := types.NamespacedName{
-		Name:      name,
-		Namespace: metav1.NamespaceNone,
-	}
-	if err := r.client.Get(context.TODO(), key, fg); err != nil {
-		return nil, err
-	}
-	return fg, nil
-}
-
-func (r *ReconcilePerformanceProfile) getMutatedFeatureGate(fg *configv1.FeatureGate) (*configv1.FeatureGate, error) {
-	existing, err := r.getFeatureGate(fg.Name)
-	if errors.IsNotFound(err) {
-		return fg, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	mutated := existing.DeepCopy()
-	mergeMaps(fg.Annotations, mutated.Annotations)
-	mergeMaps(fg.Labels, mutated.Labels)
-	mutated.Spec = fg.Spec
-
-	// we do not need to update if it no change between mutated and existing object
-	if reflect.DeepEqual(existing.Spec, mutated.Spec) &&
-		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
-		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
-		return nil, nil
-	}
-
-	return mutated, nil
-}
-
-func (r *ReconcilePerformanceProfile) createOrUpdateFeatureGate(fg *configv1.FeatureGate) error {
-	_, err := r.getFeatureGate(fg.Name)
-	if errors.IsNotFound(err) {
-		klog.Infof("Create feature-gate %q", fg.Name)
-		if err := r.client.Create(context.TODO(), fg); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	if err != nil {
-		return err
-	}
-
-	klog.Infof("Update feature-gate %q", fg.Name)
-	return r.client.Update(context.TODO(), fg)
-}
-
-func (r *ReconcilePerformanceProfile) deleteFeatureGate(name string) error {
-	fg, err := r.getFeatureGate(name)
-	if errors.IsNotFound(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	return r.client.Delete(context.TODO(), fg)
 }
 
 func (r *ReconcilePerformanceProfile) getTuned(name string, namespace string) (*tunedv1.Tuned, error) {

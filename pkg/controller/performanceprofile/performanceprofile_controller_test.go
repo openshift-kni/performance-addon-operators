@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/featuregate"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
@@ -18,7 +17,6 @@ import (
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
-	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
@@ -106,10 +104,10 @@ var _ = Describe("Controller", func() {
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 		})
 
-		It("should create all resources except KubeletConfig on first reconcile loop", func() {
+		It("should create all resources on first reconcile loop", func() {
 			r := newFakeReconciler(profile)
 
-			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 			name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 			key := types.NamespacedName{
@@ -122,15 +120,9 @@ var _ = Describe("Controller", func() {
 			err := r.client.Get(context.TODO(), key, mc)
 			Expect(err).ToNot(HaveOccurred())
 
-			// verify that KubeletConfig wasn't created
+			// verify KubeletConfig creation
 			kc := &mcov1.KubeletConfig{}
 			err = r.client.Get(context.TODO(), key, kc)
-			Expect(errors.IsNotFound(err)).To(BeTrue())
-
-			// verify FeatureGate creation
-			fg := &configv1.FeatureGate{}
-			key.Name = components.FeatureGateLatencySensetiveName
-			err = r.client.Get(context.TODO(), key, fg)
 			Expect(err).ToNot(HaveOccurred())
 
 			// verify tuned performance creation
@@ -141,27 +133,10 @@ var _ = Describe("Controller", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("should create KubeletConfig on second reconcile loop", func() {
+		It("should create event on the second reconcile loop", func() {
 			r := newFakeReconciler(profile)
 
 			Expect(reconcileTimes(r, request, 2)).To(Equal(reconcile.Result{}))
-
-			name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
-			key := types.NamespacedName{
-				Name:      name,
-				Namespace: metav1.NamespaceNone,
-			}
-
-			// verify KubeletConfig creation
-			kc := &mcov1.KubeletConfig{}
-			err := r.client.Get(context.TODO(), key, kc)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		It("should create event on third reconcile loop", func() {
-			r := newFakeReconciler(profile)
-
-			Expect(reconcileTimes(r, request, 3)).To(Equal(reconcile.Result{}))
 
 			// verify creation event
 			fakeRecorder, ok := r.recorder.(*record.FakeRecorder)
@@ -173,7 +148,7 @@ var _ = Describe("Controller", func() {
 		It("should update the profile status", func() {
 			r := newFakeReconciler(profile)
 
-			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{RequeueAfter: 10 * time.Second}))
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 			updatedProfile := &performancev1alpha1.PerformanceProfile{}
 			key := types.NamespacedName{
@@ -222,12 +197,6 @@ var _ = Describe("Controller", func() {
 			err = r.client.Get(context.TODO(), key, mcp)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 
-			// verify FeatureGate wasn't created
-			fg := &configv1.FeatureGate{}
-			key.Name = components.FeatureGateLatencySensetiveName
-			err = r.client.Get(context.TODO(), key, fg)
-			Expect(errors.IsNotFound(err)).To(BeTrue())
-
 			// verify tuned Performance wasn't created
 			tunedPerformance := &tunedv1.Tuned{}
 			key.Name = components.ProfileNamePerformance
@@ -239,7 +208,6 @@ var _ = Describe("Controller", func() {
 		Context("when all components exist", func() {
 			var mc *mcov1.MachineConfig
 			var kc *mcov1.KubeletConfig
-			var fg *configv1.FeatureGate
 			var tunedPerformance *tunedv1.Tuned
 
 			BeforeEach(func() {
@@ -250,15 +218,13 @@ var _ = Describe("Controller", func() {
 				kc, err = kubeletconfig.New(profile)
 				Expect(err).ToNot(HaveOccurred())
 
-				fg = featuregate.NewLatencySensitive()
-
 				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profile)
 				Expect(err).ToNot(HaveOccurred())
 
 			})
 
 			It("should not record new create event", func() {
-				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -275,7 +241,7 @@ var _ = Describe("Controller", func() {
 
 			It("should update MC when RT kernel gets disabled", func() {
 				profile.Spec.RealTimeKernel.Enabled = pointer.BoolPtr(false)
-				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -301,7 +267,7 @@ var _ = Describe("Controller", func() {
 					Isolated: &isolated,
 				}
 
-				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -336,7 +302,7 @@ var _ = Describe("Controller", func() {
 					BalanceIsolated: pointer.BoolPtr(false),
 				}
 
-				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -363,7 +329,7 @@ var _ = Describe("Controller", func() {
 					},
 				}
 
-				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -392,7 +358,7 @@ var _ = Describe("Controller", func() {
 					},
 				}
 
-				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -427,7 +393,7 @@ var _ = Describe("Controller", func() {
 			})
 
 			It("should update status with generated tuned", func() {
-				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance)
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 				key := types.NamespacedName{
 					Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
@@ -482,7 +448,7 @@ var _ = Describe("Controller", func() {
 					},
 				}
 
-				r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance, mcp)
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance, mcp)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -523,12 +489,10 @@ var _ = Describe("Controller", func() {
 			kc, err := kubeletconfig.New(profile)
 			Expect(err).ToNot(HaveOccurred())
 
-			fg := featuregate.NewLatencySensitive()
-
 			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
 
-			r := newFakeReconciler(profile, mc, kc, fg, tunedPerformance)
+			r := newFakeReconciler(profile, mc, kc, tunedPerformance)
 			result, err := r.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(reconcile.Result{}))
@@ -547,12 +511,6 @@ var _ = Describe("Controller", func() {
 			// verify KubeletConfig deletion
 			err = r.client.Get(context.TODO(), key, kc)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
-
-			// verify feature gate deletion
-			// TOOD: uncomment once https://bugzilla.redhat.com/show_bug.cgi?id=1788061 fixed
-			// key.Name = components.FeatureGateLatencySensetiveName
-			// err = r.client.Get(context.TODO(), key, fg)
-			// Expect(errors.IsNotFound(err)).To(Equal(true))
 
 			// verify tuned real-time kernel deletion
 			key.Name = components.GetComponentName(profile.Name, components.ProfileNamePerformance)
@@ -582,7 +540,7 @@ func reconcileTimes(reconciler *ReconcilePerformanceProfile, request reconcile.R
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client
 func newFakeReconciler(initObjects ...runtime.Object) *ReconcilePerformanceProfile {
-	fakeClient := fake.NewFakeClient(initObjects...)
+	fakeClient := fake.NewFakeClientWithScheme(scheme.Scheme, initObjects...)
 	fakeRecorder := record.NewFakeRecorder(10)
 	return &ReconcilePerformanceProfile{
 		client:    fakeClient,
