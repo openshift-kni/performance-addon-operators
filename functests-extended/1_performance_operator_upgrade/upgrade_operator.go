@@ -13,11 +13,14 @@ import (
 
 	olmv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 
+	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 )
 
 var fromVersion string
 var toVersion string
+
+var subscription *olmv1alpha1.Subscription
 
 func init() {
 	flag.StringVar(&fromVersion, "fromVersion", "", "the version to start with")
@@ -26,9 +29,15 @@ func init() {
 
 var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrades", func() {
 
+	BeforeEach(func() {
+		subscriptionsList := &olmv1alpha1.SubscriptionList{}
+		err := testclient.Client.List(context.TODO(), subscriptionsList, &client.ListOptions{Namespace: testutils.PerformanceOperatorNamespace})
+		ExpectWithOffset(1, err).ToNot(HaveOccurred(), "Failed getting Subscriptions")
+		Expect(len(subscriptionsList.Items)).To(Equal(1), fmt.Sprintf("Unexpected number of Subscriptions found: %v", len(subscriptionsList.Items)))
+		subscription = &subscriptionsList.Items[0]
+	})
+
 	It("[test_id:30876] upgrades performance profile operator", func() {
-		operatorNamespace := "openshift-performance-addon"
-		subscriptionName := "performance-addon-operator"
 
 		Expect(fromVersion).ToNot(BeEmpty(), "fromVersion not set")
 		Expect(toVersion).ToNot(BeEmpty(), "toVersion not set")
@@ -36,15 +45,11 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 		By(fmt.Sprintf("Upgrading from %s to %s", fromVersion, toVersion))
 
 		By(fmt.Sprintf("Verifying that %s channel is active", fromVersion))
-		subscription := getSubscription(subscriptionName, operatorNamespace)
+		subscription = getSubscription(subscription.Name, testutils.PerformanceOperatorNamespace)
 		Expect(subscription.Spec.Channel).To(Equal(fromVersion))
 		Expect(subscription.Status.CurrentCSV).To(ContainSubstring(fromVersion))
 
-		// CSV is pointed to previous image tag and CRD is an old version
-		csv := getCSV(subscription.Status.CurrentCSV, operatorNamespace)
-		// channel 4.y.z might still use snapshot image 4.y-snapshot, so only major and minor version will match.
-		fromMajorMinor := string([]rune(fromVersion)[0:3])
-		Expect(csv.ObjectMeta.Annotations["containerImage"]).To(ContainSubstring(fromMajorMinor))
+		csv := getCSV(subscription.Status.CurrentCSV, testutils.PerformanceOperatorNamespace)
 		fromImage := csv.ObjectMeta.Annotations["containerImage"]
 
 		By(fmt.Sprintf("Switch subscription channel to %s version", toVersion))
@@ -56,22 +61,20 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 		)).ToNot(HaveOccurred())
 
 		By(fmt.Sprintf("Verifying that channel was updated to %s", toVersion))
-		subscriptionWaitForUpdate(subscription.Name, operatorNamespace, toVersion)
+		subscriptionWaitForUpdate(subscription.Name, testutils.PerformanceOperatorNamespace, toVersion)
 
-		// CSV is updated and pointed to right image tag
-		subscription = getSubscription(subscriptionName, operatorNamespace)
-		csv = getCSV(subscription.Status.CurrentCSV, operatorNamespace)
-		csvWaitForPhaseWithConditionReason(csv.Name, operatorNamespace, olmv1alpha1.CSVPhaseSucceeded, olmv1alpha1.CSVReasonInstallSuccessful)
-		toMajorMinor := string([]rune(toVersion)[0:3])
-		Expect(csv.Spec.Version).To(ContainSubstring(toMajorMinor))
+		// CSV is updated and image tag was changed
+		subscription = getSubscription(subscription.Name, testutils.PerformanceOperatorNamespace)
+		csv = getCSV(subscription.Status.CurrentCSV, testutils.PerformanceOperatorNamespace)
+		csvWaitForPhaseWithConditionReason(csv.Name, testutils.PerformanceOperatorNamespace, olmv1alpha1.CSVPhaseSucceeded, olmv1alpha1.CSVReasonInstallSuccessful)
 		Expect(csv.ObjectMeta.Annotations["containerImage"]).NotTo(Equal(fromImage))
 	})
 })
 
-func getSubscription(name, namespace string) *olmv1alpha1.Subscription {
+func getSubscription(subsName, namespace string) *olmv1alpha1.Subscription {
 	subs := &olmv1alpha1.Subscription{}
 	key := types.NamespacedName{
-		Name:      name,
+		Name:      subsName,
 		Namespace: namespace,
 	}
 	err := testclient.GetWithRetry(context.TODO(), key, subs)

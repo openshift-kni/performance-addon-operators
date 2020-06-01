@@ -75,7 +75,7 @@ This will label 1 worker node with the `worker-cnf` role, and OCP's `Machine Con
 In order to wait until MCO is ready, you can watch the `MachineConfigPool` until it is marked as updated with 
 
 ```
-make cluster-wait-for-mcp
+CLUSTER=manual make cluster-wait-for-mcp
 ```
 
 > Note: Be aware this can take quite a while (many minutes)
