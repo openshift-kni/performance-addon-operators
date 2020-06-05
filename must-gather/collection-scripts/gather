@@ -1,16 +1,24 @@
 #!/bin/bash
 
+# generate /must-gather/version file
+. version
+echo "performance-addon-operator/must-gather" > /must-gather/version
+version >> /must-gather/version
+
+. namespace
+PAO_NAMESPACE=$( namespace )
+
 # resource list
 resources=()
 
 # performance operator namespace
-resources+=(ns/openshift-performance-addon)
+resources+=(ns/${PAO_NAMESPACE})
 
 # performance operator profiles
 resources+=(performanceprofile)
 
 # machine/node resources
-resources+=(nodes machineconfigs machineconfigpools featuregates kubeletconfigs)
+resources+=(nodes machineconfigs machineconfigpools featuregates kubeletconfigs tuneds)
 
 # run the collection of resources using must-gather
 for resource in ${resources[@]}; do
