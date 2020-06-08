@@ -11,7 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,7 +24,6 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	ocv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 )
 
@@ -88,21 +86,6 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 		})
 
-	})
-	Context("FeatureGate - FeatureSet configuration", func() {
-		It("[test_id:28529][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] FeatureGates with LatencySensitive should exist", func() {
-			key := types.NamespacedName{
-				Name:      components.FeatureGateLatencySensetiveName,
-				Namespace: metav1.NamespaceNone,
-			}
-			fg := &ocv1.FeatureGate{}
-			err := testclient.Client.Get(context.TODO(), key, fg)
-			Expect(err).ToNot(HaveOccurred())
-
-			lsStr := string(ocv1.LatencySensitive)
-			By("Checking whether FeatureSet is configured as " + lsStr)
-			Expect(string(fg.Spec.FeatureSet)).Should(Equal(lsStr), "FeauterSet is not set to "+lsStr)
-		})
 	})
 
 	Context("Additional kernel arguments added from perfomance profile", func() {

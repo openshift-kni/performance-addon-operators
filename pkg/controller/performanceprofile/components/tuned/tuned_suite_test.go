@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestFeatureGate(t *testing.T) {
+func TestTuned(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Tuned Suite")
 }

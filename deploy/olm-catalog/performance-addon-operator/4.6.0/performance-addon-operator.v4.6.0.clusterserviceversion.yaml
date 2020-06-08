@@ -79,12 +79,6 @@ spec:
           verbs:
           - '*'
         - apiGroups:
-          - config.openshift.io
-          resources:
-          - featuregates
-          verbs:
-          - '*'
-        - apiGroups:
           - machineconfiguration.openshift.io
           resources:
           - machineconfigs
