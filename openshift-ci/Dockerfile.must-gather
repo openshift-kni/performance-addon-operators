@@ -1,4 +1,6 @@
 FROM quay.io/openshift/origin-must-gather:4.6.0
 ARG COLLECTION_SCRIPTS_DIR=must-gather/collection-scripts
+ARG NODE_GATHER_MANIFESTS_DIR=must-gather/node-gather
 COPY ${COLLECTION_SCRIPTS_DIR}/* /usr/bin/
+COPY ${NODE_GATHER_MANIFESTS_DIR} /etc/node-gather
 ENTRYPOINT /usr/bin/gather

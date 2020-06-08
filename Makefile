@@ -32,7 +32,7 @@ BUILD_DATE=$$(date --utc -Iseconds)
 export GO111MODULE=on
 
 .PHONY: build
-build: gofmt golint govet dist
+build: gofmt golint govet dist dist-lsnt
 
 .PHONY: dist
 dist:
@@ -81,6 +81,13 @@ dist-docs-generator:
 	else \
 		echo "Using pre-built docs-generator tool";\
 	fi
+
+.PHONY: dist-lsnt
+dist-lsnt:
+	@echo "Building lsnt";
+	mkdir -p build/_output/bin;\
+	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/lsnt ./tools/lsnt
+
 
 .PHONY: build-containers
 build-containers: registry-container operator-container

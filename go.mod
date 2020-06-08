@@ -7,6 +7,8 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f
 	github.com/coreos/ignition v0.34.0
+	github.com/disiqueira/gotree v1.0.0
+	github.com/fromanirh/pack8s v0.1.0 // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.4 // indirect
 	github.com/onsi/ginkgo v1.12.0
@@ -17,6 +19,7 @@ require (
 	github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20191115003340-16619cd27fa5
 	github.com/operator-framework/operator-sdk v0.13.0
+	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
 	github.com/vincent-petithory/dataurl v0.0.0-20191104211930-d1553a71de50 // indirect
 	golang.org/x/sys v0.0.0-20200413165638-669c56c373c4 // indirect

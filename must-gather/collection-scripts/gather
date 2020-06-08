@@ -25,5 +25,8 @@ for resource in ${resources[@]}; do
   /usr/bin/oc adm inspect --dest-dir must-gather --all-namespaces ${resource}
 done
 
+# Collect nodes details
+/usr/bin/gather_nodes
+
 exit 0
 

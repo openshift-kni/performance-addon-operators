@@ -7,6 +7,7 @@ ENV LANG=en_US.utf8
 
 COPY ${ASSETS_DIR} /assets
 COPY ${BIN_DIR}performance-addon-operators /usr/local/bin/performance-operator
+COPY ${BIN_DIR}lsnt /usr/local/bin/lsnt
 USER 1001
 
 ENTRYPOINT [ "/usr/local/bin/performance-operator" ]
