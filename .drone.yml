@@ -87,6 +87,26 @@ steps:
       - sqlite3 /registry/bundles.db "select * from channel" | grep "${DRONE_SEMVER_SHORT}|performance-addon-operator|performance-addon-operator.v${DRONE_SEMVER_SHORT}"
       - sqlite3 /registry/bundles.db "select * from operatorbundle" | grep "\"image\":\"quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator:${DRONE_TAG}\""
 
+  - name: build-must-gather-image
+    image: plugins/docker
+    settings:
+      dockerfile: openshift-ci/Dockerfile.must-gather
+      username:
+        from_secret: QUAY_USER
+      password:
+        from_secret: QUAY_PASSWORD
+      build_args:
+        - COLLECTION_SCRIPTS_DIR=must-gather/collection-scripts
+      registry: quay.io
+      # This only works if github user == quay user!
+      repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-must-gather
+
+  - name: validate-must-gather-image
+    image: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-must-gather:${DRONE_TAG:-notset}
+    commands:
+      # This is simplistic, need to figure out something smarter
+      - grep performance /usr/bin/gather
+
   - name: github-release
     image: plugins/github-release
     settings:
