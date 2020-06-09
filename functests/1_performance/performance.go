@@ -57,7 +57,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/proc/cmdline"})
 				Expect(err).ToNot(HaveOccurred())
 				// since systemd.cpu_affinity is calculated on node level using tuned we can check only the key in this context.
-				Expect(cmdline).To(ContainSubstring("systemd.cpu_affinity="))
+				Expect(string(cmdline)).To(ContainSubstring("systemd.cpu_affinity="))
 			}
 		})
 
