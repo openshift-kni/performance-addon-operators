@@ -385,7 +385,7 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1alph
 	}
 
 	if performanceTunedMutated != nil {
-		if err := r.createOrUpdateTuned(performanceTunedMutated); err != nil {
+		if err := r.createOrUpdateTuned(performanceTunedMutated, profile.Name); err != nil {
 			return nil, err
 		}
 	}
