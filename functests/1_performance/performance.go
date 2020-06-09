@@ -50,6 +50,49 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
+	Context("Tuned CRs generated from profile", func() {
+		It("[test_id:] Should have the expected name for tuned from the profile owner object", func() {
+			tunedExpectedName := components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance)
+			tunedList := &tunedv1.TunedList{}
+			err := testclient.Client.List(context.TODO(), tunedList)
+			Expect(err).NotTo(HaveOccurred())
+
+			key := types.NamespacedName{
+				Name:      components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance),
+				Namespace: components.NamespaceNodeTuningOperator,
+			}
+			tuned := &tunedv1.Tuned{}
+			err = testclient.Client.Get(context.TODO(), key, tuned)
+			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+components.ProfileNamePerformance)
+			outdatedTuned := tuned.DeepCopy()
+			outdatedTuned.Name = "outdatedName"
+			err = testclient.Client.Create(context.TODO(), outdatedTuned)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() bool {
+				for t := range tunedList.Items {
+					tunedItem := tunedList.Items[t]
+					ownerReferences := tunedItem.ObjectMeta.OwnerReferences
+					for o := range ownerReferences {
+						if ownerReferences[o].Name == profile.Name && tunedItem.Name != tunedExpectedName {
+							return false
+						}
+					}
+				}
+				return true
+			}, 120*time.Second, testPollInterval*time.Second).Should(BeTrue(),
+				"tuned CR name owned by a performance profile CR should only be "+tunedExpectedName)
+
+			key = types.NamespacedName{
+				Name:      outdatedTuned.Name,
+				Namespace: components.NamespaceNodeTuningOperator,
+			}
+			tuned = &tunedv1.Tuned{}
+			err = testclient.Client.Get(context.TODO(), key, tuned)
+			Expect(err).To(HaveOccurred(), "tuned CR "+outdatedTuned.Name+" should have been delete by the controller")
+		})
+	})
+
 	Context("Pre boot tuning adjusted by tuned ", func() {
 
 		It("[test_id:31198] Should set CPU affinity kernel argument", func() {
