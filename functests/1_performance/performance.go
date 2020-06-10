@@ -51,18 +51,15 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 	})
 
 	Context("Tuned CRs generated from profile", func() {
-		It("[test_id:31754] Should have the expected name for tuned from the profile owner object", func() {
+		It("[test_id:31748] Should have the expected name for tuned from the profile owner object", func() {
 			tunedExpectedName := components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance)
 			tunedList := &tunedv1.TunedList{}
-			err := testclient.Client.List(context.TODO(), tunedList)
-			Expect(err).NotTo(HaveOccurred())
-
 			key := types.NamespacedName{
 				Name:      components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance),
 				Namespace: components.NamespaceNodeTuningOperator,
 			}
 			tuned := &tunedv1.Tuned{}
-			err = testclient.Client.Get(context.TODO(), key, tuned)
+			err := testclient.Client.Get(context.TODO(), key, tuned)
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+tuned.Name)
 
 			Eventually(func() bool {
