@@ -63,24 +63,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 			tuned := &tunedv1.Tuned{}
 			err = testclient.Client.Get(context.TODO(), key, tuned)
-			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+components.ProfileNamePerformance)
-			outdatedTuned := tuned.DeepCopy()
-			outdatedTuned.Name = "outdatedname"
-			err = testclient.Client.Create(context.TODO(), outdatedTuned)
-			Expect(err).NotTo(HaveOccurred())
-
-			outdatedKey := types.NamespacedName{
-				Name:      outdatedTuned.Name,
-				Namespace: components.NamespaceNodeTuningOperator,
-			}
-			tuned = &tunedv1.Tuned{}
-			Eventually(func() bool {
-				if err := testclient.Client.Get(context.TODO(), outdatedKey, tuned); err != nil {
-					return false
-				}
-				return true
-			}, 120*time.Second, testPollInterval*time.Second).Should(BeTrue(),
-				"outdated tuned does not exist in the cluster")
+			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+tuned.Name)
 
 			Eventually(func() bool {
 				err := testclient.Client.List(context.TODO(), tunedList)
@@ -97,14 +80,6 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				return true
 			}, 120*time.Second, testPollInterval*time.Second).Should(BeTrue(),
 				"tuned CR name owned by a performance profile CR should only be "+tunedExpectedName)
-
-			key = types.NamespacedName{
-				Name:      outdatedTuned.Name,
-				Namespace: components.NamespaceNodeTuningOperator,
-			}
-			tuned = &tunedv1.Tuned{}
-			err = testclient.Client.Get(context.TODO(), key, tuned)
-			Expect(err).To(HaveOccurred(), "tuned CR "+outdatedTuned.Name+" should have been delete by the controller")
 		})
 	})
 
