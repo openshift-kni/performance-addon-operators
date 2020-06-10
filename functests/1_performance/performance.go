@@ -69,6 +69,19 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			err = testclient.Client.Create(context.TODO(), outdatedTuned)
 			Expect(err).NotTo(HaveOccurred())
 
+			outdatedKey := types.NamespacedName{
+				Name:      outdatedTuned.Name,
+				Namespace: components.NamespaceNodeTuningOperator,
+			}
+			tuned = &tunedv1.Tuned{}
+			Eventually(func() bool {
+				if err := testclient.Client.Get(context.TODO(), outdatedKey, tuned); err != nil {
+					return false
+				}
+				return true
+			}, 120*time.Second, testPollInterval*time.Second).Should(BeTrue(),
+				"outdated tuned does not exist in the cluster")
+
 			Eventually(func() bool {
 				err := testclient.Client.List(context.TODO(), tunedList)
 				Expect(err).NotTo(HaveOccurred())
