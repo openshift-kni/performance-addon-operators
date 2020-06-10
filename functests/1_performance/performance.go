@@ -70,6 +70,8 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() bool {
+				err := testclient.Client.List(context.TODO(), tunedList)
+				Expect(err).NotTo(HaveOccurred())
 				for t := range tunedList.Items {
 					tunedItem := tunedList.Items[t]
 					ownerReferences := tunedItem.ObjectMeta.OwnerReferences
