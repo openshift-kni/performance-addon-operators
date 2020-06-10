@@ -51,7 +51,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 	})
 
 	Context("Tuned CRs generated from profile", func() {
-		It("[test_id:] Should have the expected name for tuned from the profile owner object", func() {
+		It("[test_id:31754] Should have the expected name for tuned from the profile owner object", func() {
 			tunedExpectedName := components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance)
 			tunedList := &tunedv1.TunedList{}
 			err := testclient.Client.List(context.TODO(), tunedList)
@@ -65,7 +65,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			err = testclient.Client.Get(context.TODO(), key, tuned)
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+components.ProfileNamePerformance)
 			outdatedTuned := tuned.DeepCopy()
-			outdatedTuned.Name = "outdatedName"
+			outdatedTuned.Name = "outdatedname"
 			err = testclient.Client.Create(context.TODO(), outdatedTuned)
 			Expect(err).NotTo(HaveOccurred())
 

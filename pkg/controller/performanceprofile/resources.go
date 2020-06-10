@@ -209,12 +209,11 @@ func (r *ReconcilePerformanceProfile) getMutatedTuned(tuned *tunedv1.Tuned) (*tu
 
 func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned, profileName string) error {
 
-	err := r.removeOutdateTuned(tuned, profileName)
-	if err != nil {
+	if err := r.removeOutdateTuned(tuned, profileName); err != nil {
 		return err
 	}
 
-	_, err = r.getTuned(tuned.Name, tuned.Namespace)
+	_, err := r.getTuned(tuned.Name, tuned.Namespace)
 	if errors.IsNotFound(err) {
 		klog.Infof("Create tuned %q under the namespace %q", tuned.Name, tuned.Namespace)
 		if err := r.client.Create(context.TODO(), tuned); err != nil {
@@ -243,8 +242,7 @@ func (r *ReconcilePerformanceProfile) removeOutdateTuned(tuned *tunedv1.Tuned, p
 		ownerReferences := tunedItem.ObjectMeta.OwnerReferences
 		for o := range ownerReferences {
 			if ownerReferences[o].Name == profileName && tunedItem.Name != tuned.Name {
-				err := r.deleteTuned(tunedItem.Name, tunedItem.Namespace)
-				if err != nil {
+				if err := r.deleteTuned(tunedItem.Name, tunedItem.Namespace); err != nil {
 					return err
 				}
 			}
