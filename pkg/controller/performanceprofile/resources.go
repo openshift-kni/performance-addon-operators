@@ -207,7 +207,12 @@ func (r *ReconcilePerformanceProfile) getMutatedTuned(tuned *tunedv1.Tuned) (*tu
 	return mutated, nil
 }
 
-func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned) error {
+func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned, profileName string) error {
+
+	if err := r.removeOutdateTuned(tuned, profileName); err != nil {
+		return err
+	}
+
 	_, err := r.getTuned(tuned.Name, tuned.Namespace)
 	if errors.IsNotFound(err) {
 		klog.Infof("Create tuned %q under the namespace %q", tuned.Name, tuned.Namespace)
@@ -223,6 +228,27 @@ func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned) 
 
 	klog.Infof("Update tuned %q under the namespace %q", tuned.Name, tuned.Namespace)
 	return r.client.Update(context.TODO(), tuned)
+}
+
+func (r *ReconcilePerformanceProfile) removeOutdateTuned(tuned *tunedv1.Tuned, profileName string) error {
+	tunedList := &tunedv1.TunedList{}
+	if err := r.client.List(context.TODO(), tunedList); err != nil {
+		klog.Errorf("Unable to list tuned objects for outdated removal procedure: %v", err)
+		return err
+	}
+
+	for t := range tunedList.Items {
+		tunedItem := tunedList.Items[t]
+		ownerReferences := tunedItem.ObjectMeta.OwnerReferences
+		for o := range ownerReferences {
+			if ownerReferences[o].Name == profileName && tunedItem.Name != tuned.Name {
+				if err := r.deleteTuned(tunedItem.Name, tunedItem.Namespace); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (r *ReconcilePerformanceProfile) deleteTuned(name string, namespace string) error {
