@@ -157,7 +157,7 @@ cluster-wait-for-mcp:
     # NOTE: for CI this is done in the config suite of the functests!
     # Use this when deploying manifests manually with CLUSTER=manual
 	@echo "Waiting for MCP to be updated"
-	hack/wait-for-mcp.sh
+	CLUSTER=$(CLUSTER) hack/wait-for-mcp.sh
 
 .PHONY: cluster-clean
 cluster-clean:

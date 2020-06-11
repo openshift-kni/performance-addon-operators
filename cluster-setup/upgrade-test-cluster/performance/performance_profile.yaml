@@ -1,7 +1,7 @@
 apiVersion: performance.openshift.io/v1alpha1
 kind: PerformanceProfile
 metadata:
-  name: manual
+  name: upgrade-test
 spec:
   additionalKernelArgs:
     - "nmi_watchdog=0"
@@ -21,5 +21,7 @@ spec:
         node: 0
   realTimeKernel:
     enabled: true
+  numa:
+    topologyPolicy: "single-numa-node"
   nodeSelector:
     node-role.kubernetes.io/worker-cnf: ""
