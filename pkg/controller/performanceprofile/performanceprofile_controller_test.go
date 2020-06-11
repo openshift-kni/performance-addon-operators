@@ -195,6 +195,49 @@ var _ = Describe("Controller", func() {
 
 		})
 
+		It("should remove outdated tuned objects", func() {
+
+			tunedOutdatedA, err := tuned.NewNodePerformance(assetsDir, profile)
+			Expect(err).ToNot(HaveOccurred())
+			tunedOutdatedA.Name = "outdated-a"
+			tunedOutdatedA.OwnerReferences = []metav1.OwnerReference{
+				{Name: profile.Name},
+			}
+			tunedOutdatedB, err := tuned.NewNodePerformance(assetsDir, profile)
+			Expect(err).ToNot(HaveOccurred())
+			tunedOutdatedB.Name = "outdated-b"
+			tunedOutdatedB.OwnerReferences = []metav1.OwnerReference{
+				{Name: profile.Name},
+			}
+			r := newFakeReconciler(profile, tunedOutdatedA, tunedOutdatedB)
+
+			keyA := types.NamespacedName{
+				Name:      tunedOutdatedA.Name,
+				Namespace: tunedOutdatedA.Namespace,
+			}
+			ta := &tunedv1.Tuned{}
+			err = r.client.Get(context.TODO(), keyA, ta)
+			Expect(err).ToNot(HaveOccurred())
+
+			keyB := types.NamespacedName{
+				Name:      tunedOutdatedA.Name,
+				Namespace: tunedOutdatedA.Namespace,
+			}
+			tb := &tunedv1.Tuned{}
+			err = r.client.Get(context.TODO(), keyB, tb)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = r.Reconcile(request)
+			Expect(err).ToNot(HaveOccurred())
+
+			tunedList := &tunedv1.TunedList{}
+			err = r.client.List(context.TODO(), tunedList)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(tunedList.Items)).To(Equal(1))
+			tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
+			Expect(tunedList.Items[0].Name).To(Equal(tunedName))
+		})
+
 		It("should create nothing when pause annotation is set", func() {
 			profile.Annotations = map[string]string{performancev1alpha1.PerformanceProfilePauseAnnotation: "true"}
 			r := newFakeReconciler(profile)
