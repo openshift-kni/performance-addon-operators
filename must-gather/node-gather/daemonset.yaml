@@ -37,32 +37,5 @@ spec:
               - /tmp/healthy
           initialDelaySeconds: 5
           periodSeconds: 5
-        volumeMounts:
-          - name: sys
-            mountPath: /sys
-          - name: proc
-            mountPath: /proc
-          - name: dev
-            mountPath: /host/dev
-          - name: etc
-            mountPath: /host/etc
         securityContext:
           privileged: true
-      volumes:
-      - name: sys
-        hostPath:
-          path: /sys
-          type: Directory
-      - name: proc
-        hostPath:
-          path: /proc
-          type: Directory
-      - name: dev
-        hostPath:
-          path: /dev
-          type: Directory
-      - name: etc
-        hostPath:
-          path: /etc
-          type: Directory
-

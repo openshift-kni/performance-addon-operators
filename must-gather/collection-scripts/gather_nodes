@@ -54,7 +54,7 @@ do
 
     oc exec $pod -n perf-node-gather -- lspci -nvv 2>/dev/null >> $NODE_PATH/lspci
     oc exec $pod -n perf-node-gather -- lscpu -e 2>/dev/null >> $NODE_PATH/lscpu
-    oc exec $pod -n perf-node-gather -- cat /host/proc/cmdline 2>/dev/null >> $NODE_PATH/proc_cmdline
+    oc exec $pod -n perf-node-gather -- cat /proc/cmdline 2>/dev/null >> $NODE_PATH/proc_cmdline
 done
 
 # Collect journal logs for specified units for all nodes
