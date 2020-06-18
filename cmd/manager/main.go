@@ -17,7 +17,6 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
 	"github.com/operator-framework/operator-sdk/pkg/metrics"
-	"github.com/operator-framework/operator-sdk/pkg/restmapper"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
 
@@ -90,7 +89,6 @@ func main() {
 		LeaderElectionID:        "performance-addon-operators",
 		LeaderElectionNamespace: namespace,
 		Namespace:               namespace,
-		MapperProvider:          restmapper.NewDynamicRESTMapper,
 		MetricsBindAddress:      fmt.Sprintf("%s:%d", metricsHost, metricsPort),
 	})
 	if err != nil {
