@@ -10,10 +10,13 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+
 	corev1 "k8s.io/api/core/v1"
+	nodev1beta1 "k8s.io/api/node/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -116,6 +119,15 @@ func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 
 	// Watch for changes to tuned owned by our controller
 	err = c.Watch(&source.Kind{Type: &tunedv1.Tuned{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &performancev1.PerformanceProfile{},
+	}, p)
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes for the RuntimeClass owned by our resource
+	err = c.Watch(&source.Kind{Type: &nodev1beta1.RuntimeClass{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &performancev1.PerformanceProfile{},
 	}, p)
@@ -369,9 +381,20 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.Per
 		return nil, err
 	}
 
+	// get mutated RuntimeClass
+	runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
+	if err := controllerutil.SetControllerReference(profile, runtimeClass, r.scheme); err != nil {
+		return nil, err
+	}
+	runtimeClassMutated, err := r.getMutatedRuntimeClass(runtimeClass)
+	if err != nil {
+		return nil, err
+	}
+
 	updated := mcMutated != nil ||
 		kcMutated != nil ||
-		performanceTunedMutated != nil
+		performanceTunedMutated != nil ||
+		runtimeClassMutated != nil
 
 	// does not update any resources, if it no changes to relevant objects and just continue to the status update
 	if !updated {
@@ -396,6 +419,12 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.Per
 		}
 	}
 
+	if runtimeClassMutated != nil {
+		if err := r.createOrUpdateRuntimeClass(runtimeClassMutated); err != nil {
+			return nil, err
+		}
+	}
+
 	r.recorder.Eventf(profile, corev1.EventTypeNormal, "Creation succeeded", "Succeeded to create all components")
 	return &reconcile.Result{}, nil
 }
@@ -412,6 +441,10 @@ func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1.Pe
 	}
 
 	if err := r.deleteMachineConfig(name); err != nil {
+		return err
+	}
+
+	if err := r.deleteRuntimeClass(name); err != nil {
 		return err
 	}
 

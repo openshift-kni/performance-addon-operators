@@ -8,6 +8,7 @@ import (
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
+	nodev1beta1 "k8s.io/api/node/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -209,7 +210,7 @@ func (r *ReconcilePerformanceProfile) getMutatedTuned(tuned *tunedv1.Tuned) (*tu
 
 func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned, profileName string) error {
 
-	if err := r.removeOutdateTuned(tuned, profileName); err != nil {
+	if err := r.removeOutdatedTuned(tuned, profileName); err != nil {
 		return err
 	}
 
@@ -230,7 +231,7 @@ func (r *ReconcilePerformanceProfile) createOrUpdateTuned(tuned *tunedv1.Tuned, 
 	return r.client.Update(context.TODO(), tuned)
 }
 
-func (r *ReconcilePerformanceProfile) removeOutdateTuned(tuned *tunedv1.Tuned, profileName string) error {
+func (r *ReconcilePerformanceProfile) removeOutdatedTuned(tuned *tunedv1.Tuned, profileName string) error {
 	tunedList := &tunedv1.TunedList{}
 	if err := r.client.List(context.TODO(), tunedList); err != nil {
 		klog.Errorf("Unable to list tuned objects for outdated removal procedure: %v", err)
@@ -260,4 +261,71 @@ func (r *ReconcilePerformanceProfile) deleteTuned(name string, namespace string)
 		return err
 	}
 	return r.client.Delete(context.TODO(), tuned)
+}
+
+func (r *ReconcilePerformanceProfile) getRuntimeClass(name string) (*nodev1beta1.RuntimeClass, error) {
+	runtimeClass := &nodev1beta1.RuntimeClass{}
+	key := types.NamespacedName{
+		Name: name,
+	}
+	if err := r.client.Get(context.TODO(), key, runtimeClass); err != nil {
+		return nil, err
+	}
+	return runtimeClass, nil
+}
+
+func (r *ReconcilePerformanceProfile) getMutatedRuntimeClass(runtimeClass *nodev1beta1.RuntimeClass) (*nodev1beta1.RuntimeClass, error) {
+	existing, err := r.getRuntimeClass(runtimeClass.Name)
+	if errors.IsNotFound(err) {
+		return runtimeClass, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	mutated := existing.DeepCopy()
+	mergeMaps(runtimeClass.Annotations, mutated.Annotations)
+	mergeMaps(runtimeClass.Labels, mutated.Labels)
+	mutated.Handler = runtimeClass.Handler
+	mutated.Scheduling = runtimeClass.Scheduling
+
+	// we do not need to update if it no change between mutated and existing object
+	if apiequality.Semantic.DeepEqual(existing.Handler, mutated.Handler) &&
+		apiequality.Semantic.DeepEqual(existing.Scheduling, mutated.Scheduling) &&
+		apiequality.Semantic.DeepEqual(existing.Labels, mutated.Labels) &&
+		apiequality.Semantic.DeepEqual(existing.Annotations, mutated.Annotations) {
+		return nil, nil
+	}
+
+	return mutated, nil
+}
+
+func (r *ReconcilePerformanceProfile) createOrUpdateRuntimeClass(runtimeClass *nodev1beta1.RuntimeClass) error {
+	_, err := r.getRuntimeClass(runtimeClass.Name)
+	if errors.IsNotFound(err) {
+		klog.Infof("Create runtime class %q", runtimeClass.Name)
+		if err := r.client.Create(context.TODO(), runtimeClass); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	klog.Infof("Update runtime class %q", runtimeClass.Name)
+	return r.client.Update(context.TODO(), runtimeClass)
+}
+
+func (r *ReconcilePerformanceProfile) deleteRuntimeClass(name string) error {
+	runtimeClass, err := r.getRuntimeClass(name)
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return r.client.Delete(context.TODO(), runtimeClass)
 }

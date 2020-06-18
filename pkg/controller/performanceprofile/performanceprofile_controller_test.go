@@ -7,10 +7,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -18,12 +14,17 @@ import (
 	igntypes "github.com/coreos/ignition/config/v2_2/types"
 	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	corev1 "k8s.io/api/core/v1"
+	nodev1beta1 "k8s.io/api/node/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -125,6 +126,11 @@ var _ = Describe("Controller", func() {
 			// verify KubeletConfig creation
 			kc := &mcov1.KubeletConfig{}
 			err = r.client.Get(context.TODO(), key, kc)
+			Expect(err).ToNot(HaveOccurred())
+
+			// verify RuntimeClass creation
+			runtimeClass := &nodev1beta1.RuntimeClass{}
+			err = r.client.Get(context.TODO(), key, runtimeClass)
 			Expect(err).ToNot(HaveOccurred())
 
 			// verify tuned performance creation
@@ -249,12 +255,18 @@ var _ = Describe("Controller", func() {
 			key.Namespace = components.NamespaceNodeTuningOperator
 			err = r.client.Get(context.TODO(), key, tunedPerformance)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
+
+			// verify that no RuntimeClass was created
+			runtimeClass := &nodev1beta1.RuntimeClass{}
+			err = r.client.Get(context.TODO(), key, runtimeClass)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
 		})
 
 		Context("when all components exist", func() {
 			var mc *mcov1.MachineConfig
 			var kc *mcov1.KubeletConfig
 			var tunedPerformance *tunedv1.Tuned
+			var runtimeClass *nodev1beta1.RuntimeClass
 
 			BeforeEach(func() {
 				var err error
@@ -267,10 +279,11 @@ var _ = Describe("Controller", func() {
 				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profile)
 				Expect(err).ToNot(HaveOccurred())
 
+				runtimeClass = runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
 			})
 
 			It("should not record new create event", func() {
-				r := newFakeReconciler(profile, mc, kc, tunedPerformance)
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance, runtimeClass)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
@@ -567,7 +580,9 @@ var _ = Describe("Controller", func() {
 			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
 
-			r := newFakeReconciler(profile, mc, kc, tunedPerformance)
+			runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
+
+			r := newFakeReconciler(profile, mc, kc, tunedPerformance, runtimeClass)
 			result, err := r.Reconcile(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(reconcile.Result{}))
@@ -585,6 +600,10 @@ var _ = Describe("Controller", func() {
 
 			// verify KubeletConfig deletion
 			err = r.client.Get(context.TODO(), key, kc)
+			Expect(errors.IsNotFound(err)).To(Equal(true))
+
+			// verify RuntimeClass deletion
+			err = r.client.Get(context.TODO(), key, runtimeClass)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 
 			// verify tuned real-time kernel deletion
