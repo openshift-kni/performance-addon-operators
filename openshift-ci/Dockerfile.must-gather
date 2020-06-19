@@ -1,0 +1,18 @@
+FROM quay.io/openshift/origin-must-gather:4.6.0 AS builder
+
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+RUN microdnf install -y pciutils util-linux hostname rsync
+
+# Copy must-gather required binaries
+COPY --from=builder /usr/bin/openshift-must-gather /usr/bin/openshift-must-gather
+COPY --from=builder /usr/bin/oc /usr/bin/oc
+
+# Save original gather script
+COPY --from=builder /usr/bin/gather* /usr/bin/
+RUN mv /usr/bin/gather /usr/bin/gather_original
+
+ARG COLLECTION_SCRIPTS_DIR=must-gather/collection-scripts
+ARG NODE_GATHER_MANIFESTS_DIR=must-gather/node-gather
+COPY ${COLLECTION_SCRIPTS_DIR}/* /usr/bin/
+COPY ${NODE_GATHER_MANIFESTS_DIR} /etc/node-gather
+ENTRYPOINT /usr/bin/gather
