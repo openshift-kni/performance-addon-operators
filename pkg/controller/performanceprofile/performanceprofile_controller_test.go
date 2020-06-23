@@ -2,6 +2,7 @@ package performanceprofile
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"time"
@@ -14,6 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 
+	igntypes "github.com/coreos/ignition/config/v2_2/types"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
@@ -425,7 +427,12 @@ var _ = Describe("Controller", func() {
 				mc := &mcov1.MachineConfig{}
 				err = r.client.Get(context.TODO(), key, mc)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(mc.Spec.Config.Systemd.Units).To(ContainElement(MatchFields(IgnoreMissing|IgnoreExtras, Fields{
+
+				config := &igntypes.Config{}
+				err = json.Unmarshal(mc.Spec.Config.Raw, config)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(config.Systemd.Units).To(ContainElement(MatchFields(IgnoreMissing|IgnoreExtras, Fields{
 					"Contents": And(
 						ContainSubstring("Description=Hugepages"),
 						ContainSubstring("Environment=HUGEPAGES_COUNT=8"),
