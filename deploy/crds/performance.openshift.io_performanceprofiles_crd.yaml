@@ -37,7 +37,7 @@ spec:
                 type: string
               type: array
             cpu:
-              description: CPU defines set of CPU related parameters.
+              description: CPU defines a set of CPU related parameters.
               properties:
                 balanceIsolated:
                   description: BalanceIsolated toggles whether or not the Isolated
@@ -51,25 +51,25 @@ spec:
                     Defaults to "true"
                   type: boolean
                 isolated:
-                  description: Isolated defines set of CPU's that will used to give
+                  description: Isolated defines a set of CPU's that will be used to give
                     to application threads the most execution time possible, which
                     means removing as many extraneous tasks off a CPU as possible.
                   type: string
                 reserved:
-                  description: Reserved defines set of CPU's that will not be used
+                  description: Reserved defines a set of CPU's that will not be used
                     for any container workloads initiated by kubelet.
                   type: string
               type: object
             hugepages:
-              description: HugePages defines set of huge pages related parameters.
+              description: HugePages defines a set of huge pages related parameters.
               properties:
                 defaultHugepagesSize:
                   description: DefaultHugePagesSize defines huge pages default size
                     under kernel boot parameters.
                   type: string
                 pages:
-                  description: Pages defines huge pages that we want to allocate on
-                    the boot time.
+                  description: Pages defines huge pages that we want to allocate at
+                    boot time.
                   items:
                     description: HugePage defines the number of allocated huge pages
                       of the specific size.
