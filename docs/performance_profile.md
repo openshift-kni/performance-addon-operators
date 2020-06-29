@@ -21,19 +21,19 @@ This document documents the PerformanceProfile API introduced by the Performance
 
 ## CPU
 
-CPU defines set of CPU related features.
+CPU defines a set of CPU related features.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| reserved | Reserved defines set of CPU's that will not be used for any container workloads initiated by kubelet. | *[CPUSet](#cpuset) | false |
-| isolated | Isolated defines set of CPU's that will used to give to application threads the most execution time possible, which means removing as many extraneous tasks off a CPU as possible. | *[CPUSet](#cpuset) | false |
+| reserved | Reserved defines a set of CPUs that will not be used for any container workloads initiated by kubelet. | *[CPUSet](#cpuset) | false |
+| isolated | Isolated defines a set of CPUs that will be used to give to application threads the most execution time possible, which means removing as many extraneous tasks off a CPU as possible. | *[CPUSet](#cpuset) | false |
 | balanceIsolated | BalanceIsolated toggles whether or not the Isolated CPU set is eligible for load balancing work loads. When this option is set to \"false\", the Isolated CPU set will be static, meaning workloads have to explicitly assign each thread to a specific cpu in order to work across multiple CPUs. Setting this to \"true\" allows workloads to be balanced across CPUs. Setting this to \"false\" offers the most predictable performance for guaranteed workloads, but it offloads the complexity of cpu load balancing to the application. Defaults to \"true\" | *bool | false |
 
 [Back to TOC](#table-of-contents)
 
 ## CPUSet
 
-CPUSet defines the set of CPU's(0-3,8-11).
+CPUSet defines the set of CPUs(0-3,8-11).
 
 CPUSet is of type `string`.
 
@@ -61,12 +61,12 @@ HugePageSize is of type `string`.
 
 ## HugePages
 
-HugePages defines set of huge pages that we want to allocate on the boot.
+HugePages defines a set of huge pages that we want to allocate at boot.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | defaultHugepagesSize | DefaultHugePagesSize defines huge pages default size under kernel boot parameters. | *[HugePageSize](#hugepagesize) | false |
-| pages | Pages defines huge pages that we want to allocate on the boot time. | [][HugePage](#hugepage) | false |
+| pages | Pages defines huge pages that we want to allocate at boot time. | [][HugePage](#hugepage) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -109,12 +109,12 @@ PerformanceProfileSpec defines the desired state of PerformanceProfile.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| cpu | CPU defines set of CPU related parameters. | *[CPU](#cpu) | false |
-| hugepages | HugePages defines set of huge pages related parameters. | *[HugePages](#hugepages) | false |
+| cpu | CPU defines a set of CPU related parameters. | *[CPU](#cpu) | false |
+| hugepages | HugePages defines a set of huge pages related parameters. | *[HugePages](#hugepages) | false |
 | machineConfigLabel | MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile. Defaults to \"machineconfiguration.openshift.io/role=&lt;same role as in NodeSelector label key&gt;\" | map[string]string | false |
 | machineConfigPoolSelector | MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector of resources like KubeletConfigs created by the operator. Defaults to \"machineconfiguration.openshift.io/role=&lt;same role as in NodeSelector label key&gt;\" | map[string]string | false |
 | nodeSelector | NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator. It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool which targets this performance profile. | map[string]string | false |
-| realTimeKernel | RealTimeKernel defines set of real time kernel related parameters. RT kernel won't be installed when not set. | *[RealTimeKernel](#realtimekernel) | false |
+| realTimeKernel | RealTimeKernel defines a set of real time kernel related parameters. RT kernel won't be installed when not set. | *[RealTimeKernel](#realtimekernel) | false |
 | additionalKernelArgs | Addional kernel arguments. | []string | false |
 | numa | NUMA defines options related to topology aware affinities | *[NUMA](#numa) | false |
 
