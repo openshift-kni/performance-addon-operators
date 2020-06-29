@@ -91,6 +91,18 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 		})
 
+		It("Should set CPU isolcpu's kernel argument managed_irq flag", func() {
+			for _, node := range workerRTNodes {
+				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/proc/cmdline"})
+				Expect(err).ToNot(HaveOccurred())
+				if profile.Spec.CPU.BalanceIsolated != nil && *profile.Spec.CPU.BalanceIsolated == false {
+					Expect(string(cmdline)).To(ContainSubstring("isolcpus=domain,managed_irq,"))
+				} else {
+					Expect(string(cmdline)).To(ContainSubstring("isolcpus=managed_irq,"))
+				}
+			}
+		})
+
 		It("[test_id:27081][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should set workqueue CPU mask", func() {
 			for _, node := range workerRTNodes {
 				By("Getting tuned.non_isolcpus kernel argument")

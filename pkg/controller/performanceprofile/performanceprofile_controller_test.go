@@ -339,7 +339,31 @@ var _ = Describe("Controller", func() {
 				Expect(*t.Spec.Profile[0].Data).To(ContainSubstring("isolated_cores=" + string(*profile.Spec.CPU.Isolated)))
 			})
 
-			It("should add isolcpus to tuned profile when balanced set to false", func() {
+			It("should add isolcpus with managed_irq flag to tuned profile when balanced set to true", func() {
+				reserved := performancev1alpha1.CPUSet("0-1")
+				isolated := performancev1alpha1.CPUSet("2-3")
+				profile.Spec.CPU = &performancev1alpha1.CPU{
+					Reserved:        &reserved,
+					Isolated:        &isolated,
+					BalanceIsolated: pointer.BoolPtr(true),
+				}
+
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance)
+
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				key := types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
+					Namespace: components.NamespaceNodeTuningOperator,
+				}
+				t := &tunedv1.Tuned{}
+				err := r.client.Get(context.TODO(), key, t)
+				Expect(err).ToNot(HaveOccurred())
+				cmdlineRealtimeWithoutCPUBalancing := regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=managed_irq\s*`)
+				Expect(cmdlineRealtimeWithoutCPUBalancing.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
+			})
+
+			It("should add isolcpus with domain,managed_irq flags to tuned profile when balanced set to false", func() {
 				reserved := performancev1alpha1.CPUSet("0-1")
 				isolated := performancev1alpha1.CPUSet("2-3")
 				profile.Spec.CPU = &performancev1alpha1.CPU{
@@ -359,7 +383,7 @@ var _ = Describe("Controller", func() {
 				t := &tunedv1.Tuned{}
 				err := r.client.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
-				cmdlineRealtimeWithoutCPUBalancing := regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=\s*`)
+				cmdlineRealtimeWithoutCPUBalancing := regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=domain,managed_irq,\s*`)
 				Expect(cmdlineRealtimeWithoutCPUBalancing.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
 			})
 
