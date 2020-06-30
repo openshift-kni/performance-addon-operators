@@ -1,7 +1,9 @@
 package profile
 
 import (
-	"github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	"fmt"
+
+	v1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"k8s.io/utils/pointer"
 
@@ -75,15 +77,15 @@ var _ = Describe("PerformanceProfile", func() {
 			Expect(err.Error()).To(ContainSubstring("hugepages default size should be equal"))
 		})
 
-		It("should reject hugepages allocation with different sizes", func() {
+		It("should reject hugepages allocation with unexpected page size", func() {
 			profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
 				Count: 128,
 				Node:  pointer.Int32Ptr(0),
-				Size:  v1.HugePageSize("2M"),
+				Size:  v1.HugePageSize("14M"),
 			})
 			err := ValidateParameters(profile)
 			Expect(err).Should(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("allocation of hugepages with different sizes not supported"))
+			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("the page size should be equal to %q or %q", hugepagesSize1G, hugepagesSize2M)))
 		})
 	})
 
@@ -132,9 +134,7 @@ var _ = Describe("PerformanceProfile", func() {
 			Expect(v).To(Equal(NodeSelectorRole))
 
 		})
-
 	})
-
 })
 
 func setValidNodeSelector(profile *v1.PerformanceProfile) {

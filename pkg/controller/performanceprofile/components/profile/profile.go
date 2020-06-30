@@ -3,7 +3,7 @@ package profile
 import (
 	"fmt"
 
-	"github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	v1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 )
@@ -120,16 +120,11 @@ func validateHugepages(hugepages *v1.HugePages) error {
 			return validationError(fmt.Sprintf("hugepages default size should be equal to %q or %q", hugepagesSize1G, hugepagesSize2M))
 		}
 	}
-	hugepagesSizes := map[v1.HugePageSize]string{}
-	for _, page := range hugepages.Pages {
-		hugepagesSizes[page.Size] = ""
-	}
 
-	// TODO: this validation should be removed, once https://github.com/kubernetes/kubernetes/pull/84051
-	// is available under the openshift
-	// validate that we do not have allocations of hugepages of different sizes
-	if len(hugepagesSizes) > 1 {
-		return validationError("allocation of hugepages with different sizes not supported")
+	for _, page := range hugepages.Pages {
+		if page.Size != hugepagesSize1G && page.Size != hugepagesSize2M {
+			return validationError(fmt.Sprintf("the page size should be equal to %q or %q", hugepagesSize1G, hugepagesSize2M))
+		}
 	}
 
 	return nil
