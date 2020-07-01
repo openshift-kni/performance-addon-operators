@@ -82,7 +82,8 @@ var _ = Describe("[performance] CPU Management", func() {
 
 			By("checking reserved CPU in kubelet config file")
 			cmd = []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
-			Expect(execCommandOnWorker(cmd, workerRTNode)).To(ContainSubstring(fmt.Sprintf(`"reservedSystemCPUs":"%s"`, reservedCPU)))
+			// kubelet.conf changed formatting, there is a space after colons atm. Let's deal with both cases with a regex
+			Expect(execCommandOnWorker(cmd, workerRTNode)).To(MatchRegexp(fmt.Sprintf(`"reservedSystemCPUs": ?"%s"`, reservedCPU)))
 
 			By("checking CPU affinity mask for kernel scheduler")
 			cmd = []string{"/bin/bash", "-c", "taskset -pc $(pgrep rcu_sched)"}
