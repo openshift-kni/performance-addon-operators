@@ -12,8 +12,10 @@ import (
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
+	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var _ = Describe("[performance]RT Kernel", func() {
@@ -30,33 +32,43 @@ var _ = Describe("[performance]RT Kernel", func() {
 
 	It("[test_id:26861][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] should have RT kernel enabled", func() {
 
-		Eventually(func() string {
+		profile := &performancev1alpha1.PerformanceProfile{}
+		key := types.NamespacedName{
+			Name: testutils.PerformanceProfileName,
+		}
+		err := testclient.Client.Get(context.TODO(), key, profile)
+		Expect(err).ToNot(HaveOccurred(), "failed to get the performance profile")
 
-			// run uname -a in a busybox pod and get logs
-			testpod = pods.GetTestPod()
-			testpod.Namespace = testutils.NamespaceTesting
-			testpod.Spec.Containers[0].Command = []string{"uname", "-a"}
-			testpod.Spec.RestartPolicy = corev1.RestartPolicyNever
-			testpod.Spec.NodeSelector = map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
-			}
+		if profile.Spec.RealTimeKernel != nil && *profile.Spec.RealTimeKernel.Enabled == true {
 
-			if err := testclient.Client.Create(context.TODO(), testpod); err != nil {
-				return ""
-			}
+			Eventually(func() string {
 
-			if err := pods.WaitForPhase(testpod, corev1.PodSucceeded, 60*time.Second); err != nil {
-				return ""
-			}
+				// run uname -a in a busybox pod and get logs
+				testpod = pods.GetTestPod()
+				testpod.Namespace = testutils.NamespaceTesting
+				testpod.Spec.Containers[0].Command = []string{"uname", "-a"}
+				testpod.Spec.RestartPolicy = corev1.RestartPolicyNever
+				testpod.Spec.NodeSelector = map[string]string{
+					fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
+				}
 
-			logs, err := pods.GetLogs(testclient.K8sClient, testpod)
-			if err != nil {
-				return ""
-			}
+				if err := testclient.Client.Create(context.TODO(), testpod); err != nil {
+					return ""
+				}
 
-			return logs
+				if err := pods.WaitForPhase(testpod, corev1.PodSucceeded, 60*time.Second); err != nil {
+					return ""
+				}
 
-		}, 15*time.Minute, 30*time.Second).Should(ContainSubstring("PREEMPT RT"))
+				logs, err := pods.GetLogs(testclient.K8sClient, testpod)
+				if err != nil {
+					return ""
+				}
+
+				return logs
+
+			}, 15*time.Minute, 30*time.Second).Should(ContainSubstring("PREEMPT RT"))
+		}
 
 	})
 

@@ -47,7 +47,7 @@ var _ = Describe("Status testing of performance profile", func() {
 			)
 			Expect(err).ToNot(HaveOccurred())
 			key := types.NamespacedName{
-				Name:      components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance),
+				Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
 				Namespace: components.NamespaceNodeTuningOperator,
 			}
 			tuned := &tunedv1.Tuned{}

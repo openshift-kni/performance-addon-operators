@@ -25,7 +25,9 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 
@@ -38,26 +40,41 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 	It("Should successfully deploy the performance profile", func() {
 
 		performanceProfile := testProfile()
-		performanceManifest, found := os.LookupEnv("PERFORMANCE_PROFILE_MANIFEST_OVERRIDE")
-		if found {
+		profileAlreadyExists := false
+
+		if discovery.Enabled() {
 			var err error
-			performanceProfile, err = externalPerformanceProfile(performanceManifest)
-			Expect(err).ToNot(HaveOccurred(), "Failed overriding performance profile", performanceManifest)
-			klog.Warning("Consuming performance profile from ", performanceManifest)
+			performanceProfile, err = profiles.GetByNodeLabels(
+				map[string]string{
+					fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
+				},
+			)
+			Expect(err).ToNot(HaveOccurred(), "Failed finding a performance profile in discovery mode")
+			profileAlreadyExists = true
+			klog.Info("Discovery mode: consuming a deployed performance profile from the cluster")
+		} else {
+			performanceManifest, found := os.LookupEnv("PERFORMANCE_PROFILE_MANIFEST_OVERRIDE")
+			if found {
+				var err error
+				performanceProfile, err = externalPerformanceProfile(performanceManifest)
+				Expect(err).ToNot(HaveOccurred(), "Failed overriding performance profile", performanceManifest)
+				klog.Warning("Consuming performance profile from ", performanceManifest)
+			}
 		}
 
-		By("Creating the PerformanceProfile")
-		// this might fail while the operator is still being deployed and the CRD does not exist yet
-		profileAlreadyExists := false
-		Eventually(func() error {
-			err := testclient.Client.Create(context.TODO(), performanceProfile)
-			if errors.IsAlreadyExists(err) {
-				klog.Warning(fmt.Sprintf("A PerformanceProfile with name %s already exists! If created externally, tests might have unexpected behaviour", performanceProfile.Name))
-				profileAlreadyExists = true
-				return nil
-			}
-			return err
-		}, 15*time.Minute, 15*time.Second).ShouldNot(HaveOccurred(), "Failed creating the performance profile")
+		if !profileAlreadyExists {
+			By("Creating the PerformanceProfile")
+			// this might fail while the operator is still being deployed and the CRD does not exist yet
+			Eventually(func() error {
+				err := testclient.Client.Create(context.TODO(), performanceProfile)
+				if errors.IsAlreadyExists(err) {
+					klog.Warning(fmt.Sprintf("A PerformanceProfile with name %s already exists! If created externally, tests might have unexpected behaviour", performanceProfile.Name))
+					profileAlreadyExists = true
+					return nil
+				}
+				return err
+			}, 15*time.Minute, 15*time.Second).ShouldNot(HaveOccurred(), "Failed creating the performance profile")
+		}
 
 		By("Getting MCP for profile")
 		mcpLabel := profile.GetMachineConfigLabel(performanceProfile)
