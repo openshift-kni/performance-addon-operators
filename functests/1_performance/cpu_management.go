@@ -51,6 +51,9 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			balanceIsolated = *profile.Spec.CPU.BalanceIsolated
 		}
 
+		Expect(profile.Spec.CPU.Isolated).NotTo(BeNil())
+		isolatedCPU = string(*profile.Spec.CPU.Isolated)
+
 		Expect(profile.Spec.CPU.Reserved).NotTo(BeNil())
 		reservedCPU = string(*profile.Spec.CPU.Reserved)
 		reservedCPUSet, err := cpuset.Parse(reservedCPU)
