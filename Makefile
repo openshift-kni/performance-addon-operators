@@ -101,7 +101,8 @@ operator-container: build
 .PHONY: metadata-container
 metadata-container: generate-latest-dev-csv
 	@echo "Building the performance-addon-operator metadata image"
-	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.metadata -t "$(FULL_METADATA_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)"  .
+	@find build/_output/olm-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|${FULL_OPERATOR_IMAGE}|g" {} \; || :
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.metadata -t "$(FULL_METADATA_IMAGE)" .
 
 .PHONY: registry-container
 registry-container: generate-latest-dev-csv
