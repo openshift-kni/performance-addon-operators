@@ -14,12 +14,14 @@ OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
-REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
 OPERATOR_IMAGE_NAME="performance-addon-operator"
+REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
+METADATA_IMAGE_NAME="performance-addon-operator-metadata"
 MUSTGATHER_IMAGE_NAME="performance-addon-operator-must-gather"
 
 FULL_OPERATOR_IMAGE ?= "$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
 FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
+FULL_METADATA_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${METADATA_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_MUSTGATHER_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${MUSTGATHER_IMAGE_NAME}:${IMAGE_TAG}"
 
 CLUSTER ?= "ci"
@@ -85,7 +87,7 @@ dist-docs-generator:
 	fi
 
 .PHONY: build-containers
-build-containers: registry-container operator-container must-gather-container
+build-containers: metadata-container registry-container operator-container must-gather-container
 
 .PHONY: operator-container
 operator-container: build
@@ -95,6 +97,11 @@ operator-container: build
 		exit 1;\
 	fi
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.deploy -t $(FULL_OPERATOR_IMAGE) --build-arg BIN_DIR="_output/bin/" --build-arg ASSETS_DIR="assets" build/
+
+.PHONY: metadata-container
+metadata-container: generate-latest-dev-csv
+	@echo "Building the performance-addon-operator metadata image"
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.metadata -t "$(FULL_METADATA_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)"  .
 
 .PHONY: registry-container
 registry-container: generate-latest-dev-csv
@@ -110,6 +117,7 @@ must-gather-container:
 push-containers:
 	$(IMAGE_BUILD_CMD) push $(FULL_OPERATOR_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_REGISTRY_IMAGE)
+	$(IMAGE_BUILD_CMD) push $(FULL_METADATA_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_MUSTGATHER_IMAGE)
 
 .PHONY: operator-sdk
