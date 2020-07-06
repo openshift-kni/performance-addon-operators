@@ -16,9 +16,11 @@ OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
 REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
 OPERATOR_IMAGE_NAME="performance-addon-operator"
+MUSTGATHER_IMAGE_NAME="performance-addon-operator-must-gather"
 
 FULL_OPERATOR_IMAGE ?= "$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
 FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
+FULL_MUSTGATHER_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${MUSTGATHER_IMAGE_NAME}:${IMAGE_TAG}"
 
 CLUSTER ?= "ci"
 
@@ -83,7 +85,7 @@ dist-docs-generator:
 	fi
 
 .PHONY: build-containers
-build-containers: registry-container operator-container
+build-containers: registry-container operator-container must-gather-container
 
 .PHONY: operator-container
 operator-container: build
@@ -99,10 +101,16 @@ registry-container: generate-latest-dev-csv
 	@echo "Building the performance-addon-operator registry image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.registry.upstream.dev -t "$(FULL_REGISTRY_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)"  .
 
+.PHONY: must-gather-container
+must-gather-container:
+	@echo "Building the performance-addon-operator must-gather image"
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.must-gather -t "$(FULL_MUSTGATHER_IMAGE)"  .
+
 .PHONY: push-containers
 push-containers:
 	$(IMAGE_BUILD_CMD) push $(FULL_OPERATOR_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_REGISTRY_IMAGE)
+	$(IMAGE_BUILD_CMD) push $(FULL_MUSTGATHER_IMAGE)
 
 .PHONY: operator-sdk
 operator-sdk:
