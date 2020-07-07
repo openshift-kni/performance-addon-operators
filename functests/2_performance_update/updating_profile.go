@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,6 +30,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	chkKernel := []string{"uname", "-a"}
 	chkCmdLine := []string{"cat", "/proc/cmdline"}
 	chkKubeletConfig := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
+	chkIrqbalance := []string{"cat", "/rootfs/etc/sysconfig/irqbalance"}
 
 	nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): ""}
 
@@ -269,6 +270,14 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, newCnfNode)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKubeletConfig))
 			Expect(kblcfg).NotTo(ContainSubstring("reservedSystemCPUs"))
+
+			Expect(profile.Spec.CPU.Reserved).NotTo(BeNil())
+			reservedCPU := string(*profile.Spec.CPU.Reserved)
+			cpuMask, err := components.CPUListToHexMask(reservedCPU)
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to list in Hex %s", reservedCPU))
+			irqBal, err := nodes.ExecCommandOnNode(chkIrqbalance, newCnfNode)
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkIrqbalance))
+			Expect(irqBal).NotTo(ContainSubstring(cpuMask))
 		})
 
 		It("Reverts back nodeSelector and cleaning up leftovers", func() {
