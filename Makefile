@@ -36,7 +36,7 @@ BUILD_DATE=$$(date --utc -Iseconds)
 export GO111MODULE=on
 
 .PHONY: build
-build: gofmt golint govet dist
+build: gofmt golint govet dist generate-manifests-tree
 
 .PHONY: dist
 dist:
@@ -101,7 +101,6 @@ operator-container: build
 .PHONY: metadata-container
 metadata-container: generate-latest-dev-csv
 	@echo "Building the performance-addon-operator metadata image"
-	@find build/_output/olm-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|${FULL_OPERATOR_IMAGE}|g" {} \; || :
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.metadata -t "$(FULL_METADATA_IMAGE)" .
 
 .PHONY: registry-container
@@ -149,6 +148,10 @@ generate-latest-dev-csv: operator-sdk dist-csv-generator
 .PHONY: generate-docs
 generate-docs: dist-docs-generator
 	hack/docs-generate.sh
+
+.PHONY: generate-manifests-tree
+generate-manifests-tree:
+	hack/generate-manifests-tree.sh "$(FULL_OPERATOR_IMAGE)"
 
 .PHONY: deps-update
 deps-update:
