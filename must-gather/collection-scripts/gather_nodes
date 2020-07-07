@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 check_node_gather_pods_ready() {
     line=$(oc get ds perf-node-gather-daemonset -o=custom-columns=DESIRED:.status.desiredNumberScheduled,READY:.status.numberReady --no-headers -n perf-node-gather)
 
@@ -7,7 +9,7 @@ check_node_gather_pods_ready() {
     read desired ready <<< $line
     IFS=$'\n'
 
-    if [[ $ready -eq $desired ]]
+    if [[ "$desired" != "0" ]] && [[ "$ready" == "$desired" ]]
     then
        return 0
     else
