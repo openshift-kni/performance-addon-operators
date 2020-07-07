@@ -44,11 +44,7 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 
 		if discovery.Enabled() {
 			var err error
-			performanceProfile, err = profiles.GetByNodeLabels(
-				map[string]string{
-					fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
-				},
-			)
+			performanceProfile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 			Expect(err).ToNot(HaveOccurred(), "Failed finding a performance profile in discovery mode")
 			profileAlreadyExists = true
 			klog.Info("Discovery mode: consuming a deployed performance profile from the cluster")
@@ -137,9 +133,6 @@ func testProfile() *performancev1alpha1.PerformanceProfile {
 	isolated := performancev1alpha1.CPUSet("1-3")
 	hugePagesSize := performancev1alpha1.HugePageSize("1G")
 
-	cnfRoleLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, utils.RoleWorkerCNF)
-	nodeSelector := map[string]string{cnfRoleLabel: ""}
-
 	return &performancev1alpha1.PerformanceProfile{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PerformanceProfile",
@@ -163,7 +156,7 @@ func testProfile() *performancev1alpha1.PerformanceProfile {
 					},
 				},
 			},
-			NodeSelector: nodeSelector,
+			NodeSelector: testutils.NodeSelectorLabels,
 			RealTimeKernel: &performancev1alpha1.RealTimeKernel{
 				Enabled: pointer.BoolPtr(true),
 			},

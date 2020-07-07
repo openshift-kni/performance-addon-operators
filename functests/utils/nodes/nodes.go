@@ -37,16 +37,24 @@ func GetBySelector(selector labels.Selector) ([]corev1.Node, error) {
 	return nodes.Items, nil
 }
 
-// GetNonRTWorkers returns list of nodes with no worker-cnf label
+// GetByLabels returns all nodes with the specified labels
+func GetByLabels(nodeLabels map[string]string) ([]corev1.Node, error) {
+	selector := labels.SelectorFromSet(nodeLabels)
+	return GetBySelector(selector)
+}
+
+// GetNonRTWorkers returns list of nodes with non matching perfomance profile labels
 func GetNonRTWorkers() ([]corev1.Node, error) {
 	nonRTWorkerNodes := []corev1.Node{}
 
 	workerNodes, err := GetByRole(testutils.RoleWorker)
 	for _, node := range workerNodes {
-		if _, ok := node.Labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF)]; ok {
-			continue
+		for label := range testutils.NodeSelectorLabels {
+			if _, ok := node.Labels[label]; !ok {
+				nonRTWorkerNodes = append(nonRTWorkerNodes, node)
+				break
+			}
 		}
-		nonRTWorkerNodes = append(nonRTWorkerNodes, node)
 	}
 	return nonRTWorkerNodes, err
 }

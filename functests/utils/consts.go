@@ -5,12 +5,13 @@ import (
 	"os"
 
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
-	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	"k8s.io/klog"
 )
 
 // RoleWorkerCNF contains role name of cnf worker nodes
 var RoleWorkerCNF string
+
+// NodeSelectorLabels contains the node labels the perfomance profile should match
+var NodeSelectorLabels map[string]string
 
 // PerformanceProfileName contains the name of the PerformanceProfile created for tests
 // or an existing profile when discover mode is enabled
@@ -30,25 +31,19 @@ func init() {
 		PerformanceProfileName = "performance"
 	}
 
-<<<<<<< HEAD
 	NodesSelector = os.Getenv("NODES_SELECTOR")
-=======
-	if discovery.Enabled() {
-		performanceProfile, err := profiles.GetByNodeLabels(
-			map[string]string{
-				fmt.Sprintf("%s/%s", LabelRole, RoleWorkerCNF): "",
-			},
-		)
-		if err != nil {
-			klog.Error("Failed finding an existing performance profile in discovery mode", err)
-		} else {
-			if performanceProfile != nil {
-				PerformanceProfileName = performanceProfile.Name
-				klog.Info("Discovery mode: consuming a deployed performance profile from the cluster")
-			}
-		}
+
+	NodeSelectorLabels = map[string]string{
+		fmt.Sprintf("%s/%s", LabelRole, RoleWorkerCNF): "",
 	}
->>>>>>> Make the performance tests work in discovery mode
+
+	if discovery.Enabled() {
+		profile, err := discovery.GetDiscoveryPerformanceProfile()
+		if err != nil {
+			PerformanceProfileName = profile.Name
+		}
+		NodeSelectorLabels = profile.Spec.NodeSelector
+	}
 }
 
 const (

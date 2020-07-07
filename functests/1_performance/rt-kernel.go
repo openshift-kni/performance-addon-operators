@@ -2,7 +2,6 @@ package __performance
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -48,9 +47,7 @@ var _ = Describe("[performance]RT Kernel", func() {
 				testpod.Namespace = testutils.NamespaceTesting
 				testpod.Spec.Containers[0].Command = []string{"uname", "-a"}
 				testpod.Spec.RestartPolicy = corev1.RestartPolicyNever
-				testpod.Spec.NodeSelector = map[string]string{
-					fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
-				}
+				testpod.Spec.NodeSelector = testutils.NodeSelectorLabels
 
 				if err := testclient.Client.Create(context.TODO(), testpod); err != nil {
 					return ""
