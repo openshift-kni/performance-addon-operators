@@ -41,6 +41,8 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		var err error
 		workerRTNodes, err = nodes.GetByRole(testutils.RoleWorkerCNF)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for node with role %q: %v", testutils.RoleWorkerCNF, err))
+		workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
 		Expect(workerRTNodes).ToNot(BeEmpty(), fmt.Sprintf("no nodes with role %q found", testutils.RoleWorkerCNF))
 		profile, err = profiles.GetByNodeLabels(
 			map[string]string{

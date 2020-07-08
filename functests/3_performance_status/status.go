@@ -28,6 +28,8 @@ var _ = Describe("Status testing of performance profile", func() {
 	BeforeEach(func() {
 		workerCNFNodes, err = nodes.GetByRole(testutils.RoleWorkerCNF)
 		Expect(err).ToNot(HaveOccurred())
+		workerCNFNodes, err = nodes.MatchingOptionalSelector(workerCNFNodes)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
 		Expect(workerCNFNodes).ToNot(BeEmpty())
 	})
 
