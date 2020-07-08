@@ -117,7 +117,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			table.Entry("[test_id:28024] verify that hugepages size and count updated", chkCmdLine, []string{"default_hugepagesz=2M", "hugepagesz=2M", "hugepages=5"}, true, false),
 			table.Entry("[test_id:28070] verify that hugepages updated (NUMA node unspecified)", chkCmdLine, []string{"hugepagesz=2M"}, true, false),
 			table.Entry("[test_id:28025] verify that cpu affinity mask was updated", chkCmdLine, []string{"tuned.non_isolcpus=00000009"}, true, false),
-			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"isolcpus=1-2"}, true, false),
+			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"isolcpus=domain,managed_irq,1-2"}, true, false),
 			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"systemd.cpu_affinity=0,3"}, true, false),
 			// kubelet.conf changed formatting, there is a space after colons atm. Let's deal with both cases with a regex
 			table.Entry("[test_id:28935] verify that reservedSystemCPUs was updated", chkKubeletConfig, []string{`"reservedSystemCPUs": ?"0,3"`}, true, true),
