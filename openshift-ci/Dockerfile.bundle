@@ -3,7 +3,7 @@ FROM scratch
 
 ARG CHANNEL=4.6
 ARG FULL_OPERATOR_IMAGE=quay.io/openshift-kni/performance-addon-operator-metadata:4.6-snapshot
-ARG OLM_SOURCE=build/_output/olm-catalog
+ARG OLM_SOURCE=build/_output/manifests
 ARG OLM_METADATA=deploy/metadata
 
 LABEL operators.operatorframework.io.bundle.mediatype.v1=registry+v1

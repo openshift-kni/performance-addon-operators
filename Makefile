@@ -16,12 +16,12 @@ OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
 OPERATOR_IMAGE_NAME="performance-addon-operator"
 REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
-METADATA_IMAGE_NAME="performance-addon-operator-metadata"
+BUNDLE_IMAGE_NAME="performance-addon-operator-metadata"
 MUSTGATHER_IMAGE_NAME="performance-addon-operator-must-gather"
 
 FULL_OPERATOR_IMAGE ?= "$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
 FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
-FULL_METADATA_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${METADATA_IMAGE_NAME}:${IMAGE_TAG}"
+FULL_BUNDLE_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${BUNDLE_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_MUSTGATHER_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${MUSTGATHER_IMAGE_NAME}:${IMAGE_TAG}"
 
 CLUSTER ?= "ci"
@@ -36,7 +36,7 @@ BUILD_DATE=$$(date --utc -Iseconds)
 export GO111MODULE=on
 
 .PHONY: build
-build: gofmt golint govet dist
+build: gofmt golint govet dist generate-manifests-tree
 
 .PHONY: dist
 dist:
@@ -87,7 +87,7 @@ dist-docs-generator:
 	fi
 
 .PHONY: build-containers
-build-containers: metadata-container registry-container operator-container must-gather-container
+build-containers: bundle-container registry-container operator-container must-gather-container
 
 .PHONY: operator-container
 operator-container: build
@@ -98,11 +98,10 @@ operator-container: build
 	fi
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.deploy -t $(FULL_OPERATOR_IMAGE) --build-arg BIN_DIR="_output/bin/" --build-arg ASSETS_DIR="assets" build/
 
-.PHONY: metadata-container
-metadata-container: generate-latest-dev-csv
+.PHONY: bundle-container
+bundle-container: generate-latest-dev-csv
 	@echo "Building the performance-addon-operator metadata image"
-	@find build/_output/olm-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|${FULL_OPERATOR_IMAGE}|g" {} \; || :
-	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.metadata -t "$(FULL_METADATA_IMAGE)" .
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle -t "$(FULL_BUNDLE_IMAGE)" .
 
 .PHONY: registry-container
 registry-container: generate-latest-dev-csv
@@ -118,7 +117,7 @@ must-gather-container:
 push-containers:
 	$(IMAGE_BUILD_CMD) push $(FULL_OPERATOR_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_REGISTRY_IMAGE)
-	$(IMAGE_BUILD_CMD) push $(FULL_METADATA_IMAGE)
+	$(IMAGE_BUILD_CMD) push $(FULL_BUNDLE_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_MUSTGATHER_IMAGE)
 
 .PHONY: operator-sdk
@@ -149,6 +148,10 @@ generate-latest-dev-csv: operator-sdk dist-csv-generator
 .PHONY: generate-docs
 generate-docs: dist-docs-generator
 	hack/docs-generate.sh
+
+.PHONY: generate-manifests-tree
+generate-manifests-tree:
+	hack/generate-manifests-tree.sh "$(FULL_OPERATOR_IMAGE)"
 
 .PHONY: deps-update
 deps-update:
