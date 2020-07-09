@@ -6,7 +6,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
@@ -21,16 +20,10 @@ var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 
 	BeforeEach(func() {
 		var err error
-		workerRTNodes, err = nodes.GetByRole(testutils.RoleWorkerCNF)
-		Expect(err).ToNot(HaveOccurred())
-		workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
+		workerRTNodes, err = nodes.GetCNFNodes()
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
 		Expect(workerRTNodes).ToNot(BeEmpty())
-		profile, err = profiles.GetByNodeLabels(
-			map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
-			},
-		)
+		profile, err = profiles.GetByCNFNodeLabels()
 		Expect(err).ToNot(HaveOccurred())
 	})
 

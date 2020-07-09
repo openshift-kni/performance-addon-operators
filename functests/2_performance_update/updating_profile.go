@@ -31,15 +31,11 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	chkCmdLine := []string{"cat", "/proc/cmdline"}
 	chkKubeletConfig := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
 
-	nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): ""}
-
 	BeforeEach(func() {
-		workerRTNodes, err = nodes.GetByRole(testutils.RoleWorkerCNF)
-		Expect(err).ToNot(HaveOccurred())
-		workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
+		workerRTNodes, err = nodes.GetCNFNodes()
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
 		Expect(workerRTNodes).ToNot(BeEmpty())
-		profile, err = profiles.GetByNodeLabels(nodeLabel)
+		profile, err = profiles.GetByCNFNodeLabels()
 		Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -208,7 +204,6 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		})
 
 		It("[test_id:28440]Verifies that nodeSelector can be updated in performance profile", func() {
-			nodeLabel = newNodeSelector
 			newCnfNode.Labels[newLabel] = ""
 			Expect(testclient.Client.Update(context.TODO(), newCnfNode)).ToNot(HaveOccurred())
 
@@ -274,7 +269,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		})
 
 		It("Reverts back nodeSelector and cleaning up leftovers", func() {
-			nodeSelector := fmt.Sprintf(`"%s/%s": ""`, testutils.LabelRole, testutils.RoleWorkerCNF)
+			nodeSelector := nodes.GetCNFRoleLabel()
 			Expect(testclient.Client.Patch(context.TODO(), profile,
 				client.ConstantPatch(
 					types.JSONPatchType,

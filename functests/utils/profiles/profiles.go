@@ -3,6 +3,7 @@ package profiles
 import (
 	"context"
 	"fmt"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"reflect"
 
 	. "github.com/onsi/gomega"
@@ -34,6 +35,11 @@ func GetByNodeLabels(nodeLabels map[string]string) (*performancev1alpha1.Perform
 	}
 
 	return result, nil
+}
+
+// GetCNFNodes gets the performance profile of CNF nodes
+func GetByCNFNodeLabels() (*performancev1alpha1.PerformanceProfile, error) {
+	return GetByNodeLabels(nodes.GetCNFNodeLabels())
 }
 
 // GetConditionMessage gets the performance profile message for the given type

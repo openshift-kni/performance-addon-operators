@@ -19,6 +19,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// GetCNFRoleLabel returns the CNF worker role label
+func GetCNFRoleLabel() string {
+	return fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF)
+}
+
+// GetCNFNodeLabels returns the CNF worker labels
+func GetCNFNodeLabels() map[string]string {
+	return map[string]string{GetCNFRoleLabel(): ""}
+}
+
+// GetCNFNodes returns the CNF worker nodes
+func GetCNFNodes() ([]corev1.Node, error) {
+	nodes, err := GetByRole(testutils.RoleWorkerCNF)
+	if err != nil {
+		return nil, err
+	}
+	return MatchingOptionalSelector(nodes)
+}
+
 // GetByRole returns all nodes with the specified role
 func GetByRole(role string) ([]corev1.Node, error) {
 	selector, err := labels.Parse(fmt.Sprintf("%s/%s=", testutils.LabelRole, role))
@@ -43,7 +62,7 @@ func GetNonRTWorkers() ([]corev1.Node, error) {
 
 	workerNodes, err := GetByRole(testutils.RoleWorker)
 	for _, node := range workerNodes {
-		if _, ok := node.Labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF)]; ok {
+		if _, ok := node.Labels[GetCNFRoleLabel()]; ok {
 			continue
 		}
 		nonRTWorkerNodes = append(nonRTWorkerNodes, node)

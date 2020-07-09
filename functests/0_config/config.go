@@ -3,6 +3,7 @@ package __performance_config
 import (
 	"context"
 	"fmt"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"io/ioutil"
 	"os"
 	"time"
@@ -23,7 +24,6 @@ import (
 	mcv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	"github.com/openshift-kni/performance-addon-operators/functests/utils"
-	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
 	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
@@ -120,7 +120,7 @@ func testProfile() *performancev1alpha1.PerformanceProfile {
 	isolated := performancev1alpha1.CPUSet("1-3")
 	hugePagesSize := performancev1alpha1.HugePageSize("1G")
 
-	cnfRoleLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, utils.RoleWorkerCNF)
+	cnfRoleLabel := nodes.GetCNFRoleLabel()
 	nodeSelector := map[string]string{cnfRoleLabel: ""}
 
 	return &performancev1alpha1.PerformanceProfile{

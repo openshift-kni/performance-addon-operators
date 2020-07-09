@@ -26,9 +26,7 @@ var _ = Describe("Status testing of performance profile", func() {
 	var err error
 
 	BeforeEach(func() {
-		workerCNFNodes, err = nodes.GetByRole(testutils.RoleWorkerCNF)
-		Expect(err).ToNot(HaveOccurred())
-		workerCNFNodes, err = nodes.MatchingOptionalSelector(workerCNFNodes)
+		workerCNFNodes, err = nodes.GetCNFNodes()
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
 		Expect(workerCNFNodes).ToNot(BeEmpty())
 	})
@@ -37,14 +35,10 @@ var _ = Describe("Status testing of performance profile", func() {
 		var currentConfig string
 		nodeAnnotationCurrentConfig := "machineconfiguration.openshift.io/currentConfig"
 		nodeAnnotationDesiredConfig := "machineconfiguration.openshift.io/desiredConfig"
-		nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): ""}
+		nodeLabel := map[string]string{nodes.GetCNFRoleLabel(): ""}
 
 		It("[test_id:30894] Tuned status field tied to Performance Profile", func() {
-			profile, err := profiles.GetByNodeLabels(
-				map[string]string{
-					fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
-				},
-			)
+			profile, err := profiles.GetByCNFNodeLabels()
 			Expect(err).ToNot(HaveOccurred())
 			key := types.NamespacedName{
 				Name:      components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance),

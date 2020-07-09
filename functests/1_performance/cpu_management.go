@@ -33,18 +33,13 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	var reservedCPUSet cpuset.CPUSet
 
 	BeforeEach(func() {
-		workerRTNodes, err := nodes.GetByRole(testutils.RoleWorkerCNF)
-		Expect(err).ToNot(HaveOccurred())
+		workerRTNodes, err := nodes.GetCNFNodes()
 		workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
 		Expect(workerRTNodes).ToNot(BeEmpty())
 		workerRTNode = &workerRTNodes[0]
 
-		profile, err = profiles.GetByNodeLabels(
-			map[string]string{
-				fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
-			},
-		)
+		profile, err = profiles.GetByCNFNodeLabels()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(profile.Spec.HugePages).ToNot(BeNil())
 
