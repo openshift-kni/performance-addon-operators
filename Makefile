@@ -87,7 +87,11 @@ dist-docs-generator:
 	fi
 
 .PHONY: build-containers
-build-containers: bundle-container registry-container operator-container must-gather-container
+# order matters here. bundle-container must always run after registry-container because of both target deps.
+# generate-manfiests-tree wants to run on up to date manifests. This means:
+# - you DO NOT need to run generate-latest-dev-csv as dependency of generate-manifests-tree (that's the reason why the target doesn't depend on it).
+# - IF you run generate-latest-dev-csv, THEN generate-manifests-tree must ran after, not before, otherwise the bundle-container image will be inconsistent with registry-container.
+build-containers: registry-container bundle-container operator-container must-gather-container
 
 .PHONY: operator-container
 operator-container: build
@@ -99,7 +103,7 @@ operator-container: build
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.deploy -t $(FULL_OPERATOR_IMAGE) --build-arg BIN_DIR="_output/bin/" --build-arg ASSETS_DIR="assets" build/
 
 .PHONY: bundle-container
-bundle-container: generate-latest-dev-csv
+bundle-container: generate-manifests-tree
 	@echo "Building the performance-addon-operator metadata image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle -t "$(FULL_BUNDLE_IMAGE)" .
 
