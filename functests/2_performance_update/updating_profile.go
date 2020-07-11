@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -33,13 +36,15 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	chkKubeletConfig := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
 	chkIrqbalance := []string{"cat", "/rootfs/etc/sysconfig/irqbalance"}
 
+	nodeLabel := testutils.NodeSelectorLabels
+
 	BeforeEach(func() {
 		workerRTNodes, err = nodes.GetByLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
 		workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
 		Expect(workerRTNodes).ToNot(BeEmpty())
-		profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
+		profile, err = profiles.GetByNodeLabels(nodeLabel)
 		Expect(err).ToNot(HaveOccurred())
 		performanceMCP, err = mcps.GetByProfile(profile)
 		Expect(err).ToNot(HaveOccurred())
@@ -210,6 +215,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		})
 
 		It("[test_id:28440]Verifies that nodeSelector can be updated in performance profile", func() {
+			nodeLabel = newNodeSelector
 			newCnfNode.Labels[newLabel] = ""
 			Expect(testclient.Client.Update(context.TODO(), newCnfNode)).ToNot(HaveOccurred())
 
@@ -283,12 +289,35 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		})
 
 		It("Reverts back nodeSelector and cleaning up leftovers", func() {
+			selectorLabels := []string{}
+			for k, v := range testutils.NodeSelectorLabels {
+				selectorLabels = append(selectorLabels, fmt.Sprintf(`"%s":"%s"`, k, v))
+			}
+			nodeSelector := strings.Join(selectorLabels, ",")
 			Expect(testclient.Client.Patch(context.TODO(), profile,
 				client.ConstantPatch(
 					types.JSONPatchType,
-					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/nodeSelector", "value": {%s} }]`, testutils.NodeSelectorLabels)),
+					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/nodeSelector", "value": {%s} }]`, nodeSelector)),
 				),
 			)).ToNot(HaveOccurred())
+
+			updatedProfile := &performancev1alpha1.PerformanceProfile{}
+			Eventually(func() string {
+				key := types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: profile.Namespace,
+				}
+				Expect(testclient.Client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+				updatedSelectorLabels := []string{}
+				for k, v := range updatedProfile.Spec.NodeSelector {
+					updatedSelectorLabels = append(updatedSelectorLabels, fmt.Sprintf(`"%s":"%s"`, k, v))
+				}
+				updatedNodeSelector := strings.Join(updatedSelectorLabels, ",")
+				return updatedNodeSelector
+			}, 2*time.Minute, 15*time.Second).Should(Equal(nodeSelector))
+
+			performanceMCP, err = mcps.GetByProfile(updatedProfile)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(testclient.Client.Delete(context.TODO(), mcp)).ToNot(HaveOccurred())
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 		})

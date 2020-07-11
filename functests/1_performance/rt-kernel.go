@@ -38,34 +38,35 @@ var _ = Describe("[performance]RT Kernel", func() {
 		err := testclient.Client.Get(context.TODO(), key, profile)
 		Expect(err).ToNot(HaveOccurred(), "failed to get the performance profile")
 
-		if profile.Spec.RealTimeKernel != nil && *profile.Spec.RealTimeKernel.Enabled == true {
-
-			Eventually(func() string {
-
-				// run uname -a in a busybox pod and get logs
-				testpod = pods.GetTestPod()
-				testpod.Namespace = testutils.NamespaceTesting
-				testpod.Spec.Containers[0].Command = []string{"uname", "-a"}
-				testpod.Spec.RestartPolicy = corev1.RestartPolicyNever
-				testpod.Spec.NodeSelector = testutils.NodeSelectorLabels
-
-				if err := testclient.Client.Create(context.TODO(), testpod); err != nil {
-					return ""
-				}
-
-				if err := pods.WaitForPhase(testpod, corev1.PodSucceeded, 60*time.Second); err != nil {
-					return ""
-				}
-
-				logs, err := pods.GetLogs(testclient.K8sClient, testpod)
-				if err != nil {
-					return ""
-				}
-
-				return logs
-
-			}, 15*time.Minute, 30*time.Second).Should(ContainSubstring("PREEMPT RT"))
+		if profile.Spec.RealTimeKernel == nil || *profile.Spec.RealTimeKernel.Enabled == false {
+			Skip("Skipping RT kernel test since profile does not have RT kernel set")
 		}
+
+		Eventually(func() string {
+
+			// run uname -a in a busybox pod and get logs
+			testpod = pods.GetTestPod()
+			testpod.Namespace = testutils.NamespaceTesting
+			testpod.Spec.Containers[0].Command = []string{"uname", "-a"}
+			testpod.Spec.RestartPolicy = corev1.RestartPolicyNever
+			testpod.Spec.NodeSelector = testutils.NodeSelectorLabels
+
+			if err := testclient.Client.Create(context.TODO(), testpod); err != nil {
+				return ""
+			}
+
+			if err := pods.WaitForPhase(testpod, corev1.PodSucceeded, 60*time.Second); err != nil {
+				return ""
+			}
+
+			logs, err := pods.GetLogs(testclient.K8sClient, testpod)
+			if err != nil {
+				return ""
+			}
+
+			return logs
+
+		}, 15*time.Minute, 30*time.Second).Should(ContainSubstring("PREEMPT RT"))
 
 	})
 
