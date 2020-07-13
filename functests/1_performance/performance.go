@@ -3,6 +3,7 @@ package __performance
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -135,6 +136,17 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 		})
 
+		It("[test_id:32375][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] initramfs should not have injected configuration", func() {
+			for _, node := range workerRTNodes {
+				rhcosId, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"awk", "-F", "/", "{printf $3}", "/rootfs/proc/cmdline"})
+				Expect(err).ToNot(HaveOccurred())
+				initramfsImagesPath, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"find", filepath.Join("/rootfs/boot/ostree", string(rhcosId)), "-name", "*.img"})
+				Expect(err).ToNot(HaveOccurred())
+				initrd, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"lsinitrd", strings.TrimSpace(string(initramfsImagesPath))})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(string(initrd)).ShouldNot(ContainSubstring("'/etc/systemd/system.conf /etc/systemd/system.conf.d/setAffinity.conf'"))
+			}
+		})
 	})
 
 	Context("Additional kernel arguments added from perfomance profile", func() {
