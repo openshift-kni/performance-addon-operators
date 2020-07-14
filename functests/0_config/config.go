@@ -42,23 +42,14 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 		performanceProfile := testProfile()
 		profileAlreadyExists := false
 
-		if discovery.Enabled() {
+		performanceManifest, foundOverride := os.LookupEnv("PERFORMANCE_PROFILE_MANIFEST_OVERRIDE")
+		if foundOverride {
 			var err error
-			performanceProfile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
-			Expect(err).ToNot(HaveOccurred(), "Failed finding a performance profile in discovery mode")
-			profileAlreadyExists = true
-			klog.Info("Discovery mode: consuming a deployed performance profile from the cluster")
-		} else {
-			performanceManifest, found := os.LookupEnv("PERFORMANCE_PROFILE_MANIFEST_OVERRIDE")
-			if found {
-				var err error
-				performanceProfile, err = externalPerformanceProfile(performanceManifest)
-				Expect(err).ToNot(HaveOccurred(), "Failed overriding performance profile", performanceManifest)
-				klog.Warning("Consuming performance profile from ", performanceManifest)
-			}
+			performanceProfile, err = externalPerformanceProfile(performanceManifest)
+			Expect(err).ToNot(HaveOccurred(), "Failed overriding performance profile", performanceManifest)
+			klog.Warning("Consuming performance profile from ", performanceManifest)
 		}
-
-		if !profileAlreadyExists {
+		if !discovery.Enabled() || foundOverride {
 			By("Creating the PerformanceProfile")
 			// this might fail while the operator is still being deployed and the CRD does not exist yet
 			Eventually(func() error {
@@ -70,6 +61,12 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 				}
 				return err
 			}, 15*time.Minute, 15*time.Second).ShouldNot(HaveOccurred(), "Failed creating the performance profile")
+		} else if !foundOverride {
+			var err error
+			performanceProfile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
+			Expect(err).ToNot(HaveOccurred(), "Failed finding a performance profile in discovery mode")
+			klog.Info("Discovery mode: consuming a deployed performance profile from the cluster")
+			profileAlreadyExists = true
 		}
 
 		By("Getting MCP for profile")
