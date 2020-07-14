@@ -56,3 +56,12 @@ func GetAllProfiles() (*performancev1alpha1.PerformanceProfileList, error) {
 	}
 	return profiles, nil
 }
+
+// GetProfilesCount returns the total number of existing perfomance profiles
+func GetProfilesCount() (int, error) {
+	profiles, err := GetAllProfiles()
+	if err != nil {
+		return 0, err
+	}
+	return len(profiles.Items), nil
+}

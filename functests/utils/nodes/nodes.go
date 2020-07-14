@@ -43,8 +43,8 @@ func GetByLabels(nodeLabels map[string]string) ([]corev1.Node, error) {
 	return GetBySelector(selector)
 }
 
-// GetNonRTWorkers returns list of nodes with non matching perfomance profile labels
-func GetNonRTWorkers() ([]corev1.Node, error) {
+// GetNonPerformancesWorkers returns list of nodes with non matching perfomance profile labels
+func GetNonPerformancesWorkers(nodeSelectorLabels ...string) ([]corev1.Node, error) {
 	nonRTWorkerNodes := []corev1.Node{}
 
 	workerNodes, err := GetByRole(testutils.RoleWorker)
