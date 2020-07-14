@@ -21,9 +21,9 @@ import (
 
 var _ = Describe("[performance]RT Kernel", func() {
 	var testpod *corev1.Pod
-	var profile *performancev1alpha1.PerformanceProfile
 
 	testutils.BeforeAll(func() {
+		profile := &performancev1alpha1.PerformanceProfile{}
 		key := types.NamespacedName{
 			Name: testutils.PerformanceProfileName,
 		}
