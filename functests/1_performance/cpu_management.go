@@ -17,6 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
@@ -100,6 +101,16 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 	Describe("[test_id:27492][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verification of cpu manager functionality", func() {
 		var testpod *corev1.Pod
+
+		testutils.BeforeAll(func() {
+			if discovery.Enabled() {
+				profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
+				Expect(err).ToNot(HaveOccurred())
+				if len(*profile.Spec.CPU.Isolated) == 1 {
+					Skip("Skipping tests since there are insufficant isolated cores to create a stress pod")
+				}
+			}
+		})
 
 		AfterEach(func() {
 			err := testclient.Client.Delete(context.TODO(), testpod)

@@ -39,7 +39,7 @@ func init() {
 
 	if discovery.Enabled() {
 		profile, err := discovery.GetDiscoveryPerformanceProfile()
-		if err != nil {
+		if err == nil {
 			PerformanceProfileName = profile.Name
 		}
 		NodeSelectorLabels = profile.Spec.NodeSelector

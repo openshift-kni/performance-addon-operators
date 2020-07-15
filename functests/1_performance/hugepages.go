@@ -16,6 +16,7 @@ import (
 
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
@@ -59,6 +60,10 @@ var _ = Describe("[performance]Hugepages", func() {
 				availableHugepagesFile := fmt.Sprintf("/sys/devices/system/node/node%d/hugepages/hugepages-%skB/nr_hugepages", *page.Node, hugepagesSize)
 				nrHugepages := checkHugepagesStatus(availableHugepagesFile, workerRTNode)
 
+				if discovery.Enabled() && nrHugepages != 0 {
+					Skip("Skipping test since other guests might reside in the cluster affecting results")
+				}
+
 				freeHugepagesFile := fmt.Sprintf("/sys/devices/system/node/node%d/hugepages/hugepages-%skB/free_hugepages", *page.Node, hugepagesSize)
 				freeHugepages := checkHugepagesStatus(freeHugepagesFile, workerRTNode)
 
@@ -98,6 +103,9 @@ var _ = Describe("[performance]Hugepages", func() {
 			By("checking hugepages usage in bytes - should be 0 on idle system")
 			usageHugepagesFile := fmt.Sprintf("/rootfs/sys/fs/cgroup/hugetlb/hugetlb.%sB.usage_in_bytes", hpSize)
 			usageHugepages := checkHugepagesStatus(usageHugepagesFile, workerRTNode)
+			if discovery.Enabled() && usageHugepages != 0 {
+				Skip("Skipping test since other guests might reside in the cluster affecting results")
+			}
 			Expect(usageHugepages).To(Equal(0))
 
 			By("running the POD and waiting while it's installing testing tools")
