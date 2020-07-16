@@ -107,7 +107,7 @@ operator-container: build
 .PHONY: bundle-container
 bundle-container: generate-manifests-tree
 	@echo "Building the performance-addon-operator bundle image"
-	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle -t "$(FULL_BUNDLE_IMAGE)" .
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle.upstream.dev -t "$(FULL_BUNDLE_IMAGE)" .
 
 .PHONY: registry-container
 registry-container: generate-latest-dev-csv
