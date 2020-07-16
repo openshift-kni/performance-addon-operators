@@ -16,7 +16,7 @@ OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
 OPERATOR_IMAGE_NAME="performance-addon-operator"
 REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
-BUNDLE_IMAGE_NAME="performance-addon-operator-metadata"
+BUNDLE_IMAGE_NAME="performance-addon-operator-bundle"
 MUSTGATHER_IMAGE_NAME="performance-addon-operator-must-gather"
 
 FULL_OPERATOR_IMAGE ?= "$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
@@ -104,7 +104,7 @@ operator-container: build
 
 .PHONY: bundle-container
 bundle-container: generate-manifests-tree
-	@echo "Building the performance-addon-operator metadata image"
+	@echo "Building the performance-addon-operator bundle image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle -t "$(FULL_BUNDLE_IMAGE)" .
 
 .PHONY: registry-container
