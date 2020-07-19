@@ -12,39 +12,37 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
-	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 var _ = Describe("[performance]RT Kernel", func() {
 	var testpod *corev1.Pod
+	var discoveryFailed bool
+	var profile *performancev1alpha1.PerformanceProfile
+	var err error
 
 	testutils.BeforeAll(func() {
-		profile := &performancev1alpha1.PerformanceProfile{}
-		key := types.NamespacedName{
-			Name: testutils.PerformanceProfileName,
+		discoveryFailed = true
+		profile, err = discovery.GetFilteredDiscoveryPerformanceProfile(
+			func(profile performancev1alpha1.PerformanceProfile) bool {
+				if profile.Spec.RealTimeKernel != nil && *profile.Spec.RealTimeKernel.Enabled == true {
+					return true
+				}
+				return false
+			})
+		Expect(err).ToNot(HaveOccurred(), "failed to get a a profile using a filter for RT kernel")
+		if profile != nil {
+			discoveryFailed = false
 		}
-		err := testclient.Client.Get(context.TODO(), key, profile)
-		Expect(err).ToNot(HaveOccurred(), "failed to get the performance profile")
+	})
 
-		profilesCount, err := profiles.GetProfilesCount()
-		Expect(err).ToNot(HaveOccurred())
-		excludedProfiles := []string{}
-
-		for profilesCount > 0 {
-			if profile.Spec.RealTimeKernel != nil && *profile.Spec.RealTimeKernel.Enabled == true {
-				break
-			}
-			excludedProfiles = append(excludedProfiles, profile.Name)
-			profile, err = discovery.GetDiscoveryPerformanceProfile(excludedProfiles...)
-			profilesCount--
-		}
-		if profilesCount == 0 {
+	BeforeEach(func() {
+		if discoveryFailed {
 			Skip("Skipping RT Kernel tests since no profile found with RT kernel set")
 		}
+
 	})
 
 	AfterEach(func() {
@@ -89,7 +87,7 @@ var _ = Describe("[performance]RT Kernel", func() {
 	It("[test_id:28526][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] a node without performance profile applied should not have RT kernel installed", func() {
 
 		By("Skipping test if cluster does not have another available worker node")
-		nonPerformancesWorkers, err := nodes.GetNonPerformancesWorkers()
+		nonPerformancesWorkers, err := nodes.GetNonPerformancesWorkers(profile.Spec.NodeSelector)
 		Expect(err).ToNot(HaveOccurred())
 
 		if len(nonPerformancesWorkers) == 0 {

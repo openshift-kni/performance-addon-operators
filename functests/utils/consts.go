@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 )
@@ -43,6 +44,10 @@ func init() {
 			PerformanceProfileName = profile.Name
 		}
 		NodeSelectorLabels = profile.Spec.NodeSelector
+		if NodesSelector != "" {
+			keyValue := strings.Split(NodesSelector, "=")
+			NodeSelectorLabels[keyValue[0]] = keyValue[1]
+		}
 	}
 }
 

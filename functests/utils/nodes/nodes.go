@@ -44,19 +44,18 @@ func GetByLabels(nodeLabels map[string]string) ([]corev1.Node, error) {
 }
 
 // GetNonPerformancesWorkers returns list of nodes with non matching perfomance profile labels
-func GetNonPerformancesWorkers(nodeSelectorLabels ...string) ([]corev1.Node, error) {
-	nonRTWorkerNodes := []corev1.Node{}
-
+func GetNonPerformancesWorkers(nodeSelectorLabels map[string]string) ([]corev1.Node, error) {
+	nonPerformanceWorkerNodes := []corev1.Node{}
 	workerNodes, err := GetByRole(testutils.RoleWorker)
 	for _, node := range workerNodes {
-		for label := range testutils.NodeSelectorLabels {
+		for label := range nodeSelectorLabels {
 			if _, ok := node.Labels[label]; !ok {
-				nonRTWorkerNodes = append(nonRTWorkerNodes, node)
+				nonPerformanceWorkerNodes = append(nonPerformanceWorkerNodes, node)
 				break
 			}
 		}
 	}
-	return nonRTWorkerNodes, err
+	return nonPerformanceWorkerNodes, err
 }
 
 // GetMachineConfigDaemonByNode returns the machine-config-daemon pod that runs on the specified node

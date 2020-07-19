@@ -201,7 +201,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		newNodeSelector := map[string]string{newLabel: ""}
 
 		testutils.BeforeAll(func() {
-			nonPerformancesWorkers, err := nodes.GetNonPerformancesWorkers()
+			nonPerformancesWorkers, err := nodes.GetNonPerformancesWorkers(profile.Spec.NodeSelector)
 			Expect(err).ToNot(HaveOccurred())
 			if len(nonPerformancesWorkers) != 0 {
 				newCnfNode = &nonPerformancesWorkers[0]

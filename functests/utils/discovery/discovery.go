@@ -13,6 +13,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// ConditionIterator is the function that accepts element of a PerformanceProfile and returns boolean
+type ConditionIterator func(performancev1alpha1.PerformanceProfile) bool
+
 // Enabled indicates whether test discovery mode is enabled.
 func Enabled() bool {
 	discoveryMode, _ := strconv.ParseBool(os.Getenv("DISCOVERY_MODE"))
@@ -21,18 +24,29 @@ func Enabled() bool {
 
 // GetDiscoveryPerformanceProfile returns an existing profile in the cluster with the most nodes using it.
 // In case no profile exists - return nil
-func GetDiscoveryPerformanceProfile(exclude ...string) (*performancev1alpha1.PerformanceProfile, error) {
-	performanceProfiles, err := profiles.GetAllProfiles()
+func GetDiscoveryPerformanceProfile() (*performancev1alpha1.PerformanceProfile, error) {
+	performanceProfiles, err := profiles.All()
 	if err != nil {
 		return nil, err
 	}
+	return getDiscoveryPerformanceProfile(performanceProfiles.Items)
+}
 
+// GetFilteredDiscoveryPerformanceProfile returns an existing profile in the cluster with the most nodes using it
+// from a a filtered profiles list by the filter function passed as an argument.
+// In case no profile exists - return nil
+func GetFilteredDiscoveryPerformanceProfile(iterator ConditionIterator) (*performancev1alpha1.PerformanceProfile, error) {
+	performanceProfiles, err := profiles.All()
+	if err != nil {
+		return nil, err
+	}
+	return getDiscoveryPerformanceProfile(filter(performanceProfiles.Items, iterator))
+}
+
+func getDiscoveryPerformanceProfile(performanceProfiles []performancev1alpha1.PerformanceProfile) (*performancev1alpha1.PerformanceProfile, error) {
 	var currentProfile *performancev1alpha1.PerformanceProfile = nil
 	maxNodesNumber := 0
-	for _, profile := range performanceProfiles.Items {
-		if isExcluded(profile.GetName(), exclude) {
-			continue
-		}
+	for _, profile := range performanceProfiles {
 		selector := labels.SelectorFromSet(profile.Spec.NodeSelector)
 
 		profileNodes := &corev1.NodeList{}
@@ -48,11 +62,12 @@ func GetDiscoveryPerformanceProfile(exclude ...string) (*performancev1alpha1.Per
 	return currentProfile, nil
 }
 
-func isExcluded(item string, exclude []string) bool {
-	for _, excluded := range exclude {
-		if item == excluded {
-			return true
+func filter(performanceProfiles []performancev1alpha1.PerformanceProfile, iterator ConditionIterator) []performancev1alpha1.PerformanceProfile {
+	var result = make([]performancev1alpha1.PerformanceProfile, 0)
+	for _, profile := range performanceProfiles {
+		if iterator(profile) {
+			result = append(result, profile)
 		}
 	}
-	return false
+	return result
 }
