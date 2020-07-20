@@ -37,18 +37,25 @@ func GetBySelector(selector labels.Selector) ([]corev1.Node, error) {
 	return nodes.Items, nil
 }
 
-// GetNonRTWorkers returns list of nodes with no worker-cnf label
-func GetNonRTWorkers() ([]corev1.Node, error) {
-	nonRTWorkerNodes := []corev1.Node{}
+// GetByLabels returns all nodes with the specified labels
+func GetByLabels(nodeLabels map[string]string) ([]corev1.Node, error) {
+	selector := labels.SelectorFromSet(nodeLabels)
+	return GetBySelector(selector)
+}
 
+// GetNonPerformancesWorkers returns list of nodes with non matching perfomance profile labels
+func GetNonPerformancesWorkers(nodeSelectorLabels map[string]string) ([]corev1.Node, error) {
+	nonPerformanceWorkerNodes := []corev1.Node{}
 	workerNodes, err := GetByRole(testutils.RoleWorker)
 	for _, node := range workerNodes {
-		if _, ok := node.Labels[fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF)]; ok {
-			continue
+		for label := range nodeSelectorLabels {
+			if _, ok := node.Labels[label]; !ok {
+				nonPerformanceWorkerNodes = append(nonPerformanceWorkerNodes, node)
+				break
+			}
 		}
-		nonRTWorkerNodes = append(nonRTWorkerNodes, node)
 	}
-	return nonRTWorkerNodes, err
+	return nonPerformanceWorkerNodes, err
 }
 
 // GetMachineConfigDaemonByNode returns the machine-config-daemon pod that runs on the specified node

@@ -14,8 +14,8 @@ import (
 
 // GetByNodeLabels gets the performance profile that must have node selector equals to passed node labels
 func GetByNodeLabels(nodeLabels map[string]string) (*performancev1alpha1.PerformanceProfile, error) {
-	profiles := &performancev1alpha1.PerformanceProfileList{}
-	if err := testclient.Client.List(context.TODO(), profiles); err != nil {
+	profiles, err := All()
+	if err != nil {
 		return nil, err
 	}
 
@@ -46,4 +46,13 @@ func GetConditionMessage(nodeLabels map[string]string, conditionType v1.Conditio
 		}
 	}
 	return ""
+}
+
+// All gets all the exiting profiles in the cluster
+func All() (*performancev1alpha1.PerformanceProfileList, error) {
+	profiles := &performancev1alpha1.PerformanceProfileList{}
+	if err := testclient.Client.List(context.TODO(), profiles); err != nil {
+		return nil, err
+	}
+	return profiles, nil
 }

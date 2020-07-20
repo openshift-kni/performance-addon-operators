@@ -26,7 +26,7 @@ var _ = Describe("Status testing of performance profile", func() {
 	var err error
 
 	BeforeEach(func() {
-		workerCNFNodes, err = nodes.GetByRole(testutils.RoleWorkerCNF)
+		workerCNFNodes, err = nodes.GetByLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
 		workerCNFNodes, err = nodes.MatchingOptionalSelector(workerCNFNodes)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
@@ -37,17 +37,12 @@ var _ = Describe("Status testing of performance profile", func() {
 		var currentConfig string
 		nodeAnnotationCurrentConfig := "machineconfiguration.openshift.io/currentConfig"
 		nodeAnnotationDesiredConfig := "machineconfiguration.openshift.io/desiredConfig"
-		nodeLabel := map[string]string{fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): ""}
 
 		It("[test_id:30894] Tuned status field tied to Performance Profile", func() {
-			profile, err := profiles.GetByNodeLabels(
-				map[string]string{
-					fmt.Sprintf("%s/%s", testutils.LabelRole, testutils.RoleWorkerCNF): "",
-				},
-			)
+			profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 			Expect(err).ToNot(HaveOccurred())
 			key := types.NamespacedName{
-				Name:      components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance),
+				Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
 				Namespace: components.NamespaceNodeTuningOperator,
 			}
 			tuned := &tunedv1.Tuned{}
@@ -92,9 +87,13 @@ var _ = Describe("Status testing of performance profile", func() {
 			)).ToNot(HaveOccurred())
 			// Wait until worker-cnf MCP is in degraded state and get condition reason
 			By("Wait for MCP condition to be Degraded")
-			mcps.WaitForCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolDegraded, corev1.ConditionTrue)
-			mcpConditionReason := mcps.GetConditionReason(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolDegraded)
-			profileConditionMessage := profiles.GetConditionMessage(nodeLabel, v1.ConditionDegraded)
+			profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
+			Expect(err).ToNot(HaveOccurred())
+			performanceMCP, err := mcps.GetByProfile(profile)
+			Expect(err).ToNot(HaveOccurred())
+			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolDegraded, corev1.ConditionTrue)
+			mcpConditionReason := mcps.GetConditionReason(performanceMCP, machineconfigv1.MachineConfigPoolDegraded)
+			profileConditionMessage := profiles.GetConditionMessage(testutils.NodeSelectorLabels, v1.ConditionDegraded)
 			// Verify the status reason of performance profile
 			Expect(profileConditionMessage).To(ContainSubstring(mcpConditionReason))
 			// Revert back the currentConfig
@@ -107,7 +106,7 @@ var _ = Describe("Status testing of performance profile", func() {
 					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/metadata/annotations", "value": %s }]`, revertAnnotate)),
 				),
 			)).ToNot(HaveOccurred())
-			mcps.WaitForCondition(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
+			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 		})
 	})
 })
