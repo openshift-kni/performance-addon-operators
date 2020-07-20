@@ -101,14 +101,22 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 	Describe("[test_id:27492][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verification of cpu manager functionality", func() {
 		var testpod *corev1.Pod
+		var discoveryFailed bool
 
 		testutils.BeforeAll(func() {
+			discoveryFailed = false
 			if discovery.Enabled() {
 				profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 				Expect(err).ToNot(HaveOccurred())
 				if len(*profile.Spec.CPU.Isolated) == 1 {
-					Skip("Skipping tests since there are insufficant isolated cores to create a stress pod")
+					discoveryFailed = true
 				}
+			}
+		})
+
+		BeforeEach(func() {
+			if discoveryFailed {
+				Skip("Skipping tests since there are insufficant isolated cores to create a stress pod")
 			}
 		})
 
