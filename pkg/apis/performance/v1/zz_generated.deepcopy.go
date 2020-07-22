@@ -5,7 +5,7 @@
 package v1
 
 import (
-	v1 "github.com/openshift/custom-resource-status/conditions/v1"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -238,7 +238,7 @@ func (in *PerformanceProfileStatus) DeepCopyInto(out *PerformanceProfileStatus) 
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]v1.Condition, len(*in))
+		*out = make([]conditionsv1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
