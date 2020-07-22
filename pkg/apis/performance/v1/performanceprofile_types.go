@@ -115,6 +115,7 @@ type PerformanceProfileStatus struct {
 // PerformanceProfile is the Schema for the performanceprofiles API.
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=performanceprofiles,scope=Cluster
+// +kubebuilder:storageversion
 type PerformanceProfile struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
