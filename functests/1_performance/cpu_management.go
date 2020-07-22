@@ -22,12 +22,12 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 )
 
 var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	var workerRTNode *corev1.Node
-	var profile *performancev1alpha1.PerformanceProfile
+	var profile *performancev1.PerformanceProfile
 	var balanceIsolated bool
 	var reservedCPU, isolatedCPU string
 	var listReservedCPU []int

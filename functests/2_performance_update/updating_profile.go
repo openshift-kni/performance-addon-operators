@@ -22,12 +22,12 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 )
 
 var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance profile", func() {
 	var workerRTNodes []corev1.Node
-	var profile, initialProfile *performancev1alpha1.PerformanceProfile
+	var profile, initialProfile *performancev1.PerformanceProfile
 	var performanceMCP string
 	var err error
 
@@ -53,9 +53,9 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	Context("Verify that all performance profile parameters can be updated", func() {
 		var removedKernelArgs string
 
-		hpSize := performancev1alpha1.HugePageSize("2M")
-		isolated := performancev1alpha1.CPUSet("1-2")
-		reserved := performancev1alpha1.CPUSet("0,3")
+		hpSize := performancev1.HugePageSize("2M")
+		isolated := performancev1.CPUSet("1-2")
+		reserved := performancev1.CPUSet("0,3")
 		policy := "best-effort"
 		f := false
 
@@ -64,24 +64,24 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			By("Modifying profile")
 			initialProfile = profile.DeepCopy()
 
-			profile.Spec.HugePages = &performancev1alpha1.HugePages{
+			profile.Spec.HugePages = &performancev1.HugePages{
 				DefaultHugePagesSize: &hpSize,
-				Pages: []performancev1alpha1.HugePage{
+				Pages: []performancev1.HugePage{
 					{
 						Count: 5,
 						Size:  hpSize,
 					},
 				},
 			}
-			profile.Spec.CPU = &performancev1alpha1.CPU{
+			profile.Spec.CPU = &performancev1.CPU{
 				BalanceIsolated: &f,
 				Reserved:        &reserved,
 				Isolated:        &isolated,
 			}
-			profile.Spec.NUMA = &performancev1alpha1.NUMA{
+			profile.Spec.NUMA = &performancev1.NUMA{
 				TopologyPolicy: &policy,
 			}
-			profile.Spec.RealTimeKernel = &performancev1alpha1.RealTimeKernel{
+			profile.Spec.RealTimeKernel = &performancev1.RealTimeKernel{
 				Enabled: &f,
 			}
 
@@ -301,7 +301,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 				),
 			)).ToNot(HaveOccurred())
 
-			updatedProfile := &performancev1alpha1.PerformanceProfile{}
+			updatedProfile := &performancev1.PerformanceProfile{}
 			Eventually(func() string {
 				key := types.NamespacedName{
 					Name:      profile.Name,
