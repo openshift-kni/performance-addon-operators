@@ -16,12 +16,14 @@ OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
 OPERATOR_IMAGE_NAME="performance-addon-operator"
 REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
-BUNDLE_IMAGE_NAME="performance-addon-operator-metadata"
+BUNDLE_IMAGE_NAME="performance-addon-operator-bundle"
+INDEX_IMAGE_NAME="performance-addon-operator-index"
 MUSTGATHER_IMAGE_NAME="performance-addon-operator-must-gather"
 
 FULL_OPERATOR_IMAGE ?= "$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
 FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_BUNDLE_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${BUNDLE_IMAGE_NAME}:${IMAGE_TAG}"
+FULL_INDEX_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${INDEX_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_MUSTGATHER_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${MUSTGATHER_IMAGE_NAME}:${IMAGE_TAG}"
 
 CLUSTER ?= "ci"
@@ -91,7 +93,7 @@ dist-docs-generator:
 # generate-manfiests-tree wants to run on up to date manifests. This means:
 # - you DO NOT need to run generate-latest-dev-csv as dependency of generate-manifests-tree (that's the reason why the target doesn't depend on it).
 # - IF you run generate-latest-dev-csv, THEN generate-manifests-tree must ran after, not before, otherwise the bundle-container image will be inconsistent with registry-container.
-build-containers: registry-container bundle-container operator-container must-gather-container
+build-containers: registry-container bundle-container index-container operator-container must-gather-container
 
 .PHONY: operator-container
 operator-container: build
@@ -104,13 +106,18 @@ operator-container: build
 
 .PHONY: bundle-container
 bundle-container: generate-manifests-tree
-	@echo "Building the performance-addon-operator metadata image"
-	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle -t "$(FULL_BUNDLE_IMAGE)" .
+	@echo "Building the performance-addon-operator bundle image"
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle.upstream.dev -t "$(FULL_BUNDLE_IMAGE)" .
 
 .PHONY: registry-container
 registry-container: generate-latest-dev-csv
 	@echo "Building the performance-addon-operator registry image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.registry.upstream.dev -t "$(FULL_REGISTRY_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)"  .
+
+.PHONY: index-container
+index-container: generate-manifests-index
+	@echo "Building the performance-addon-operator index image"
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.index -t "$(FULL_INDEX_IMAGE)" .
 
 .PHONY: must-gather-container
 must-gather-container:
@@ -122,6 +129,7 @@ push-containers:
 	$(IMAGE_BUILD_CMD) push $(FULL_OPERATOR_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_REGISTRY_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_BUNDLE_IMAGE)
+	$(IMAGE_BUILD_CMD) push $(FULL_INDEX_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_MUSTGATHER_IMAGE)
 
 .PHONY: operator-sdk
@@ -156,6 +164,10 @@ generate-docs: dist-docs-generator
 .PHONY: generate-manifests-tree
 generate-manifests-tree:
 	hack/generate-manifests-tree.sh "$(FULL_OPERATOR_IMAGE)"
+
+.PHONY: generate-manifests-index
+generate-manifests-index: generate-manifests-tree
+	hack/generate-manifests-index.sh
 
 .PHONY: deps-update
 deps-update:

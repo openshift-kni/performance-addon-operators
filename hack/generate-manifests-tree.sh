@@ -16,3 +16,12 @@ mkdir -p "${OUT_DIR}"
 # this script should never change the master copies
 cp -a deploy/olm-catalog/performance-addon-operator "${OUT_DIR}"
 find "${OUT_DIR}" -type f -exec sed -i "s|REPLACE_IMAGE|${OPERATOR_IMAGE}|g" {} \; || :
+
+for entry in ${OUT_DIR}/performance-addon-operator/*; do
+	version=$( basename $entry )
+	if [ ! -d deploy/metadata/performance-addon-operator/$version ]; then
+		continue
+	fi
+	mkdir -p $entry/manifests && mv $entry/*.yaml $entry/manifests
+	mkdir -p $entry/metadata && cp deploy/metadata/performance-addon-operator/$version/* $entry/metadata
+done
