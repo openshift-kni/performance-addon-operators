@@ -11,7 +11,7 @@ import (
 	"github.com/coreos/go-systemd/unit"
 	igntypes "github.com/coreos/ignition/config/v2_2/types"
 
-	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	profile2 "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 
@@ -65,7 +65,7 @@ const (
 )
 
 // New returns new machine configuration object for performance sensetive workflows
-func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*machineconfigv1.MachineConfig, error) {
+func New(assetsDir string, profile *performancev1.PerformanceProfile) (*machineconfigv1.MachineConfig, error) {
 	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	mc := &machineconfigv1.MachineConfig{
 		TypeMeta: metav1.TypeMeta{
@@ -103,7 +103,7 @@ func New(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*ma
 	return mc, nil
 }
 
-func getIgnitionConfig(assetsDir string, profile *performancev1alpha1.PerformanceProfile) (*igntypes.Config, error) {
+func getIgnitionConfig(assetsDir string, profile *performancev1.PerformanceProfile) (*igntypes.Config, error) {
 
 	mode := 0700
 	ignitionConfig := &igntypes.Config{
@@ -189,7 +189,7 @@ func getSystemdContent(options []*unit.UnitOption) (string, error) {
 }
 
 // GetHugepagesSizeKilobytes retruns hugepages size in kilobytes
-func GetHugepagesSizeKilobytes(hugepagesSize performancev1alpha1.HugePageSize) (string, error) {
+func GetHugepagesSizeKilobytes(hugepagesSize performancev1.HugePageSize) (string, error) {
 	switch hugepagesSize {
 	case "1G":
 		return "1048576", nil
