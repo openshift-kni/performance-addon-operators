@@ -6,14 +6,14 @@ import (
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	v1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	"github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	"io/ioutil"
 	"strings"
 )
 
 const (
 	deployCrdPath      = "../../../deploy/crds"
-	crFilename         = "performance.openshift.io_v1alpha1_performanceprofile_cr.yaml"
+	crFilename         = "performance.openshift.io_v1_performanceprofile_cr.yaml"
 	crdFilename        = "performance.openshift.io_performanceprofiles_crd.yaml"
 	lastHeartbeatPath  = "/status/conditions/lastHeartbeatTime"
 	lastTransitionPath = "/status/conditions/lastTransitionTime"

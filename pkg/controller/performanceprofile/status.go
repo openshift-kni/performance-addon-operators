@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -24,7 +24,7 @@ const (
 	conditionFailedGettingMCPStatus         = "GettingMCPStatusFailed"
 )
 
-func (r *ReconcilePerformanceProfile) updateStatus(profile *performancev1alpha1.PerformanceProfile, conditions []conditionsv1.Condition) error {
+func (r *ReconcilePerformanceProfile) updateStatus(profile *performancev1.PerformanceProfile, conditions []conditionsv1.Condition) error {
 	profileCopy := profile.DeepCopy()
 
 	if conditions != nil {
@@ -161,7 +161,7 @@ func (r *ReconcilePerformanceProfile) getProgressingConditions(reason string, me
 	}
 }
 
-func (r *ReconcilePerformanceProfile) getMCPConditionsByProfile(profile *performancev1alpha1.PerformanceProfile) ([]conditionsv1.Condition, error) {
+func (r *ReconcilePerformanceProfile) getMCPConditionsByProfile(profile *performancev1.PerformanceProfile) ([]conditionsv1.Condition, error) {
 
 	mcpList := &mcov1.MachineConfigPoolList{}
 

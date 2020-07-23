@@ -12,7 +12,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
-	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1alpha1"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -20,13 +20,13 @@ import (
 var _ = Describe("[performance]RT Kernel", func() {
 	var testpod *corev1.Pod
 	var discoveryFailed bool
-	var profile *performancev1alpha1.PerformanceProfile
+	var profile *performancev1.PerformanceProfile
 	var err error
 
 	testutils.BeforeAll(func() {
 		discoveryFailed = true
 		profile, err = discovery.GetFilteredDiscoveryPerformanceProfile(
-			func(profile performancev1alpha1.PerformanceProfile) bool {
+			func(profile performancev1.PerformanceProfile) bool {
 				if profile.Spec.RealTimeKernel != nil && *profile.Spec.RealTimeKernel.Enabled == true {
 					return true
 				}
