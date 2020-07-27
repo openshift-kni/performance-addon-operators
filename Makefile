@@ -117,7 +117,7 @@ registry-container: generate-latest-dev-csv
 .PHONY: index-container
 index-container: generate-manifests-index
 	@echo "Building the performance-addon-operator index image"
-	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.index -t "$(FULL_INDEX_IMAGE)" .
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.index.upstream.dev -t "$(FULL_INDEX_IMAGE)" .
 
 .PHONY: must-gather-container
 must-gather-container:
