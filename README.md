@@ -5,6 +5,8 @@
 
 The `Performance Operator` optimizes OpenShift clusters for applications sensitive to cpu and network latency.
 
+![alt text](https://github.com/openshift-kni/performance-addon-operators/blob/master/docs/interactions/diagram.png "How Performance Addon Operator interacts with other components and operators")
+
 The operator was created using the operator-sdk:
 
 `$ operator-sdk new performance-operator --repo github.com/openshift-kni/performance-addon-operators --vendor=true`
