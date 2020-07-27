@@ -97,6 +97,12 @@ spec:
           - tuneds
           verbs:
           - '*'
+        - apiGroups:
+          - node.k8s.io
+          resources:
+          - runtimeclasses
+          verbs:
+          - '*'
         serviceAccountName: performance-operator
       deployments:
       - name: performance-operator
