@@ -50,6 +50,10 @@ type CPU struct {
 	Reserved *CPUSet `json:"reserved,omitempty"`
 	// Isolated defines a set of CPUs that will be used to give to application threads the most execution time possible,
 	// which means removing as many extraneous tasks off a CPU as possible.
+	// It is important to notice the CPU manager can choose any CPU to run the workload
+	// except the reserved CPUs. In order to guarantee that your workload will run on the isolated CPU:
+	//   1. The union of reserved CPUs and isolated CPUs should include all online CPUs
+	//   2. The isolated CPUs field should be the complementary to reserved CPUs field
 	// +optional
 	Isolated *CPUSet `json:"isolated,omitempty"`
 	// BalanceIsolated toggles whether or not the Isolated CPU set is eligible for load balancing work loads.
