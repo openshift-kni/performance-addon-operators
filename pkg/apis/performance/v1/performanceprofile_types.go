@@ -49,7 +49,7 @@ type CPU struct {
 	// Reserved defines a set of CPUs that will not be used for any container workloads initiated by kubelet.
 	Reserved *CPUSet `json:"reserved,omitempty"`
 	// Isolated defines a set of CPUs that will be used to give to application threads the most execution time possible,
-	// which means removing as many extraneous tasks off a CPU as possible.
+	// which means removing as many extraneous tasks off a CPU as possible, including the managed interrupts.
 	// It is important to notice the CPU manager can choose any CPU to run the workload
 	// except the reserved CPUs. In order to guarantee that your workload will run on the isolated CPU:
 	//   1. The union of reserved CPUs and isolated CPUs should include all online CPUs
