@@ -158,3 +158,24 @@ func MatchingOptionalSelector(toFilter []corev1.Node) ([]corev1.Node, error) {
 
 	return res, nil
 }
+
+// HasPreemptRTKernel returns no error if the node booted with PREEMPT RT kernel
+func HasPreemptRTKernel(node *corev1.Node) error {
+	// verify that the kernel-rt-core installed it also means the the machine booted with the RT kernel
+	// because the machine-config-daemon uninstalls regular kernel once you install the RT one and
+	// on traditional yum systems, rpm -q kernel can be completely different from what you're booted
+	// because yum keeps multiple kernels but only one userspace;
+	// with rpm-ostree rpm -q is telling you what you're booted into always,
+	// because ostree binds together (kernel, userspace) as a single commit.
+	cmd := []string{"chroot", "/rootfs", "rpm", "-q", "kernel-rt-core"}
+	if _, err := ExecCommandOnNode(cmd, node); err != nil {
+		return err
+	}
+
+	cmd = []string{"/bin/bash", "-c", "grep -Ee '^CONFIG_PREEMPT_RT=y' /rootfs/usr/lib/modules/$(uname -r)/config"}
+	if _, err := ExecCommandOnNode(cmd, node); err != nil {
+		return err
+	}
+
+	return nil
+}

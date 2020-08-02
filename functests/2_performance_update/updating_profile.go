@@ -31,7 +31,6 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	var performanceMCP string
 	var err error
 
-	chkKernel := []string{"uname", "-a"}
 	chkCmdLine := []string{"cat", "/proc/cmdline"}
 	chkKubeletConfig := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
 	chkIrqbalance := []string{"cat", "/rootfs/etc/sysconfig/irqbalance"}
@@ -131,8 +130,14 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			// kubelet.conf changed formatting, there is a space after colons atm. Let's deal with both cases with a regex
 			table.Entry("[test_id:28935] verify that reservedSystemCPUs was updated", chkKubeletConfig, []string{`"reservedSystemCPUs": ?"0,3"`}, true, true),
 			table.Entry("[test_id:28760] verify that topologyManager was updated", chkKubeletConfig, []string{`"topologyManagerPolicy": ?"best-effort"`}, true, true),
-			table.Entry("[test_id:27738] verify that realTimeKernerl was updated", chkKernel, []string{"PREEMPT RT"}, false, false),
 		)
+
+		It("[test_id:27738] should succeed to disable the RT kernel", func() {
+			for _, node := range workerRTNodes {
+				err := nodes.HasPreemptRTKernel(&node)
+				Expect(err).To(HaveOccurred())
+			}
+		})
 
 		It("[test_id:28612]Verify that Kernel arguments can me updated (added, removed) thru performance profile", func() {
 			for _, node := range workerRTNodes {
@@ -149,7 +154,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			}
 		})
 
-		It("[test_id:22764] verify that realTimeKernel is default when realTimeKernel field does not exist", func() {
+		It("[test_id:22764] verify that by default RT kernel is disabled", func() {
 			conditionUpdating := machineconfigv1.MachineConfigPoolUpdating
 
 			if profile.Spec.RealTimeKernel == nil || *profile.Spec.RealTimeKernel.Enabled == true {
@@ -167,7 +172,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			}, 30, 5).Should(Equal(corev1.ConditionFalse))
 
 			for _, node := range workerRTNodes {
-				Expect(nodes.ExecCommandOnNode(chkKernel, &node)).NotTo(ContainSubstring("PREEMPT RT"))
+				err := nodes.HasPreemptRTKernel(&node)
+				Expect(err).To(HaveOccurred())
 			}
 		})
 
@@ -267,9 +273,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			}
 
 			// check that the configs reverted
-			kernel, err := nodes.ExecCommandOnNode(chkKernel, newCnfNode)
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKernel))
-			Expect(kernel).NotTo(ContainSubstring("PREEMPT RT"))
+			err = nodes.HasPreemptRTKernel(newCnfNode)
+			Expect(err).To(HaveOccurred())
 
 			cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, newCnfNode)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
