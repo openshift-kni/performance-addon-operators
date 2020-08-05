@@ -248,6 +248,11 @@ func (in *PerformanceProfileStatus) DeepCopyInto(out *PerformanceProfileStatus) 
 		*out = new(string)
 		**out = **in
 	}
+	if in.RuntimeClass != nil {
+		in, out := &in.RuntimeClass, &out.RuntimeClass
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
