@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
@@ -16,7 +18,9 @@ import (
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	v1 "github.com/openshift/custom-resource-status/conditions/v1"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+
 	corev1 "k8s.io/api/core/v1"
+	nodev1beta1 "k8s.io/api/node/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -55,6 +59,22 @@ var _ = Describe("Status testing of performance profile", func() {
 			tunedStatus := tunedNamespacedname.String()
 			Expect(profile.Status.Tuned).NotTo(BeNil())
 			Expect(*profile.Status.Tuned).To(Equal(tunedStatus))
+		})
+
+		It("should include the generated runtime class name", func() {
+			profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
+			Expect(err).ToNot(HaveOccurred())
+
+			key := types.NamespacedName{
+				Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
+				Namespace: metav1.NamespaceAll,
+			}
+			runtimeClass := &nodev1beta1.RuntimeClass{}
+			err = testclient.GetWithRetry(context.TODO(), key, runtimeClass)
+			Expect(err).ToNot(HaveOccurred(), "cannot find the RuntimeClass object "+key.String())
+
+			Expect(profile.Status.RuntimeClass).NotTo(BeNil())
+			Expect(*profile.Status.RuntimeClass).To(Equal(runtimeClass.Name))
 		})
 
 		It("[test_id:29673] Machine config pools status tied to Performance Profile", func() {

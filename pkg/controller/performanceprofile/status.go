@@ -10,6 +10,7 @@ import (
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -59,6 +60,12 @@ func (r *ReconcilePerformanceProfile) updateStatus(profile *performancev1.Perfor
 		}
 		tunedStatus := tunedNamespacedname.String()
 		profileCopy.Status.Tuned = &tunedStatus
+		modified = true
+	}
+
+	if profileCopy.Status.RuntimeClass == nil {
+		runtimeClassName := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
+		profileCopy.Status.RuntimeClass = &runtimeClassName
 		modified = true
 	}
 

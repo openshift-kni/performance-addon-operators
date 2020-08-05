@@ -501,6 +501,28 @@ var _ = Describe("Controller", func() {
 				Expect(*updatedProfile.Status.Tuned).To(Equal(tunedNamespacedName))
 			})
 
+			It("should update status with generated runtime class", func() {
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance, runtimeClass)
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				key := types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
+					Namespace: metav1.NamespaceAll,
+				}
+				runtimeClass := &nodev1beta1.RuntimeClass{}
+				err := r.client.Get(context.TODO(), key, runtimeClass)
+				Expect(err).ToNot(HaveOccurred())
+
+				updatedProfile := &performancev1.PerformanceProfile{}
+				key = types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: metav1.NamespaceAll,
+				}
+				Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+				Expect(updatedProfile.Status.RuntimeClass).NotTo(BeNil())
+				Expect(*updatedProfile.Status.RuntimeClass).To(Equal(runtimeClass.Name))
+			})
+
 			It("should update status when MCP is degraded", func() {
 				mcpReason := "mcpReason"
 				mcpMessage := "MCP message"
