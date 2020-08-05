@@ -151,6 +151,10 @@ func testProfile() *performancev1.PerformanceProfile {
 						Count: 1,
 						Node:  pointer.Int32Ptr(0),
 					},
+					{
+						Size:  "2M",
+						Count: 128,
+					},
 				},
 			},
 			NodeSelector: testutils.NodeSelectorLabels,
