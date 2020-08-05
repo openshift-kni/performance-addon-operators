@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/node/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -31,6 +32,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
 )
 
 const (
@@ -239,7 +241,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 			Expect(testclient.Client.Create(context.TODO(), secondProfile)).ToNot(HaveOccurred())
 
-			By("Checking that new KubeletConfig and MachineConfig created")
+			By("Checking that new KubeletConfig, MachineConfig and RuntimeClass created")
 			configKey := types.NamespacedName{
 				Name:      components.GetComponentName(secondProfile.Name, components.ComponentNamePrefix),
 				Namespace: components.NamespaceNodeTuningOperator,
@@ -254,6 +256,11 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			err = testclient.GetWithRetry(context.TODO(), configKey, machineConfig)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("cannot find MachineConfig object %s", configKey.Name))
 			Expect(machineConfig.Labels[machineconfigv1.MachineConfigRoleLabelKey]).Should(Equal(newRole))
+
+			runtimeClass := &v1beta1.RuntimeClass{}
+			err = testclient.GetWithRetry(context.TODO(), configKey, runtimeClass)
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("cannot find RuntimeClass profile object %s", runtimeClass.Name))
+			Expect(runtimeClass.Handler).Should(Equal(machineconfig.HighPerformanceRuntime))
 
 			By("Checking that new Tuned profile created")
 			tunedKey := types.NamespacedName{
@@ -280,6 +287,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 			Expect(testclient.Client.Get(context.TODO(), configKey, kubeletConfig)).To(HaveOccurred(), fmt.Sprintf("KubeletConfig %s should be removed", configKey.Name))
 			Expect(testclient.Client.Get(context.TODO(), configKey, machineConfig)).To(HaveOccurred(), fmt.Sprintf("MachineConfig %s should be removed", configKey.Name))
+			Expect(testclient.Client.Get(context.TODO(), configKey, runtimeClass)).To(HaveOccurred(), fmt.Sprintf("RuntimeClass %s should be removed", configKey.Name))
 			Expect(testclient.Client.Get(context.TODO(), tunedKey, tunedProfile)).To(HaveOccurred(), fmt.Sprintf("Tuned profile object %s should be removed", tunedKey.Name))
 
 			By("Checking that initial KubeletConfig and MachineConfig still exist")
