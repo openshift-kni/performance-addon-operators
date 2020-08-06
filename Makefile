@@ -19,12 +19,14 @@ REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
 BUNDLE_IMAGE_NAME="performance-addon-operator-bundle"
 INDEX_IMAGE_NAME="performance-addon-operator-index"
 MUSTGATHER_IMAGE_NAME="performance-addon-operator-must-gather"
+LATENCY_TEST_IMAGE_NAME="latency-test"
 
 FULL_OPERATOR_IMAGE ?= "$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
 FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_BUNDLE_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${BUNDLE_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_INDEX_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${INDEX_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_MUSTGATHER_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${MUSTGATHER_IMAGE_NAME}:${IMAGE_TAG}"
+FULL_LATENCY_TEST_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${LATENCY_TEST_IMAGE_NAME}:${IMAGE_TAG}"
 
 CLUSTER ?= "ci"
 
@@ -88,6 +90,10 @@ dist-docs-generator:
 		echo "Using pre-built docs-generator tool";\
 	fi
 
+.PHONY: dist-functests
+dist-functests:
+	./hack/build-test-bin.sh
+
 .PHONY: build-containers
 # order matters here. bundle-container must always run after registry-container because of both target deps.
 # generate-manfiests-tree wants to run on up to date manifests. This means:
@@ -123,6 +129,11 @@ index-container: generate-manifests-index
 must-gather-container:
 	@echo "Building the performance-addon-operator must-gather image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.must-gather -t "$(FULL_MUSTGATHER_IMAGE)"  .
+
+.PHONY: latency-test-container
+latency-test-container:
+	@echo "Building the latency test image"
+	$(IMAGE_BUILD_CMD) build -f functests/4_latency/Dockerfile -t "$(FULL_LATENCY_TEST_IMAGE)"  .
 
 .PHONY: push-containers
 push-containers:
@@ -205,8 +216,11 @@ functests: cluster-label-worker-cnf functests-only
 
 .PHONY: functests-only
 functests-only:
-	@echo "Running Functional Tests"
 	hack/run-functests.sh
+
+.PHONY: functests-latency
+functests-latency: cluster-label-worker-cnf
+	GINKGO_SUITS="functests/0_config functests/4_latency" LATENCY_TEST_RUN="true" hack/run-functests.sh
 
 .PHONY: operator-upgrade-tests
 operator-upgrade-tests:
