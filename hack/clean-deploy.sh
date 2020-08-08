@@ -6,7 +6,7 @@ OC_TOOL="${OC_TOOL:-oc}"
 profiles=$(${OC_TOOL} get performanceprofile -o name)
 for profileName in $profiles
 do
-  nodeSelector="$(${OC_TOOL} get $profileName -o=jsonpath='{.spec.nodeSelector}'  | awk -F'[/:]' '{print $2}')"
+  nodeSelector="$(${OC_TOOL} get $profileName -o=jsonpath='{.spec.nodeSelector}'  | awk -F'[/"]' '{print $3}')"
 
   if [[ $nodeSelector != "worker" ]]; then
     mcps+=($(${OC_TOOL} get mcp -l machineconfiguration.openshift.io/role=$nodeSelector -o name | awk -F "/" '{print $2}'))
