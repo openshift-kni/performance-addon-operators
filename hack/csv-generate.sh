@@ -22,7 +22,8 @@ PACKAGE_DIR="deploy/olm-catalog/${PACKAGE_NAME}"
 CSV_DIR="${PACKAGE_DIR}/${CSV_VERSION}"
 CSV_FILE="$CSV_DIR/${PACKAGE_NAME}.v${CSV_VERSION}.clusterserviceversion.yaml"
 
-OUT_DIR="build/_output/olm-catalog"
+OUT_ROOT="build/_output"
+OUT_DIR="${OUT_ROOT}/olm-catalog"
 OUT_CSV_DIR="${OUT_DIR}/${PACKAGE_NAME}/${CSV_VERSION}"
 OUT_CSV_FILE="${OUT_CSV_DIR}/${PACKAGE_NAME}.v${CSV_VERSION}.clusterserviceversion.yaml"
 
@@ -55,7 +56,7 @@ clean_package
 
 # do not generate new CRD/CSV for old versions
 if [[ "$CSV_VERSION" != "$PREV" ]] && [[ "$CSV_VERSION" != "$OLD" ]]; then
-  $OPERATOR_SDK generate crds
+  cp -a deploy/olm-catalog build/_output
 
   # generate a temporary csv we'll use as a template
   $OPERATOR_SDK generate csv \
@@ -63,7 +64,9 @@ if [[ "$CSV_VERSION" != "$PREV" ]] && [[ "$CSV_VERSION" != "$OLD" ]]; then
     --csv-version="${CSV_VERSION}" \
     --csv-channel="${CSV_VERSION}" \
     --default-channel=true \
-    --update-crds
+    --update-crds \
+    --make-manifests=false \
+    --output-dir="${OUT_ROOT}"
 
   # using the generated CSV, create the real CSV by injecting all the right data into it
   build/_output/bin/csv-generator \
@@ -75,6 +78,9 @@ if [[ "$CSV_VERSION" != "$PREV" ]] && [[ "$CSV_VERSION" != "$OLD" ]]; then
     --skip-range "$CSV_SKIP_RANGE" \
     "${MAINTAINERS}" \
     "${EXTRA_ANNOTATIONS}"
+
+  $OPERATOR_SDK generate crds
+  cp -a deploy/crds/performance.openshift.io_performanceprofiles_crd.yaml "${OUT_CSV_DIR}"
 fi
 
 # copy remaining manifests to final location
