@@ -58,7 +58,7 @@ func getSchema(crdPath string) (validation.Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	schema, err := validation.New(bytes)
+	schema, err := validation.NewVersioned(bytes, "v1")
 	if err != nil {
 		return nil, err
 	}
