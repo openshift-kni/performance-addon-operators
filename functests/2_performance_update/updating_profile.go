@@ -34,6 +34,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	chkCmdLine := []string{"cat", "/proc/cmdline"}
 	chkKubeletConfig := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
 	chkIrqbalance := []string{"cat", "/rootfs/etc/sysconfig/irqbalance"}
+	chkHp2M := []string{"cat", "/sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages"}
+	chkHp1G := []string{"cat", "/sys/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages"}
 
 	nodeLabel := testutils.NodeSelectorLabels
 
@@ -52,7 +54,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	Context("Verify that all performance profile parameters can be updated", func() {
 		var removedKernelArgs string
 
-		hpSize := performancev1.HugePageSize("2M")
+		hpSize2M := performancev1.HugePageSize("2M")
+		hpSize1G := performancev1.HugePageSize("1G")
 		isolated := performancev1.CPUSet("1-2")
 		reserved := performancev1.CPUSet("0,3")
 		policy := "best-effort"
@@ -64,11 +67,15 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			initialProfile = profile.DeepCopy()
 
 			profile.Spec.HugePages = &performancev1.HugePages{
-				DefaultHugePagesSize: &hpSize,
+				DefaultHugePagesSize: &hpSize2M,
 				Pages: []performancev1.HugePage{
 					{
-						Count: 5,
-						Size:  hpSize,
+						Count: 256,
+						Size:  hpSize2M,
+					},
+					{
+						Count: 3,
+						Size:  hpSize1G,
 					},
 				},
 			}
@@ -122,8 +129,10 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 				}
 			}
 		},
-			table.Entry("[test_id:28024] verify that hugepages size and count updated", chkCmdLine, []string{"default_hugepagesz=2M", "hugepagesz=2M", "hugepages=5"}, true, false),
+			table.Entry("[test_id:34081] verify that hugepages size and count updated", chkCmdLine, []string{"default_hugepagesz=2M", "hugepagesz=1G", "hugepages=3"}, true, false),
 			table.Entry("[test_id:28070] verify that hugepages updated (NUMA node unspecified)", chkCmdLine, []string{"hugepagesz=2M"}, true, false),
+			table.Entry("verify that the right number of hugepages 1G is available on the system", chkHp1G, []string{"3"}, true, false),
+			table.Entry("verify that the right number of hugepages 2M is available on the system", chkHp2M, []string{"256"}, true, false),
 			table.Entry("[test_id:28025] verify that cpu affinity mask was updated", chkCmdLine, []string{"tuned.non_isolcpus=00000009"}, true, false),
 			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"isolcpus=domain,managed_irq,1-2"}, true, false),
 			table.Entry("[test_id:28071] verify that cpu balancer disabled", chkCmdLine, []string{"systemd.cpu_affinity=0,3"}, true, false),
@@ -178,12 +187,6 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		})
 
 		It("Reverts back all profile configuration", func() {
-			// BUG: CNF-385. Workaround - we have to remove hugepages first
-			profile.Spec.HugePages = nil
-			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
-			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
-			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
-
 			// return initial configuration
 			spec, err := json.Marshal(initialProfile.Spec)
 			Expect(err).ToNot(HaveOccurred())
