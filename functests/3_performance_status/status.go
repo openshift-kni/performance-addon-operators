@@ -61,7 +61,7 @@ var _ = Describe("Status testing of performance profile", func() {
 			Expect(*profile.Status.Tuned).To(Equal(tunedStatus))
 		})
 
-		It("should include the generated runtime class name", func() {
+		It("[test_id:33791] Should include the generated runtime class name", func() {
 			profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 			Expect(err).ToNot(HaveOccurred())
 
