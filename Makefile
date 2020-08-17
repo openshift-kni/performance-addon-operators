@@ -9,7 +9,7 @@ TARGET_GOARCH=amd64
 CACHE_DIR="_cache"
 TOOLS_DIR="$(CACHE_DIR)/tools"
 
-OPERATOR_SDK_VERSION="v0.15.2"
+OPERATOR_SDK_VERSION="v0.18.2"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
@@ -41,7 +41,7 @@ export GO111MODULE=on
 build: gofmt golint govet dist generate-manifests-tree
 
 .PHONY: dist
-dist:
+dist: build-output-dir
 	@echo "Building operator binary"
 	mkdir -p build/_output/bin; \
     LDFLAGS="-s -w "; \
@@ -59,30 +59,27 @@ dist-clean:
 	rm -rf build/_output/bin
 
 .PHONY: dist-csv-generator
-dist-csv-generator:
+dist-csv-generator: build-output-dir
 	@if [ ! -x build/_output/bin/csv-generator ]; then\
 		echo "Building csv-generator tool";\
-		mkdir -p build/_output/bin;\
 		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/csv-generator ./tools/csv-generator;\
 	else \
 		echo "Using pre-built csv-generator tool";\
 	fi
 
 .PHONY: dist-csv-replace-imageref
-dist-csv-replace-imageref:
+dist-csv-replace-imageref: build-output-dir
 	@if [ ! -x build/_output/bin/csv-replace-imageref ]; then\
 		echo "Building csv-replace-imageref tool";\
-		mkdir -p build/_output/bin;\
 		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/csv-replace-imageref ./tools/csv-replace-imageref;\
 	else \
 		echo "Using pre-built csv-replace-imageref tool";\
 	fi
 
 .PHONY: dist-docs-generator
-dist-docs-generator:
+dist-docs-generator: build-output-dir
 	@if [ ! -x build/_output/bin/docs-generator ]; then\
 		echo "Building docs-generator tool";\
-		mkdir -p build/_output/bin;\
 		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/docs-generator ./tools/docs-generator;\
 	else \
 		echo "Using pre-built docs-generator tool";\
@@ -90,9 +87,7 @@ dist-docs-generator:
 
 .PHONY: build-containers
 # order matters here. bundle-container must always run after registry-container because of both target deps.
-# generate-manfiests-tree wants to run on up to date manifests. This means:
-# - you DO NOT need to run generate-latest-dev-csv as dependency of generate-manifests-tree (that's the reason why the target doesn't depend on it).
-# - IF you run generate-latest-dev-csv, THEN generate-manifests-tree must ran after, not before, otherwise the bundle-container image will be inconsistent with registry-container.
+# generate-manifests-tree wants to run on up to date manifests.
 build-containers: registry-container bundle-container index-container operator-container must-gather-container
 
 .PHONY: operator-container
@@ -110,7 +105,7 @@ bundle-container: generate-manifests-tree
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle.upstream.dev -t "$(FULL_BUNDLE_IMAGE)" .
 
 .PHONY: registry-container
-registry-container: generate-latest-dev-csv
+registry-container: generate-manifests-tree
 	@echo "Building the performance-addon-operator registry image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.registry.upstream.dev -t "$(FULL_REGISTRY_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)"  .
 
@@ -151,8 +146,12 @@ generate-csv: operator-sdk dist-csv-generator
 	fi
 	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/csv-generate.sh
 
+.PHONY: build-output-dir
+build-output-dir:
+	mkdir -p build/_output/bin || :
+
 .PHONY: generate-latest-dev-csv
-generate-latest-dev-csv: operator-sdk dist-csv-generator
+generate-latest-dev-csv: operator-sdk dist-csv-generator build-output-dir
 	@echo Generating developer csv
 	@echo
 	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" hack/csv-generate.sh -dev
@@ -162,7 +161,7 @@ generate-docs: dist-docs-generator
 	hack/docs-generate.sh
 
 .PHONY: generate-manifests-tree
-generate-manifests-tree:
+generate-manifests-tree: generate-latest-dev-csv
 	hack/generate-manifests-tree.sh "$(FULL_OPERATOR_IMAGE)"
 
 .PHONY: generate-manifests-index
