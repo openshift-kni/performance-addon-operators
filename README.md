@@ -101,6 +101,29 @@ Unit tests can be executed with `make unittests`.
 The functional tests are located in `/functests`. They can be executed with `make functests-only` on a cluster with a
 deployed Performance Operator and configured MCP and nodes. It will create its own Performance profile!
 
+### Latency test
+
+The latency-test container image gives the possibility to run the latency 
+test without need to install go, ginkgo or other go related modules.
+
+The test himself is running the `oslat` binary and verifies if the maximal latency returned by the `oslat`
+less than specified value under the `OSLAT_MAXIMUM_LATENCY`.
+
+To run the latency test inside of the container:
+
+```
+docker run --rm -v /kubeconfig:/kubeconfig -e KUBECONFIG=/kubeconfig -e LATENCY_TEST_RUN=true -e LATENCY_TEST_RUNTIME=60 -e OSLAT_MAXIMUM_LATENCY=700 alukiano/latency-test:4.6-snapshot /usr/bin/run-tests.sh
+```
+
+You can run the container with different ENV variables, but the bare minimum is to pass
+`KUBECONFIG` mount and ENV variable, to give to the test access to the cluster and
+`LATENCY_TEST_RUN=true` to run the latency test.
+
+- `LATENCY_TEST_RUN` indicates if the latency test should run.
+- `LATENCY_TEST_RUNTIME` the amount of time in seconds that the latency test should run.
+- `LATENCY_TEST_IMAGE` the image that used under the latency test.
+- `OSLAT_MAXIMUM_LATENCY` the expected maximum latency for all buckets in us.
+
 # Contributing
 
 See [CONTRIBUTING](CONTRIBUTING.md) for some guidelines.
