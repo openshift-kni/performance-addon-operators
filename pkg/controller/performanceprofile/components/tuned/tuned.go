@@ -8,6 +8,8 @@ import (
 	"strings"
 	"text/template"
 
+	"k8s.io/utils/pointer"
+
 	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	componentsprofile "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
@@ -55,19 +57,45 @@ func NewNodePerformance(assetsDir string, profile *performancev1.PerformanceProf
 	}
 
 	if profile.Spec.HugePages != nil {
+		var defaultHugepageSize performancev1.HugePageSize
 		if profile.Spec.HugePages.DefaultHugePagesSize != nil {
-			templateArgs[templateDefaultHugepagesSize] = string(*profile.Spec.HugePages.DefaultHugePagesSize)
+			defaultHugepageSize = *profile.Spec.HugePages.DefaultHugePagesSize
+			templateArgs[templateDefaultHugepagesSize] = string(defaultHugepageSize)
 		}
 
-		hugepages := []string{}
+		var is2MHugepagesRequested *bool
+		var hugepages []string
 		for _, page := range profile.Spec.HugePages.Pages {
-			// we can not allocate hugepages on the specific NUMA node via kernel boot arguments
+			// we can not allocate huge pages on the specific NUMA node via kernel boot arguments
 			if page.Node != nil {
+				// a user requested to allocate 2M huge pages on the specific NUMA node,
+				// append dummy kernel arguments
+				if page.Size == components.HugepagesSize2M && is2MHugepagesRequested == nil {
+					is2MHugepagesRequested = pointer.BoolPtr(true)
+				}
 				continue
 			}
+
+			// a user requested to allocated 2M huge pages without specifying the node
+			// we need to append 2M hugepages kernel arguments anyway, no need to add dummy
+			// kernel arguments
+			if page.Size == components.HugepagesSize2M {
+				is2MHugepagesRequested = pointer.BoolPtr(false)
+			}
+
 			hugepages = append(hugepages, fmt.Sprintf("hugepagesz=%s", string(page.Size)))
 			hugepages = append(hugepages, fmt.Sprintf("hugepages=%d", page.Count))
 		}
+
+		// append dummy 2M huge pages kernel arguments to guarantee that the kernel will create 2M related files
+		// and directories under the filesystem
+		if is2MHugepagesRequested != nil && *is2MHugepagesRequested {
+			if defaultHugepageSize == components.HugepagesSize1G {
+				hugepages = append(hugepages, fmt.Sprintf("hugepagesz=%s", components.HugepagesSize2M))
+				hugepages = append(hugepages, fmt.Sprintf("hugepages=%d", 0))
+			}
+		}
+
 		hugepagesArgs := strings.Join(hugepages, cmdlineDelimiter)
 		templateArgs[templateHugepages] = hugepagesArgs
 	}
