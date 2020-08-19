@@ -87,6 +87,54 @@ var _ = Describe("PerformanceProfile", func() {
 			Expect(err).Should(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("the page size should be equal to %q or %q", hugepagesSize1G, hugepagesSize2M)))
 		})
+
+		When("pages have duplication", func() {
+			Context("with specified NUMA node", func() {
+				It("should raise the validation error", func() {
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+						Count: 128,
+						Size:  hugepagesSize1G,
+						Node:  pointer.Int32Ptr(0),
+					})
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+						Count: 64,
+						Size:  hugepagesSize1G,
+						Node:  pointer.Int32Ptr(0),
+					})
+					err := ValidateParameters(profile)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("the page with the size %q and with specified NUMA node 0, has duplication", hugepagesSize1G)))
+				})
+			})
+
+			Context("without specified NUMA node", func() {
+				It("should raise the validation error", func() {
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+						Count: 128,
+						Size:  hugepagesSize1G,
+					})
+					err := ValidateParameters(profile)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("the page with the size %q and without the specified NUMA node, has duplication", hugepagesSize1G)))
+				})
+			})
+
+			Context("with not sequentially duplication blocks", func() {
+				It("should raise the validation error", func() {
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+						Count: 128,
+						Size:  hugepagesSize2M,
+					})
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+						Count: 128,
+						Size:  hugepagesSize1G,
+					})
+					err := ValidateParameters(profile)
+					Expect(err).Should(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("the page with the size %q and without the specified NUMA node, has duplication", hugepagesSize1G)))
+				})
+			})
+		})
 	})
 
 	Describe("Defaulting", func() {
