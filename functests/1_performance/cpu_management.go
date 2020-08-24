@@ -3,6 +3,7 @@ package __performance
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,7 +19,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/performance-addon-operators/functests/utils"
+
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
@@ -39,7 +40,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	var reservedCPUSet cpuset.CPUSet
 
 	BeforeEach(func() {
-		if discovery.Enabled() && utils.ProfileNotFound {
+		if discovery.Enabled() && testutils.ProfileNotFound {
 			Skip("Discovery mode enabled, performance profile not found")
 		}
 
@@ -106,6 +107,40 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			Expect(reservedCPUSet.IsSubsetOf(maskSet)).To(Equal(true), fmt.Sprintf("The init process (pid 1) should have cpu affinity: %s", reservedCPU))
 		})
 
+		It("[test_id:34358] Verify rcu_nocbs kernel argument on the node", func() {
+			By("checking that cmdline contains rcu_nocbs with right value")
+			cmd := []string{"cat", "/proc/cmdline"}
+			cmdline, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred())
+			re := regexp.MustCompile(`rcu_nocbs=\S+`)
+			rcuNocbsArgument := re.FindString(cmdline)
+			Expect(rcuNocbsArgument).To(ContainSubstring("rcu_nocbs="))
+			rcuNocbsCpu := strings.Split(rcuNocbsArgument, "=")[1]
+			Expect(rcuNocbsCpu).To(Equal(isolatedCPU))
+
+			By("checking that new rcuo processes are running on non_isolated cpu")
+			cmd = []string{"pgrep", "rcuo"}
+			rcuoList, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred())
+			for _, rcuo := range strings.Split(rcuoList, "\n") {
+				// check cpu affinity mask
+				cmd = []string{"/bin/bash", "-c", fmt.Sprintf("taskset -pc %s", rcuo)}
+				taskset, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+				Expect(err).ToNot(HaveOccurred())
+				mask := strings.SplitAfter(taskset, " ")
+				maskSet, err := cpuset.Parse(mask[len(mask)-1])
+				Expect(err).ToNot(HaveOccurred())
+				Expect(reservedCPUSet.IsSubsetOf(maskSet)).To(Equal(true), fmt.Sprintf("The process should have cpu affinity: %s", reservedCPU))
+
+				// check which cpu is used
+				cmd = []string{"/bin/bash", "-c", fmt.Sprintf("ps -o psr %s | tail -1", rcuo)}
+				psr, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+				Expect(err).ToNot(HaveOccurred())
+				cpu, err := strconv.Atoi(strings.Trim(psr, " "))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(cpu).To(BeElementOf(listReservedCPU))
+			}
+		})
 	})
 
 	Describe("[test_id:27492][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verification of cpu manager functionality", func() {
