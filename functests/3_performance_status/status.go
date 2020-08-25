@@ -9,8 +9,10 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
@@ -30,6 +32,9 @@ var _ = Describe("Status testing of performance profile", func() {
 	var err error
 
 	BeforeEach(func() {
+		if discovery.Enabled() && utils.ProfileNotFound {
+			Skip("Discovery mode enabled, performance profile not found")
+		}
 		workerCNFNodes, err = nodes.GetByLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
 		workerCNFNodes, err = nodes.MatchingOptionalSelector(workerCNFNodes)

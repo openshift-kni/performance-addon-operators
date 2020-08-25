@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
@@ -30,6 +31,10 @@ var _ = Describe("[performance]Hugepages", func() {
 	var profile *performancev1.PerformanceProfile
 
 	BeforeEach(func() {
+		if discovery.Enabled() && utils.ProfileNotFound {
+			Skip("Discovery mode enabled, performance profile not found")
+		}
+
 		var err error
 		workerRTNodes, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())

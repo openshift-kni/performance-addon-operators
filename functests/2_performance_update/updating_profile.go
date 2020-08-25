@@ -17,8 +17,10 @@ import (
 
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
+	"github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
@@ -40,6 +42,10 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	nodeLabel := testutils.NodeSelectorLabels
 
 	BeforeEach(func() {
+		if discovery.Enabled() && utils.ProfileNotFound {
+			Skip("Discovery mode enabled, performance profile not found")
+		}
+
 		workerRTNodes, err = nodes.GetByLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
 		workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
