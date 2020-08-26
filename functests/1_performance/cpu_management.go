@@ -64,7 +64,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 		Expect(profile.Spec.CPU.Reserved).NotTo(BeNil())
 		reservedCPU = string(*profile.Spec.CPU.Reserved)
-		reservedCPUSet, err := cpuset.Parse(reservedCPU)
+		reservedCPUSet, err = cpuset.Parse(reservedCPU)
 		Expect(err).ToNot(HaveOccurred())
 		listReservedCPU = reservedCPUSet.ToSlice()
 	})
@@ -77,7 +77,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			Expect(capacityCPU - allocatableCPU).To(Equal(int64(len(listReservedCPU))))
 		})
 
-		It("[test_id:28026][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify CPU affinity mask, CPU reservation and CPU isolation on worker node", func() {
+		It("[test_id:27081][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify CPU affinity mask, CPU reservation and CPU isolation on worker node", func() {
 			By("checking isolated CPU")
 			cmd := []string{"cat", "/sys/devices/system/cpu/isolated"}
 			sysIsolatedCpus, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
@@ -96,14 +96,14 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			Expect(conf).To(MatchRegexp(fmt.Sprintf(`"reservedSystemCPUs": ?"%s"`, reservedCPU)))
 
 			By("checking CPU affinity mask for kernel scheduler")
-			cmd = []string{"/bin/bash", "-c", "taskset -pc $(pgrep 'rcu_sched|rcu_preempt')"}
+			cmd = []string{"/bin/bash", "-c", "taskset -pc 1"}
 			sched, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
 			Expect(err).ToNot(HaveOccurred(), "failed to execute taskset")
 			mask := strings.SplitAfter(sched, " ")
 			maskSet, err := cpuset.Parse(mask[len(mask)-1])
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(reservedCPUSet.IsSubsetOf(maskSet)).To(Equal(true))
+			Expect(reservedCPUSet.IsSubsetOf(maskSet)).To(Equal(true), fmt.Sprintf("The init process (pid 1) should have cpu affinity: %s", reservedCPU))
 		})
 
 	})
