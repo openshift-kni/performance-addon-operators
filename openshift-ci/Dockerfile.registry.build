@@ -1,4 +1,4 @@
-FROM quay.io/openshift/origin-operator-registry:4.5
+FROM quay.io/openshift/origin-operator-registry:4.6
 
 ARG OPENSHIFT_BUILD_NAMESPACE
 
