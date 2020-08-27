@@ -1,4 +1,4 @@
-FROM centos:7
+FROM centos:8
 
 ENV HOME=/home/ci
 ENV GOROOT /usr/local/go
