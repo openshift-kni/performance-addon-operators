@@ -19,7 +19,7 @@ When creating a [performance profile CR](../deploy/crds/performance.openshift.io
 Additional kernel arguments could be added in the performance profile CR using the `additionalKernelArgs` field:
 
 ```yaml
-apiVersion: performance.openshift.io/v1alpha1
+apiVersion: performance.openshift.io/v1
 kind: PerformanceProfile
 metadata:
   name: example-performanceprofile
@@ -91,7 +91,7 @@ spec:
 
 ```yaml
 performance_profile.yaml
-apiVersion: performance.openshift.io/v1alpha1
+apiVersion: performance.openshift.io/v1
 kind: PerformanceProfile
 metadata:
   name: manual
