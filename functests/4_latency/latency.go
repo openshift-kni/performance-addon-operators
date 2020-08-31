@@ -117,11 +117,11 @@ var _ = Describe("[performance] Latency Test", func() {
 			timeout, err := strconv.Atoi(latencyTestRuntime)
 			Expect(err).ToNot(HaveOccurred())
 
-			// give two minutes to download the oslat image
+			By("Waiting two minutes to download the oslat image")
 			err = pods.WaitForPhase(oslatPod, corev1.PodRunning, 2*time.Minute)
 			Expect(err).ToNot(HaveOccurred())
 
-			// add additional 2 minutes to give enough time to the cluster to move the pod to Succeeded phase
+			By("Waiting another two minutes to give enough time for the cluster to move the pod to Succeeded phase")
 			podTimeout := time.Duration(timeout + 120)
 			err = pods.WaitForPhase(oslatPod, corev1.PodSucceeded, podTimeout*time.Second)
 			Expect(err).ToNot(HaveOccurred())
