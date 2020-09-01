@@ -11,7 +11,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/performance-addon-operators/functests/utils"
+
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
@@ -77,7 +77,7 @@ var _ = Describe("[performance] Latency Test", func() {
 		if !latencyTestRun {
 			Skip("Skip the oslat test, the LATENCY_TEST_RUN set to false")
 		}
-		if discovery.Enabled() && utils.ProfileNotFound {
+		if discovery.Enabled() && testutils.ProfileNotFound {
 			Skip("Discovery mode enabled, performance profile not found")
 		}
 
