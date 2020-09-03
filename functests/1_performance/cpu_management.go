@@ -152,7 +152,10 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			if discovery.Enabled() {
 				profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 				Expect(err).ToNot(HaveOccurred())
-				if len(*profile.Spec.CPU.Isolated) == 1 {
+				isolatedCPU = string(*profile.Spec.CPU.Isolated)
+				isolatedCPUSet, err := cpuset.Parse(isolatedCPU)
+				Expect(err).ToNot(HaveOccurred())
+				if isolatedCPUSet.Size() <= 1 {
 					discoveryFailed = true
 				}
 			}
