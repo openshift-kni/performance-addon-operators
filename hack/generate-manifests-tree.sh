@@ -17,13 +17,14 @@ if [ ! -d "${OLM_DIR}" ]; then
 	exit 1
 fi
 
-mv "${OLM_DIR}" "${OUT_DIR}"
+rm -rf ${OUT_DIR} && mkdir -p ${OUT_DIR} && mv "${OLM_DIR}/performance-addon-operator" "${OUT_DIR}"
 find "${OUT_DIR}" -type f -exec sed -i "s|REPLACE_IMAGE|${OPERATOR_IMAGE}|g" {} \; || :
 for entry in ${OUT_DIR}/performance-addon-operator/*; do
 	version=$( basename $entry )
 	if [ ! -d deploy/metadata/performance-addon-operator/$version ]; then
 		continue
 	fi
+
 	mkdir -p $entry/manifests && mv $entry/*.yaml $entry/manifests
 	mkdir -p $entry/metadata && cp deploy/metadata/performance-addon-operator/$version/* $entry/metadata
 done
