@@ -25,6 +25,9 @@ governor=performance                          #  latency-performance
 energy_perf_bias=performance                  #  latency-performance 
 min_perf_pct=100                              #  latency-performance 
 
+[service]
+service.stalld=start,enable
+
 [vm]
 transparent_hugepages=never                   #  network-latency
 
