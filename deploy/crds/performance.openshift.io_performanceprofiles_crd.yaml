@@ -431,6 +431,10 @@ spec:
                       for any container workloads initiated by kubelet.
                     type: string
                 type: object
+              globallyDisableIrqLoadBalancing:
+                description: GloballyDisableIrqLoadBalancing disables IRQ load balancing
+                  on all isolated CPUs
+                type: boolean
               hugepages:
                 description: HugePages defines a set of huge pages related parameters.
                   It is possible to set huge pages with multiple size values at the
