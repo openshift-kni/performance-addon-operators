@@ -1,4 +1,8 @@
-FROM quay.io/openshift/origin-operator-registry:4.5
+FROM quay.io/openshift/origin-operator-registry:4.6 as builder
+
+FROM quay.io/openshift/origin-operator-registry:4.6
+
+COPY --from=builder /usr/bin/sh /bin/sh
 
 ARG OPENSHIFT_BUILD_NAMESPACE
 
@@ -11,8 +15,13 @@ ENV REG_URL=registry.svc.ci.openshift.org
 
 # replaces performance-addon-operator image with the one built by openshift ci
 RUN find /registry/performance-addon-operator-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|${REG_URL}/${OPENSHIFT_BUILD_NAMESPACE}/stable:performance-addon-operator|g" {} \; || :
+
 # Initialize the database
+USER root
 RUN initializer --manifests /registry/performance-addon-operator-catalog --output bundles.db
+RUN chown 1001 bundles.db
+
+USER 1001
 
 # There are multiple binaries in the origin-operator-registry
 # We want the registry-server

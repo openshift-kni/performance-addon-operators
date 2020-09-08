@@ -1,4 +1,8 @@
-FROM quay.io/openshift/origin-operator-registry:4.5
+FROM quay.io/openshift/origin-operator-registry:4.6 as builder
+
+FROM quay.io/openshift/origin-operator-registry:4.6
+
+COPY --from=builder /usr/bin/sh /bin/sh
 
 ARG FULL_OPERATOR_IMAGE=quay.io/openshift-kni/performance-addon-operator:4.6-snapshot
 ARG OLM_SOURCE=deploy/olm-catalog
@@ -9,7 +13,11 @@ COPY ${OLM_SOURCE} /registry/performance-addon-operator-catalog
 RUN find /registry/performance-addon-operator-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|${FULL_OPERATOR_IMAGE}|g" {} \; || :
 
 # Initialize the database
+USER root
 RUN initializer --manifests /registry/performance-addon-operator-catalog --output bundles.db
+RUN chown 1001 bundles.db
+
+USER 1001
 
 # There are multiple binaries in the origin-operator-registry
 # We want the registry-server
