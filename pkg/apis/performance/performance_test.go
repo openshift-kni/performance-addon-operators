@@ -6,14 +6,14 @@ import (
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	"github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 	"io/ioutil"
 	"strings"
 )
 
 const (
 	deployCrdPath      = "../../../deploy/crds"
-	crFilename         = "performance.openshift.io_v1_performanceprofile_cr.yaml"
+	crFilename         = "performance.openshift.io_v2_performanceprofile_cr.yaml"
 	crdFilename        = "performance.openshift.io_performanceprofiles_crd.yaml"
 	lastHeartbeatPath  = "/status/conditions/lastHeartbeatTime"
 	lastTransitionPath = "/status/conditions/lastTransitionTime"
@@ -35,7 +35,7 @@ var _ = Describe("PerformanceProfile CR(D) Schema", func() {
 			lastHeartbeatPath,
 			lastTransitionPath,
 		}
-		missingEntries := getMissingEntries(schema, &v1.PerformanceProfile{}, pathOmissions...)
+		missingEntries := getMissingEntries(schema, &v2.PerformanceProfile{}, pathOmissions...)
 		Expect(missingEntries).To(BeEmpty())
 	})
 
@@ -58,7 +58,7 @@ func getSchema(crdPath string) (validation.Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	schema, err := validation.NewVersioned(bytes, "v1")
+	schema, err := validation.NewVersioned(bytes, "v2")
 	if err != nil {
 		return nil, err
 	}

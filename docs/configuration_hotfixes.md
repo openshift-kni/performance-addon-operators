@@ -10,7 +10,7 @@ Default tunings are applied with the [openshift-performance](https://github.com/
 
 ## Additional kernel arguments
 
-When creating a [performance profile CR](../deploy/crds/performance.openshift.io_v1_performanceprofile_cr.yaml) , a default set of kernel arguments are created from the [openshift-performance](https://github.com/openshift-kni/performance-addon-operators/blob/master/build/assets/tuned/openshift-node-performance) base profile in addition to tuned generated argument and can include for example:
+When creating a [performance profile CR](../deploy/crds/performance.openshift.io_v2_performanceprofile_cr.yaml) , a default set of kernel arguments are created from the [openshift-performance](https://github.com/openshift-kni/performance-addon-operators/blob/master/build/assets/tuned/openshift-node-performance) base profile in addition to tuned generated argument and can include for example:
 
 `nohz=on rcu_nocbs=<isolated_cores> tuned.non_isolcpus=<not_isolated_cpumask> intel_pstate=disable nosoftlockup tsc=nowatchdog intel_iommu=on iommu=pt systemd.cpu_affinity=<not_isolated_cores> isolcpus=<isolated_cores> default_hugepagesz=<DefaultHugepagesSize> hugepagesz=<hugepages_size> hugepages=<hugepages_>`
 
