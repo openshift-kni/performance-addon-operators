@@ -13,10 +13,11 @@ OUT_DIR="build/_output/manifests"
 OLM_DIR="build/_output/olm-catalog"
 
 if [ ! -d "${OLM_DIR}" ]; then
-	echo "missing output directory ${OUT_DIR} run 'make generate-latest-dev-csv' before" 1>&2
+	echo "missing directory ${OLM_DIR} run 'make generate-latest-dev-csv' before" 1>&2
 	exit 1
 fi
 
+rm -rf "${OUT_DIR}"
 mv "${OLM_DIR}" "${OUT_DIR}"
 find "${OUT_DIR}" -type f -exec sed -i "s|REPLACE_IMAGE|${OPERATOR_IMAGE}|g" {} \; || :
 for entry in ${OUT_DIR}/performance-addon-operator/*; do

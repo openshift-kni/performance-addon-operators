@@ -42,6 +42,10 @@ export GO111MODULE=on
 .PHONY: build
 build: gofmt golint govet dist generate-manifests-tree
 
+.PHONY: clean
+clean:
+	rm -rf build/_output
+
 .PHONY: dist
 dist: build-output-dir
 	@echo "Building operator binary"
