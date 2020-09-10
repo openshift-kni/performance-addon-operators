@@ -10,7 +10,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 
 	corev1 "k8s.io/api/core/v1"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
@@ -18,7 +18,7 @@ import (
 
 var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 	var workerRTNodes []corev1.Node
-	var profile *performancev1.PerformanceProfile
+	var profile *performancev2.PerformanceProfile
 
 	BeforeEach(func() {
 		if discovery.Enabled() && testutils.ProfileNotFound {

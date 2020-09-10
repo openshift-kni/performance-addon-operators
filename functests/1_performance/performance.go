@@ -31,7 +31,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
 )
@@ -44,7 +44,7 @@ const (
 var _ = Describe("[rfe_id:27368][performance]", func() {
 
 	var workerRTNodes []corev1.Node
-	var profile *performancev1.PerformanceProfile
+	var profile *performancev2.PerformanceProfile
 
 	BeforeEach(func() {
 		if discovery.Enabled() && testutils.ProfileNotFound {
@@ -216,30 +216,30 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			newRole := "worker-new"
 			newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
 
-			reserved := performancev1.CPUSet("0")
-			isolated := performancev1.CPUSet("1-3")
+			reserved := performancev2.CPUSet("0")
+			isolated := performancev2.CPUSet("1-3")
 
-			secondProfile := &performancev1.PerformanceProfile{
+			secondProfile := &performancev2.PerformanceProfile{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "PerformanceProfile",
-					APIVersion: performancev1.SchemeGroupVersion.String(),
+					APIVersion: performancev2.SchemeGroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "profile2",
 				},
-				Spec: performancev1.PerformanceProfileSpec{
-					CPU: &performancev1.CPU{
+				Spec: performancev2.PerformanceProfileSpec{
+					CPU: &performancev2.CPU{
 						Reserved: &reserved,
 						Isolated: &isolated,
 					},
 					NodeSelector: map[string]string{newLabel: ""},
-					RealTimeKernel: &performancev1.RealTimeKernel{
+					RealTimeKernel: &performancev2.RealTimeKernel{
 						Enabled: pointer.BoolPtr(true),
 					},
 					AdditionalKernelArgs: []string{
 						"NEW_ARGUMENT",
 					},
-					NUMA: &performancev1.NUMA{
+					NUMA: &performancev2.NUMA{
 						TopologyPolicy: pointer.StringPtr("restricted"),
 					},
 				},

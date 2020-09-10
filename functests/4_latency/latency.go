@@ -18,7 +18,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	v1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	v2 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 
 	corev1 "k8s.io/api/core/v1"
@@ -70,7 +70,7 @@ func init() {
 
 var _ = Describe("[performance] Latency Test", func() {
 	var workerRTNode *corev1.Node
-	var profile *v1.PerformanceProfile
+	var profile *v2.PerformanceProfile
 	var oslatPod *corev1.Pod
 
 	BeforeEach(func() {
@@ -172,7 +172,7 @@ var _ = Describe("[performance] Latency Test", func() {
 	})
 })
 
-func getOslatPod(profile *v1.PerformanceProfile, node *corev1.Node) *corev1.Pod {
+func getOslatPod(profile *v2.PerformanceProfile, node *corev1.Node) *corev1.Pod {
 	cpus := cpuset.MustParse(string(*profile.Spec.CPU.Isolated))
 	runtimeClass := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	volumeTypeDirectory := corev1.HostPathDirectory
