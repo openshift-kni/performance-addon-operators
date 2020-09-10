@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"time"
 
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
@@ -69,7 +69,7 @@ func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 	}
 
 	// Watch for changes to primary resource PerformanceProfile
-	err = c.Watch(&source.Kind{Type: &performancev1.PerformanceProfile{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &performancev2.PerformanceProfile{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 	// Watch for changes to machine configs owned by our controller
 	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfig{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &performancev1.PerformanceProfile{},
+		OwnerType:    &performancev2.PerformanceProfile{},
 	}, p)
 	if err != nil {
 		return err
@@ -111,7 +111,7 @@ func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 	// Watch for changes to kubelet configs owned by our controller
 	err = c.Watch(&source.Kind{Type: &mcov1.KubeletConfig{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &performancev1.PerformanceProfile{},
+		OwnerType:    &performancev2.PerformanceProfile{},
 	}, p)
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 	// Watch for changes to tuned owned by our controller
 	err = c.Watch(&source.Kind{Type: &tunedv1.Tuned{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &performancev1.PerformanceProfile{},
+		OwnerType:    &performancev2.PerformanceProfile{},
 	}, p)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 	// Watch for changes for the RuntimeClass owned by our resource
 	err = c.Watch(&source.Kind{Type: &nodev1beta1.RuntimeClass{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &performancev1.PerformanceProfile{},
+		OwnerType:    &performancev2.PerformanceProfile{},
 	}, p)
 	if err != nil {
 		return err
@@ -195,7 +195,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	klog.Info("Reconciling PerformanceProfile")
 
 	// Fetch the PerformanceProfile instance
-	instance := &performancev1.PerformanceProfile{}
+	instance := &performancev2.PerformanceProfile{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -318,7 +318,7 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 		return nil
 	}
 
-	ppList := &performancev1.PerformanceProfileList{}
+	ppList := &performancev2.PerformanceProfileList{}
 	if err := r.client.List(context.TODO(), ppList); err != nil {
 		klog.Errorf("Unable to list performance profiles: %v", err)
 		return nil
@@ -334,7 +334,7 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 	return requests
 }
 
-func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.PerformanceProfile) (*reconcile.Result, error) {
+func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev2.PerformanceProfile) (*reconcile.Result, error) {
 
 	if profileutil.IsPaused(profile) {
 		klog.Infof("Ignoring reconcile loop for pause performance profile %s", profile.Name)
@@ -429,7 +429,7 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.Per
 	return &reconcile.Result{}, nil
 }
 
-func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1.PerformanceProfile) error {
+func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev2.PerformanceProfile) error {
 	tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 	if err := r.deleteTuned(tunedName, components.NamespaceNodeTuningOperator); err != nil {
 		return err
@@ -452,7 +452,7 @@ func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1.Pe
 
 }
 
-func (r *ReconcilePerformanceProfile) isComponentsExist(profile *performancev1.PerformanceProfile) bool {
+func (r *ReconcilePerformanceProfile) isComponentsExist(profile *performancev2.PerformanceProfile) bool {
 	tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 	if _, err := r.getTuned(tunedName, components.NamespaceNodeTuningOperator); !errors.IsNotFound(err) {
 		klog.Infof("Tuned %q custom resource is still exists under the namespace %q", tunedName, components.NamespaceNodeTuningOperator)
@@ -473,7 +473,7 @@ func (r *ReconcilePerformanceProfile) isComponentsExist(profile *performancev1.P
 	return false
 }
 
-func hasFinalizer(profile *performancev1.PerformanceProfile, finalizer string) bool {
+func hasFinalizer(profile *performancev2.PerformanceProfile, finalizer string) bool {
 	for _, f := range profile.Finalizers {
 		if f == finalizer {
 			return true
@@ -482,7 +482,7 @@ func hasFinalizer(profile *performancev1.PerformanceProfile, finalizer string) b
 	return false
 }
 
-func removeFinalizer(profile *performancev1.PerformanceProfile, finalizer string) {
+func removeFinalizer(profile *performancev2.PerformanceProfile, finalizer string) {
 	finalizers := []string{}
 	for _, f := range profile.Finalizers {
 		if f == finalizer {
@@ -500,7 +500,7 @@ func namespacedName(obj metav1.Object) types.NamespacedName {
 	}
 }
 
-func hasMatchingLabels(performanceprofile *performancev1.PerformanceProfile, mcp *mcov1.MachineConfigPool) bool {
+func hasMatchingLabels(performanceprofile *performancev2.PerformanceProfile, mcp *mcov1.MachineConfigPool) bool {
 
 	selector, err := metav1.LabelSelectorAsSelector(mcp.Spec.MachineConfigSelector)
 	if err != nil {

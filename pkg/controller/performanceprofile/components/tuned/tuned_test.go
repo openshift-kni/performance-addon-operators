@@ -8,7 +8,7 @@ import (
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	v1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	v2 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 
@@ -34,13 +34,13 @@ var (
 var additionalArgs = []string{"test1=val1", "test2=val2"}
 
 var _ = Describe("Tuned", func() {
-	var profile *v1.PerformanceProfile
+	var profile *v2.PerformanceProfile
 
 	BeforeEach(func() {
 		profile = testutils.NewPerformanceProfile("test")
 	})
 
-	getTunedManifest := func(profile *v1.PerformanceProfile) string {
+	getTunedManifest := func(profile *v2.PerformanceProfile) string {
 		tuned, err := NewNodePerformance(testAssetsDir, profile)
 		Expect(err).ToNot(HaveOccurred())
 		y, err := yaml.Marshal(tuned)
@@ -93,7 +93,7 @@ var _ = Describe("Tuned", func() {
 		Context("with 1G default huge pages", func() {
 			Context("with requested 2M huge pages allocation on the specified node", func() {
 				It("should append the dummy 2M huge pages kernel arguments", func() {
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Size:  components.HugepagesSize2M,
 						Count: 128,
 						Node:  pointer.Int32Ptr(0),
@@ -106,7 +106,7 @@ var _ = Describe("Tuned", func() {
 
 			Context("with requested 2M huge pages allocation via kernel arguments", func() {
 				It("should not append the dummy 2M kernel arguments", func() {
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Size:  components.HugepagesSize2M,
 						Count: 128,
 					})
@@ -126,12 +126,12 @@ var _ = Describe("Tuned", func() {
 
 			Context("with requested 2M huge pages allocation on the specified node and via kernel arguments", func() {
 				It("should not append the dummy 2M kernel arguments", func() {
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Size:  components.HugepagesSize2M,
 						Count: 128,
 						Node:  pointer.Int32Ptr(0),
 					})
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Size:  components.HugepagesSize2M,
 						Count: 128,
 					})
@@ -146,9 +146,9 @@ var _ = Describe("Tuned", func() {
 		Context("with 2M default huge pages", func() {
 			Context("with requested 2M huge pages allocation on the specified node", func() {
 				It("should not append the dummy 2M huge pages kernel arguments", func() {
-					defaultSize := v1.HugePageSize(components.HugepagesSize2M)
+					defaultSize := v2.HugePageSize(components.HugepagesSize2M)
 					profile.Spec.HugePages.DefaultHugePagesSize = &defaultSize
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Size:  components.HugepagesSize2M,
 						Count: 128,
 						Node:  pointer.Int32Ptr(0),

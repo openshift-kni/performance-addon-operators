@@ -1,7 +1,7 @@
 package runtimeclass
 
 import (
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 
 	nodev1beta1 "k8s.io/api/node/v1beta1"
@@ -9,7 +9,7 @@ import (
 )
 
 // New returns a new RuntimeClass object
-func New(profile *performancev1.PerformanceProfile, handler string) *nodev1beta1.RuntimeClass {
+func New(profile *performancev2.PerformanceProfile, handler string) *nodev1beta1.RuntimeClass {
 	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	return &nodev1beta1.RuntimeClass{
 		TypeMeta: metav1.TypeMeta{

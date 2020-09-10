@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 
 	igntypes "github.com/coreos/ignition/config/v2_2/types"
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
@@ -41,7 +41,7 @@ const assetsDir = "../../../build/assets"
 
 var _ = Describe("Controller", func() {
 	var request reconcile.Request
-	var profile *performancev1.PerformanceProfile
+	var profile *performancev2.PerformanceProfile
 
 	BeforeEach(func() {
 		profile = testutils.NewPerformanceProfile("test")
@@ -58,7 +58,7 @@ var _ = Describe("Controller", func() {
 
 		Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
-		updatedProfile := &performancev1.PerformanceProfile{}
+		updatedProfile := &performancev2.PerformanceProfile{}
 		key := types.NamespacedName{
 			Name:      profile.Name,
 			Namespace: metav1.NamespaceNone,
@@ -80,7 +80,7 @@ var _ = Describe("Controller", func() {
 			// once we will have validation webhook, this test will not be relevant anymore
 			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
-			updatedProfile := &performancev1.PerformanceProfile{}
+			updatedProfile := &performancev2.PerformanceProfile{}
 			key := types.NamespacedName{
 				Name:      profile.Name,
 				Namespace: metav1.NamespaceNone,
@@ -158,7 +158,7 @@ var _ = Describe("Controller", func() {
 
 			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
-			updatedProfile := &performancev1.PerformanceProfile{}
+			updatedProfile := &performancev2.PerformanceProfile{}
 			key := types.NamespacedName{
 				Name:      profile.Name,
 				Namespace: metav1.NamespaceNone,
@@ -223,7 +223,7 @@ var _ = Describe("Controller", func() {
 		})
 
 		It("should create nothing when pause annotation is set", func() {
-			profile.Annotations = map[string]string{performancev1.PerformanceProfilePauseAnnotation: "true"}
+			profile.Annotations = map[string]string{performancev2.PerformanceProfilePauseAnnotation: "true"}
 			r := newFakeReconciler(profile)
 
 			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
@@ -319,9 +319,9 @@ var _ = Describe("Controller", func() {
 			})
 
 			It("should update MC, KC and Tuned when CPU params change", func() {
-				reserved := performancev1.CPUSet("0-1")
-				isolated := performancev1.CPUSet("2-3")
-				profile.Spec.CPU = &performancev1.CPU{
+				reserved := performancev2.CPUSet("0-1")
+				isolated := performancev2.CPUSet("2-3")
+				profile.Spec.CPU = &performancev2.CPU{
 					Reserved: &reserved,
 					Isolated: &isolated,
 				}
@@ -353,9 +353,9 @@ var _ = Describe("Controller", func() {
 			})
 
 			It("should add isolcpus with managed_irq flag to tuned profile when balanced set to true", func() {
-				reserved := performancev1.CPUSet("0-1")
-				isolated := performancev1.CPUSet("2-3")
-				profile.Spec.CPU = &performancev1.CPU{
+				reserved := performancev2.CPUSet("0-1")
+				isolated := performancev2.CPUSet("2-3")
+				profile.Spec.CPU = &performancev2.CPU{
 					Reserved:        &reserved,
 					Isolated:        &isolated,
 					BalanceIsolated: pointer.BoolPtr(true),
@@ -377,9 +377,9 @@ var _ = Describe("Controller", func() {
 			})
 
 			It("should add isolcpus with domain,managed_irq flags to tuned profile when balanced set to false", func() {
-				reserved := performancev1.CPUSet("0-1")
-				isolated := performancev1.CPUSet("2-3")
-				profile.Spec.CPU = &performancev1.CPU{
+				reserved := performancev2.CPUSet("0-1")
+				isolated := performancev2.CPUSet("2-3")
+				profile.Spec.CPU = &performancev2.CPU{
 					Reserved:        &reserved,
 					Isolated:        &isolated,
 					BalanceIsolated: pointer.BoolPtr(false),
@@ -401,10 +401,10 @@ var _ = Describe("Controller", func() {
 			})
 
 			It("should update MC when Hugepages params change without node added", func() {
-				size := performancev1.HugePageSize("2M")
-				profile.Spec.HugePages = &performancev1.HugePages{
+				size := performancev2.HugePageSize("2M")
+				profile.Spec.HugePages = &performancev2.HugePages{
 					DefaultHugePagesSize: &size,
-					Pages: []performancev1.HugePage{
+					Pages: []performancev2.HugePage{
 						{
 							Count: 8,
 							Size:  size,
@@ -429,10 +429,10 @@ var _ = Describe("Controller", func() {
 			})
 
 			It("should update Tuned when Hugepages params change with node added", func() {
-				size := performancev1.HugePageSize("2M")
-				profile.Spec.HugePages = &performancev1.HugePages{
+				size := performancev2.HugePageSize("2M")
+				profile.Spec.HugePages = &performancev2.HugePages{
 					DefaultHugePagesSize: &size,
-					Pages: []performancev1.HugePage{
+					Pages: []performancev2.HugePage{
 						{
 							Count: 8,
 							Size:  size,
@@ -491,7 +491,7 @@ var _ = Describe("Controller", func() {
 				err := r.client.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
 				tunedNamespacedName := namespacedName(t).String()
-				updatedProfile := &performancev1.PerformanceProfile{}
+				updatedProfile := &performancev2.PerformanceProfile{}
 				key = types.NamespacedName{
 					Name:      profile.Name,
 					Namespace: metav1.NamespaceNone,
@@ -513,7 +513,7 @@ var _ = Describe("Controller", func() {
 				err := r.client.Get(context.TODO(), key, runtimeClass)
 				Expect(err).ToNot(HaveOccurred())
 
-				updatedProfile := &performancev1.PerformanceProfile{}
+				updatedProfile := &performancev2.PerformanceProfile{}
 				key = types.NamespacedName{
 					Name:      profile.Name,
 					Namespace: metav1.NamespaceAll,
@@ -562,7 +562,7 @@ var _ = Describe("Controller", func() {
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
-				updatedProfile := &performancev1.PerformanceProfile{}
+				updatedProfile := &performancev2.PerformanceProfile{}
 				key := types.NamespacedName{
 					Name:      profile.Name,
 					Namespace: metav1.NamespaceNone,
@@ -637,7 +637,7 @@ var _ = Describe("Controller", func() {
 			// verify finalizer deletion
 			key.Name = profile.Name
 			key.Namespace = metav1.NamespaceNone
-			updatedProfile := &performancev1.PerformanceProfile{}
+			updatedProfile := &performancev2.PerformanceProfile{}
 			Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
 			Expect(hasFinalizer(updatedProfile, finalizer)).To(Equal(false))
 		})

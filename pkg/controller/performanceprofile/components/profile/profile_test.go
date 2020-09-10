@@ -3,7 +3,7 @@ package profile
 import (
 	"fmt"
 
-	v1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	v2 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"k8s.io/utils/pointer"
 
@@ -19,7 +19,7 @@ const (
 
 var _ = Describe("PerformanceProfile", func() {
 
-	var profile *v1.PerformanceProfile
+	var profile *v2.PerformanceProfile
 
 	BeforeEach(func() {
 		profile = testutils.NewPerformanceProfile("test")
@@ -69,7 +69,7 @@ var _ = Describe("PerformanceProfile", func() {
 		})
 
 		It("should reject on incorrect default hugepages size", func() {
-			incorrectDefaultSize := v1.HugePageSize("!#@")
+			incorrectDefaultSize := v2.HugePageSize("!#@")
 			profile.Spec.HugePages.DefaultHugePagesSize = &incorrectDefaultSize
 
 			err := ValidateParameters(profile)
@@ -78,10 +78,10 @@ var _ = Describe("PerformanceProfile", func() {
 		})
 
 		It("should reject hugepages allocation with unexpected page size", func() {
-			profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+			profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 				Count: 128,
 				Node:  pointer.Int32Ptr(0),
-				Size:  v1.HugePageSize("14M"),
+				Size:  v2.HugePageSize("14M"),
 			})
 			err := ValidateParameters(profile)
 			Expect(err).Should(HaveOccurred())
@@ -91,12 +91,12 @@ var _ = Describe("PerformanceProfile", func() {
 		When("pages have duplication", func() {
 			Context("with specified NUMA node", func() {
 				It("should raise the validation error", func() {
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Count: 128,
 						Size:  hugepagesSize1G,
 						Node:  pointer.Int32Ptr(0),
 					})
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Count: 64,
 						Size:  hugepagesSize1G,
 						Node:  pointer.Int32Ptr(0),
@@ -109,7 +109,7 @@ var _ = Describe("PerformanceProfile", func() {
 
 			Context("without specified NUMA node", func() {
 				It("should raise the validation error", func() {
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Count: 128,
 						Size:  hugepagesSize1G,
 					})
@@ -121,11 +121,11 @@ var _ = Describe("PerformanceProfile", func() {
 
 			Context("with not sequentially duplication blocks", func() {
 				It("should raise the validation error", func() {
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Count: 128,
 						Size:  hugepagesSize2M,
 					})
-					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v1.HugePage{
+					profile.Spec.HugePages.Pages = append(profile.Spec.HugePages.Pages, v2.HugePage{
 						Count: 128,
 						Size:  hugepagesSize1G,
 					})
@@ -185,7 +185,7 @@ var _ = Describe("PerformanceProfile", func() {
 	})
 })
 
-func setValidNodeSelector(profile *v1.PerformanceProfile) {
+func setValidNodeSelector(profile *v2.PerformanceProfile) {
 	selector := make(map[string]string)
 	selector["fooDomain/"+NodeSelectorRole] = ""
 	profile.Spec.NodeSelector = selector
