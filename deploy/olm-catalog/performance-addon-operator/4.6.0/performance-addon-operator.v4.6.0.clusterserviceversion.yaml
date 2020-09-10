@@ -6,7 +6,7 @@ metadata:
     alm-examples: |-
       [
         {
-          "apiVersion": "performance.openshift.io/v1",
+          "apiVersion": "performance.openshift.io/v2",
           "kind": "PerformanceProfile",
           "metadata": {
             "name": "example-performanceprofile"
@@ -51,6 +51,11 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: PerformanceProfile is the Schema for the performanceprofiles API.
+      displayName: Performance Profile
+      kind: PerformanceProfile
+      name: performanceprofiles.performance.openshift.io
+      version: v2
     - description: PerformanceProfile is the Schema for the performanceprofiles API.
       displayName: Performance Profile
       kind: PerformanceProfile

@@ -433,7 +433,12 @@ spec:
                 type: object
               globallyDisableIrqLoadBalancing:
                 description: GloballyDisableIrqLoadBalancing disables IRQ load balancing
-                  on all isolated CPUs
+                  on all isolated GloballyDisableIrqLoadBalancing toggles whether
+                  IRQ load balancing will be enabled for the Isolated CPU set. When
+                  this option is set to "false", the IRQ load balancing is enabled
+                  for all CPUs, but it can be disabled per pod using irq-load-balancing.crio.io/cpu-quota.crio.io
+                  annotations. Setting this to \"true\" allows IRQs to be balanced
+                  across all CPUs. Defaults to "false"
                 type: boolean
               hugepages:
                 description: HugePages defines a set of huge pages related parameters.
