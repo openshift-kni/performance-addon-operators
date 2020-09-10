@@ -1,7 +1,7 @@
 #!/bin/bash
 
-FROM_VERSION="${FROM_VERSION:-4.5.0}"
-TO_VERSION="${TO_VERSION:-4.6.0}"
+FROM_VERSION="${FROM_VERSION:-4.5}"
+TO_VERSION="${TO_VERSION:-4.6}"
 
 OC_TOOL="${OC_TOOL:-oc}"
 
@@ -26,12 +26,12 @@ fi
 
 which ginkgo
 if [ $? -ne 0 ]; then
-	echo "Downloading ginkgo tool"
-	go install github.com/onsi/ginkgo/ginkgo
+  echo "Downloading ginkgo tool"
+  go install github.com/onsi/ginkgo/ginkgo
 fi
 
 NO_COLOR=""
-if ! which tput &> /dev/null 2>&1 || [[ $(tput -T$TERM colors) -lt 8 ]]; then
+if ! which tput &>/dev/null 2>&1 || [[ $(tput -T$TERM colors) -lt 8 ]]; then
   echo "Terminal does not seem to support colored output, disabling it"
   NO_COLOR="-noColor"
 fi
@@ -55,8 +55,8 @@ if [ "$RUN_TESTS_AFTER_UPGRADE" == true ] && [ $err = 0 ]; then
   echo "[INFO] Running tests after operator upgrade"
   ${OC_TOOL} get performanceprofile "$PERF_TEST_PROFILE"
   if [ $? -ne 0 ]; then
-	  echo "[ERROR] Performance profile $PERF_TEST_PROFILE not exists, exit"
-	  exit 1
+    echo "[ERROR] Performance profile $PERF_TEST_PROFILE not exists, exit"
+    exit 1
   fi
   PERF_TEST_PROFILE=$PERF_TEST_PROFILE make functests-only
 fi
