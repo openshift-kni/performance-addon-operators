@@ -2,53 +2,88 @@
 
 set -e
 
-export GOROOT=$(go env GOROOT)
-TMP_CSV_VERSION="9.9.9"
-TMP_CSV_DIR="deploy/olm-catalog/performance-addon-operator/$TMP_CSV_VERSION"
-TMP_CSV_FILE="$TMP_CSV_DIR/performance-addon-operator.v${TMP_CSV_VERSION}.clusterserviceversion.yaml"
-FINAL_CSV_DIR="deploy/olm-catalog/performance-addon-operator/$CSV_VERSION"
+GOROOT=$(go env GOROOT)
+export GOROOT
+
+PREV="4.4.0"
+LATEST="4.4.1"
+LATEST_CHANNEL="4.4"
+
+IS_DEV=$([[ $1 == "-dev" ]] && echo true || echo false)
+
+if [[ -z "$CSV_VERSION" ]]; then
+  CSV_VERSION=$LATEST
+fi
+
+if [[ -z "$CSV_CHANNEL" ]]; then
+  CSV_CHANNEL=$LATEST_CHANNEL
+fi
+
+PACKAGE_NAME="performance-addon-operator"
+
+PACKAGE_DIR="deploy/olm-catalog/${PACKAGE_NAME}"
+CSV_DIR="${PACKAGE_DIR}/${CSV_VERSION}"
+CSV_FILE="${CSV_DIR}/${PACKAGE_NAME}.v${CSV_VERSION}.clusterserviceversion.yaml"
+
+OUT_ROOT="build/_output"
+OUT_DIR="${OUT_ROOT}/olm-catalog"
+OUT_CSV_DIR="${OUT_DIR}/${PACKAGE_NAME}/${CSV_VERSION}"
+OUT_CSV_FILE="${OUT_CSV_DIR}/${PACKAGE_NAME}.v${CSV_VERSION}.clusterserviceversion.yaml"
+
 EXTRA_ANNOTATIONS=""
 MAINTAINERS=""
 
-if [ -n "$DESCRIPTION_FILE" ]; then
-	DESCRIPTION="-description-from=$DESCRIPTION_FILE"
-fi
 if [ -n "$MAINTAINERS_FILE" ]; then
-	MAINTAINERS="-maintainers-from=$MAINTAINERS_FILE"
-fi
-if [ -n "$ANNOTATIONS_FILE" ]; then
-	EXTRA_ANNOTATIONS="-annotations-from=$ANNOTATIONS_FILE"
+  MAINTAINERS="-maintainers-from=$MAINTAINERS_FILE"
 fi
 
-clean_tmp_csv() {
-	rm -rf $TMP_CSV_DIR
+if [ -n "$ANNOTATIONS_FILE" ]; then
+  EXTRA_ANNOTATIONS="-annotations-from=$ANNOTATIONS_FILE"
+fi
+
+clean_package() {
+  mkdir -p "$CSV_DIR"
+  rm -rf "$OUT_DIR"
+  mkdir -p "$OUT_CSV_DIR"
 }
 
-if [ -z "$CSV_VERSION" ]; then
-	echo "CSV_VERSION environment variable required to generate CSV"
+if ! [[ "$CSV_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "CSV_VERSION not provided or does not match semver format"
+  exit 1
 fi
 
-#clean up any stale data left from another run
-clean_tmp_csv
+# clean up all old data first
+clean_package
 
-# generate a temporary csv we'll use as a template
-$OPERATOR_SDK olm-catalog gen-csv --operator-name="performance-addon-operator" --csv-version="${TMP_CSV_VERSION}"
-$OPERATOR_SDK generate crds
+# do not generate new CRD/CSV for old versions
+if [[ "$CSV_VERSION" != "$PREV" ]]; then
+  $OPERATOR_SDK generate crds
 
-# using the generated CSV, create the real CSV by injecting all the right data into it
-build/_output/bin/csv-generator \
-	--csv-version "${CSV_VERSION}" \
-	--operator-csv-template-file "${TMP_CSV_FILE}" \
-	--operator-image "${FULL_OPERATOR_IMAGE}" \
-	--olm-bundle-directory "$FINAL_CSV_DIR" \
-	--replaces-csv-version "$REPLACES_CSV_VERSION" \
-	--skip-range "$CSV_SKIP_RANGE" \
-	"${DESCRIPTION}" \
-	"${MAINTAINERS}" \
-	"${EXTRA_ANNOTATIONS}"
+  # generate a temporary csv we'll use as a template
+  $OPERATOR_SDK olm-catalog gen-csv \
+    --operator-name="${PACKAGE_NAME}" \
+    --csv-version="${CSV_VERSION}" \
+    --csv-channel="${CSV_CHANNEL}" \
+    --default-channel=true \
+    --update-crds
 
-cp deploy/crds/*_crd.yaml $FINAL_CSV_DIR/
+  # using the generated CSV, create the real CSV by injecting all the right data into it
+  build/_output/bin/csv-generator \
+    --csv-version "${CSV_VERSION}" \
+    --operator-csv-template-file "${CSV_FILE}" \
+    --operator-image "${FULL_OPERATOR_IMAGE}" \
+    --olm-bundle-directory "${OUT_CSV_DIR}" \
+    --skip-range "${CSV_SKIP_RANGE}" \
+    "${MAINTAINERS}" \
+    "${EXTRA_ANNOTATIONS}"
+fi
 
-clean_tmp_csv
+# copy remaining manifests to final location
+cp -a --no-clobber ${PACKAGE_DIR}/ ${OUT_DIR}/
 
-echo "New CSV created at $FINAL_CSV_DIR"
+if [[ "$IS_DEV" == true ]]; then
+  # copy generated CSV and CRD back to repository dir
+  cp "${OUT_CSV_FILE}" "${CSV_FILE}"
+fi
+
+echo "New OLM manifests created at ${OUT_DIR}"

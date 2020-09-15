@@ -112,7 +112,7 @@ generate-csv: operator-sdk dist-csv-generator
 generate-latest-dev-csv: operator-sdk dist-csv-generator
 	@echo Generating developer csv
 	@echo
-	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" CSV_VERSION=$(OPERATOR_DEV_CSV) hack/csv-generate.sh
+	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" hack/csv-generate.sh -dev
 
 deps-update:
 	go mod tidy && \
@@ -158,12 +158,10 @@ govet:
 	@echo "Running go vet"
 	go vet ./...
 
-generate: operator-sdk
+generate: operator-sdk generate-latest-dev-csv
 	@echo Updating generated files
 	@echo
 	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate k8s
-	@echo
-	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate crds
 
 verify-generate: generate
 	@echo "Verifying generated code"

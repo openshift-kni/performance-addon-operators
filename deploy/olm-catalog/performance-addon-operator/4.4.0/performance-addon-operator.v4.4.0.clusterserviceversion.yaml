@@ -45,7 +45,8 @@ metadata:
       ]
     capabilities: Basic Install
     containerImage: REPLACE_IMAGE
-  name: performance-addon-operator.v0.0.1
+    olm.skipRange: <4.4.0
+  name: performance-addon-operator.v4.4.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -187,4 +188,4 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 0.0.1
+  version: 4.4.0
