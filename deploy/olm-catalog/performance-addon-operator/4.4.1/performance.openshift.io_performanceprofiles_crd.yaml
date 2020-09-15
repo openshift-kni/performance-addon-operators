@@ -1,0 +1,167 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: performanceprofiles.performance.openshift.io
+spec:
+  group: performance.openshift.io
+  names:
+    kind: PerformanceProfile
+    listKind: PerformanceProfileList
+    plural: performanceprofiles
+    singular: performanceprofile
+  scope: Cluster
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: PerformanceProfile is the Schema for the performanceprofiles API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: PerformanceProfileSpec defines the desired state of PerformanceProfile.
+          properties:
+            additionalKernelArgs:
+              description: Addional kernel arguments.
+              items:
+                type: string
+              type: array
+            cpu:
+              description: CPU defines set of CPU related parameters.
+              properties:
+                balanceIsolated:
+                  description: BalanceIsolated toggles whether or not the Isolated
+                    CPU set is eligible for load balancing work loads. When this option
+                    is set to "false", the Isolated CPU set will be static, meaning
+                    workloads have to explicitly assign each thread to a specific
+                    cpu in order to work across multiple CPUs. Setting this to "true"
+                    allows workloads to be balanced across CPUs. Setting this to "false"
+                    offers the most predictable performance for guaranteed workloads,
+                    but it offloads the complexity of cpu load balancing to the application.
+                    Defaults to "true"
+                  type: boolean
+                isolated:
+                  description: Isolated defines set of CPU's that will used to give
+                    to application threads the most execution time possible, which
+                    means removing as many extraneous tasks off a CPU as possible.
+                  type: string
+                reserved:
+                  description: Reserved defines set of CPU's that will not be used
+                    for any container workloads initiated by kubelet.
+                  type: string
+              type: object
+            hugepages:
+              description: HugePages defines set of huge pages related parameters.
+              properties:
+                defaultHugepagesSize:
+                  description: DefaultHugePagesSize defines huge pages default size
+                    under kernel boot parameters.
+                  type: string
+                pages:
+                  description: Pages defines huge pages that we want to allocate on
+                    the boot time.
+                  items:
+                    description: HugePage defines the number of allocated huge pages
+                      of the specific size.
+                    properties:
+                      count:
+                        description: Count defines amount of huge pages, maps to the
+                          'hugepages' kernel boot parameter.
+                        format: int32
+                        type: integer
+                      node:
+                        description: Node defines the NUMA node where hugepages will
+                          be allocated, if not specified, pages will be allocated
+                          equally between NUMA nodes
+                        format: int32
+                        type: integer
+                      size:
+                        description: Size defines huge page size, maps to the 'hugepagesz'
+                          kernel boot parameter.
+                        type: string
+                    type: object
+                  type: array
+              type: object
+            machineConfigLabel:
+              additionalProperties:
+                type: string
+              description: MachineConfigLabel defines the label to add to the MachineConfigs
+                the operator creates. It has to be used in the MachineConfigSelector
+                of the MachineConfigPool which targets this performance profile. Defaults
+                to "machineconfiguration.openshift.io/role=<same role as in NodeSelector
+                label key>"
+              type: object
+            machineConfigPoolSelector:
+              additionalProperties:
+                type: string
+              description: MachineConfigPoolSelector defines the MachineConfigPool
+                label to use in the MachineConfigPoolSelector of resources like KubeletConfigs
+                created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same
+                role as in NodeSelector label key>"
+              type: object
+            nodeSelector:
+              additionalProperties:
+                type: string
+              description: NodeSelector defines the Node label to use in the NodeSelectors
+                of resources like Tuned created by the operator. It most likely should,
+                but does not have to match the node label in the NodeSelector of the
+                MachineConfigPool which targets this performance profile.
+              type: object
+            realTimeKernel:
+              description: RealTimeKernel defines set of real time kernel related
+                parameters.
+              properties:
+                enabled:
+                  description: Enabled defines if the real time kernel packages should
+                    be installed
+                  type: boolean
+              type: object
+          type: object
+        status:
+          description: PerformanceProfileStatus defines the observed state of PerformanceProfile.
+          properties:
+            conditions:
+              description: conditions represents the latest available observations
+                of current state.
+              items:
+                description: Condition represents the state of the operator's reconciliation
+                  functionality.
+                properties:
+                  lastHeartbeatTime:
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    description: ConditionType is the state of the operator's reconciliation
+                      functionality.
+                    type: string
+                required:
+                - status
+                - type
+                type: object
+              type: array
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
