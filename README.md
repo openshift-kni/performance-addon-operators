@@ -35,6 +35,22 @@ make build-containers
 make push-containers
 ```
 
+# Building and pushing z-stream release
+
+It is number of ENV variables that you should define to get all components to have the right z-stream version `4.x.y`
+and allow the seamless upgrade.
+
+```
+export CSV_CHANNEL="4.x"
+export CSV_VERSION="4.x.y"
+export CSV_FROM_VERSION="4.x.y-1"
+export IMAGE_TAG=4.x.y
+export OPERATOR_VERSION=4.x.y
+export CSV_SKIP_RANGE=">=4.x-1.0 <4.x.y
+make build-containers
+make push-containers
+```
+
 # Deploying
 
 If you use your own images, make sure they are made public in your quay.io account!

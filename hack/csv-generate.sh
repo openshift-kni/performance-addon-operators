@@ -8,6 +8,7 @@ export GOROOT
 OLD="4.4.0"
 PREV="4.5.0"
 LATEST="4.6.0"
+LATEST_CHANNEL="4.6"
 
 IS_DEV=$([[ $1 == "-dev" ]] && echo true || echo false)
 
@@ -15,16 +16,8 @@ if [[ -z "$CSV_VERSION" ]]; then
   CSV_VERSION=$LATEST
 fi
 
-if [[ -z "$REPLACES_CSV_VERSION" ]]; then
-  REPLACES_CSV_VERSION=$PREV
-fi
-
 if [[ -z "$CSV_CHANNEL" ]]; then
-  CSV_CHANNEL=$LATEST
-fi
-
-if [[ -z "$CSV_FROM_VERSION" ]]; then
-  CSV_FROM_VERSION=$PREV
+  CSV_CHANNEL=$LATEST_CHANNEL
 fi
 
 PACKAGE_NAME="performance-addon-operator"
