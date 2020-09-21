@@ -1,0 +1,24 @@
+# permissions for end users to edit performanceprofiles.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: performanceprofile-editor-role
+rules:
+- apiGroups:
+  - performance.openshift.io
+  resources:
+  - performanceprofiles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - performance.openshift.io
+  resources:
+  - performanceprofiles/status
+  verbs:
+  - get
