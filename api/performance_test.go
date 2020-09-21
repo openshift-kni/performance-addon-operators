@@ -1,7 +1,6 @@
 package performance
 
 import (
-	"fmt"
 	"github.com/RHsyseng/operator-utils/pkg/validation"
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
@@ -12,9 +11,8 @@ import (
 )
 
 const (
-	deployCrdPath      = "../../../deploy/crds"
-	crFilename         = "performance.openshift.io_v1_performanceprofile_cr.yaml"
-	crdFilename        = "performance.openshift.io_performanceprofiles_crd.yaml"
+	crFilename         = "../config/samples/performance_v1_performanceprofile.yaml"
+	crdFilename        = "../config/crd/bases/performance.openshift.io_performanceprofiles.yaml"
 	lastHeartbeatPath  = "/status/conditions/lastHeartbeatTime"
 	lastTransitionPath = "/status/conditions/lastTransitionTime"
 )
@@ -24,7 +22,7 @@ var _ = Describe("PerformanceProfile CR(D) Schema", func() {
 
 	BeforeEach(func() {
 		var err error
-		schema, err = getSchema(fmt.Sprintf("%s/%s", deployCrdPath, crdFilename))
+		schema, err = getSchema(crdFilename)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(schema).ToNot(BeNil())
 	})
@@ -40,7 +38,7 @@ var _ = Describe("PerformanceProfile CR(D) Schema", func() {
 	})
 
 	It("should validate CR contents & formatting against provided CRD schema", func() {
-		cr, err := getCR(fmt.Sprintf("%s/%s", deployCrdPath, crFilename))
+		cr, err := getCR(crFilename)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cr).ToNot(BeNil())
 
