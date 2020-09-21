@@ -6,7 +6,7 @@ import (
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	"github.com/openshift-kni/performance-addon-operators/api/v1"
 	"io/ioutil"
 	"strings"
 )
