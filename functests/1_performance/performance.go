@@ -151,6 +151,15 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				Expect(string(initrd)).ShouldNot(ContainSubstring("'/etc/systemd/system.conf /etc/systemd/system.conf.d/setAffinity.conf'"))
 			}
 		})
+
+		It("[test_id:][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running on the host", func() {
+			for _, node := range workerRTNodes {
+				tuned := tunedForNode(&node)
+				_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+				Expect(err).ToNot(HaveOccurred())
+			}
+		})
+
 	})
 
 	Context("Additional kernel arguments added from perfomance profile", func() {
