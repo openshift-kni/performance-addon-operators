@@ -1,6 +1,11 @@
+
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
   name: performanceprofiles.performance.openshift.io
 spec:
   group: performance.openshift.io
@@ -15,7 +20,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: PerformanceProfile is the Schema for the performanceprofiles
-          API.
+          API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -197,7 +202,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: PerformanceProfile is the Schema for the performanceprofiles
-          API.
+          API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -375,3 +380,9 @@ spec:
     storage: false
     subresources:
       status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
