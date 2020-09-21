@@ -13,6 +13,16 @@ spec:
         name: performance-operator
     spec:
       serviceAccountName: performance-operator
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
       containers:
         - name: performance-operator
           # Replace this with the built image name
