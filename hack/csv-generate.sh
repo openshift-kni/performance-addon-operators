@@ -90,7 +90,7 @@ if [[ "$CSV_VERSION" != "$PREV" ]] && [[ "$CSV_VERSION" != "$OLD" ]]; then
     "${EXTRA_ANNOTATIONS}"
 
   $OPERATOR_SDK generate crds
-  cp -a deploy/crds/performance.openshift.io_performanceprofiles_crd.yaml "${OUT_CSV_DIR}"
+  cp -a config/crd/bases/performance.openshift.io_performanceprofiles.yaml "${OUT_CSV_DIR}"
 fi
 
 if [[ "$IS_DEV" == true ]]; then
