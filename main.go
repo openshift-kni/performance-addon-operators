@@ -1,72 +1,66 @@
+/*
+
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
-	"runtime"
-
-	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	"github.com/openshift-kni/performance-addon-operators/version"
-
-	configv1 "github.com/openshift/api/config/v1"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
-	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
-	"github.com/operator-framework/operator-sdk/pkg/metrics"
-	sdkVersion "github.com/operator-framework/operator-sdk/version"
-	"github.com/spf13/pflag"
-
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
-
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
-
+	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
+	"github.com/openshift-kni/performance-addon-operators/controllers"
+	// +kubebuilder:scaffold:imports
 )
 
-// Change below variables to serve metrics on different host or port.
 var (
-	metricsHost               = "0.0.0.0"
-	metricsPort         int32 = 8383
-	operatorMetricsPort int32 = 8686
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
 )
 
-func printVersion() {
-	klog.Infof("Operator Version: %s", version.Version)
-	klog.Infof("Git Commit: %s", version.GitCommit)
-	klog.Infof("Build Date: %s", version.BuildDate)
-	klog.Infof("Go Version: %s", runtime.Version())
-	klog.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
-	klog.Infof("Version of operator-sdk: %v", sdkVersion.Version)
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+
+	utilruntime.Must(performancev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(performancev1.AddToScheme(scheme))
+	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
-	// Add klog flags
-	klog.InitFlags(nil)
+	var metricsAddr string
+	var enableLeaderElection bool
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
+		"Enable leader election for controller manager. "+
+			"Enabling this will ensure there is only one active controller manager.")
+	flag.Parse()
 
-	// Add flags registered by imported packages (e.g. glog and
-	// controller-runtime)
-	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-
-	pflag.Parse()
-
-	printVersion()
-
-	namespace, err := k8sutil.GetWatchNamespace()
-	if err != nil {
-		klog.Exit(err.Error())
-	}
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	// we have two namespaces that we need to watch
 	// 1. tuned namespace - for tuned resources
@@ -76,34 +70,18 @@ func main() {
 		metav1.NamespaceNone,
 	}
 
-	// Get a config to talk to the apiserver
-	cfg, err := config.GetConfig()
-	if err != nil {
-		klog.Exit(err.Error())
-	}
 
-	// Create a new Cmd to provide shared dependencies and start components
-	mgr, err := manager.New(cfg, manager.Options{
-		NewCache:                cache.MultiNamespacedCacheBuilder(namespaces),
-		LeaderElection:          true,
-		LeaderElectionID:        "performance-addon-operators",
-		LeaderElectionNamespace: namespace,
-		Namespace:               namespace,
-		MetricsBindAddress:      fmt.Sprintf("%s:%d", metricsHost, metricsPort),
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		NewCache:           cache.MultiNamespacedCacheBuilder(namespaces),
+		Scheme:             scheme,
+		MetricsBindAddress: metricsAddr,
+		Port:               9443,
+		LeaderElection:     enableLeaderElection,
+		LeaderElectionID:   "performance-addon-operators",
 	})
 	if err != nil {
-		klog.Exit(err.Error())
-	}
-
-	klog.Info("Registering Components.")
-
-	// Setup Scheme for all resources
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		klog.Exit(err.Error())
-	}
-
-	if err := configv1.AddToScheme(mgr.GetScheme()); err != nil {
-		klog.Exit(err.Error())
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
 	}
 
 	if err := mcov1.AddToScheme(mgr.GetScheme()); err != nil {
@@ -114,63 +92,20 @@ func main() {
 		klog.Exit(err.Error())
 	}
 
-	// Setup all Controllers
-	if err := controller.AddToManager(mgr); err != nil {
-		klog.Exit(err.Error())
+	if err = (&controllers.PerformanceProfileReconciler{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		Recorder:  mgr.GetEventRecorderFor("performance-profile-controller"),
+		AssetsDir: components.AssetsDir,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PerformanceProfile")
+		os.Exit(1)
 	}
+	// +kubebuilder:scaffold:builder
 
-	if err = serveCRMetrics(cfg); err != nil {
-		klog.Errorf("Could not generate and serve custom resource metrics: %v", err)
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
 	}
-
-	// Add to the below struct any other metrics ports you want to expose.
-	servicePorts := []v1.ServicePort{
-		{Port: metricsPort, Name: metrics.OperatorPortName, Protocol: v1.ProtocolTCP, TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: metricsPort}},
-		{Port: operatorMetricsPort, Name: metrics.CRPortName, Protocol: v1.ProtocolTCP, TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: operatorMetricsPort}},
-	}
-	// Create Service object to expose the metrics port(s).
-	service, err := metrics.CreateMetricsService(context.TODO(), cfg, servicePorts)
-	if err != nil {
-		klog.Errorf("Could not create metrics Service: %v", err)
-	}
-
-	// CreateServiceMonitors will automatically create the prometheus-operator ServiceMonitor resources
-	// necessary to configure Prometheus to scrape metrics from this operator.
-	services := []*v1.Service{service}
-	_, err = metrics.CreateServiceMonitors(cfg, namespace, services)
-	if err != nil {
-		klog.Errorf("Could not create ServiceMonitor object: %v", err)
-		// If this operator is deployed to a cluster without the prometheus-operator running, it will return
-		// ErrServiceMonitorNotPresent, which can be used to safely skip ServiceMonitor creation.
-		if err == metrics.ErrServiceMonitorNotPresent {
-			klog.Errorf("Install prometheus-operator in your cluster to create ServiceMonitor objects: %v", err)
-		}
-	}
-
-	klog.Info("Starting the Cmd.")
-
-	// Start the Cmd
-	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		klog.Exitf("Manager exited with non-zero code: %v", err)
-	}
-}
-
-// serveCRMetrics gets the Operator/CustomResource GVKs and generates metrics based on those types.
-// It serves those metrics on "http://metricsHost:operatorMetricsPort".
-func serveCRMetrics(cfg *rest.Config) error {
-	// Below function returns filtered operator/CustomResource specific GVKs.
-	// For more control override the below GVK list with your own custom logic.
-	filteredGVK, err := k8sutil.GetGVKsFromAddToScheme(apis.AddToScheme)
-	if err != nil {
-		return err
-	}
-
-	// To generate metrics in other namespaces, add the values below.
-	ns := []string{metav1.NamespaceNone}
-	// Generate and serve custom resource specific metrics.
-	err = kubemetrics.GenerateAndServeCRMetrics(cfg, ns, filteredGVK, metricsHost, operatorMetricsPort)
-	if err != nil {
-		return err
-	}
-	return nil
 }
