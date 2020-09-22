@@ -1,4 +1,4 @@
-package performanceprofile
+package controllers
 
 import (
 	"context"
@@ -12,12 +12,12 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 
 	igntypes "github.com/coreos/ignition/config/v2_2/types"
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components/kubeletconfig"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components/machineconfig"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components/runtimeclass"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components/tuned"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -63,7 +63,7 @@ var _ = Describe("Controller", func() {
 			Name:      profile.Name,
 			Namespace: metav1.NamespaceNone,
 		}
-		Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+		Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
 		Expect(hasFinalizer(updatedProfile, finalizer)).To(Equal(true))
 	})
 
@@ -85,7 +85,7 @@ var _ = Describe("Controller", func() {
 				Name:      profile.Name,
 				Namespace: metav1.NamespaceNone,
 			}
-			Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+			Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
 
 			// verify profile conditions
 			degradeCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionDegraded)
@@ -95,7 +95,7 @@ var _ = Describe("Controller", func() {
 			Expect(degradeCondition.Message).To(Equal("validation error: you should provide only 1 MachineConfigPoolSelector"))
 
 			// verify validation event
-			fakeRecorder, ok := r.recorder.(*record.FakeRecorder)
+			fakeRecorder, ok := r.Recorder.(*record.FakeRecorder)
 			Expect(ok).To(BeTrue())
 			event := <-fakeRecorder.Events
 			Expect(event).To(ContainSubstring("Validation failed"))
@@ -103,7 +103,7 @@ var _ = Describe("Controller", func() {
 			// verify that no components created by the controller
 			mcp := &mcov1.MachineConfigPool{}
 			key.Name = components.GetComponentName(profile.Name, components.ComponentNamePrefix)
-			err := r.client.Get(context.TODO(), key, mcp)
+			err := r.Get(context.TODO(), key, mcp)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 		})
 
@@ -120,24 +120,24 @@ var _ = Describe("Controller", func() {
 
 			// verify MachineConfig creation
 			mc := &mcov1.MachineConfig{}
-			err := r.client.Get(context.TODO(), key, mc)
+			err := r.Get(context.TODO(), key, mc)
 			Expect(err).ToNot(HaveOccurred())
 
 			// verify KubeletConfig creation
 			kc := &mcov1.KubeletConfig{}
-			err = r.client.Get(context.TODO(), key, kc)
+			err = r.Get(context.TODO(), key, kc)
 			Expect(err).ToNot(HaveOccurred())
 
 			// verify RuntimeClass creation
 			runtimeClass := &nodev1beta1.RuntimeClass{}
-			err = r.client.Get(context.TODO(), key, runtimeClass)
+			err = r.Get(context.TODO(), key, runtimeClass)
 			Expect(err).ToNot(HaveOccurred())
 
 			// verify tuned performance creation
 			tunedPerformance := &tunedv1.Tuned{}
 			key.Name = components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 			key.Namespace = components.NamespaceNodeTuningOperator
-			err = r.client.Get(context.TODO(), key, tunedPerformance)
+			err = r.Get(context.TODO(), key, tunedPerformance)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -147,7 +147,7 @@ var _ = Describe("Controller", func() {
 			Expect(reconcileTimes(r, request, 2)).To(Equal(reconcile.Result{}))
 
 			// verify creation event
-			fakeRecorder, ok := r.recorder.(*record.FakeRecorder)
+			fakeRecorder, ok := r.Recorder.(*record.FakeRecorder)
 			Expect(ok).To(BeTrue())
 			event := <-fakeRecorder.Events
 			Expect(event).To(ContainSubstring("Creation succeeded"))
@@ -163,7 +163,7 @@ var _ = Describe("Controller", func() {
 				Name:      profile.Name,
 				Namespace: metav1.NamespaceNone,
 			}
-			Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+			Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
 
 			// verify performance profile status
 			Expect(len(updatedProfile.Status.Conditions)).To(Equal(4))
@@ -199,7 +199,7 @@ var _ = Describe("Controller", func() {
 				Namespace: tunedOutdatedA.Namespace,
 			}
 			ta := &tunedv1.Tuned{}
-			err = r.client.Get(context.TODO(), keyA, ta)
+			err = r.Get(context.TODO(), keyA, ta)
 			Expect(err).ToNot(HaveOccurred())
 
 			keyB := types.NamespacedName{
@@ -207,7 +207,7 @@ var _ = Describe("Controller", func() {
 				Namespace: tunedOutdatedA.Namespace,
 			}
 			tb := &tunedv1.Tuned{}
-			err = r.client.Get(context.TODO(), keyB, tb)
+			err = r.Get(context.TODO(), keyB, tb)
 			Expect(err).ToNot(HaveOccurred())
 
 			result, err := r.Reconcile(request)
@@ -215,7 +215,7 @@ var _ = Describe("Controller", func() {
 			Expect(result).To(Equal(reconcile.Result{}))
 
 			tunedList := &tunedv1.TunedList{}
-			err = r.client.List(context.TODO(), tunedList)
+			err = r.List(context.TODO(), tunedList)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(tunedList.Items)).To(Equal(1))
 			tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
@@ -236,29 +236,29 @@ var _ = Describe("Controller", func() {
 
 			// verify MachineConfig wasn't created
 			mc := &mcov1.MachineConfig{}
-			err := r.client.Get(context.TODO(), key, mc)
+			err := r.Get(context.TODO(), key, mc)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 
 			// verify that KubeletConfig wasn't created
 			kc := &mcov1.KubeletConfig{}
-			err = r.client.Get(context.TODO(), key, kc)
+			err = r.Get(context.TODO(), key, kc)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 
 			// verify no machine config pool was created
 			mcp := &mcov1.MachineConfigPool{}
-			err = r.client.Get(context.TODO(), key, mcp)
+			err = r.Get(context.TODO(), key, mcp)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 
 			// verify tuned Performance wasn't created
 			tunedPerformance := &tunedv1.Tuned{}
 			key.Name = components.ProfileNamePerformance
 			key.Namespace = components.NamespaceNodeTuningOperator
-			err = r.client.Get(context.TODO(), key, tunedPerformance)
+			err = r.Get(context.TODO(), key, tunedPerformance)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 
 			// verify that no RuntimeClass was created
 			runtimeClass := &nodev1beta1.RuntimeClass{}
-			err = r.client.Get(context.TODO(), key, runtimeClass)
+			err = r.Get(context.TODO(), key, runtimeClass)
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 		})
 
@@ -288,7 +288,7 @@ var _ = Describe("Controller", func() {
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 				// verify that no creation event created
-				fakeRecorder, ok := r.recorder.(*record.FakeRecorder)
+				fakeRecorder, ok := r.Recorder.(*record.FakeRecorder)
 				Expect(ok).To(BeTrue())
 
 				select {
@@ -312,7 +312,7 @@ var _ = Describe("Controller", func() {
 
 				// verify MachineConfig update
 				mc := &mcov1.MachineConfig{}
-				err := r.client.Get(context.TODO(), key, mc)
+				err := r.Get(context.TODO(), key, mc)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(mc.Spec.KernelType).To(Equal(machineconfig.MCKernelDefault))
@@ -337,7 +337,7 @@ var _ = Describe("Controller", func() {
 
 				By("Verifying KC update for reserved")
 				kc := &mcov1.KubeletConfig{}
-				err := r.client.Get(context.TODO(), key, kc)
+				err := r.Get(context.TODO(), key, kc)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(kc.Spec.KubeletConfig.Raw)).To(ContainSubstring(fmt.Sprintf(`"reservedSystemCPUs":"%s"`, string(*profile.Spec.CPU.Reserved))))
 
@@ -347,7 +347,7 @@ var _ = Describe("Controller", func() {
 					Namespace: components.NamespaceNodeTuningOperator,
 				}
 				t := &tunedv1.Tuned{}
-				err = r.client.Get(context.TODO(), key, t)
+				err = r.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(*t.Spec.Profile[0].Data).To(ContainSubstring("isolated_cores=" + string(*profile.Spec.CPU.Isolated)))
 			})
@@ -370,7 +370,7 @@ var _ = Describe("Controller", func() {
 					Namespace: components.NamespaceNodeTuningOperator,
 				}
 				t := &tunedv1.Tuned{}
-				err := r.client.Get(context.TODO(), key, t)
+				err := r.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
 				cmdlineRealtimeWithoutCPUBalancing := regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=managed_irq\s*`)
 				Expect(cmdlineRealtimeWithoutCPUBalancing.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
@@ -394,7 +394,7 @@ var _ = Describe("Controller", func() {
 					Namespace: components.NamespaceNodeTuningOperator,
 				}
 				t := &tunedv1.Tuned{}
-				err := r.client.Get(context.TODO(), key, t)
+				err := r.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
 				cmdlineRealtimeWithoutCPUBalancing := regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=domain,managed_irq,\s*`)
 				Expect(cmdlineRealtimeWithoutCPUBalancing.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
@@ -422,7 +422,7 @@ var _ = Describe("Controller", func() {
 					Namespace: components.NamespaceNodeTuningOperator,
 				}
 				t := &tunedv1.Tuned{}
-				err := r.client.Get(context.TODO(), key, t)
+				err := r.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
 				cmdlineHugepages := regexp.MustCompile(`\s*cmdline_hugepages=\+\s*default_hugepagesz=2M\s+hugepagesz=2M\s+hugepages=8\s*`)
 				Expect(cmdlineHugepages.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
@@ -451,7 +451,7 @@ var _ = Describe("Controller", func() {
 					Namespace: components.NamespaceNodeTuningOperator,
 				}
 				t := &tunedv1.Tuned{}
-				err := r.client.Get(context.TODO(), key, t)
+				err := r.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
 				cmdlineHugepages := regexp.MustCompile(`\s*cmdline_hugepages=\+\s*`)
 				Expect(cmdlineHugepages.MatchString(*t.Spec.Profile[0].Data)).To(BeTrue())
@@ -462,7 +462,7 @@ var _ = Describe("Controller", func() {
 					Namespace: metav1.NamespaceNone,
 				}
 				mc := &mcov1.MachineConfig{}
-				err = r.client.Get(context.TODO(), key, mc)
+				err = r.Get(context.TODO(), key, mc)
 				Expect(err).ToNot(HaveOccurred())
 
 				config := &igntypes.Config{}
@@ -488,7 +488,7 @@ var _ = Describe("Controller", func() {
 					Namespace: components.NamespaceNodeTuningOperator,
 				}
 				t := &tunedv1.Tuned{}
-				err := r.client.Get(context.TODO(), key, t)
+				err := r.Get(context.TODO(), key, t)
 				Expect(err).ToNot(HaveOccurred())
 				tunedNamespacedName := namespacedName(t).String()
 				updatedProfile := &performancev1.PerformanceProfile{}
@@ -496,7 +496,7 @@ var _ = Describe("Controller", func() {
 					Name:      profile.Name,
 					Namespace: metav1.NamespaceNone,
 				}
-				Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+				Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
 				Expect(updatedProfile.Status.Tuned).NotTo(BeNil())
 				Expect(*updatedProfile.Status.Tuned).To(Equal(tunedNamespacedName))
 			})
@@ -510,7 +510,7 @@ var _ = Describe("Controller", func() {
 					Namespace: metav1.NamespaceAll,
 				}
 				runtimeClass := &nodev1beta1.RuntimeClass{}
-				err := r.client.Get(context.TODO(), key, runtimeClass)
+				err := r.Get(context.TODO(), key, runtimeClass)
 				Expect(err).ToNot(HaveOccurred())
 
 				updatedProfile := &performancev1.PerformanceProfile{}
@@ -518,7 +518,7 @@ var _ = Describe("Controller", func() {
 					Name:      profile.Name,
 					Namespace: metav1.NamespaceAll,
 				}
-				Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+				Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
 				Expect(updatedProfile.Status.RuntimeClass).NotTo(BeNil())
 				Expect(*updatedProfile.Status.RuntimeClass).To(Equal(runtimeClass.Name))
 			})
@@ -567,7 +567,7 @@ var _ = Describe("Controller", func() {
 					Name:      profile.Name,
 					Namespace: metav1.NamespaceNone,
 				}
-				Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+				Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
 
 				// verify performance profile status
 				Expect(len(updatedProfile.Status.Conditions)).To(Equal(4))
@@ -617,34 +617,34 @@ var _ = Describe("Controller", func() {
 			}
 
 			// verify MachineConfig deletion
-			err = r.client.Get(context.TODO(), key, mc)
+			err = r.Get(context.TODO(), key, mc)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 
 			// verify KubeletConfig deletion
-			err = r.client.Get(context.TODO(), key, kc)
+			err = r.Get(context.TODO(), key, kc)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 
 			// verify RuntimeClass deletion
-			err = r.client.Get(context.TODO(), key, runtimeClass)
+			err = r.Get(context.TODO(), key, runtimeClass)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 
 			// verify tuned real-time kernel deletion
 			key.Name = components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 			key.Namespace = components.NamespaceNodeTuningOperator
-			err = r.client.Get(context.TODO(), key, tunedPerformance)
+			err = r.Get(context.TODO(), key, tunedPerformance)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 
 			// verify finalizer deletion
 			key.Name = profile.Name
 			key.Namespace = metav1.NamespaceNone
 			updatedProfile := &performancev1.PerformanceProfile{}
-			Expect(r.client.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+			Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
 			Expect(hasFinalizer(updatedProfile, finalizer)).To(Equal(false))
 		})
 	})
 })
 
-func reconcileTimes(reconciler *ReconcilePerformanceProfile, request reconcile.Request, times int) reconcile.Result {
+func reconcileTimes(reconciler *PerformanceProfileReconciler, request reconcile.Request, times int) reconcile.Result {
 	var result reconcile.Result
 	var err error
 	for i := 0; i < times; i++ {
@@ -655,13 +655,13 @@ func reconcileTimes(reconciler *ReconcilePerformanceProfile, request reconcile.R
 }
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client
-func newFakeReconciler(initObjects ...runtime.Object) *ReconcilePerformanceProfile {
+func newFakeReconciler(initObjects ...runtime.Object) *PerformanceProfileReconciler {
 	fakeClient := fake.NewFakeClientWithScheme(scheme.Scheme, initObjects...)
 	fakeRecorder := record.NewFakeRecorder(10)
-	return &ReconcilePerformanceProfile{
-		client:    fakeClient,
-		scheme:    scheme.Scheme,
-		recorder:  fakeRecorder,
-		assetsDir: assetsDir,
+	return &PerformanceProfileReconciler{
+		Client:    fakeClient,
+		Scheme:    scheme.Scheme,
+		Recorder:  fakeRecorder,
+		AssetsDir: assetsDir,
 	}
 }
