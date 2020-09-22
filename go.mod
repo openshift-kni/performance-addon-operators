@@ -8,30 +8,33 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f
 	github.com/coreos/ignition v0.35.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
-	github.com/onsi/ginkgo v1.12.0
-	github.com/onsi/gomega v1.9.0
+	github.com/onsi/ginkgo v1.12.1
+	github.com/onsi/gomega v1.10.1
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
-	github.com/openshift/cluster-node-tuning-operator v0.0.0-00010101000000-000000000000
-	github.com/openshift/custom-resource-status v0.0.0-20190822192428-e62f2f3b79f3
+	github.com/openshift/cluster-node-tuning-operator v0.0.0-20200914165052-a39511828cf0
+	github.com/openshift/custom-resource-status v0.0.0-20200602122900-c002fd1547ca
 	github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20191115003340-16619cd27fa5
-	github.com/operator-framework/operator-sdk v0.18.2
-	github.com/spf13/pflag v1.0.5
+	github.com/operator-framework/operator-sdk v0.18.2 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vincent-petithory/dataurl v0.0.0-20191104211930-d1553a71de50 // indirect
-	k8s.io/api v0.18.3
-	k8s.io/apiextensions-apiserver v0.18.3
-	k8s.io/apimachinery v0.18.3
+	k8s.io/api v0.18.6
+	k8s.io/apiextensions-apiserver v0.18.6
+	k8s.io/apimachinery v0.18.6
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
-	k8s.io/kubelet v0.18.0
+	k8s.io/kubelet v0.18.3
 	k8s.io/kubernetes v1.18.3
-	k8s.io/utils v0.0.0-20200414100711-2df71ebbae66
+	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	kubevirt.io/qe-tools v0.1.6
-	sigs.k8s.io/controller-runtime v0.6.0
+	sigs.k8s.io/controller-runtime v0.6.2
 )
 
 // Pinned to kubernetes-1.18.3
 replace (
+	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20200408190329-b227599f61b0 // release-4.5
+	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20200421122923-c1de486c7d47 // fix bitbucket dependency https://github.com/openshift/library-go/pull/776
+	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.1-0.20200618004043-7b1eb84e0083 // release-4.5
 	k8s.io/api => k8s.io/api v0.18.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.3
 	k8s.io/apimachinery => k8s.io/apimachinery v0.18.3
@@ -54,7 +57,7 @@ replace (
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.3
 	k8s.io/metrics => k8s.io/metrics v0.18.3
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.18.3
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.6.0
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.6.2
 )
 
 // Other pinned deps
