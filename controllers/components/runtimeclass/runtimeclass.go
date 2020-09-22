@@ -1,8 +1,8 @@
 package runtimeclass
 
 import (
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
 
 	nodev1beta1 "k8s.io/api/node/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

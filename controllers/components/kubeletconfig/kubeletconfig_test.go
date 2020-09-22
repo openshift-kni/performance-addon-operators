@@ -7,8 +7,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
+	testutils "github.com/openshift-kni/performance-addon-operators/utils/testing"
 )
 
 var _ = Describe("Kubelet Config", func() {

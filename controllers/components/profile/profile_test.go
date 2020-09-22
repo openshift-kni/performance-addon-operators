@@ -3,14 +3,14 @@ package profile
 import (
 	"fmt"
 
-	v1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	v1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
 	"k8s.io/utils/pointer"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
+	testutils "github.com/openshift-kni/performance-addon-operators/utils/testing"
 )
 
 const (

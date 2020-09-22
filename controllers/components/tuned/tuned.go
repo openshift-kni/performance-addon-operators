@@ -10,9 +10,9 @@ import (
 
 	"k8s.io/utils/pointer"
 
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	componentsprofile "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
+	componentsprofile "github.com/openshift-kni/performance-addon-operators/controllers/components/profile"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
