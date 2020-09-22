@@ -1,11 +1,11 @@
-package performanceprofile
+package controllers
 
 import (
 	"bytes"
 	"context"
 	"time"
 
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -25,7 +25,7 @@ const (
 	conditionFailedGettingMCPStatus         = "GettingMCPStatusFailed"
 )
 
-func (r *ReconcilePerformanceProfile) updateStatus(profile *performancev1.PerformanceProfile, conditions []conditionsv1.Condition) error {
+func (r *PerformanceProfileReconciler) updateStatus(profile *performancev1.PerformanceProfile, conditions []conditionsv1.Condition) error {
 	profileCopy := profile.DeepCopy()
 
 	if conditions != nil {
@@ -74,10 +74,10 @@ func (r *ReconcilePerformanceProfile) updateStatus(profile *performancev1.Perfor
 	}
 
 	klog.Infof("Updating the performance profile %q status", profile.Name)
-	return r.client.Status().Update(context.TODO(), profileCopy)
+	return r.Status().Update(context.TODO(), profileCopy)
 }
 
-func (r *ReconcilePerformanceProfile) getAvailableConditions() []conditionsv1.Condition {
+func (r *PerformanceProfileReconciler) getAvailableConditions() []conditionsv1.Condition {
 	now := time.Now()
 	return []conditionsv1.Condition{
 		{
@@ -107,7 +107,7 @@ func (r *ReconcilePerformanceProfile) getAvailableConditions() []conditionsv1.Co
 	}
 }
 
-func (r *ReconcilePerformanceProfile) getDegradedConditions(reason string, message string) []conditionsv1.Condition {
+func (r *PerformanceProfileReconciler) getDegradedConditions(reason string, message string) []conditionsv1.Condition {
 	now := time.Now()
 	return []conditionsv1.Condition{
 		{
@@ -139,7 +139,7 @@ func (r *ReconcilePerformanceProfile) getDegradedConditions(reason string, messa
 	}
 }
 
-func (r *ReconcilePerformanceProfile) getProgressingConditions(reason string, message string) []conditionsv1.Condition {
+func (r *PerformanceProfileReconciler) getProgressingConditions(reason string, message string) []conditionsv1.Condition {
 	now := time.Now()
 
 	return []conditionsv1.Condition{
@@ -168,11 +168,11 @@ func (r *ReconcilePerformanceProfile) getProgressingConditions(reason string, me
 	}
 }
 
-func (r *ReconcilePerformanceProfile) getMCPConditionsByProfile(profile *performancev1.PerformanceProfile) ([]conditionsv1.Condition, error) {
+func (r *PerformanceProfileReconciler) getMCPConditionsByProfile(profile *performancev1.PerformanceProfile) ([]conditionsv1.Condition, error) {
 
 	mcpList := &mcov1.MachineConfigPoolList{}
 
-	if err := r.client.List(context.TODO(), mcpList); err != nil {
+	if err := r.List(context.TODO(), mcpList); err != nil {
 		klog.Errorf("Cannot list Machine config pools to match with profile %q : %v", profile.Name, err)
 		return nil, err
 	}

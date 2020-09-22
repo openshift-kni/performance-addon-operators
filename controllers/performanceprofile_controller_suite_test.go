@@ -1,4 +1,4 @@
-package performanceprofile
+package controllers
 
 import (
 	"testing"
