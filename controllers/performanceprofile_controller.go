@@ -1,23 +1,34 @@
-package performanceprofile
+/*
+
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package controllers
 
 import (
 	"context"
-	"reflect"
-	"time"
-
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
-	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components/kubeletconfig"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components/machineconfig"
+	profileutil "github.com/openshift-kni/performance-addon-operators/controllers/components/profile"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components/runtimeclass"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components/tuned"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
-
 	corev1 "k8s.io/api/core/v1"
 	nodev1beta1 "k8s.io/api/node/v1beta1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -25,178 +36,39 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
-
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	"time"
 )
 
 const finalizer = "foreground-deletion"
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
-
-// Add creates a new PerformanceProfile Controller and adds it to the Manager. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+// PerformanceProfileReconciler reconciles a PerformanceProfile object
+type PerformanceProfileReconciler struct {
+	client.Client
+	Scheme    *runtime.Scheme
+	Recorder  record.EventRecorder
+	AssetsDir string
 }
 
-// newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) *ReconcilePerformanceProfile {
-	return &ReconcilePerformanceProfile{
-		client:    mgr.GetClient(),
-		scheme:    mgr.GetScheme(),
-		recorder:  mgr.GetEventRecorderFor("performance-profile-controller"),
-		assetsDir: components.AssetsDir,
-	}
-}
+// +kubebuilder:rbac:groups=performance.openshift.io,resources=performanceprofiles;performanceprofiles/status;performanceprofiles/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=machineconfiguration.openshift.io,resources=machineconfigs;machineconfigpools;kubeletconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=tuned.openshift.io,resources=tuneds,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=node.k8s.io,resources=runtimeclasses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:namespace=Role,groups=core,resources=events;pods;services;services/finalizers;configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:namespace=Role,groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:namespace=Role,groups=apps,resources=deployments/finalizers,verbs=update
+// +kubebuilder:rbac:namespace=Role,groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create;update;patch;delete
 
-// add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
-	// Create a new controller
-	c, err := controller.New("performanceprofile-controller", mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to primary resource PerformanceProfile
-	err = c.Watch(&source.Kind{Type: &performancev1.PerformanceProfile{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// we want to initate reconcile loop only on change under labels or spec of the object
-	p := predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.MetaOld == nil {
-				klog.Error("Update event has no old metadata")
-				return false
-			}
-			if e.ObjectOld == nil {
-				klog.Error("Update event has no old runtime object to update")
-				return false
-			}
-			if e.ObjectNew == nil {
-				klog.Error("Update event has no new runtime object for update")
-				return false
-			}
-			if e.MetaNew == nil {
-				klog.Error("Update event has no new metadata")
-				return false
-			}
-
-			return e.MetaNew.GetGeneration() != e.MetaOld.GetGeneration() ||
-				!apiequality.Semantic.DeepEqual(e.MetaNew.GetLabels(), e.MetaOld.GetLabels())
-		},
-	}
-
-	// Watch for changes to machine configs owned by our controller
-	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfig{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &performancev1.PerformanceProfile{},
-	}, p)
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to kubelet configs owned by our controller
-	err = c.Watch(&source.Kind{Type: &mcov1.KubeletConfig{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &performancev1.PerformanceProfile{},
-	}, p)
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to tuned owned by our controller
-	err = c.Watch(&source.Kind{Type: &tunedv1.Tuned{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &performancev1.PerformanceProfile{},
-	}, p)
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes for the RuntimeClass owned by our resource
-	err = c.Watch(&source.Kind{Type: &nodev1beta1.RuntimeClass{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &performancev1.PerformanceProfile{},
-	}, p)
-	if err != nil {
-		return err
-	}
-
-	mcpPredicates := predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.MetaOld == nil {
-				klog.Error("Update event has no old metadata")
-				return false
-			}
-			if e.ObjectOld == nil {
-				klog.Error("Update event has no old runtime object to update")
-				return false
-			}
-			if e.ObjectNew == nil {
-				klog.Error("Update event has no new runtime object for update")
-				return false
-			}
-			if e.MetaNew == nil {
-				klog.Error("Update event has no new metadata")
-				return false
-			}
-
-			mcpOld := e.ObjectOld.(*mcov1.MachineConfigPool)
-			mcpNew := e.ObjectNew.(*mcov1.MachineConfigPool)
-			mcpNewCopy := mcpNew.DeepCopy()
-
-			mcpNewCopy.Spec.Paused = mcpOld.Spec.Paused
-			mcpNewCopy.Spec.Configuration = mcpOld.Spec.Configuration
-
-			return !reflect.DeepEqual(mcpOld.Status.Conditions, mcpNewCopy.Status.Conditions)
-		},
-	}
-
-	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfigPool{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: (handler.ToRequestsFunc)(r.ppRequestsFromMCP)}, mcpPredicates)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// blank assignment to verify that ReconcilePerformanceProfile implements reconcile.Reconciler
-var _ reconcile.Reconciler = &ReconcilePerformanceProfile{}
-
-// ReconcilePerformanceProfile reconciles a PerformanceProfile object
-type ReconcilePerformanceProfile struct {
-	// This client, initialized using mgr.Client() above, is a split client
-	// that reads objects from the cache and writes to the apiserver
-	client    client.Client
-	scheme    *runtime.Scheme
-	recorder  record.EventRecorder
-	assetsDir string
-}
-
-// Reconcile reads that state of the cluster for a PerformanceProfile object and makes changes based on the state read
-// and what is in the PerformanceProfile.Spec
-// Note:
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
-// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	klog.Info("Reconciling PerformanceProfile")
 
 	// Fetch the PerformanceProfile instance
 	instance := &performancev1.PerformanceProfile{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -212,10 +84,10 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		// delete components
 		if err := r.deleteComponents(instance); err != nil {
 			klog.Errorf("failed to delete components: %v", err)
-			r.recorder.Eventf(instance, corev1.EventTypeWarning, "Deletion failed", "Failed to delete components: %v", err)
+			r.Recorder.Eventf(instance, corev1.EventTypeWarning, "Deletion failed", "Failed to delete components: %v", err)
 			return reconcile.Result{}, err
 		}
-		r.recorder.Eventf(instance, corev1.EventTypeNormal, "Deletion succeeded", "Succeeded to delete all components")
+		r.Recorder.Eventf(instance, corev1.EventTypeNormal, "Deletion succeeded", "Succeeded to delete all components")
 
 		if r.isComponentsExist(instance) {
 			return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
@@ -224,7 +96,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		// remove finalizer
 		if hasFinalizer(instance, finalizer) {
 			removeFinalizer(instance, finalizer)
-			if err := r.client.Update(context.TODO(), instance); err != nil {
+			if err := r.Update(context.TODO(), instance); err != nil {
 				return reconcile.Result{}, err
 			}
 
@@ -236,7 +108,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	if !hasFinalizer(instance, finalizer) {
 		instance.Finalizers = append(instance.Finalizers, finalizer)
 		instance.Status.Conditions = r.getProgressingConditions("DeploymentStarting", "Deployment is starting")
-		if err := r.client.Update(context.TODO(), instance); err != nil {
+		if err := r.Update(context.TODO(), instance); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -249,7 +121,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	// for now let's assume that all parameters needed for assets scrips are required
 	if err := profileutil.ValidateParameters(instance); err != nil {
 		klog.Errorf("failed to reconcile: %v", err)
-		r.recorder.Eventf(instance, corev1.EventTypeWarning, "Validation failed", "Profile validation failed: %v", err)
+		r.Recorder.Eventf(instance, corev1.EventTypeWarning, "Validation failed", "Profile validation failed: %v", err)
 		conditions := r.getDegradedConditions(conditionReasonValidationFailed, err.Error())
 		if err := r.updateStatus(instance, conditions); err != nil {
 			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
@@ -263,7 +135,7 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 	result, err := r.applyComponents(instance)
 	if err != nil {
 		klog.Errorf("failed to deploy performance profile %q components: %v", instance.Name, err)
-		r.recorder.Eventf(instance, corev1.EventTypeWarning, "Creation failed", "Failed to create all components: %v", err)
+		r.Recorder.Eventf(instance, corev1.EventTypeWarning, "Creation failed", "Failed to create all components: %v", err)
 		conditions := r.getDegradedConditions(conditionReasonComponentsCreationFailed, err.Error())
 		if err := r.updateStatus(instance, conditions); err != nil {
 			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
@@ -300,14 +172,13 @@ func (r *ReconcilePerformanceProfile) Reconcile(request reconcile.Request) (reco
 		return *result, nil
 	}
 
-	return reconcile.Result{}, nil
+	return ctrl.Result{}, nil
 }
 
-func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []reconcile.Request {
-
+func (r *PerformanceProfileReconciler) ppRequestsFromMCP(o handler.MapObject) []reconcile.Request {
 	mcp := &mcov1.MachineConfigPool{}
 
-	if err := r.client.Get(context.TODO(),
+	if err := r.Get(context.TODO(),
 		types.NamespacedName{
 			Namespace: o.Meta.GetNamespace(),
 			Name:      o.Meta.GetName(),
@@ -319,7 +190,7 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 	}
 
 	ppList := &performancev1.PerformanceProfileList{}
-	if err := r.client.List(context.TODO(), ppList); err != nil {
+	if err := r.List(context.TODO(), ppList); err != nil {
 		klog.Errorf("Unable to list performance profiles: %v", err)
 		return nil
 	}
@@ -334,7 +205,7 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 	return requests
 }
 
-func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.PerformanceProfile) (*reconcile.Result, error) {
+func (r *PerformanceProfileReconciler) applyComponents(profile *performancev1.PerformanceProfile) (*reconcile.Result, error) {
 
 	if profileutil.IsPaused(profile) {
 		klog.Infof("Ignoring reconcile loop for pause performance profile %s", profile.Name)
@@ -342,11 +213,11 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.Per
 	}
 
 	// get mutated machine config
-	mc, err := machineconfig.New(r.assetsDir, profile)
+	mc, err := machineconfig.New(r.AssetsDir, profile)
 	if err != nil {
 		return nil, err
 	}
-	if err := controllerutil.SetControllerReference(profile, mc, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profile, mc, r.Scheme); err != nil {
 		return nil, err
 	}
 	mcMutated, err := r.getMutatedMachineConfig(mc)
@@ -359,7 +230,7 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.Per
 	if err != nil {
 		return nil, err
 	}
-	if err := controllerutil.SetControllerReference(profile, kc, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profile, kc, r.Scheme); err != nil {
 		return nil, err
 	}
 	kcMutated, err := r.getMutatedKubeletConfig(kc)
@@ -368,12 +239,12 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.Per
 	}
 
 	// get mutated performance tuned
-	performanceTuned, err := tuned.NewNodePerformance(r.assetsDir, profile)
+	performanceTuned, err := tuned.NewNodePerformance(r.AssetsDir, profile)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := controllerutil.SetControllerReference(profile, performanceTuned, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profile, performanceTuned, r.Scheme); err != nil {
 		return nil, err
 	}
 	performanceTunedMutated, err := r.getMutatedTuned(performanceTuned)
@@ -383,7 +254,7 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.Per
 
 	// get mutated RuntimeClass
 	runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
-	if err := controllerutil.SetControllerReference(profile, runtimeClass, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(profile, runtimeClass, r.Scheme); err != nil {
 		return nil, err
 	}
 	runtimeClassMutated, err := r.getMutatedRuntimeClass(runtimeClass)
@@ -425,11 +296,11 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.Per
 		}
 	}
 
-	r.recorder.Eventf(profile, corev1.EventTypeNormal, "Creation succeeded", "Succeeded to create all components")
+	r.Recorder.Eventf(profile, corev1.EventTypeNormal, "Creation succeeded", "Succeeded to create all components")
 	return &reconcile.Result{}, nil
 }
 
-func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1.PerformanceProfile) error {
+func (r *PerformanceProfileReconciler) deleteComponents(profile *performancev1.PerformanceProfile) error {
 	tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 	if err := r.deleteTuned(tunedName, components.NamespaceNodeTuningOperator); err != nil {
 		return err
@@ -452,7 +323,7 @@ func (r *ReconcilePerformanceProfile) deleteComponents(profile *performancev1.Pe
 
 }
 
-func (r *ReconcilePerformanceProfile) isComponentsExist(profile *performancev1.PerformanceProfile) bool {
+func (r *PerformanceProfileReconciler) isComponentsExist(profile *performancev1.PerformanceProfile) bool {
 	tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 	if _, err := r.getTuned(tunedName, components.NamespaceNodeTuningOperator); !errors.IsNotFound(err) {
 		klog.Infof("Tuned %q custom resource is still exists under the namespace %q", tunedName, components.NamespaceNodeTuningOperator)
@@ -483,7 +354,7 @@ func hasFinalizer(profile *performancev1.PerformanceProfile, finalizer string) b
 }
 
 func removeFinalizer(profile *performancev1.PerformanceProfile, finalizer string) {
-	finalizers := []string{}
+	var finalizers []string
 	for _, f := range profile.Finalizers {
 		if f == finalizer {
 			continue
@@ -515,4 +386,18 @@ func hasMatchingLabels(performanceprofile *performancev1.PerformanceProfile, mcp
 		return false
 	}
 	return true
+}
+
+func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	err := ctrl.NewControllerManagedBy(mgr).
+		For(&performancev1.PerformanceProfile{}).
+		Owns(&mcov1.MachineConfig{}).
+		Owns(&tunedv1.Tuned{}).
+		Owns(&nodev1beta1.RuntimeClass{}).
+		Owns(&mcov1.MachineConfigPool{}).
+		Complete(r)
+	if err != nil {
+		return err
+	}
+	return nil
 }
