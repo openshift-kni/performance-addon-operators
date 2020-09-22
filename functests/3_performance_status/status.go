@@ -11,13 +11,13 @@ import (
 	v1 "github.com/openshift/custom-resource-status/conditions/v1"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 
 	corev1 "k8s.io/api/core/v1"
 	nodev1beta1 "k8s.io/api/node/v1beta1"

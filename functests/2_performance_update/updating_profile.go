@@ -15,14 +15,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 )
 
 var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance profile", func() {

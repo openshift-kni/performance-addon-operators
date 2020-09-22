@@ -12,14 +12,14 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	v1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	v1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

@@ -7,8 +7,8 @@ import (
 
 	. "github.com/onsi/gomega"
 
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	v1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 

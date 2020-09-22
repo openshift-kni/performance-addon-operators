@@ -31,9 +31,9 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components"
+	"github.com/openshift-kni/performance-addon-operators/controllers/components/machineconfig"
 )
 
 const (
@@ -222,7 +222,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			secondProfile := &performancev1.PerformanceProfile{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "PerformanceProfile",
-					APIVersion: performancev1.SchemeGroupVersion.String(),
+					APIVersion: performancev1.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "profile2",

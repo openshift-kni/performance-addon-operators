@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
@@ -21,8 +22,6 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 
 	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
-
-	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
 )
 
 var (
@@ -36,7 +35,7 @@ var (
 
 func init() {
 	// Setup Scheme for all resources
-	if err := apis.AddToScheme(scheme.Scheme); err != nil {
+	if err := performancev1.AddToScheme(scheme.Scheme); err != nil {
 		klog.Exit(err.Error())
 	}
 

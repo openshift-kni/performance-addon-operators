@@ -1,7 +1,7 @@
 package testing
 
 import (
-	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

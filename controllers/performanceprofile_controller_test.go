@@ -18,7 +18,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/controllers/components/machineconfig"
 	"github.com/openshift-kni/performance-addon-operators/controllers/components/runtimeclass"
 	"github.com/openshift-kni/performance-addon-operators/controllers/components/tuned"
-	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
+	testutils "github.com/openshift-kni/performance-addon-operators/utils/testing"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
