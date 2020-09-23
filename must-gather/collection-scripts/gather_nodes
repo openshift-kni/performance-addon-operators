@@ -29,6 +29,10 @@ NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 POD_NAME=$(oc get pods -l 'app=must-gather' -n $NAMESPACE -o'custom-columns=name:metadata.name' --no-headers)
 MUST_GATHER_IMAGE=$(oc get pod -n $NAMESPACE $POD_NAME -o jsonpath="{.spec.containers[0].image}")
 
+POD_IP=$(hostname -I |  tr -d "[:blank:]" )
+echo "[$NAMESPACE/$POD_IP/$POD_NAME]" >> ${BASE_COLLECTION_PATH}/debug
+oc get pod -n $NAMESPACE $POD_NAME -o json >> ${BASE_COLLECTION_PATH}/debug
+
 sed -i -e "s#MUST_GATHER_IMAGE#$MUST_GATHER_IMAGE#" $DAEMONSET_MANIFEST
 
 oc create -f $NAMESPACE_MANIFEST
