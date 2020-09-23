@@ -4,8 +4,14 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: manager-role
+  name: performance-operator
 rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - '*'
 - apiGroups:
   - machineconfiguration.openshift.io
   resources:
@@ -13,25 +19,13 @@ rules:
   - machineconfigpools
   - machineconfigs
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - '*'
 - apiGroups:
   - node.k8s.io
   resources:
   - runtimeclasses
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - '*'
 - apiGroups:
   - performance.openshift.io
   resources:
@@ -39,33 +33,21 @@ rules:
   - performanceprofiles/finalizers
   - performanceprofiles/status
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - '*'
 - apiGroups:
   - tuned.openshift.io
   resources:
   - tuneds
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - '*'
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   creationTimestamp: null
-  name: manager-role
-  namespace: Role
+  name: performance-operator
+  namespace: openshift-performance-addon
 rules:
 - apiGroups:
   - apps
@@ -75,15 +57,11 @@ rules:
   - replicasets
   - statefulsets
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - '*'
 - apiGroups:
   - apps
+  resourceNames:
+  - performance-operator
   resources:
   - deployments/finalizers
   verbs:
@@ -92,27 +70,14 @@ rules:
   - ""
   resources:
   - configmaps
-  - events
   - pods
   - services
   - services/finalizers
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - '*'
 - apiGroups:
   - monitoring.coreos.com
   resources:
   - servicemonitors
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - '*'
