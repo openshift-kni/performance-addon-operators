@@ -82,7 +82,7 @@ NUMA defines parameters related to topology awareness and affinity.
 
 ## PerformanceProfile
 
-PerformanceProfile is the Schema for the performanceprofiles API.
+PerformanceProfile is the Schema for the performanceprofiles API
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
@@ -94,7 +94,7 @@ PerformanceProfile is the Schema for the performanceprofiles API.
 
 ## PerformanceProfileList
 
-PerformanceProfileList contains a list of PerformanceProfile.
+PerformanceProfileList contains a list of PerformanceProfile
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
