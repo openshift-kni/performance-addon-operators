@@ -36,8 +36,8 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	var profile *performancev1.PerformanceProfile
 	var balanceIsolated bool
 	var reservedCPU, isolatedCPU string
-	var listReservedCPU []int
-	var reservedCPUSet cpuset.CPUSet
+	var listReservedCPU, listIsolatedCPU []int
+	var reservedCPUSet, isolatedCPUSet cpuset.CPUSet
 
 	BeforeEach(func() {
 		if discovery.Enabled() && testutils.ProfileNotFound {
@@ -62,6 +62,9 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 		Expect(profile.Spec.CPU.Isolated).NotTo(BeNil())
 		isolatedCPU = string(*profile.Spec.CPU.Isolated)
+		isolatedCPUSet, err = cpuset.Parse(isolatedCPU)
+		Expect(err).ToNot(HaveOccurred())
+		listIsolatedCPU = isolatedCPUSet.ToSlice()
 
 		Expect(profile.Spec.CPU.Reserved).NotTo(BeNil())
 		reservedCPU = string(*profile.Spec.CPU.Reserved)
@@ -138,7 +141,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 				Expect(err).ToNot(HaveOccurred())
 				cpu, err := strconv.Atoi(strings.Trim(psr, " "))
 				Expect(err).ToNot(HaveOccurred())
-				Expect(cpu).To(BeElementOf(listReservedCPU))
+				Expect(cpu).NotTo(BeElementOf(listIsolatedCPU))
 			}
 		})
 	})
