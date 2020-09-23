@@ -150,22 +150,22 @@ operator-sdk:
 	fi
 
 .PHONY: generate-csv
-generate-csv: operator-sdk dist-csv-generator
+generate-csv: operator-sdk kustomize dist-csv-generator
 	@if [ -z "$(REGISTRY_NAMESPACE)" ]; then\
 		echo "REGISTRY_NAMESPACE env-var must be set to your $(IMAGE_REGISTRY) namespace";\
 		exit 1;\
 	fi
-	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/csv-generate.sh
+	OPERATOR_SDK=$(OPERATOR_SDK) KUSTOMIZE=$(KUSTOMIZE) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/csv-generate.sh
 
 .PHONY: build-output-dir
 build-output-dir:
 	mkdir -p build/_output/bin || :
 
 .PHONY: generate-latest-dev-csv
-generate-latest-dev-csv: operator-sdk dist-csv-generator build-output-dir
+generate-latest-dev-csv: operator-sdk kustomize dist-csv-generator build-output-dir
 	@echo Generating developer csv
 	@echo
-	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" hack/csv-generate.sh -dev
+	OPERATOR_SDK=$(OPERATOR_SDK) KUSTOMIZE=$(KUSTOMIZE) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" hack/csv-generate.sh -dev
 
 .PHONY: generate-docs
 generate-docs: dist-docs-generator

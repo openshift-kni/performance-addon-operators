@@ -28,7 +28,7 @@ CSV_DIR="${PACKAGE_DIR}/${CSV_VERSION}"
 OUT_ROOT="build/_output"
 OUT_DIR="${OUT_ROOT}/olm-catalog"
 OUT_CSV_DIR="${OUT_DIR}/${PACKAGE_NAME}/${CSV_VERSION}"
-OUT_CSV_FILE="${OUT_CSV_DIR}/${PACKAGE_NAME}.v${CSV_VERSION}.clusterserviceversion.yaml"
+OUT_CSV_FILE="${OUT_DIR}/${CSV_VERSION}/${PACKAGE_NAME}.clusterserviceversion.yaml"
 
 TEMPLATES_DIR="${OUT_ROOT}/templates"
 CSV_TEMPLATE_FILE="${TEMPLATES_DIR}/${PACKAGE_NAME}.v${CSV_VERSION}.clusterserviceversion.yaml"
@@ -65,18 +65,22 @@ if [[ "$CSV_VERSION" != "$PREV" ]] && [[ "$CSV_VERSION" != "$OLD" ]]; then
   cp -a deploy/olm-catalog build/_output
 
   # generate a temporary csv we'll use as a template
-  $OPERATOR_SDK generate csv \
-    --operator-name="${PACKAGE_NAME}" \
-    --csv-version="${CSV_VERSION}" \
-    --csv-channel="${CSV_CHANNEL}" \
+  $KUSTOMIZE build config/default | $OPERATOR_SDK generate packagemanifests \
+    --version="${CSV_VERSION}" \
+    --channel="${CSV_CHANNEL}" \
     --default-channel=true \
-    --update-crds \
-    --make-manifests=false \
+    --update-objects \
     --from-version="${CSV_FROM_VERSION}" \
-    --output-dir="${OUT_ROOT}"
+    --deploy-dir="deploy/olm-catalog"   \
+    --output-dir="${OUT_DIR}" \
+    --crds-dir="config/crd/bases"
 
   # copy template CSV file to preserve it for our csv-generator
   mv "${OUT_CSV_FILE}" "${CSV_TEMPLATE_FILE}"
+
+  # copy the CRD before the generator will delete it
+  cp "${OUT_DIR}/${CSV_VERSION}/performance.openshift.io_performanceprofiles.yaml" \
+     "${CSV_DIR}/performance.openshift.io_performanceprofiles_crd.yaml"
 
   # using the generated CSV, create the real CSV by injecting all the right data into it
   build/_output/bin/csv-generator \
@@ -89,8 +93,9 @@ if [[ "$CSV_VERSION" != "$PREV" ]] && [[ "$CSV_VERSION" != "$OLD" ]]; then
     "${MAINTAINERS}" \
     "${EXTRA_ANNOTATIONS}"
 
-  $OPERATOR_SDK generate crds
-  cp -a config/crd/bases/performance.openshift.io_performanceprofiles.yaml "${OUT_CSV_DIR}"
+    # restore the deleted CRD
+    cp "${CSV_DIR}/performance.openshift.io_performanceprofiles_crd.yaml" \
+      "${OUT_CSV_DIR}/performance.openshift.io_performanceprofiles_crd.yaml"
 fi
 
 if [[ "$IS_DEV" == true ]]; then
