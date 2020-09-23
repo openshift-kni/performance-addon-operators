@@ -27,7 +27,7 @@ SERVICEACCOUNT_MANIFEST="/etc/node-gather/serviceaccount.yaml"
 DAEMONSET_MANIFEST="/etc/node-gather/daemonset.yaml"
 NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 POD_NAME=$(oc get pods --field-selector=status.podIP=$(hostname -I) -n $NAMESPACE -o'custom-columns=name:metadata.name' --no-headers)
-MUST_GATHER_IMAGE=$(oc get pod -n $NAMESPACE $POD_NAME -o jsonpath="{.spec.initContainers[0].image}")
+MUST_GATHER_IMAGE=$(oc get pod -n $NAMESPACE $POD_NAME -o jsonpath="{.spec.containers[0].image}")
 
 sed -i -e "s#MUST_GATHER_IMAGE#$MUST_GATHER_IMAGE#" $DAEMONSET_MANIFEST
 
