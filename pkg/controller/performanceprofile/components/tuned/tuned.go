@@ -118,7 +118,7 @@ func NewNodePerformance(assetsDir string, profile *performancev1.PerformanceProf
 		},
 	}
 
-	priority := uint64(30)
+	priority := uint64(20)
 	recommends := []tunedv1.TunedRecommend{
 		{
 			Profile:             &name,
