@@ -47,6 +47,8 @@ metadata:
     containerImage: REPLACE_IMAGE
     description: Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency.
     olm.skipRange: '>=4.5.0 <4.6.0'
+    operators.operatorframework.io/builder: operator-sdk-v1.0.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/operator-kni/performance-addon-operators
   name: performance-addon-operator.v4.6.0
   namespace: placeholder
@@ -79,6 +81,20 @@ spec:
           verbs:
           - '*'
         - apiGroups:
+          - machineconfiguration.openshift.io
+          resources:
+          - kubeletconfigs
+          - machineconfigpools
+          - machineconfigs
+          verbs:
+          - '*'
+        - apiGroups:
+          - node.k8s.io
+          resources:
+          - runtimeclasses
+          verbs:
+          - '*'
+        - apiGroups:
           - performance.openshift.io
           resources:
           - performanceprofiles
@@ -87,23 +103,9 @@ spec:
           verbs:
           - '*'
         - apiGroups:
-          - machineconfiguration.openshift.io
-          resources:
-          - machineconfigs
-          - machineconfigpools
-          - kubeletconfigs
-          verbs:
-          - '*'
-        - apiGroups:
           - tuned.openshift.io
           resources:
           - tuneds
-          verbs:
-          - '*'
-        - apiGroups:
-          - node.k8s.io
-          resources:
-          - runtimeclasses
           verbs:
           - '*'
         serviceAccountName: performance-operator
@@ -152,19 +154,10 @@ spec:
       permissions:
       - rules:
         - apiGroups:
-          - ""
-          resources:
-          - pods
-          - services
-          - services/finalizers
-          - configmaps
-          verbs:
-          - '*'
-        - apiGroups:
           - apps
           resources:
-          - deployments
           - daemonsets
+          - deployments
           - replicasets
           - statefulsets
           verbs:
@@ -177,6 +170,15 @@ spec:
           - deployments/finalizers
           verbs:
           - update
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - pods
+          - services
+          - services/finalizers
+          verbs:
+          - '*'
         - apiGroups:
           - monitoring.coreos.com
           resources:
