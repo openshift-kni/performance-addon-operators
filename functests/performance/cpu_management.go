@@ -57,7 +57,7 @@ var _ = Describe("[performance] CPU Management", func() {
 
 		Expect(profile.Spec.CPU.Reserved).NotTo(BeNil())
 		reservedCPU = string(*profile.Spec.CPU.Reserved)
-		reservedCPUSet, err := cpuset.Parse(reservedCPU)
+		reservedCPUSet, err = cpuset.Parse(reservedCPU)
 		Expect(err).ToNot(HaveOccurred())
 		listReservedCPU = reservedCPUSet.ToSlice()
 	})
@@ -86,12 +86,12 @@ var _ = Describe("[performance] CPU Management", func() {
 			Expect(execCommandOnWorker(cmd, workerRTNode)).To(MatchRegexp(fmt.Sprintf(`"reservedSystemCPUs": ?"%s"`, reservedCPU)))
 
 			By("checking CPU affinity mask for kernel scheduler")
-			cmd = []string{"/bin/bash", "-c", "taskset -pc $(pgrep rcu_sched)"}
+			cmd = []string{"/bin/bash", "-c", "taskset -pc 1"}
 			mask := strings.SplitAfter(execCommandOnWorker(cmd, workerRTNode), " ")
 			maskSet, err := cpuset.Parse(mask[len(mask)-1])
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(reservedCPUSet.IsSubsetOf(maskSet)).To(Equal(true))
+			Expect(reservedCPUSet.IsSubsetOf(maskSet)).To(Equal(true), fmt.Sprintf("The init process (pid 1) should have cpu affinity: %s", reservedCPU))
 		})
 
 	})
