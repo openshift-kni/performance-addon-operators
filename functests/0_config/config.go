@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -29,8 +27,6 @@ import (
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
-	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
-	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	"github.com/openshift-kni/performance-addon-operators/pkg/apis"
 	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
@@ -40,25 +36,6 @@ import (
 )
 
 var _ = Describe("[performance][config] Performance configuration", func() {
-
-	It("Should run performance profile pod on a master node", func() {
-		pod, err := pods.GetPerformanceOperatorPod()
-		Expect(err).ToNot(HaveOccurred(), "Failed to find the Performance Addon Operator pod")
-
-		Expect(strings.HasPrefix(pod.Name, "performance-operator")).To(BeTrue(),
-			"Performance Addon Operator pod name should start with performance-operator prefix")
-
-		masterNodes, err := nodes.GetByRole(testutils.RoleMaster)
-		Expect(err).ToNot(HaveOccurred(), "Failed to query the master nodes")
-		for _, node := range masterNodes {
-			if node.Name == pod.Spec.NodeName {
-				return
-			}
-		}
-
-		// Fail
-		Expect(true).To(Reject(), "Performance Addon Operator is not running in a master node")
-	})
 
 	It("Should successfully deploy the performance profile", func() {
 
