@@ -108,7 +108,13 @@ var _ = Describe("[performance] Latency Test", func() {
 	})
 
 	AfterEach(func() {
-		if err := testclient.Client.Delete(context.TODO(), oslatPod); err != nil {
+		var err error
+		err = testclient.Client.Delete(context.TODO(), oslatPod)
+		if err != nil {
+			klog.Error(err)
+		}
+		err = pods.WaitForDeletion(oslatPod, 60*time.Second)
+		if err != nil {
 			klog.Error(err)
 		}
 	})

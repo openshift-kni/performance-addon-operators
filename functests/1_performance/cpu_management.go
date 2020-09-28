@@ -50,8 +50,9 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
 		Expect(workerRTNodes).ToNot(BeEmpty())
 		workerRTNode = &workerRTNodes[0]
-
 		profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
+		By(fmt.Sprintf("Checking the profile %s with cpus %#v", profile.Name, profile.Spec.CPU))
+
 		Expect(err).ToNot(HaveOccurred())
 		Expect(profile.Spec.HugePages).ToNot(BeNil())
 
