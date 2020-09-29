@@ -9,6 +9,7 @@ OLD="4.4.0"
 PREV="4.5.0"
 LATEST="4.6.0"
 LATEST_CHANNEL="4.6"
+CSV_SKIP_RANGE=">=${PREV} <${LATEST}"
 
 IS_DEV=$([[ $1 == "-dev" ]] && echo true || echo false)
 
