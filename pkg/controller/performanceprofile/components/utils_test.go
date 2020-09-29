@@ -39,4 +39,49 @@ var _ = Describe("Components utils", func() {
 			}
 		})
 	})
+
+	Context("Check intersections between CPU sets", func() {
+		It("should detect invalid cpulists", func() {
+			var cpuListInvalid = []string{
+				"0-", "-", "-3", ",,", ",2", "-,", "0-1,", "0,1,3,,4",
+			}
+
+			for _, entry := range cpuListInvalid {
+				_, err := CPUListIntersect(entry, entry)
+				Expect(err).To(HaveOccurred())
+
+				_, err = CPUListIntersect(entry, "0-3")
+				Expect(err).To(HaveOccurred())
+
+				_, err = CPUListIntersect("0-3", entry)
+				Expect(err).To(HaveOccurred())
+			}
+		})
+
+		It("should detect cpulist intersections", func() {
+			type cpuListIntersect struct {
+				cpuListA string
+				cpuListB string
+				result   []int
+			}
+
+			var cpuListIntersectTestcases = []cpuListIntersect{
+				{"0-3", "4-15", []int{}},
+				{"0-3", "8-15", []int{}},
+				{"0-3", "0-15", []int{0, 1, 2, 3}},
+				{"0-3", "3-15", []int{3}},
+				{"3-7", "6-15", []int{6, 7}},
+			}
+
+			for _, entry := range cpuListIntersectTestcases {
+				res, err := CPUListIntersect(entry.cpuListA, entry.cpuListB)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(len(res)).To(Equal(len(entry.result)))
+				for idx, cpuid := range res {
+					Expect(cpuid).To(Equal(entry.result[idx]))
+				}
+			}
+		})
+	})
 })

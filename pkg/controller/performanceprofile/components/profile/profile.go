@@ -25,6 +25,9 @@ func ValidateParameters(profile *v1.PerformanceProfile) error {
 	} else if profile.Spec.CPU.Isolated == nil {
 		return validationError("you should provide CPU.Isolated section")
 	}
+	if err := validateCPUCoresGrouping(profile.Spec.CPU); err != nil {
+		return err
+	}
 
 	if profile.Spec.MachineConfigLabel != nil && len(profile.Spec.MachineConfigLabel) > 1 {
 		return validationError("you should provide only 1 MachineConfigLabel")
@@ -170,6 +173,17 @@ func validateNUMA(numa *v1.NUMA) error {
 			policy != kubeletconfigv1beta1.SingleNumaNodeTopologyManager {
 			return validationError("unrecognized value for topologyPolicy")
 		}
+	}
+	return nil
+}
+
+func validateCPUCoresGrouping(cpus *v1.CPU) error {
+	overlap, err := components.CPUListIntersect(string(*cpus.Reserved), string(*cpus.Isolated))
+	if err != nil {
+		return validationError(fmt.Sprintf("internal error: %v", err))
+	}
+	if len(overlap) != 0 {
+		return validationError(fmt.Sprintf("reserved and isolated cpus overlap: %v", overlap))
 	}
 	return nil
 }

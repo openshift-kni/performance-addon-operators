@@ -88,6 +88,25 @@ var _ = Describe("PerformanceProfile", func() {
 			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("the page size should be equal to %q or %q", hugepagesSize1G, hugepagesSize2M)))
 		})
 
+		It("should allow cpus allocation with not overlapping sets", func() {
+			reservedCPUs := v1.CPUSet("0-3")
+			isolatedCPUs := v1.CPUSet("4-15")
+			profile.Spec.CPU.Reserved = &reservedCPUs
+			profile.Spec.CPU.Isolated = &isolatedCPUs
+			err := ValidateParameters(profile)
+			Expect(err).Should(Not(HaveOccurred()))
+		})
+
+		It("should reject cpus allocation with overlapping sets", func() {
+			reservedCPUs := v1.CPUSet("0-7")
+			isolatedCPUs := v1.CPUSet("0-15")
+			profile.Spec.CPU.Reserved = &reservedCPUs
+			profile.Spec.CPU.Isolated = &isolatedCPUs
+			err := ValidateParameters(profile)
+			Expect(err).Should(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("reserved and isolated cpus overlap"))
+		})
+
 		When("pages have duplication", func() {
 			Context("with specified NUMA node", func() {
 				It("should raise the validation error", func() {
