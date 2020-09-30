@@ -44,7 +44,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    containerImage: REPLACE_IMAGE
+    containerImage: quay.io/openshift-kni/performance-addon-operator:4.5-snapshot
     olm.skipRange: '>=4.4.0 <4.5.1'
   name: performance-addon-operator.v4.5.1
   namespace: placeholder
@@ -139,7 +139,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: performance-operator
-                image: REPLACE_IMAGE
+                image: quay.io/openshift-kni/performance-addon-operator:4.5-snapshot
                 imagePullPolicy: Always
                 name: performance-operator
                 resources: {}
