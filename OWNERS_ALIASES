@@ -3,7 +3,6 @@
 aliases:
   performance-reviewers:
     - karmab
-    - davidvossel
     - MarSik
     - simon3z
     - fedepaol
@@ -11,11 +10,10 @@ aliases:
     - fromanirh
     - cynepco3hahue
     - yanirq
-    - slintes
-    - vladikr
+    - marcel-apf
+    - swatisehgal
   performance-approvers:
     - karmab
-    - davidvossel
     - MarSik
     - simon3z
     - fedepaol
@@ -23,4 +21,5 @@ aliases:
     - fromanirh
     - cynepco3hahue
     - yanirq
-    - slintes
+    - marcel-apf
+    - swatisehgal
