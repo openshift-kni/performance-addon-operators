@@ -8,6 +8,7 @@ OC_TOOL="${OC_TOOL:-oc}"
 # By default we are running full scope of tests after operator upgrade (time consuming)
 RUN_TESTS_AFTER_UPGRADE="${RUN_TESTS_AFTER_UPGRADE:-true}"
 PERF_TEST_PROFILE="${PERF_TEST_PROFILE:-upgrade-test}"
+CLUSTER="${CLUSTER:-"upgrade-test"}"
 
 # check if operator is already installed with right version
 subs=$(${OC_TOOL} get subscriptions -o name -n openshift-performance-addon)
@@ -18,11 +19,11 @@ if [ -n "$subs" ]; then
     echo "Channel $channel is not equal to $FROM_VERSION, exit"
     exit 1
   fi
-else
-  IMAGE_TAG="${TO_VERSION:0:3}-snapshot" CLUSTER="upgrade-test" make cluster-deploy
-  make cluster-label-worker-cnf
-  CLUSTER="upgrade-test" make cluster-wait-for-mcp
 fi
+
+CLUSTER="${CLUSTER}" make cluster-deploy
+make cluster-label-worker-cnf
+CLUSTER="${CLUSTER}" make cluster-wait-for-mcp
 
 which ginkgo
 if [ $? -ne 0 ]; then
