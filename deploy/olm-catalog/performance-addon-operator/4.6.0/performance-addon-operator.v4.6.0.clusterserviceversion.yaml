@@ -188,9 +188,9 @@ spec:
         serviceAccountName: performance-operator
     strategy: deployment
   installModes:
-  - supported: true
+  - supported: false
     type: OwnNamespace
-  - supported: true
+  - supported: false
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
@@ -208,3 +208,16 @@ spec:
   provider:
     name: Red Hat
   version: 4.6.0
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1
+    - v1alpha1
+    containerPort: 443
+    conversionCRDs:
+    - performanceprofiles.performance.openshift.io
+    deploymentName: performance-operator
+    generateName: cwb.performance.openshift.io
+    sideEffects: None
+    targetPort: 4343
+    type: ConversionWebhook
+    webhookPath: /convert

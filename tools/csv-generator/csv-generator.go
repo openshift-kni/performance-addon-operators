@@ -17,6 +17,8 @@ import (
 
 	"github.com/operator-framework/api/pkg/lib/version"
 	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var (
@@ -161,6 +163,33 @@ Performance Addon Operator provides the ability to enable advanced node performa
 
 	operatorCSV.Annotations["description"] = "Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency."
 	operatorCSV.Annotations["repository"] = "https://github.com/operator-kni/performance-addon-operators"
+
+	// Setup the Conversion Webhook
+	targetPort := intstr.FromInt(4343)
+	sideEffects := admissionregistrationv1.SideEffectClassNone
+	webhookPath := "/convert"
+
+	operatorCSV.Spec.WebhookDefinitions = []csvv1.WebhookDescription{
+		{
+			GenerateName:            "cwb.performance.openshift.io",
+			Type:                    csvv1.ConversionWebhook,
+			DeploymentName:          strategySpec.DeploymentSpecs[0].Name,
+			ContainerPort:           443,
+			TargetPort:              &targetPort,
+			SideEffects:             &sideEffects,
+			AdmissionReviewVersions: []string{"v1", "v1alpha1"},
+			WebhookPath:             &webhookPath,
+			ConversionCRDs:          []string{"performanceprofiles.performance.openshift.io"},
+		},
+	}
+
+	// Required by OLM for Conversion Webhooks
+	operatorCSV.Spec.InstallModes = []csvv1.InstallMode{
+		{Type: csvv1.InstallModeTypeOwnNamespace, Supported: false},
+		{Type: csvv1.InstallModeTypeSingleNamespace, Supported: false},
+		{Type: csvv1.InstallModeTypeMultiNamespace, Supported: false},
+		{Type: csvv1.InstallModeTypeAllNamespaces, Supported: true},
+	}
 
 	// write CSV to out dir
 	writer := strings.Builder{}
