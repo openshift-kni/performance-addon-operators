@@ -45,7 +45,9 @@ metadata:
       ]
     capabilities: Basic Install
     containerImage: REPLACE_IMAGE
+    description: Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency.
     olm.skipRange: '>=4.5.0 <4.6.0'
+    repository: https://github.com/operator-kni/performance-addon-operators
   name: performance-addon-operator.v4.6.0
   namespace: placeholder
 spec:
