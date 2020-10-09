@@ -30,6 +30,7 @@ import (
 )
 
 var (
+	latencyTestDelay   = "0"
 	latencyTestRun     = false
 	latencyTestRuntime = "300"
 	latencyTestImage   = "quay.io/openshift-kni/oslat:latest"
@@ -56,6 +57,11 @@ func init() {
 	latencyTestImageEnv := os.Getenv("LATENCY_TEST_IMAGE")
 	if latencyTestImageEnv != "" {
 		latencyTestImage = latencyTestImageEnv
+	}
+
+	latencyTestDelayEnv := os.Getenv("LATENCY_TEST_DELAY")
+	if latencyTestDelayEnv != "" {
+		latencyTestDelay = latencyTestDelayEnv
 	}
 
 	maximumLatencyEnv := os.Getenv("OSLAT_MAXIMUM_LATENCY")
@@ -206,6 +212,10 @@ func getOslatPod(profile *v1.PerformanceProfile, node *corev1.Node) *corev1.Pod 
 						{
 							Name:  "RUNTIME_SECONDS",
 							Value: latencyTestRuntime,
+						},
+						{
+							Name:  "INITIAL_DELAY",
+							Value: latencyTestDelay,
 						},
 					},
 					Resources: corev1.ResourceRequirements{

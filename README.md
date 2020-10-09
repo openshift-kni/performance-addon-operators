@@ -135,6 +135,7 @@ You can run the container with different ENV variables, but the bare minimum is 
 `KUBECONFIG` mount and ENV variable, to give to the test access to the cluster and
 `LATENCY_TEST_RUN=true` to run the latency test.
 
+- `LATENCY_TEST_DELAY` indicates an (optional) delay in seconds to be used between the container is created and the tests actually start. Default is zero (start immediately).
 - `LATENCY_TEST_RUN` indicates if the latency test should run.
 - `LATENCY_TEST_RUNTIME` the amount of time in seconds that the latency test should run.
 - `LATENCY_TEST_IMAGE` the image that used under the latency test.
