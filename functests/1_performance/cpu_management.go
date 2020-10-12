@@ -276,6 +276,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			// use the CPU load balancing runtime class
 			runtimeClassName := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 			testpod.Spec.RuntimeClassName = &runtimeClassName
+			testpod.Spec.NodeSelector = map[string]string{testutils.LabelHostname: workerRTNode.Name}
 		})
 
 		AfterEach(func() {
