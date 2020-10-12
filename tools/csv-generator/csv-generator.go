@@ -166,6 +166,9 @@ Performance Addon Operator provides the ability to enable advanced node performa
 		operatorCSV.Annotations["olm.skipRange"] = *skipRange
 	}
 
+	operatorCSV.Annotations["description"] = "Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency."
+	operatorCSV.Annotations["repository"] = "https://github.com/operator-kni/performance-addon-operators"
+
 	// write CSV to out dir
 	writer := strings.Builder{}
 	csvtools.MarshallObject(operatorCSV, &writer)
