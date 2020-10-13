@@ -1,0 +1,14 @@
+domain: performance.openshift.io
+layout: go.kubebuilder.io/v2
+projectName: performance-addon-operator
+repo: github.com/openshift-kni/performance-addon-operators
+resources:
+- group: performance
+  kind: PerformanceProfile
+  version: v1alpha1
+- group: performance
+  kind: PerformanceProfile
+  version: v1
+version: 3-alpha
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}

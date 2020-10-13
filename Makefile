@@ -9,7 +9,7 @@ TARGET_GOARCH=amd64
 CACHE_DIR="_cache"
 TOOLS_DIR="$(CACHE_DIR)/tools"
 
-OPERATOR_SDK_VERSION="v0.18.2"
+OPERATOR_SDK_VERSION="v1.0.0"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
 OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
@@ -51,7 +51,7 @@ dist: build-output-dir
     LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.GitCommit=$(COMMIT) "; \
     LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.BuildDate=$(BUILD_DATE) "; \
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="$$LDFLAGS" \
-	  -mod=vendor -o build/_output/bin/performance-addon-operators ./cmd/manager
+	  -mod=vendor -o build/_output/bin/performance-addon-operators .
 
 .PHONY: dist-tools
 dist-tools: dist-csv-generator dist-csv-replace-imageref
@@ -150,22 +150,22 @@ operator-sdk:
 	fi
 
 .PHONY: generate-csv
-generate-csv: operator-sdk dist-csv-generator
+generate-csv: operator-sdk kustomize dist-csv-generator
 	@if [ -z "$(REGISTRY_NAMESPACE)" ]; then\
 		echo "REGISTRY_NAMESPACE env-var must be set to your $(IMAGE_REGISTRY) namespace";\
 		exit 1;\
 	fi
-	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/csv-generate.sh
+	OPERATOR_SDK=$(OPERATOR_SDK) KUSTOMIZE=$(KUSTOMIZE) FULL_OPERATOR_IMAGE=$(FULL_OPERATOR_IMAGE) hack/csv-generate.sh
 
 .PHONY: build-output-dir
 build-output-dir:
 	mkdir -p build/_output/bin || :
 
 .PHONY: generate-latest-dev-csv
-generate-latest-dev-csv: operator-sdk dist-csv-generator build-output-dir
+generate-latest-dev-csv: operator-sdk kustomize dist-csv-generator build-output-dir
 	@echo Generating developer csv
 	@echo
-	OPERATOR_SDK=$(OPERATOR_SDK) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" hack/csv-generate.sh -dev
+	OPERATOR_SDK=$(OPERATOR_SDK) KUSTOMIZE=$(KUSTOMIZE) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" hack/csv-generate.sh -dev
 
 .PHONY: generate-docs
 generate-docs: dist-docs-generator
@@ -246,10 +246,9 @@ govet:
 	go vet ./...
 
 .PHONY: generate
-generate: deps-update gofmt generate-latest-dev-csv generate-docs
+generate: deps-update gofmt manifests generate-code generate-latest-dev-csv generate-docs
 	@echo Updating generated files
 	@echo
-	export GOROOT=$$(go env GOROOT); $(OPERATOR_SDK) generate k8s
 
 .PHONY: verify
 verify: golint govet generate
@@ -266,3 +265,55 @@ release-note:
 .PHONY: generate-release-tags
 generate-release-tags:
 	hack/generate-release-tags.sh
+
+########### Operator SDK Makefile contents
+
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:crdVersions=v1"
+
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
+# Generate manifests e.g. CRD, RBAC etc.
+manifests: controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=performance-operator webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+# Generate code
+generate-code: controller-gen
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+# find or download controller-gen
+# download controller-gen if necessary
+controller-gen:
+ifeq (, $(shell which controller-gen))
+	@{ \
+	set -e ;\
+	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$CONTROLLER_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
+	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	}
+CONTROLLER_GEN=$(GOBIN)/controller-gen
+else
+CONTROLLER_GEN=$(shell which controller-gen)
+endif
+
+kustomize:
+ifeq (, $(shell which kustomize))
+	@{ \
+	set -e ;\
+	KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$KUSTOMIZE_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
+	rm -rf $$KUSTOMIZE_GEN_TMP_DIR ;\
+	}
+KUSTOMIZE=$(GOBIN)/kustomize
+else
+KUSTOMIZE=$(shell which kustomize)
+endif

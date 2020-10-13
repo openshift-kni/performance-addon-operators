@@ -85,6 +85,8 @@ func generateUnifiedCSV(userData csvUserData) {
 		switch definition.Name {
 		case "performanceprofiles.performance.openshift.io":
 			operatorCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "Performance Profile"
+			operatorCSV.Spec.CustomResourceDefinitions.Owned[i].Description =
+				"PerformanceProfile is the Schema for the performanceprofiles API."
 		}
 	}
 
@@ -150,12 +152,22 @@ Performance Addon Operator provides the ability to enable advanced node performa
 				Email: email,
 			})
 		}
+		// Override generator default values
+		if len(userData.Maintainers) == 0 {
+			operatorCSV.Spec.Maintainers = nil
+		}
 	}
+
+	// No icon defined yet
+	operatorCSV.Spec.Icon = nil
 
 	// Set Annotations
 	if *skipRange != "" {
 		operatorCSV.Annotations["olm.skipRange"] = *skipRange
 	}
+
+	operatorCSV.Annotations["description"] = "Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency."
+	operatorCSV.Annotations["repository"] = "https://github.com/operator-kni/performance-addon-operators"
 
 	// write CSV to out dir
 	writer := strings.Builder{}

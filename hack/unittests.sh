@@ -10,7 +10,7 @@ FUNC_FILE="${OUTDIR}/coverage.txt"
 HTML_FILE="${OUTDIR}/coverage.html"
 
 echo "running unittests with coverage"
-GOFLAGS=-mod=vendor go test -race -covermode=atomic -coverprofile="${COVER_FILE}" -v ./pkg/...
+GOFLAGS=-mod=vendor go test -race -covermode=atomic -coverprofile="${COVER_FILE}" -v ./pkg/... ./controllers/...
 
 if [[ -n "${DRONE}" ]]; then
 

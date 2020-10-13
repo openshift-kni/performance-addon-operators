@@ -3,7 +3,7 @@ package profile
 import (
 	"fmt"
 
-	v1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
+	v1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 )
