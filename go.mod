@@ -78,6 +78,7 @@ replace (
 	k8s.io/metrics => k8s.io/metrics v0.18.3
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.18.3
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.6.2
+	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.3.0
 )
 
 // Other pinned deps
