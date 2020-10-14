@@ -271,6 +271,7 @@ generate-release-tags:
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:crdVersions=v1"
+CONTROLLER_GEN = "$(TOOLS_BIN_DIR)/controller-gen"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -287,22 +288,14 @@ manifests: controller-gen
 generate-code: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-# find or download controller-gen
-# download controller-gen if necessary
-controller-gen:
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
+# find or build controller-gen if necessary
+controller-gen: build-output-dir
+	@if [ ! -x $(CONTROLLER_GEN) ]; then\
+		echo "Building $(CONTROLLER_GEN)";\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(CONTROLLER_GEN) vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go ;\
+	else \
+		echo "Using pre-built $(CONTROLLER_GEN)";\
+	fi
 
 kustomize:
 ifeq (, $(shell which kustomize))
