@@ -8,6 +8,7 @@ TARGET_GOARCH=amd64
 
 CACHE_DIR="_cache"
 TOOLS_DIR="$(CACHE_DIR)/tools"
+TOOLS_BIN_DIR="build/_output/bin"
 
 OPERATOR_SDK_VERSION="v1.0.0"
 OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
@@ -45,13 +46,13 @@ build: gofmt golint govet dist generate-manifests-tree
 .PHONY: dist
 dist: build-output-dir
 	@echo "Building operator binary"
-	mkdir -p build/_output/bin; \
+	mkdir -p $(TOOLS_BIN_DIR); \
     LDFLAGS="-s -w "; \
     LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.Version=$(VERSION) "; \
     LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.GitCommit=$(COMMIT) "; \
     LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.BuildDate=$(BUILD_DATE) "; \
 	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="$$LDFLAGS" \
-	  -mod=vendor -o build/_output/bin/performance-addon-operators .
+	  -mod=vendor -o $(TOOLS_BIN_DIR)/performance-addon-operators .
 
 .PHONY: dist-tools
 dist-tools: dist-csv-generator dist-csv-replace-imageref
@@ -62,27 +63,27 @@ dist-clean:
 
 .PHONY: dist-csv-generator
 dist-csv-generator: build-output-dir
-	@if [ ! -x build/_output/bin/csv-generator ]; then\
+	@if [ ! -x $(TOOLS_BIN_DIR)/csv-generator ]; then\
 		echo "Building csv-generator tool";\
-		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/csv-generator ./tools/csv-generator;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/csv-generator ./tools/csv-generator;\
 	else \
 		echo "Using pre-built csv-generator tool";\
 	fi
 
 .PHONY: dist-csv-replace-imageref
 dist-csv-replace-imageref: build-output-dir
-	@if [ ! -x build/_output/bin/csv-replace-imageref ]; then\
+	@if [ ! -x $(TOOLS_BIN_DIR)/csv-replace-imageref ]; then\
 		echo "Building csv-replace-imageref tool";\
-		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/csv-replace-imageref ./tools/csv-replace-imageref;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/csv-replace-imageref ./tools/csv-replace-imageref;\
 	else \
 		echo "Using pre-built csv-replace-imageref tool";\
 	fi
 
 .PHONY: dist-docs-generator
 dist-docs-generator: build-output-dir
-	@if [ ! -x build/_output/bin/docs-generator ]; then\
+	@if [ ! -x $(TOOLS_BIN_DIR)/docs-generator ]; then\
 		echo "Building docs-generator tool";\
-		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o build/_output/bin/docs-generator ./tools/docs-generator;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/docs-generator ./tools/docs-generator;\
 	else \
 		echo "Using pre-built docs-generator tool";\
 	fi
@@ -159,7 +160,7 @@ generate-csv: operator-sdk kustomize dist-csv-generator
 
 .PHONY: build-output-dir
 build-output-dir:
-	mkdir -p build/_output/bin || :
+	mkdir -p $(TOOLS_BIN_DIR) || :
 
 .PHONY: generate-latest-dev-csv
 generate-latest-dev-csv: operator-sdk kustomize dist-csv-generator build-output-dir
