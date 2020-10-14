@@ -38,7 +38,6 @@ require (
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
 	golang.org/x/sys v0.0.0-20200602225109-6fdc65e7d980 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
-	golang.org/x/tools v0.0.0-20200603131246-cc40288be839 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.24.0 // indirect
 	k8s.io/api v0.18.6
@@ -51,6 +50,7 @@ require (
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	kubevirt.io/qe-tools v0.1.6
 	sigs.k8s.io/controller-runtime v0.6.2
+	sigs.k8s.io/controller-tools v0.3.0
 )
 
 // Pinned to kubernetes-1.18.3
