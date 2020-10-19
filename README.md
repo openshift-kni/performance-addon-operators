@@ -29,7 +29,7 @@ Developers can build and push the Performance Operator images from the source tr
 
 ```
 export REGISTRY_NAMESPACE=<your quay.io namespace>
-export IMAGE_TAG=<the image tag to use> #defaults to "latest">
+export IMAGE_TAG=<the image tag to use> #defaults to "latest"
 make generate-manifests-tree
 make build-containers
 make push-containers
