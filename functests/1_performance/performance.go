@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ import (
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
@@ -340,7 +342,160 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("cannot find MachineConfig object %s", initialKey.Name))
 		})
 	})
+
+	Context("Verify API Conversions", func() {
+		It("[test_id:35887] Verifies v1 <-> v1alpha1 conversions", func() {
+
+			By("Checking v1 -> v1alpha1 conversion")
+			v1alpha1Profile := &performancev1alpha1.PerformanceProfile{}
+			key := types.NamespacedName{
+				Name:      profile.Name,
+				Namespace: profile.Namespace,
+			}
+
+			err := testclient.Client.Get(context.TODO(), key, v1alpha1Profile)
+			Expect(err).ToNot(HaveOccurred(), "Failed getting v1alpha1Profile")
+			Expect(verifyV1alpha1Conversion(v1alpha1Profile, profile)).ToNot(HaveOccurred())
+
+			By("Checking v1alpha1 -> v1 conversion")
+			v1alpha1Profile.Name = "v1alpha"
+			v1alpha1Profile.ResourceVersion = ""
+			Expect(testclient.Client.Create(context.TODO(), v1alpha1Profile)).ToNot(HaveOccurred())
+			defer func() { Expect(testclient.Client.Delete(context.TODO(), v1alpha1Profile)).ToNot(HaveOccurred()) }()
+
+			v1Profile := &performancev1.PerformanceProfile{}
+			key = types.NamespacedName{
+				Name:      v1alpha1Profile.Name,
+				Namespace: v1alpha1Profile.Namespace,
+			}
+
+			err = testclient.GetWithRetry(context.TODO(), key, v1Profile)
+			Expect(err).ToNot(HaveOccurred(), "Failed getting v1profile")
+			Expect(verifyV1alpha1Conversion(v1alpha1Profile, v1Profile)).ToNot(HaveOccurred())
+		})
+	})
 })
+
+func verifyV1alpha1Conversion(v1alpha1Profile *performancev1alpha1.PerformanceProfile, v1Profile *performancev1.PerformanceProfile) error {
+	specCPU := v1alpha1Profile.Spec.CPU
+	if (specCPU == nil) != (v1Profile.Spec.CPU == nil) {
+		return fmt.Errorf("spec CPUs field is different")
+	}
+
+	if specCPU != nil {
+		if (specCPU.Reserved == nil) != (v1Profile.Spec.CPU.Reserved == nil) {
+			return fmt.Errorf("spec CPUs Reserved field is different")
+		}
+		if specCPU.Reserved != nil {
+			if string(*specCPU.Reserved) != string(*v1Profile.Spec.CPU.Reserved) {
+				return fmt.Errorf("reserved CPUs are different [v1alpha1: %s, v1: %s]",
+					*specCPU.Reserved, *v1Profile.Spec.CPU.Reserved)
+			}
+		}
+
+		if (specCPU.Isolated == nil) != (v1Profile.Spec.CPU.Isolated == nil) {
+			return fmt.Errorf("spec CPUs Isolated field is different")
+		}
+		if specCPU.Isolated != nil {
+			if string(*specCPU.Isolated) != string(*v1Profile.Spec.CPU.Isolated) {
+				return fmt.Errorf("isolated CPUs are different [v1alpha1: %s, v1: %s]",
+					*specCPU.Isolated, *v1Profile.Spec.CPU.Isolated)
+			}
+		}
+
+		if (specCPU.BalanceIsolated == nil) != (v1Profile.Spec.CPU.BalanceIsolated == nil) {
+			return fmt.Errorf("spec CPUs BalanceIsolated field is different")
+		}
+		if specCPU.BalanceIsolated != nil {
+			if *specCPU.BalanceIsolated != *v1Profile.Spec.CPU.BalanceIsolated {
+				return fmt.Errorf("balanceIsolated field is different [v1alpha1: %t, v1: %t]",
+					*specCPU.BalanceIsolated, *v1Profile.Spec.CPU.BalanceIsolated)
+			}
+		}
+	}
+
+	specHugePages := v1alpha1Profile.Spec.HugePages
+	if (specHugePages == nil) != (v1Profile.Spec.HugePages == nil) {
+		return fmt.Errorf("spec HugePages field is different")
+	}
+
+	if specHugePages != nil {
+		if (specHugePages.DefaultHugePagesSize == nil) != (v1Profile.Spec.HugePages.DefaultHugePagesSize == nil) {
+			return fmt.Errorf("spec HugePages defaultHugePagesSize field is different")
+		}
+		if specHugePages.DefaultHugePagesSize != nil {
+			if string(*specHugePages.DefaultHugePagesSize) != string(*v1Profile.Spec.HugePages.DefaultHugePagesSize) {
+				return fmt.Errorf("defaultHugePagesSize field is different [v1alpha1: %s, v1: %s]",
+					*specHugePages.DefaultHugePagesSize, *v1Profile.Spec.HugePages.DefaultHugePagesSize)
+			}
+		}
+
+		if len(specHugePages.Pages) != len(v1Profile.Spec.HugePages.Pages) {
+			return fmt.Errorf("pages field is different [v1alpha1: %v, v1: %v]",
+				specHugePages.Pages, v1Profile.Spec.HugePages.Pages)
+		}
+
+		for i, v1alpha1Page := range specHugePages.Pages {
+			v1page := v1Profile.Spec.HugePages.Pages[i]
+			if string(v1alpha1Page.Size) != string(v1page.Size) ||
+				(v1alpha1Page.Node == nil) != (v1page.Node == nil) ||
+				(v1alpha1Page.Node != nil && *v1alpha1Page.Node != *v1page.Node) ||
+				v1alpha1Page.Count != v1page.Count {
+				return fmt.Errorf("pages field is different [v1alpha1: %v, v1: %v]",
+					specHugePages.Pages, v1Profile.Spec.HugePages.Pages)
+			}
+		}
+	}
+
+	if !reflect.DeepEqual(v1alpha1Profile.Spec.MachineConfigLabel, v1Profile.Spec.MachineConfigLabel) {
+		return fmt.Errorf("machineConfigLabel field is different [v1alpha1: %v, v1: %v]",
+			v1alpha1Profile.Spec.MachineConfigLabel, v1Profile.Spec.MachineConfigLabel)
+	}
+
+	if !reflect.DeepEqual(v1alpha1Profile.Spec.MachineConfigPoolSelector, v1Profile.Spec.MachineConfigPoolSelector) {
+		return fmt.Errorf("machineConfigPoolSelector field is different [v1alpha1: %v, v1: %v]",
+			v1alpha1Profile.Spec.MachineConfigPoolSelector, v1Profile.Spec.MachineConfigPoolSelector)
+	}
+
+	if !reflect.DeepEqual(v1alpha1Profile.Spec.NodeSelector, v1Profile.Spec.NodeSelector) {
+		return fmt.Errorf("nodeSelector field is different [v1alpha1: %v, v1: %v]",
+			v1alpha1Profile.Spec.NodeSelector, v1Profile.Spec.NodeSelector)
+	}
+
+	specRealTimeKernel := v1alpha1Profile.Spec.RealTimeKernel
+	if (specRealTimeKernel == nil) != (v1Profile.Spec.RealTimeKernel == nil) {
+		return fmt.Errorf("spec RealTimeKernel field is different")
+	}
+
+	if *specRealTimeKernel.Enabled != *v1Profile.Spec.RealTimeKernel.Enabled {
+		return fmt.Errorf("specRealTimeKernel field is different [v1alpha1: %t, v1: %t]",
+			*specRealTimeKernel.Enabled, *v1Profile.Spec.RealTimeKernel.Enabled)
+	}
+
+	if !reflect.DeepEqual(v1alpha1Profile.Spec.AdditionalKernelArgs, v1Profile.Spec.AdditionalKernelArgs) {
+		return fmt.Errorf("additionalKernelArgs field is different [v1alpha1: %v, v1: %v]",
+			v1alpha1Profile.Spec.AdditionalKernelArgs, v1Profile.Spec.AdditionalKernelArgs)
+	}
+
+	specNUMA := v1alpha1Profile.Spec.NUMA
+	if (specNUMA == nil) != (v1Profile.Spec.NUMA == nil) {
+		return fmt.Errorf("spec NUMA field is different")
+	}
+
+	if specNUMA != nil {
+		if (specNUMA.TopologyPolicy == nil) != (v1Profile.Spec.NUMA.TopologyPolicy == nil) {
+			return fmt.Errorf("spec NUMA topologyPolicy field is different")
+		}
+		if specNUMA.TopologyPolicy != nil {
+			if *specNUMA.TopologyPolicy != *v1Profile.Spec.NUMA.TopologyPolicy {
+				return fmt.Errorf("topologyPolicy field is different [v1alpha1: %s, v1: %s]",
+					*specNUMA.TopologyPolicy, *v1Profile.Spec.NUMA.TopologyPolicy)
+			}
+		}
+	}
+
+	return nil
+}
 
 func execSysctlOnWorkers(workerNodes []corev1.Node, sysctlMap map[string]string) {
 	var err error

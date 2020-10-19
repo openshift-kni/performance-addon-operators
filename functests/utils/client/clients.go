@@ -23,6 +23,7 @@ import (
 	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 
 	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
 )
 
 var (
@@ -37,6 +38,10 @@ var (
 func init() {
 	// Setup Scheme for all resources
 	if err := performancev1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Exit(err.Error())
+	}
+
+	if err := performancev1alpha1.AddToScheme(scheme.Scheme); err != nil {
 		klog.Exit(err.Error())
 	}
 
