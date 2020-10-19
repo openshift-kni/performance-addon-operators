@@ -22,6 +22,7 @@ operator-sdk add controller --api-version=performance.openshift.io/v1alpha1 --ki
 ```
 
 The performance profile API is documented in detail in the [Performance Profile](docs/performance_profile.md) doc.
+Follow the [API versions](docs/api-versions.md) doc to check the supported API versions.
 
 # Building and pushing the operator images
 
