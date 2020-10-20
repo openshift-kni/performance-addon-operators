@@ -8,6 +8,6 @@ spec:
   icon:
     base64data: ""
     mediatype: ""
-  image: ${FULL_REGISTRY_IMAGE}
+  image: ${FULL_INDEX_IMAGE}
   publisher: Red Hat
   sourceType: grpc
