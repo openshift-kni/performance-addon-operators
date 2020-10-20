@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	ign2types "github.com/coreos/ignition/config/v2_2/types"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	v1 "github.com/openshift/custom-resource-status/conditions/v1"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
@@ -25,8 +27,8 @@ import (
 	nodev1beta1 "k8s.io/api/node/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/pointer"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Status testing of performance profile", func() {
@@ -45,9 +47,6 @@ var _ = Describe("Status testing of performance profile", func() {
 	})
 
 	Context("[rfe_id:28881][performance] Performance Addons detailed status", func() {
-		var currentConfig string
-		nodeAnnotationCurrentConfig := "machineconfiguration.openshift.io/currentConfig"
-		nodeAnnotationDesiredConfig := "machineconfiguration.openshift.io/desiredConfig"
 
 		It("[test_id:30894] Tuned status field tied to Performance Profile", func() {
 			profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
@@ -85,34 +84,12 @@ var _ = Describe("Status testing of performance profile", func() {
 		})
 
 		It("[test_id:29673] Machine config pools status tied to Performance Profile", func() {
-			node := &workerCNFNodes[0]
-			annotations := node.GetAnnotations()
-			for k, v := range annotations {
-				if k == nodeAnnotationCurrentConfig {
-					currentConfig = v
-				}
-			}
-
-			currentConfigAnnotation := map[string]string{
-				nodeAnnotationCurrentConfig: currentConfig,
-				nodeAnnotationDesiredConfig: currentConfig,
-			}
-			updateAnnotation := map[string]string{
-				nodeAnnotationCurrentConfig: "",
-				nodeAnnotationDesiredConfig: currentConfig,
-			}
-
-			// Empty the value of "machineconfiguration.openshift.io/currentConfig" for node with worker-cnf label
-			By("Apply changes in machineconfiguration currentConfig of CNF worker node")
-			annotate, err := json.Marshal(updateAnnotation)
+			// Creating bad MC that leads to degraded state
+			By("Creating bad MachineConfig")
+			badMC := createBadMachineConfig("bad-mc")
+			err = testclient.Client.Create(context.TODO(), badMC)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(testclient.Client.Patch(context.TODO(), node,
-				client.ConstantPatch(
-					types.JSONPatchType,
-					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/metadata/annotations", "value": %s }]`, annotate)),
-				),
-			)).ToNot(HaveOccurred())
-			// Wait until worker-cnf MCP is in degraded state and get condition reason
+
 			By("Wait for MCP condition to be Degraded")
 			profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 			Expect(err).ToNot(HaveOccurred())
@@ -123,16 +100,11 @@ var _ = Describe("Status testing of performance profile", func() {
 			profileConditionMessage := profiles.GetConditionMessage(testutils.NodeSelectorLabels, v1.ConditionDegraded)
 			// Verify the status reason of performance profile
 			Expect(profileConditionMessage).To(ContainSubstring(mcpConditionReason))
-			// Revert back the currentConfig
-			By("Revert changes in machineconfiguration currentConfig of CNF worker node")
-			revertAnnotate, er := json.Marshal(currentConfigAnnotation)
-			Expect(er).ToNot(HaveOccurred())
-			Expect(testclient.Client.Patch(context.TODO(), node,
-				client.ConstantPatch(
-					types.JSONPatchType,
-					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/metadata/annotations", "value": %s }]`, revertAnnotate)),
-				),
-			)).ToNot(HaveOccurred())
+
+			By("Deleting bad MachineConfig and waiting when Degraded state is removed")
+			err = testclient.Client.Delete(context.TODO(), badMC)
+			Expect(err).ToNot(HaveOccurred())
+
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 		})
 	})
@@ -192,3 +164,37 @@ var _ = Describe("Status testing of performance profile", func() {
 		})
 	})
 })
+
+func createBadMachineConfig(name string) *machineconfigv1.MachineConfig {
+	rawIgnition, _ := json.Marshal(
+		&ign2types.Config{
+			Ignition: ign2types.Ignition{
+				Version: ign2types.MaxVersion.String(),
+			},
+			Storage: ign2types.Storage{
+				Disks: []ign2types.Disk{
+					{
+						Device: "/one",
+					},
+				},
+			},
+		},
+	)
+
+	return &machineconfigv1.MachineConfig{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: machineconfigv1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: map[string]string{"machineconfiguration.openshift.io/role": testutils.RoleWorkerCNF},
+			UID:    types.UID(utilrand.String(5)),
+		},
+		Spec: machineconfigv1.MachineConfigSpec{
+			OSImageURL: "",
+			Config: runtime.RawExtension{
+				Raw: rawIgnition,
+			},
+		},
+	}
+}
