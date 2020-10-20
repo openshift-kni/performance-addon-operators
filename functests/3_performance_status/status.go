@@ -14,7 +14,7 @@ import (
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
@@ -118,27 +118,27 @@ var _ = Describe("Status testing of performance profile", func() {
 			newRole := "worker-overlapping"
 			newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
 
-			reserved := performancev1.CPUSet("0-3")
-			isolated := performancev1.CPUSet("0-7")
+			reserved := performancev2.CPUSet("0-3")
+			isolated := performancev2.CPUSet("0-7")
 
-			overlappingProfile := &performancev1.PerformanceProfile{
+			overlappingProfile := &performancev2.PerformanceProfile{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "PerformanceProfile",
-					APIVersion: performancev1.GroupVersion.String(),
+					APIVersion: performancev2.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "profile-overlapping-cpus",
 				},
-				Spec: performancev1.PerformanceProfileSpec{
-					CPU: &performancev1.CPU{
+				Spec: performancev2.PerformanceProfileSpec{
+					CPU: &performancev2.CPU{
 						Reserved: &reserved,
 						Isolated: &isolated,
 					},
 					NodeSelector: map[string]string{newLabel: ""},
-					RealTimeKernel: &performancev1.RealTimeKernel{
+					RealTimeKernel: &performancev2.RealTimeKernel{
 						Enabled: pointer.BoolPtr(true),
 					},
-					NUMA: &performancev1.NUMA{
+					NUMA: &performancev2.NUMA{
 						TopologyPolicy: pointer.StringPtr("restricted"),
 					},
 				},

@@ -30,6 +30,7 @@ import (
 
 	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
@@ -49,7 +50,7 @@ const (
 var _ = Describe("[rfe_id:27368][performance]", func() {
 
 	var workerRTNodes []corev1.Node
-	var profile *performancev1.PerformanceProfile
+	var profile *performancev2.PerformanceProfile
 
 	BeforeEach(func() {
 		if discovery.Enabled() && testutils.ProfileNotFound {
@@ -253,30 +254,30 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			newRole := "worker-new"
 			newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
 
-			reserved := performancev1.CPUSet("0")
-			isolated := performancev1.CPUSet("1-3")
+			reserved := performancev2.CPUSet("0")
+			isolated := performancev2.CPUSet("1-3")
 
-			secondProfile := &performancev1.PerformanceProfile{
+			secondProfile := &performancev2.PerformanceProfile{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "PerformanceProfile",
-					APIVersion: performancev1.GroupVersion.String(),
+					APIVersion: performancev2.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "profile2",
 				},
-				Spec: performancev1.PerformanceProfileSpec{
-					CPU: &performancev1.CPU{
+				Spec: performancev2.PerformanceProfileSpec{
+					CPU: &performancev2.CPU{
 						Reserved: &reserved,
 						Isolated: &isolated,
 					},
 					NodeSelector: map[string]string{newLabel: ""},
-					RealTimeKernel: &performancev1.RealTimeKernel{
+					RealTimeKernel: &performancev2.RealTimeKernel{
 						Enabled: pointer.BoolPtr(true),
 					},
 					AdditionalKernelArgs: []string{
 						"NEW_ARGUMENT",
 					},
-					NUMA: &performancev1.NUMA{
+					NUMA: &performancev2.NUMA{
 						TopologyPolicy: pointer.StringPtr("restricted"),
 					},
 				},
@@ -348,16 +349,26 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 	Context("Verify API Conversions", func() {
 		It("[test_id:35887] Verifies v1 <-> v1alpha1 conversions", func() {
 
-			By("Checking v1 -> v1alpha1 conversion")
-			v1alpha1Profile := &performancev1alpha1.PerformanceProfile{}
+			By("Acquiring the tests profile as a v1 profile")
+			v1Profile := &performancev1.PerformanceProfile{}
 			key := types.NamespacedName{
 				Name:      profile.Name,
 				Namespace: profile.Namespace,
 			}
 
-			err := testclient.Client.Get(context.TODO(), key, v1alpha1Profile)
+			err := testclient.Client.Get(context.TODO(), key, v1Profile)
+			Expect(err).ToNot(HaveOccurred(), "Failed acquiring a v1 profile")
+
+			By("Checking v1 -> v1alpha1 conversion")
+			v1alpha1Profile := &performancev1alpha1.PerformanceProfile{}
+			key = types.NamespacedName{
+				Name:      v1Profile.Name,
+				Namespace: v1Profile.Namespace,
+			}
+
+			err = testclient.Client.Get(context.TODO(), key, v1alpha1Profile)
 			Expect(err).ToNot(HaveOccurred(), "Failed getting v1alpha1Profile")
-			Expect(verifyV1alpha1Conversion(v1alpha1Profile, profile)).ToNot(HaveOccurred())
+			Expect(verifyV1alpha1Conversion(v1alpha1Profile, v1Profile)).ToNot(HaveOccurred())
 
 			By("Checking v1alpha1 -> v1 conversion")
 			v1alpha1Profile.Name = "v1alpha"
@@ -381,7 +392,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				}, time.Minute, 10*time.Second).Should(Equal(true))
 			}()
 
-			v1Profile := &performancev1.PerformanceProfile{}
+			v1Profile = &performancev1.PerformanceProfile{}
 			err = testclient.GetWithRetry(context.TODO(), key, v1Profile)
 			Expect(err).ToNot(HaveOccurred(), "Failed getting v1profile")
 			Expect(verifyV1alpha1Conversion(v1alpha1Profile, v1Profile)).ToNot(HaveOccurred())
