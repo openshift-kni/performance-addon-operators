@@ -43,14 +43,10 @@ func GetByNodeLabels(nodeLabels map[string]string) (*performancev2.PerformancePr
 }
 
 // WaitForDeletion waits until the pod will be removed from the cluster
-func WaitForDeletion(prof *performancev2.PerformanceProfile, timeout time.Duration) error {
-	key := types.NamespacedName{
-		Name:      prof.Name,
-		Namespace: prof.Namespace,
-	}
+func WaitForDeletion(profileKey types.NamespacedName, timeout time.Duration) error {
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
 		prof := &performancev2.PerformanceProfile{}
-		if err := testclient.Client.Get(context.TODO(), key, prof); errors.IsNotFound(err) {
+		if err := testclient.Client.Get(context.TODO(), profileKey, prof); errors.IsNotFound(err) {
 			return true, nil
 		}
 		return false, nil

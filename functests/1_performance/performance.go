@@ -323,7 +323,12 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 			By("Remove second profile and verify that KubeletConfig and MachineConfig were removed")
 			Expect(testclient.Client.Delete(context.TODO(), secondProfile)).ToNot(HaveOccurred())
-			Expect(profiles.WaitForDeletion(secondProfile, 60*time.Second)).ToNot(HaveOccurred())
+
+			profileKey := types.NamespacedName{
+				Name:      secondProfile.Name,
+				Namespace: secondProfile.Namespace,
+			}
+			Expect(profiles.WaitForDeletion(profileKey, 60*time.Second)).ToNot(HaveOccurred())
 
 			Consistently(func() corev1.ConditionStatus {
 				return mcps.GetConditionStatus(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdating)

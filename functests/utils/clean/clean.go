@@ -47,7 +47,12 @@ func All() {
 	Expect(err).ToNot(HaveOccurred(), "Failed to find perf profile")
 	err = testclient.Client.Delete(context.TODO(), &perfProfile)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete perf profile")
-	err = profiles.WaitForDeletion(&perfProfile, 60*time.Second)
+
+	profileKey := types.NamespacedName{
+		Name:      perfProfile.Name,
+		Namespace: perfProfile.Namespace,
+	}
+	err = profiles.WaitForDeletion(profileKey, 60*time.Second)
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for perf profile deletion")
 
 	mcpLabel := profile.GetMachineConfigLabel(&perfProfile)

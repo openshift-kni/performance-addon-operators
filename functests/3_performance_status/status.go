@@ -147,7 +147,12 @@ var _ = Describe("Status testing of performance profile", func() {
 			Expect(err).ToNot(HaveOccurred(), "error creating overlappingProfile: %v", err)
 			defer func() {
 				Expect(testclient.Client.Delete(context.TODO(), overlappingProfile)).ToNot(HaveOccurred())
-				Expect(profiles.WaitForDeletion(overlappingProfile, 60*time.Second)).ToNot(HaveOccurred())
+
+				key := types.NamespacedName{
+					Name:      overlappingProfile.Name,
+					Namespace: overlappingProfile.Namespace,
+				}
+				Expect(profiles.WaitForDeletion(key, 60*time.Second)).ToNot(HaveOccurred())
 
 				Consistently(func() corev1.ConditionStatus {
 					return mcps.GetConditionStatus(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdating)
