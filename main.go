@@ -128,6 +128,9 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		klog.Exitf("unable to create PerformanceProfile controller : %v", err)
 	}
+	if err = (&performancev1.PerformanceProfile{}).SetupWebhookWithManager(mgr); err != nil {
+		klog.Exitf("unable to create PerformanceProfile webhook : %v", err)
+	}
 	// +kubebuilder:scaffold:builder
 
 	klog.Info("Starting the Cmd.")

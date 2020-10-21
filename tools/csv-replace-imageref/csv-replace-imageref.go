@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -19,21 +18,14 @@ var (
 func processCSV(operatorImage, csvInput string, dst io.Writer) {
 	operatorCSV := csvtools.UnmarshalCSV(csvInput)
 
-	strategySpec := csvtools.UnmarshalStrategySpec(operatorCSV)
+	strategySpec := operatorCSV.Spec.InstallStrategy.StrategySpec
 
 	// this forces us to update this logic if another deployment is introduced.
-	if len(strategySpec.Deployments) != 1 {
-		panic(fmt.Errorf("expected 1 deployment, found %d", len(strategySpec.Deployments)))
+	if len(strategySpec.DeploymentSpecs) != 1 {
+		panic(fmt.Errorf("expected 1 deployment, found %d", len(strategySpec.DeploymentSpecs)))
 	}
 
-	strategySpec.Deployments[0].Spec.Template.Spec.Containers[0].Image = operatorImage
-
-	// Re-serialize deployments and permissions into csv strategy.
-	updatedStrat, err := json.Marshal(strategySpec)
-	if err != nil {
-		panic(err)
-	}
-	operatorCSV.Spec.InstallStrategy.StrategySpecRaw = updatedStrat
+	strategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Image = operatorImage
 
 	operatorCSV.Annotations["containerImage"] = operatorImage
 

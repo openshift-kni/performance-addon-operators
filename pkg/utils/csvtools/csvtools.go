@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	yaml "github.com/ghodss/yaml"
-	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -52,17 +52,6 @@ func UnmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
 	}
 
 	return csvStruct
-}
-
-// UnmarshalStrategySpec decodes the StrategySpec object inside a CSV and returns it
-func UnmarshalStrategySpec(csv *csvv1.ClusterServiceVersion) *CSVStrategySpec {
-	templateStrategySpec := &CSVStrategySpec{}
-	err := json.Unmarshal(csv.Spec.InstallStrategy.StrategySpecRaw, templateStrategySpec)
-	if err != nil {
-		panic(err)
-	}
-
-	return templateStrategySpec
 }
 
 // MarshallObject mashals an object, usually a CSV into YAML
