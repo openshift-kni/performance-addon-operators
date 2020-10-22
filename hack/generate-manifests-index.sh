@@ -5,7 +5,7 @@ set -ex
 SELF=$( realpath $0 )
 BASEPATH=$( dirname $SELF )
 RUNTIME=${IMAGE_BUILD_CMD:-podman}
-VERSION=${OPERATOR_VERSION:-4.6.0}
+VERSION=${OPERATOR_VERSION:-4.7.0}
 
 rm -rf ${BASEPATH}/../build/_output/database && \
 mkdir -p ${BASEPATH}/../build/_output/database && \

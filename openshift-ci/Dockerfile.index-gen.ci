@@ -2,6 +2,6 @@ FROM quay.io/operator-framework/upstream-opm-builder
 
 RUN opm index add \
 --mode semver \
---bundles quay.io/openshift-kni/performance-addon-operator-bundle:4.6-snapshot \
+--bundles quay.io/openshift-kni/performance-addon-operator-bundle:4.7-snapshot \
 --out-dockerfile index.Dockerfile \
 --generate
