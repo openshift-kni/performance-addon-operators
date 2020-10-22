@@ -15,10 +15,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/node/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -360,15 +362,26 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			By("Checking v1alpha1 -> v1 conversion")
 			v1alpha1Profile.Name = "v1alpha"
 			v1alpha1Profile.ResourceVersion = ""
+			v1alpha1Profile.Spec.NodeSelector = map[string]string{"test": "test"}
 			Expect(testclient.Client.Create(context.TODO(), v1alpha1Profile)).ToNot(HaveOccurred())
-			defer func() { Expect(testclient.Client.Delete(context.TODO(), v1alpha1Profile)).ToNot(HaveOccurred()) }()
 
-			v1Profile := &performancev1.PerformanceProfile{}
 			key = types.NamespacedName{
 				Name:      v1alpha1Profile.Name,
 				Namespace: v1alpha1Profile.Namespace,
 			}
+			defer func() {
+				Expect(testclient.Client.Delete(context.TODO(), v1alpha1Profile)).ToNot(HaveOccurred())
 
+				Eventually(func() bool {
+					if err := testclient.Client.Get(context.TODO(), key, v1alpha1Profile); errors.IsNotFound(err) {
+						klog.Errorf("failed to get performance profile %s: %v", v1alpha1Profile.Name, err)
+						return true
+					}
+					return false
+				}, time.Minute, 10*time.Second).Should(Equal(true))
+			}()
+
+			v1Profile := &performancev1.PerformanceProfile{}
 			err = testclient.GetWithRetry(context.TODO(), key, v1Profile)
 			Expect(err).ToNot(HaveOccurred(), "Failed getting v1profile")
 			Expect(verifyV1alpha1Conversion(v1alpha1Profile, v1Profile)).ToNot(HaveOccurred())
