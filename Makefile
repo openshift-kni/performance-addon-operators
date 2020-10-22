@@ -180,10 +180,6 @@ generate-docs: dist-docs-generator
 generate-manifests-tree: generate-latest-dev-csv
 	hack/generate-manifests-tree.sh "$(FULL_OPERATOR_IMAGE)"
 
-.PHONY: generate-manifests-index
-generate-manifests-index: generate-manifests-tree
-	hack/generate-manifests-index.sh
-
 .PHONY: generate-index-database
 generate-index-database: bundle-container push-bundle-container
 	BUNDLES="$(FULL_BUNDLE_IMAGE)" hack/generate-index-database.sh
