@@ -12,4 +12,4 @@ LABEL operators.operatorframework.io.bundle.channels.v1=4.6.0
 LABEL operators.operatorframework.io.bundle.channel.default.v1=4.6.0
 
 COPY deploy/metadata/performance-addon-operator/${CHANNEL}.${ZVERSION}/* /metadata/
-COPY deploy/olm-catalog/performance-addon-operator/${CHANNEL}.${ZVERSION}/* /manifests/
+COPY manifests/performance-addon-operator/${CHANNEL}.${ZVERSION}/* /manifests/
