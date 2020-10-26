@@ -19,12 +19,13 @@ import (
 )
 
 const (
-	cmdlineDelimiter             = " "
-	templateIsolatedCpus         = "IsolatedCpus"
-	templateStaticIsolation      = "StaticIsolation"
-	templateDefaultHugepagesSize = "DefaultHugepagesSize"
-	templateHugepages            = "Hugepages"
-	templateAdditionalArgs       = "AdditionalArgs"
+	cmdlineDelimiter                        = " "
+	templateIsolatedCpus                    = "IsolatedCpus"
+	templateStaticIsolation                 = "StaticIsolation"
+	templateDefaultHugepagesSize            = "DefaultHugepagesSize"
+	templateHugepages                       = "Hugepages"
+	templateAdditionalArgs                  = "AdditionalArgs"
+	templateGloballyDisableIrqLoadBalancing = "GloballyDisableIrqLoadBalancing"
 )
 
 func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.TunedRecommend) *tunedv1.Tuned {
@@ -102,6 +103,11 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 
 	if profile.Spec.AdditionalKernelArgs != nil {
 		templateArgs[templateAdditionalArgs] = strings.Join(profile.Spec.AdditionalKernelArgs, cmdlineDelimiter)
+	}
+
+	if profile.Spec.GloballyDisableIrqLoadBalancing != nil &&
+		*profile.Spec.GloballyDisableIrqLoadBalancing == true {
+		templateArgs[templateGloballyDisableIrqLoadBalancing] = strconv.FormatBool(true)
 	}
 
 	profileData, err := getProfileData(getProfilePath(components.ProfileNamePerformance, assetsDir), templateArgs)

@@ -58,6 +58,13 @@ type PerformanceProfileSpec struct {
 	// NUMA defines options related to topology aware affinities
 	// +optional
 	NUMA *NUMA `json:"numa,omitempty"`
+	// GloballyDisableIrqLoadBalancing toggles whether IRQ load balancing will be disabled for the Isolated CPU set.
+	// When the option is set to "true" it disables IRQs load balancing for the Isolated CPU set.
+	// Setting the option to "false" allows the IRQs to be balanced across all CPUs, however the IRQs load balancing
+	// can be disabled per pod CPUs when using irq-load-balancing.crio.io/cpu-quota.crio.io annotations.
+	// Defaults to "false"
+	// +optional
+	GloballyDisableIrqLoadBalancing *bool `json:"globallyDisableIrqLoadBalancing,omitempty"`
 }
 
 // CPUSet defines the set of CPUs(0-3,8-11).
