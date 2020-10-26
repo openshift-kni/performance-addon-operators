@@ -23,6 +23,7 @@ import (
 
 	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/controllers"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/version"
@@ -63,6 +64,7 @@ func init() {
 
 	utilruntime.Must(performancev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(performancev1.AddToScheme(scheme))
+	utilruntime.Must(performancev2.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

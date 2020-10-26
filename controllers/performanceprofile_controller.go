@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"time"
 
-	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
@@ -121,7 +121,7 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	}
 
 	err := ctrl.NewControllerManagedBy(mgr).
-		For(&performancev1.PerformanceProfile{}).
+		For(&performancev2.PerformanceProfile{}).
 		Owns(&mcov1.MachineConfig{}, builder.WithPredicates(p)).
 		Owns(&mcov1.KubeletConfig{}, builder.WithPredicates(p)).
 		Owns(&tunedv1.Tuned{}, builder.WithPredicates(p)).
@@ -153,7 +153,7 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	klog.Info("Reconciling PerformanceProfile")
 
 	// Fetch the PerformanceProfile instance
-	instance := &performancev1.PerformanceProfile{}
+	instance := &performancev2.PerformanceProfile{}
 	err := r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -275,7 +275,7 @@ func (r *PerformanceProfileReconciler) ppRequestsFromMCP(o handler.MapObject) []
 		return nil
 	}
 
-	ppList := &performancev1.PerformanceProfileList{}
+	ppList := &performancev2.PerformanceProfileList{}
 	if err := r.List(context.TODO(), ppList); err != nil {
 		klog.Errorf("Unable to list performance profiles: %v", err)
 		return nil
@@ -291,7 +291,7 @@ func (r *PerformanceProfileReconciler) ppRequestsFromMCP(o handler.MapObject) []
 	return requests
 }
 
-func (r *PerformanceProfileReconciler) applyComponents(profile *performancev1.PerformanceProfile) (*reconcile.Result, error) {
+func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.PerformanceProfile) (*reconcile.Result, error) {
 
 	if profileutil.IsPaused(profile) {
 		klog.Infof("Ignoring reconcile loop for pause performance profile %s", profile.Name)
@@ -386,7 +386,7 @@ func (r *PerformanceProfileReconciler) applyComponents(profile *performancev1.Pe
 	return &reconcile.Result{}, nil
 }
 
-func (r *PerformanceProfileReconciler) deleteComponents(profile *performancev1.PerformanceProfile) error {
+func (r *PerformanceProfileReconciler) deleteComponents(profile *performancev2.PerformanceProfile) error {
 	tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 	if err := r.deleteTuned(tunedName, components.NamespaceNodeTuningOperator); err != nil {
 		return err
@@ -409,7 +409,7 @@ func (r *PerformanceProfileReconciler) deleteComponents(profile *performancev1.P
 
 }
 
-func (r *PerformanceProfileReconciler) isComponentsExist(profile *performancev1.PerformanceProfile) bool {
+func (r *PerformanceProfileReconciler) isComponentsExist(profile *performancev2.PerformanceProfile) bool {
 	tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
 	if _, err := r.getTuned(tunedName, components.NamespaceNodeTuningOperator); !errors.IsNotFound(err) {
 		klog.Infof("Tuned %q custom resource is still exists under the namespace %q", tunedName, components.NamespaceNodeTuningOperator)
@@ -430,7 +430,7 @@ func (r *PerformanceProfileReconciler) isComponentsExist(profile *performancev1.
 	return false
 }
 
-func hasFinalizer(profile *performancev1.PerformanceProfile, finalizer string) bool {
+func hasFinalizer(profile *performancev2.PerformanceProfile, finalizer string) bool {
 	for _, f := range profile.Finalizers {
 		if f == finalizer {
 			return true
@@ -439,7 +439,7 @@ func hasFinalizer(profile *performancev1.PerformanceProfile, finalizer string) b
 	return false
 }
 
-func removeFinalizer(profile *performancev1.PerformanceProfile, finalizer string) {
+func removeFinalizer(profile *performancev2.PerformanceProfile, finalizer string) {
 	var finalizers []string
 	for _, f := range profile.Finalizers {
 		if f == finalizer {
@@ -457,7 +457,7 @@ func namespacedName(obj metav1.Object) types.NamespacedName {
 	}
 }
 
-func hasMatchingLabels(performanceprofile *performancev1.PerformanceProfile, mcp *mcov1.MachineConfigPool) bool {
+func hasMatchingLabels(performanceprofile *performancev2.PerformanceProfile, mcp *mcov1.MachineConfigPool) bool {
 
 	selector, err := metav1.LabelSelectorAsSelector(mcp.Spec.MachineConfigSelector)
 	if err != nil {

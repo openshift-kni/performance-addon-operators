@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	v1 "github.com/openshift-kni/performance-addon-operators/api/v1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
@@ -76,7 +76,7 @@ func init() {
 
 var _ = Describe("[performance] Latency Test", func() {
 	var workerRTNode *corev1.Node
-	var profile *v1.PerformanceProfile
+	var profile *performancev2.PerformanceProfile
 	var oslatPod *corev1.Pod
 
 	BeforeEach(func() {
@@ -184,7 +184,7 @@ var _ = Describe("[performance] Latency Test", func() {
 	})
 })
 
-func getOslatPod(profile *v1.PerformanceProfile, node *corev1.Node) *corev1.Pod {
+func getOslatPod(profile *performancev2.PerformanceProfile, node *corev1.Node) *corev1.Pod {
 	cpus := cpuset.MustParse(string(*profile.Spec.CPU.Isolated))
 	runtimeClass := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	volumeTypeDirectory := corev1.HostPathDirectory

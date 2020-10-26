@@ -5,13 +5,13 @@ import (
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/performance-addon-operators/api/v1"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"io/ioutil"
 	"strings"
 )
 
 const (
-	crFilename         = "../config/samples/performance_v1_performanceprofile.yaml"
+	crFilename         = "../config/samples/performance_v2_performanceprofile.yaml"
 	crdFilename        = "../config/crd/bases/performance.openshift.io_performanceprofiles.yaml"
 	lastHeartbeatPath  = "/status/conditions/lastHeartbeatTime"
 	lastTransitionPath = "/status/conditions/lastTransitionTime"
@@ -33,7 +33,7 @@ var _ = Describe("PerformanceProfile CR(D) Schema", func() {
 			lastHeartbeatPath,
 			lastTransitionPath,
 		}
-		missingEntries := getMissingEntries(schema, &v1.PerformanceProfile{}, pathOmissions...)
+		missingEntries := getMissingEntries(schema, &performancev2.PerformanceProfile{}, pathOmissions...)
 		Expect(missingEntries).To(BeEmpty())
 	})
 

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v2
 
 import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -138,6 +138,7 @@ type PerformanceProfileStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=performanceprofiles,scope=Cluster
+// +kubebuilder:storageversion
 
 // PerformanceProfile is the Schema for the performanceprofiles API
 type PerformanceProfile struct {
