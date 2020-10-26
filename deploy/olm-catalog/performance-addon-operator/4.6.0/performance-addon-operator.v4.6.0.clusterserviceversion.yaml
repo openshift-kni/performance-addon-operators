@@ -45,11 +45,7 @@ metadata:
       ]
     capabilities: Basic Install
     containerImage: quay.io/openshift-kni/performance-addon-operator:4.6-snapshot
-    description: Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency.
     olm.skipRange: '>=4.5.0 <4.6.0'
-    operators.operatorframework.io/builder: operator-sdk-v1.0.0
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-    repository: https://github.com/operator-kni/performance-addon-operators
   name: performance-addon-operator.v4.6.0
   namespace: placeholder
 spec:
@@ -81,20 +77,6 @@ spec:
           verbs:
           - '*'
         - apiGroups:
-          - machineconfiguration.openshift.io
-          resources:
-          - kubeletconfigs
-          - machineconfigpools
-          - machineconfigs
-          verbs:
-          - '*'
-        - apiGroups:
-          - node.k8s.io
-          resources:
-          - runtimeclasses
-          verbs:
-          - '*'
-        - apiGroups:
           - performance.openshift.io
           resources:
           - performanceprofiles
@@ -103,9 +85,23 @@ spec:
           verbs:
           - '*'
         - apiGroups:
+          - machineconfiguration.openshift.io
+          resources:
+          - machineconfigs
+          - machineconfigpools
+          - kubeletconfigs
+          verbs:
+          - '*'
+        - apiGroups:
           - tuned.openshift.io
           resources:
           - tuneds
+          verbs:
+          - '*'
+        - apiGroups:
+          - node.k8s.io
+          resources:
+          - runtimeclasses
           verbs:
           - '*'
         serviceAccountName: performance-operator
@@ -154,10 +150,19 @@ spec:
       permissions:
       - rules:
         - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - services/finalizers
+          - configmaps
+          verbs:
+          - '*'
+        - apiGroups:
           - apps
           resources:
-          - daemonsets
           - deployments
+          - daemonsets
           - replicasets
           - statefulsets
           verbs:
@@ -171,15 +176,6 @@ spec:
           verbs:
           - update
         - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - pods
-          - services
-          - services/finalizers
-          verbs:
-          - '*'
-        - apiGroups:
           - monitoring.coreos.com
           resources:
           - servicemonitors
@@ -188,9 +184,9 @@ spec:
         serviceAccountName: performance-operator
     strategy: deployment
   installModes:
-  - supported: false
+  - supported: true
     type: OwnNamespace
-  - supported: false
+  - supported: true
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
@@ -208,16 +204,3 @@ spec:
   provider:
     name: Red Hat
   version: 4.6.0
-  webhookdefinitions:
-  - admissionReviewVersions:
-    - v1
-    - v1alpha1
-    containerPort: 443
-    conversionCRDs:
-    - performanceprofiles.performance.openshift.io
-    deploymentName: performance-operator
-    generateName: cwb.performance.openshift.io
-    sideEffects: None
-    targetPort: 4343
-    type: ConversionWebhook
-    webhookPath: /convert
