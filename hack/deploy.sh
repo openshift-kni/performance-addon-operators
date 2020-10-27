@@ -5,13 +5,7 @@ set -e
 # expect oc to be in PATH by default
 OC_TOOL="${OC_TOOL:-oc}"
 
-# Override the image name in the CSV when this is invoked from openshift ci
-# See https://github.com/openshift/ci-tools/blob/master/TEMPLATES.md#image_format
-if [ -n "${IMAGE_FORMAT}" ]; then
-  FULL_REGISTRY_IMAGE=${IMAGE_FORMAT/'${component}'/performance-addon-operator-registry}
-fi
-
-echo "Deploying using image $FULL_REGISTRY_IMAGE."
+echo "Deploying using image $FULL_INDEX_IMAGE."
 
 # Deploy features
 success=0
