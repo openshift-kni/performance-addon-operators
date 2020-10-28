@@ -26,6 +26,7 @@ fi
 echo "Running Functional Tests: ${GINKGO_SUITS}"
 # -v: print out the text and location for each spec before running it and flush output to stdout in realtime
 # -r: run suites recursively
-# --keepGoing: don't stop on failing suite
+# --failFast: ginkgo will stop the suite right after the first spec failure
+# --flakeAttempts: rerun the test if it fails
 # -requireSuite: fail if tests are not executed because of missing suite
-GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --keepGoing -requireSuite ${GINKGO_SUITS} -- -junitDir /tmp/artifacts
+GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --failFast --flakeAttempts=2 -requireSuite ${GINKGO_SUITS} -- -junitDir /tmp/artifacts
