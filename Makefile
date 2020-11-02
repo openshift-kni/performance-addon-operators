@@ -16,14 +16,12 @@ OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
 OPERATOR_IMAGE_NAME="performance-addon-operator"
-REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
 BUNDLE_IMAGE_NAME="performance-addon-operator-bundle"
 INDEX_IMAGE_NAME="performance-addon-operator-index"
 MUSTGATHER_IMAGE_NAME="performance-addon-operator-must-gather"
 LATENCY_TEST_IMAGE_NAME="latency-test"
 
 FULL_OPERATOR_IMAGE ?= "$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
-FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_BUNDLE_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${BUNDLE_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_INDEX_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${INDEX_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_MUSTGATHER_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${MUSTGATHER_IMAGE_NAME}:${IMAGE_TAG}"
@@ -93,9 +91,7 @@ dist-functests:
 	./hack/build-test-bin.sh
 
 .PHONY: build-containers
-# order matters here. bundle-container must always run after registry-container because of both target deps.
-# generate-manifests-tree wants to run on up to date manifests.
-build-containers: registry-container bundle-container index-container operator-container must-gather-container
+build-containers: bundle-container index-container operator-container must-gather-container
 
 .PHONY: operator-container
 operator-container: build
@@ -110,11 +106,6 @@ operator-container: build
 bundle-container: generate-manifests-tree
 	@echo "Building the performance-addon-operator bundle image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle.upstream.dev -t "$(FULL_BUNDLE_IMAGE)" .
-
-.PHONY: registry-container
-registry-container: generate-manifests-tree
-	@echo "Building the performance-addon-operator registry image"
-	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.registry.upstream.dev -t "$(FULL_REGISTRY_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)"  .
 
 .PHONY: index-container
 index-container: generate-index-database
@@ -138,7 +129,6 @@ push-bundle-container:
 .PHONY: push-containers
 push-containers:
 	$(IMAGE_BUILD_CMD) push $(FULL_OPERATOR_IMAGE)
-	$(IMAGE_BUILD_CMD) push $(FULL_REGISTRY_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_BUNDLE_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_INDEX_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_MUSTGATHER_IMAGE)
