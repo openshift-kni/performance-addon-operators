@@ -107,7 +107,7 @@ operator-container: build
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.deploy -t $(FULL_OPERATOR_IMAGE) --build-arg BIN_DIR="_output/bin/" --build-arg ASSETS_DIR="assets" build/
 
 .PHONY: bundle-container
-bundle-container: generate-manifests-tree
+bundle-container: generate-metadata generate-manifests-tree
 	@echo "Building the performance-addon-operator bundle image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle.upstream.dev -t "$(FULL_BUNDLE_IMAGE)" .
 
@@ -183,6 +183,10 @@ generate-manifests-tree: generate-latest-dev-csv
 .PHONY: generate-index-database
 generate-index-database: bundle-container push-bundle-container
 	BUNDLES="$(FULL_BUNDLE_IMAGE)" hack/generate-index-database.sh
+
+.PHONY: generate-metadata
+generate-metadata:
+	./hack/generate-metadata.sh
 
 .PHONY: deps-update
 deps-update:
