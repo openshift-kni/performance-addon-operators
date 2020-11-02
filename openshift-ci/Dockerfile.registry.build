@@ -9,8 +9,13 @@ COPY deploy/olm-catalog /registry/performance-addon-operator-catalog
 #ENV REG_URL=registry.svc.ci.openshift.org
 ENV REG_URL=registry.build02.ci.openshift.org
 
+USER root
+
 # replaces performance-addon-operator image with the one built by openshift ci
 RUN find /registry/performance-addon-operator-catalog/ -type f -exec sed -i "s|REPLACE_IMAGE|${REG_URL}/${OPENSHIFT_BUILD_NAMESPACE}/stable:performance-addon-operator|g" {} \; || :
+
+USER 1001
+
 # Initialize the database
 RUN initializer --manifests /registry/performance-addon-operator-catalog --output bundles.db
 
