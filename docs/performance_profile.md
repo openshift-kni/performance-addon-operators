@@ -26,7 +26,7 @@ CPU defines a set of CPU related features.
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
 | reserved | Reserved defines a set of CPUs that will not be used for any container workloads initiated by kubelet. | *[CPUSet](#cpuset) | false |
-| isolated | Isolated defines a set of CPUs that will be used to give to application threads the most execution time possible, which means removing as many extraneous tasks off a CPU as possible. It is important to notice the CPU manager can choose any CPU to run the workload except the reserved CPUs. In order to guarantee that your workload will run on the isolated CPU:\n  1. The union of reserved CPUs and isolated CPUs should include all online CPUs\n  2. The isolated CPUs field should be the complementary to reserved CPUs field | *[CPUSet](#cpuset) | false |
+| isolated | Isolated defines a set of CPUs that will be used to give to application threads the most execution time possible, which means removing as many extraneous tasks off a CPU as possible. It is important to notice the CPU manager can choose any CPU to run the workload except the reserved CPUs. In order to guarantee that your workload will run on the isolated CPU:\n  1. The union of reserved CPUs and isolated CPUs should include all online CPUs\n  2. The isolated CPUs field should be the complementary to reserved CPUs field | *[CPUSet](#cpuset) | true |
 | balanceIsolated | BalanceIsolated toggles whether or not the Isolated CPU set is eligible for load balancing work loads. When this option is set to \"false\", the Isolated CPU set will be static, meaning workloads have to explicitly assign each thread to a specific cpu in order to work across multiple CPUs. Setting this to \"true\" allows workloads to be balanced across CPUs. Setting this to \"false\" offers the most predictable performance for guaranteed workloads, but it offloads the complexity of cpu load balancing to the application. Defaults to \"true\" | *bool | false |
 
 [Back to TOC](#table-of-contents)
@@ -109,11 +109,11 @@ PerformanceProfileSpec defines the desired state of PerformanceProfile.
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| cpu | CPU defines a set of CPU related parameters. | *[CPU](#cpu) | false |
+| cpu | CPU defines a set of CPU related parameters. | *[CPU](#cpu) | true |
 | hugepages | HugePages defines a set of huge pages related parameters. It is possible to set huge pages with multiple size values at the same time. For example, hugepages can be set with 1G and 2M, both values will be set on the node by the performance-addon-operator. It is important to notice that setting hugepages default size to 1G will remove all 2M related folders from the node and it will be impossible to configure 2M hugepages under the node. | *[HugePages](#hugepages) | false |
 | machineConfigLabel | MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile. Defaults to \"machineconfiguration.openshift.io/role=&lt;same role as in NodeSelector label key&gt;\" | map[string]string | false |
 | machineConfigPoolSelector | MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector of resources like KubeletConfigs created by the operator. Defaults to \"machineconfiguration.openshift.io/role=&lt;same role as in NodeSelector label key&gt;\" | map[string]string | false |
-| nodeSelector | NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator. It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool which targets this performance profile. | map[string]string | false |
+| nodeSelector | NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator. It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool which targets this performance profile. | map[string]string | true |
 | realTimeKernel | RealTimeKernel defines a set of real time kernel related parameters. RT kernel won't be installed when not set. | *[RealTimeKernel](#realtimekernel) | false |
 | additionalKernelArgs | Addional kernel arguments. | []string | false |
 | numa | NUMA defines options related to topology aware affinities | *[NUMA](#numa) | false |
