@@ -31,10 +31,12 @@ Developers can build and push the Performance Operator images from the source tr
 ```
 export REGISTRY_NAMESPACE=<your quay.io namespace>
 export IMAGE_TAG=<the image tag to use> #defaults to "latest"
-make generate-manifests-tree
 make build-containers
 make push-containers
 ```
+
+The building of the index image requires that the bundle image will be public available under the image registry,
+otherwise the creation of the index image will fail.
 
 # Building and pushing z-stream release
 
