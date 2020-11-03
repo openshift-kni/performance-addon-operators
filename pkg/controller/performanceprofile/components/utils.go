@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 )
+
+const bitsInWord = 32
 
 // GetComponentName returns the component name for the specific performance profile
 func GetComponentName(profileName string, prefix string) string {
@@ -85,4 +88,32 @@ func CPUListIntersect(cpuListA, cpuListB string) ([]int, error) {
 	}
 	commonSet := cpusA.Intersection(cpusB)
 	return commonSet.ToSlice(), nil
+}
+
+// CPUMaskToCPUSet parses a CPUSet received in a Mask Format, see:
+// https://man7.org/linux/man-pages/man7/cpuset.7.html#FORMATS
+func CPUMaskToCPUSet(cpuMask string) (cpuset.CPUSet, error) {
+	chunks := strings.Split(cpuMask, ",")
+
+	// reverse the chunks order
+	n := len(chunks)
+	for i := 0; i < n/2; i++ {
+		chunks[i], chunks[n-i-1] = chunks[n-i-1], chunks[i]
+	}
+
+	builder := cpuset.NewBuilder()
+	for i, chunk := range chunks {
+		mask, err := strconv.ParseUint(chunk, 16, bitsInWord)
+		if err != nil {
+			return cpuset.NewCPUSet(), fmt.Errorf("failed to parse the CPU mask %s: %v", cpuMask, err)
+		}
+		for j := 0; j < bitsInWord; j++ {
+			if mask&1 == 1 {
+				builder.Add(i*bitsInWord + j)
+			}
+			mask >>= 1
+		}
+	}
+
+	return builder.Result(), nil
 }
