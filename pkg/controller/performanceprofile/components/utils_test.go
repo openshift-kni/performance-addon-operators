@@ -22,6 +22,14 @@ var cpuListToInvertMask = []listToMask{
 	{"80", "ffffffff,ffffffff"},
 }
 
+func intersectHelper(cpuListA, cpuListB string) ([]int, error) {
+	cpuLists, err := NewCPULists(cpuListA, cpuListB)
+	if err != nil {
+		return nil, err
+	}
+	return cpuLists.Intersect(), nil
+}
+
 var _ = Describe("Components utils", func() {
 	Context("Convert CPU list to CPU mask", func() {
 		It("should generate a valid CPU mask from CPU list ", func() {
@@ -47,13 +55,13 @@ var _ = Describe("Components utils", func() {
 			}
 
 			for _, entry := range cpuListInvalid {
-				_, err := CPUListIntersect(entry, entry)
+				_, err := intersectHelper(entry, entry)
 				Expect(err).To(HaveOccurred())
 
-				_, err = CPUListIntersect(entry, "0-3")
+				_, err = intersectHelper(entry, "0-3")
 				Expect(err).To(HaveOccurred())
 
-				_, err = CPUListIntersect("0-3", entry)
+				_, err = intersectHelper("0-3", entry)
 				Expect(err).To(HaveOccurred())
 			}
 		})
@@ -66,6 +74,8 @@ var _ = Describe("Components utils", func() {
 			}
 
 			var cpuListIntersectTestcases = []cpuListIntersect{
+				{"", "0-3", []int{}},
+				{"0-3", "", []int{}},
 				{"0-3", "4-15", []int{}},
 				{"0-3", "8-15", []int{}},
 				{"0-3", "0-15", []int{0, 1, 2, 3}},
@@ -74,7 +84,7 @@ var _ = Describe("Components utils", func() {
 			}
 
 			for _, entry := range cpuListIntersectTestcases {
-				res, err := CPUListIntersect(entry.cpuListA, entry.cpuListB)
+				res, err := intersectHelper(entry.cpuListA, entry.cpuListB)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(len(res)).To(Equal(len(entry.result)))

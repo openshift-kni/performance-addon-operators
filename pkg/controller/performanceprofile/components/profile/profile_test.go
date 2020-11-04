@@ -88,6 +88,24 @@ var _ = Describe("PerformanceProfile", func() {
 			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("the page size should be equal to %q or %q", hugepagesSize1G, hugepagesSize2M)))
 		})
 
+		It("should allow cpus allocation with no reserved CPUs", func() {
+			reservedCPUs := performancev2.CPUSet("")
+			isolatedCPUs := performancev2.CPUSet("0-7")
+			profile.Spec.CPU.Reserved = &reservedCPUs
+			profile.Spec.CPU.Isolated = &isolatedCPUs
+			err := ValidateParameters(profile)
+			Expect(err).Should(Not(HaveOccurred()))
+		})
+
+		It("should reject cpus allocation with no isolated CPUs", func() {
+			reservedCPUs := performancev2.CPUSet("0-3")
+			isolatedCPUs := performancev2.CPUSet("")
+			profile.Spec.CPU.Reserved = &reservedCPUs
+			profile.Spec.CPU.Isolated = &isolatedCPUs
+			err := ValidateParameters(profile)
+			Expect(err.Error()).To(ContainSubstring("must contain isolated cpus"))
+		})
+
 		It("should allow cpus allocation with not overlapping sets", func() {
 			reservedCPUs := performancev2.CPUSet("0-3")
 			isolatedCPUs := performancev2.CPUSet("4-15")
