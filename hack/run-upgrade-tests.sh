@@ -12,10 +12,10 @@ CLUSTER="${CLUSTER:-upgrade-test}"
 DEPLOY_PAO="${DEPLOY_PAO:-true}"
 
 # check if operator is already installed with right version
-subs=$(${OC_TOOL} get subscriptions -o name -n openshift-performance-addon)
+subs=$(${OC_TOOL} get subscriptions -o name -n openshift-performance-addon-operator)
 if [ -n "$subs" ]; then
   echo "Operator exists, verifying the version"
-  channel=$(oc get $subs -n openshift-performance-addon -o jsonpath={.spec.channel})
+  channel=$(oc get $subs -n openshift-performance-addon-operator -o jsonpath={.spec.channel})
   if [[ "$channel" != "$FROM_VERSION" ]]; then
     echo "Channel $channel is not equal to $FROM_VERSION, exit"
     exit 1

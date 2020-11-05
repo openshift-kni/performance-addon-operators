@@ -47,7 +47,7 @@ kind: Role
 metadata:
   creationTimestamp: null
   name: performance-operator
-  namespace: openshift-performance-addon
+  namespace: openshift-performance-addon-operator
 rules:
 - apiGroups:
   - apps
