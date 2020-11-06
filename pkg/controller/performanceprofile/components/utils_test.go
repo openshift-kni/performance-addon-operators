@@ -3,6 +3,8 @@ package components
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 )
 
 type listToMask struct {
@@ -25,6 +27,19 @@ var _ = Describe("Components utils", func() {
 				cpuMask, err := CPUListToMaskList(cpuEntry.cpuList)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(cpuMask).Should(Equal(cpuEntry.cpuMask))
+			}
+		})
+	})
+
+	Context("Convert CPU mask to CPU list", func() {
+		It("should generate a valid CPU list from CPU mask ", func() {
+			for _, cpuEntry := range cpuListToMask {
+				cpuSetFromList, err := cpuset.Parse(cpuEntry.cpuList)
+				Expect(err).ToNot(HaveOccurred())
+				cpuSetFromMask, err := CPUMaskToCPUSet(cpuEntry.cpuMask)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(cpuSetFromList).Should(Equal(cpuSetFromMask))
 			}
 		})
 	})

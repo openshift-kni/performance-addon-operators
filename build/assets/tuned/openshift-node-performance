@@ -31,6 +31,12 @@ service.stalld=start,enable
 [vm]
 transparent_hugepages=never                   #  network-latency
 
+{{if not .GloballyDisableIrqLoadBalancing}}
+[irqbalance]
+# Override the value set by cpu-partitioning with an empty one
+banned_cpus=""
+{{end}}
+
 [sysctl]
 kernel.hung_task_timeout_secs = 600           # cpu-partitioning #realtime
 kernel.nmi_watchdog = 0                       # cpu-partitioning #realtime

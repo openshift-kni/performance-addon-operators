@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"strings"
 	"time"
 
@@ -53,6 +54,70 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		Expect(err).ToNot(HaveOccurred())
 		performanceMCP, err = mcps.GetByProfile(profile)
 		Expect(err).ToNot(HaveOccurred())
+	})
+
+	Context("Verify GloballyDisableIrqLoadBalancing Spec field", func() {
+		It("[test_id:36150] Verify that IRQ load balancing is enabled/disabled correctly", func() {
+			irqLoadBalancingDisabled := profile.Spec.GloballyDisableIrqLoadBalancing != nil && *profile.Spec.GloballyDisableIrqLoadBalancing
+
+			Expect(profile.Spec.CPU.Isolated).NotTo(BeNil())
+			isolatedCPUSet, err := cpuset.Parse(string(*profile.Spec.CPU.Isolated))
+			Expect(err).ToNot(HaveOccurred())
+
+			var expectedBannedCPUs cpuset.CPUSet
+			if irqLoadBalancingDisabled {
+				expectedBannedCPUs = isolatedCPUSet
+			} else {
+				expectedBannedCPUs = cpuset.NewCPUSet()
+			}
+
+			for _, node := range workerRTNodes {
+				bannedCPUs, err := nodes.BannedCPUs(node)
+				Expect(err).ToNot(HaveOccurred(), fmt.Errorf("failed to extract the banned CPUs from node %s: %v", node.Name, err))
+				Expect(bannedCPUs.Equals(expectedBannedCPUs)).To(BeTrue(),
+					fmt.Errorf("banned CPUs %v do not match the expected mask %v on node %s",
+						bannedCPUs, expectedBannedCPUs, node.Name))
+			}
+
+			By("Modifying profile")
+			initialProfile = profile.DeepCopy()
+
+			irqLoadBalancingDisabled = !irqLoadBalancingDisabled
+			if irqLoadBalancingDisabled {
+				expectedBannedCPUs = isolatedCPUSet
+			} else {
+				expectedBannedCPUs = cpuset.NewCPUSet()
+			}
+			profile.Spec.GloballyDisableIrqLoadBalancing = &irqLoadBalancingDisabled
+
+			By("Updating the performance profile")
+			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+			defer func() { // return initial configuration
+				spec, err := json.Marshal(initialProfile.Spec)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(testclient.Client.Patch(context.TODO(), profile,
+					client.RawPatch(
+						types.JSONPatchType,
+						[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec", "value": %s }]`, spec)),
+					),
+				)).ToNot(HaveOccurred())
+			}()
+
+			Eventually(func() error {
+				for _, node := range workerRTNodes {
+					bannedCPUs, err := nodes.BannedCPUs(node)
+					if err != nil {
+						return fmt.Errorf("failed to extract the banned CPUs from node %s: %v", node.Name, err)
+					}
+					if !bannedCPUs.Equals(expectedBannedCPUs) {
+						return fmt.Errorf("banned CPUs %v do not match the expected mask %v on node %s",
+							bannedCPUs, expectedBannedCPUs, node.Name)
+					}
+				}
+				return nil
+			}, 1*time.Minute, 10*time.Second).ShouldNot(HaveOccurred())
+
+		})
 	})
 
 	Context("Verify that all performance profile parameters can be updated", func() {
