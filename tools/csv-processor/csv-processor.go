@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -42,25 +41,6 @@ var (
 
 func finalizedCsvFilename() string {
 	return "performance-addon-operator.v" + *csvVersion + ".clusterserviceversion.yaml"
-}
-
-func copyFile(src string, dst string) {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		panic(err)
-	}
-	defer srcFile.Close()
-
-	outFile, err := os.Create(dst)
-	if err != nil {
-		panic(err)
-	}
-	defer outFile.Close()
-
-	_, err = io.Copy(outFile, srcFile)
-	if err != nil {
-		panic(err)
-	}
 }
 
 type csvUserData struct {
