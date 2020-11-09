@@ -247,6 +247,7 @@ spec:
   - name: Source Code
     url: https://github.com/openshift-kni/performance-addon-operators
   maturity: alpha
+  minKubeVersion: 1.19.0
   provider:
     name: Red Hat
   version: 4.7.0
