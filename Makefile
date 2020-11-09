@@ -53,19 +53,19 @@ dist: build-output-dir
 	  -mod=vendor -o $(TOOLS_BIN_DIR)/performance-addon-operators .
 
 .PHONY: dist-tools
-dist-tools: dist-csv-generator dist-csv-replace-imageref
+dist-tools: dist-csv-processor dist-csv-replace-imageref
 
 .PHONY: dist-clean
 dist-clean:
 	rm -rf build/_output/bin
 
-.PHONY: dist-csv-generator
-dist-csv-generator: build-output-dir
-	@if [ ! -x $(TOOLS_BIN_DIR)/csv-generator ]; then\
-		echo "Building csv-generator tool";\
-		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/csv-generator ./tools/csv-generator;\
+.PHONY: dist-csv-processor
+dist-csv-processor: build-output-dir
+	@if [ ! -x $(TOOLS_BIN_DIR)/csv-processor ]; then\
+		echo "Building csv-processor tool";\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/csv-processor ./tools/csv-processor;\
 	else \
-		echo "Using pre-built csv-generator tool";\
+		echo "Using pre-built csv-processor tool";\
 	fi
 
 .PHONY: dist-csv-replace-imageref
@@ -145,7 +145,7 @@ operator-sdk:
 	fi
 
 .PHONY: generate-csv
-generate-csv: operator-sdk kustomize dist-csv-generator
+generate-csv: operator-sdk kustomize dist-csv-processor
 	@if [ -z "$(REGISTRY_NAMESPACE)" ]; then\
 		echo "REGISTRY_NAMESPACE env-var must be set to your $(IMAGE_REGISTRY) namespace";\
 		exit 1;\
@@ -157,7 +157,7 @@ build-output-dir:
 	mkdir -p $(TOOLS_BIN_DIR) || :
 
 .PHONY: generate-latest-dev-csv
-generate-latest-dev-csv: operator-sdk kustomize dist-csv-generator build-output-dir
+generate-latest-dev-csv: operator-sdk kustomize dist-csv-processor build-output-dir
 	@echo Generating developer csv
 	@echo
 	OPERATOR_SDK=$(OPERATOR_SDK) KUSTOMIZE=$(KUSTOMIZE) FULL_OPERATOR_IMAGE="REPLACE_IMAGE" hack/csv-generate.sh -dev

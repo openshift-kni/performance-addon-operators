@@ -67,7 +67,7 @@ if [[ ${CSV_VERSION} =~ 4.7.* ]]; then
     --output-dir="${OUT_DIR}" \
     --crds-dir="config/crd/bases"
 
-  # copy template CSV file to preserve it for our csv-generator
+  # copy template CSV file to preserve it for our csv-processor
   mv "${OUT_CSV_FILE}" "${CSV_TEMPLATE_FILE}"
 
   # copy the CRD before the generator will delete it
@@ -75,7 +75,7 @@ if [[ ${CSV_VERSION} =~ 4.7.* ]]; then
     "${CSV_DIR}/performance.openshift.io_performanceprofiles_crd.yaml"
 
   # using the generated CSV, create the real CSV by injecting all the right data into it
-  build/_output/bin/csv-generator \
+  build/_output/bin/csv-processor \
     --csv-version "${CSV_VERSION}" \
     --operator-csv-template-file "${CSV_TEMPLATE_FILE}" \
     --operator-image "${FULL_OPERATOR_IMAGE}" \
