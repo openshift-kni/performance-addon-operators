@@ -21,6 +21,7 @@ import (
 )
 
 var (
+	minKubeVersion      = flag.String("min-kube-version", "", "minimum required kubernetes version")
 	csvVersion          = flag.String("csv-version", "", "the unified CSV version")
 	replacesCsvVersion  = flag.String("replaces-csv-version", "", "the unified CSV version this new CSV will replace")
 	skipRange           = flag.String("skip-range", "", "the CSV version skip range")
@@ -35,8 +36,6 @@ var (
 	annotationsFile = flag.String("annotations-from", "", "add metadata annotations from given file")
 	maintainersFile = flag.String("maintainers-from", "", "add maintainers list from given file")
 	descriptionFile = flag.String("description-from", "", "replace the description with the content of the given file")
-
-	semverVersion *semver.Version
 )
 
 func finalizedCsvFilename() string {
@@ -47,6 +46,9 @@ type csvUserData struct {
 	Description      string
 	ExtraAnnotations map[string]string
 	Maintainers      map[string]string
+
+	CSVVersion     *semver.Version
+	MinKubeVersion *semver.Version
 }
 
 func generateUnifiedCSV(userData csvUserData) {
@@ -78,7 +80,7 @@ func generateUnifiedCSV(userData csvUserData) {
 	}
 
 	// Set correct csv versions and name
-	v := version.OperatorVersion{Version: *semverVersion}
+	v := version.OperatorVersion{Version: *userData.CSVVersion}
 	operatorCSV.Spec.Version = v
 	operatorCSV.Name = "performance-addon-operator.v" + *csvVersion
 	if *replacesCsvVersion != "" {
@@ -171,6 +173,10 @@ Performance Addon Operator provides the ability to enable advanced node performa
 		{Type: csvv1.InstallModeTypeAllNamespaces, Supported: true},
 	}
 
+	if userData.MinKubeVersion != nil {
+		operatorCSV.Spec.MinKubeVersion = userData.MinKubeVersion.String()
+	}
+
 	// write CSV to out dir
 	writer := strings.Builder{}
 	csvtools.MarshallObject(operatorCSV, &writer)
@@ -212,18 +218,27 @@ func main() {
 		log.Fatal("--olm-bundle-directory is required")
 	}
 
-	var err error
-	// Set correct csv versions and name
-	semverVersion, err = semver.New(*csvVersion)
-	if err != nil {
-		panic(err)
-	}
-
 	userData := csvUserData{
 		Description: `
 Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.`,
 		ExtraAnnotations: make(map[string]string),
 		Maintainers:      make(map[string]string),
+	}
+
+	var err error
+	// Set correct csv versions and name
+	userData.CSVVersion, err = semver.New(*csvVersion)
+	if err != nil {
+		panic(err)
+	}
+
+	if *minKubeVersion != "" {
+		// per https://github.com/operator-framework/operator-lifecycle-manager/blob/master/doc/design/building-your-csv.md
+		// The Kubernetes version must be in "Major.Minor.Patch" format
+		userData.MinKubeVersion, err = semver.New(*minKubeVersion)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if *annotationsFile != "" {

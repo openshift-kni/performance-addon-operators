@@ -82,6 +82,7 @@ if [[ ${CSV_VERSION} =~ 4.7.* ]]; then
     --olm-bundle-directory "${OUT_CSV_DIR}" \
     --replaces-csv-version "${REPLACES_CSV_VERSION}" \
     --skip-range "${CSV_SKIP_RANGE}" \
+    --min-kube-version "${MIN_KUBE_VERSION}" \
     "${MAINTAINERS}" \
     "${EXTRA_ANNOTATIONS}"
 
