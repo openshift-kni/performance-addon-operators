@@ -17,4 +17,4 @@ fi
 # --failFast: ginkgo will stop the suite right after the first spec failure
 # --flakeAttempts: rerun the test if it fails
 # -requireSuite: fail if tests are not executed because of missing suite
-GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --failFast --flakeAttempts=2 -requireSuite ${GINKGO_SUITS} -- -junitDir /tmp/artifacts
+GOFLAGS=-mod=vendor ginkgo $NO_COLOR --v -r --failFast --flakeAttempts=2 -requireSuite functests -- -junitDir /tmp/artifacts
