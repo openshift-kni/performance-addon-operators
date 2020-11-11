@@ -139,10 +139,10 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 // +kubebuilder:rbac:groups=machineconfiguration.openshift.io,resources=machineconfigs;machineconfigpools;kubeletconfigs,verbs=*
 // +kubebuilder:rbac:groups=tuned.openshift.io,resources=tuneds,verbs=*
 // +kubebuilder:rbac:groups=node.k8s.io,resources=runtimeclasses,verbs=*
-// +kubebuilder:rbac:namespace="openshift-performance-addon",groups=core,resources=pods;services;services/finalizers;configmaps,verbs=*
-// +kubebuilder:rbac:namespace="openshift-performance-addon",groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=*
-// +kubebuilder:rbac:namespace="openshift-performance-addon",groups=apps,resourceNames=performance-operator,resources=deployments/finalizers,verbs=update
-// +kubebuilder:rbac:namespace="openshift-performance-addon",groups=monitoring.coreos.com,resources=servicemonitors,verbs=*
+// +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=core,resources=pods;services;services/finalizers;configmaps,verbs=*
+// +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=*
+// +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=apps,resourceNames=performance-operator,resources=deployments/finalizers,verbs=update
+// +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=monitoring.coreos.com,resources=servicemonitors,verbs=*
 
 // Reconcile reads that state of the cluster for a PerformanceProfile object and makes changes based on the state read
 // and what is in the PerformanceProfile.Spec

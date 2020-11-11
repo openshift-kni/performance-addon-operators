@@ -54,12 +54,12 @@ sleep 30
 
 # Delete subscription: this will undeploy the operator and delete CRDs
 echo "[INFO] Deleting Subscription and giving OLM some time to undeploy the operator and CRDs"
-$OC_TOOL -n openshift-performance-addon delete subscription performance-addon-operator
+$OC_TOOL -n openshift-performance-addon-operator delete subscription performance-addon-operator
 sleep 10
 
 # Delete operatorgroup and catalogsource
 echo "[INFO] Deleting OperatorGroup and CatalogSource"
-$OC_TOOL -n openshift-performance-addon delete operatorgroup openshift-performance-addon
+$OC_TOOL -n openshift-performance-addon-operator delete operatorgroup openshift-performance-addon
 $OC_TOOL -n openshift-marketplace delete catalogsource performance-addon-operator
 
 # Delete worker-cnf MCP
@@ -71,4 +71,4 @@ done
 
 # Delete ns
 echo "[INFO] Deleting Namespace"
-$OC_TOOL delete ns openshift-performance-addon --force --grace-period 0
+$OC_TOOL delete ns openshift-performance-addon-operator --force --grace-period 0
