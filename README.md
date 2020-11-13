@@ -139,6 +139,7 @@ You can run the container with different ENV variables, but the bare minimum is 
 - `LATENCY_TEST_RUNTIME` the amount of time in seconds that the latency test should run.
 - `LATENCY_TEST_IMAGE` the image that used under the latency test.
 - `OSLAT_MAXIMUM_LATENCY` the expected maximum latency for all buckets in us.
+- `LATENCY_TEST_CORES` the core count that should be used for the test
 
 # Contributing
 
