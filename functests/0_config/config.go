@@ -70,19 +70,11 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 		}
 
 		By("Getting MCP for profile")
-		mcpLabel := profile.GetMachineConfigPoolSelector(performanceProfile)
+		mcpLabel := profile.GetMachineConfigLabel(performanceProfile)
 		key, value := components.GetFirstKeyAndValue(mcpLabel)
 		mcpsByLabel, err := mcps.GetByLabel(key, value)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed getting MCP by %s=%s", key, value))
+		Expect(err).ToNot(HaveOccurred(), "Failed getting MCP")
 		Expect(len(mcpsByLabel)).To(Equal(1), fmt.Sprintf("Unexpected number of MCPs found: %v", len(mcpsByLabel)))
-
-		if discovery.Enabled() {
-			return
-		}
-
-		// Everything below this line is modifying the node
-		// skip it in discovery mode
-
 		performanceMCP := &mcpsByLabel[0]
 
 		if !performanceMCP.Spec.Paused {

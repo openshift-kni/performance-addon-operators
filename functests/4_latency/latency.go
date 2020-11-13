@@ -34,14 +34,12 @@ var (
 	latencyTestRuntime = "300"
 	latencyTestImage   = "quay.io/openshift-kni/oslat:latest"
 	maximumLatency     = -1
-	useCores           = -1 // How many cores should be used for the test
 )
 
 // LATENCY_TEST_RUN: indicates if the latency test should run
 // LATENCY_TEST_RUNTIME: the amount of time in seconds that the latency test should run
 // LATENCY_TEST_IMAGE: the image use under the latency test
 // OSLAT_MAXIMUM_LATENCY: the expected maximum latency for all buckets in us
-// LATENCY_TEST_CORES: the number of cores to use for latency test
 func init() {
 	latencyTestRunEnv := os.Getenv("LATENCY_TEST_RUN")
 	if latencyTestRunEnv != "" {
@@ -66,14 +64,6 @@ func init() {
 		if maximumLatency, err = strconv.Atoi(maximumLatencyEnv); err != nil {
 			klog.Errorf("the environment variable OSLAT_MAXIMUM_LATENCY has incorrect value %q", maximumLatencyEnv)
 			panic(err)
-		}
-	}
-
-	useCoresEnv := os.Getenv("LATENCY_TEST_CORES")
-	if useCoresEnv != "" {
-		var err error
-		if useCores, err = strconv.Atoi(useCoresEnv); err != nil || useCores < 2 {
-			klog.Fatalf("the environment variable LATENCY_TEST_CORES has incorrect value %q", useCoresEnv)
 		}
 	}
 }
@@ -105,17 +95,8 @@ var _ = Describe("[performance] Latency Test", func() {
 		// do not calculated into the Allocated, at least part of time of one of isolated CPUs will be used to run
 		// other node containers
 		// at least two isolated CPUs to run oslat + one isolated CPU used by other containers on the node = at least 3 isolated CPUs
-		if (isolatedCpus.Size()-1) < useCores && useCores > 0 {
-			Skip(fmt.Sprintf("Skip the oslat test, the profile %q does not have enough isolated CPUs, the test wants %d", profile.Name, useCores))
-		} else if isolatedCpus.Size() < 3 {
-			Skip(fmt.Sprintf("Skip the oslat test, the profile %q does not have enough isolated CPUs", profile.Name))
-		}
-
-		if useCores < 0 {
-			// we can not use all isolated CPUs, because if reserved and isolated include all node CPUs, and reserved CPUs
-			// do not calculated into the Allocated, at least part of time of one of isolated CPUs will be used to run
-			// other node containers
-			useCores = isolatedCpus.Size() - 1
+		if isolatedCpus.Size() < 3 {
+			Skip(fmt.Sprintf("Skip the oslat test, the profile %q has less than two isolated CPUs", profile.Name))
 		}
 
 		workerRTNodes, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
@@ -198,6 +179,7 @@ var _ = Describe("[performance] Latency Test", func() {
 })
 
 func getOslatPod(profile *v1.PerformanceProfile, node *corev1.Node) *corev1.Pod {
+	cpus := cpuset.MustParse(string(*profile.Spec.CPU.Isolated))
 	runtimeClass := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	volumeTypeDirectory := corev1.HostPathDirectory
 	return &corev1.Pod{
@@ -228,7 +210,10 @@ func getOslatPod(profile *v1.PerformanceProfile, node *corev1.Node) *corev1.Pod 
 					},
 					Resources: corev1.ResourceRequirements{
 						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse(strconv.Itoa(useCores)),
+							// we can not use all isolated CPUs, because if reserved and isolated include all node CPUs, and reserved CPUs
+							// do not calculated into the Allocated, at least part of time of one of isolated CPUs will be used to run
+							// other node containers
+							corev1.ResourceCPU:    resource.MustParse(strconv.Itoa(cpus.Size() - 1)),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
 						},
 					},
