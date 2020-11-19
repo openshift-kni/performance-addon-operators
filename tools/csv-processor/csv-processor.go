@@ -143,9 +143,6 @@ Performance Addon Operator provides the ability to enable advanced node performa
 		operatorCSV.Annotations["olm.skipRange"] = *skipRange
 	}
 
-	operatorCSV.Annotations["description"] = "Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency."
-	operatorCSV.Annotations["repository"] = "https://github.com/operator-kni/performance-addon-operators"
-
 	// Setup the Conversion Webhook
 	targetPort := intstr.FromInt(4343)
 	sideEffects := admissionregistrationv1.SideEffectClassNone

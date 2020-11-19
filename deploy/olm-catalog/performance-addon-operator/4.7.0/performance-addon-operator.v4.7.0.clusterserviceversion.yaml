@@ -86,7 +86,7 @@ metadata:
     olm.skipRange: '>=4.6.0 <4.7.0'
     operators.operatorframework.io/builder: operator-sdk-v1.0.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-    repository: https://github.com/operator-kni/performance-addon-operators
+    repository: https://github.com/openshift-kni/performance-addon-operators
   name: performance-addon-operator.v4.7.0
   namespace: placeholder
 spec:
