@@ -13,8 +13,8 @@ import (
 
 	olmv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 
-	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/namespaces"
 )
 
 var fromVersion string
@@ -31,7 +31,7 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 
 	BeforeEach(func() {
 		subscriptionsList := &olmv1alpha1.SubscriptionList{}
-		err := testclient.Client.List(context.TODO(), subscriptionsList, &client.ListOptions{Namespace: testutils.PerformanceOperatorNamespace})
+		err := testclient.Client.List(context.TODO(), subscriptionsList, &client.ListOptions{Namespace: namespaces.PerformanceOperator})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred(), "Failed getting Subscriptions")
 		Expect(len(subscriptionsList.Items)).To(Equal(1), fmt.Sprintf("Unexpected number of Subscriptions found: %v", len(subscriptionsList.Items)))
 		subscription = &subscriptionsList.Items[0]
@@ -45,11 +45,11 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 		By(fmt.Sprintf("Upgrading from %s to %s", fromVersion, toVersion))
 
 		By(fmt.Sprintf("Verifying that %s channel is active", fromVersion))
-		subscription = getSubscription(subscription.Name, testutils.PerformanceOperatorNamespace)
+		subscription = getSubscription(subscription.Name, namespaces.PerformanceOperator)
 		Expect(subscription.Spec.Channel).To(Equal(fromVersion))
 		Expect(subscription.Status.CurrentCSV).To(ContainSubstring(fromVersion))
 
-		csv := getCSV(subscription.Status.CurrentCSV, testutils.PerformanceOperatorNamespace)
+		csv := getCSV(subscription.Status.CurrentCSV, namespaces.PerformanceOperator)
 		fromImage := csv.ObjectMeta.Annotations["containerImage"]
 
 		By(fmt.Sprintf("Switch subscription channel to %s version", toVersion))
@@ -61,12 +61,12 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 		)).ToNot(HaveOccurred())
 
 		By(fmt.Sprintf("Verifying that channel was updated to %s", toVersion))
-		subscriptionWaitForUpdate(subscription.Name, testutils.PerformanceOperatorNamespace, toVersion)
+		subscriptionWaitForUpdate(subscription.Name, namespaces.PerformanceOperator, toVersion)
 
 		// CSV is updated and image tag was changed
-		subscription = getSubscription(subscription.Name, testutils.PerformanceOperatorNamespace)
-		csv = getCSV(subscription.Status.CurrentCSV, testutils.PerformanceOperatorNamespace)
-		csvWaitForPhaseWithConditionReason(csv.Name, testutils.PerformanceOperatorNamespace, olmv1alpha1.CSVPhaseSucceeded, olmv1alpha1.CSVReasonInstallSuccessful)
+		subscription = getSubscription(subscription.Name, namespaces.PerformanceOperator)
+		csv = getCSV(subscription.Status.CurrentCSV, namespaces.PerformanceOperator)
+		csvWaitForPhaseWithConditionReason(csv.Name, namespaces.PerformanceOperator, olmv1alpha1.CSVPhaseSucceeded, olmv1alpha1.CSVReasonInstallSuccessful)
 		Expect(csv.ObjectMeta.Annotations["containerImage"]).NotTo(Equal(fromImage))
 	})
 })
