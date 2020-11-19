@@ -26,13 +26,13 @@ TEMPLATES_DIR="${OUT_ROOT}/templates"
 CSV_TEMPLATE_FILE="${TEMPLATES_DIR}/${PACKAGE_NAME}.v${CSV_VERSION}.clusterserviceversion.yaml"
 
 EXTRA_ANNOTATIONS=""
-MAINTAINERS=""
+EXTRA_MAINTAINERS=""
 
 if [ -n "$MAINTAINERS_FILE" ]; then
-  MAINTAINERS="-maintainers-from=$MAINTAINERS_FILE"
+  EXTRA_MAINTAINERS="--maintainers-from=$MAINTAINERS_FILE"
 fi
 if [ -n "$ANNOTATIONS_FILE" ]; then
-  EXTRA_ANNOTATIONS="-annotations-from=$ANNOTATIONS_FILE"
+  EXTRA_ANNOTATIONS="--annotations-from=$ANNOTATIONS_FILE"
 fi
 
 clean_package() {
@@ -83,8 +83,8 @@ if [[ ${CSV_VERSION} =~ 4.7.* ]]; then
     --replaces-csv-version "${REPLACES_CSV_VERSION}" \
     --skip-range "${CSV_SKIP_RANGE}" \
     --min-kube-version "${MIN_KUBE_VERSION}" \
-    "${MAINTAINERS}" \
-    "${EXTRA_ANNOTATIONS}"
+    "${EXTRA_ANNOTATIONS}" \
+    "${EXTRA_MAINTAINERS}"
 
   # restore the deleted CRD
   cp "${CSV_DIR}/performance.openshift.io_performanceprofiles_crd.yaml" \
