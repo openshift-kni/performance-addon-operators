@@ -35,6 +35,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 	chkCmdLine := []string{"cat", "/proc/cmdline"}
 	chkKubeletConfig := []string{"cat", "/rootfs/etc/kubernetes/kubelet.conf"}
 	chkIrqbalance := []string{"cat", "/rootfs/etc/sysconfig/irqbalance"}
+	chkDefaultSMPAffinity := []string{"cat", "/proc/irq/default_smp_affinity"}
+	chkOnlineCPUs := []string{"cat", "/sys/devices/system/cpu/online"}
 	chkHp2M := []string{"cat", "/sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages"}
 	chkHp1G := []string{"cat", "/sys/devices/system/node/node0/hugepages/hugepages-1048576kB/nr_hugepages"}
 
@@ -64,30 +66,56 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			isolatedCPUSet, err := cpuset.Parse(string(*profile.Spec.CPU.Isolated))
 			Expect(err).ToNot(HaveOccurred())
 
-			var expectedBannedCPUs cpuset.CPUSet
-			if irqLoadBalancingDisabled {
-				expectedBannedCPUs = isolatedCPUSet
-			} else {
-				expectedBannedCPUs = cpuset.NewCPUSet()
+			verifyNodes := func() error {
+				var expectedBannedCPUs cpuset.CPUSet
+				if irqLoadBalancingDisabled {
+					expectedBannedCPUs = isolatedCPUSet
+				} else {
+					expectedBannedCPUs = cpuset.NewCPUSet()
+				}
+
+				for _, node := range workerRTNodes {
+					bannedCPUs, err := nodes.BannedCPUs(node)
+					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to extract the banned CPUs from node %s", node.Name))
+
+					if !bannedCPUs.Equals(expectedBannedCPUs) {
+						return fmt.Errorf("banned CPUs %v do not match the expected mask %v on node %s",
+							bannedCPUs, expectedBannedCPUs, node.Name)
+					}
+					smpAffinity, err := nodes.ExecCommandOnNode(chkDefaultSMPAffinity, &node)
+					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkDefaultSMPAffinity))
+
+					smpAffinitySet, err := components.CPUMaskToCPUSet(smpAffinity)
+					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to parse %s", smpAffinity))
+
+					onlineCPUs, err := nodes.ExecCommandOnNode(chkOnlineCPUs, &node)
+					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkOnlineCPUs))
+
+					onlineCPUsSet, err := cpuset.Parse(onlineCPUs)
+					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to parse %s", onlineCPUs))
+
+					if irqLoadBalancingDisabled {
+						if !smpAffinitySet.Equals(onlineCPUsSet.Difference(isolatedCPUSet)) {
+							return fmt.Errorf("found default_smp_affinity %v, expected %v",
+								smpAffinitySet, onlineCPUsSet.Difference(isolatedCPUSet))
+						}
+					} else {
+						if !smpAffinitySet.Equals(onlineCPUsSet) {
+							return fmt.Errorf("found default_smp_affinity %v, expected %v",
+								smpAffinitySet, onlineCPUsSet)
+						}
+					}
+				}
+				return nil
 			}
 
-			for _, node := range workerRTNodes {
-				bannedCPUs, err := nodes.BannedCPUs(node)
-				Expect(err).ToNot(HaveOccurred(), fmt.Errorf("failed to extract the banned CPUs from node %s: %v", node.Name, err))
-				Expect(bannedCPUs.Equals(expectedBannedCPUs)).To(BeTrue(),
-					fmt.Errorf("banned CPUs %v do not match the expected mask %v on node %s",
-						bannedCPUs, expectedBannedCPUs, node.Name))
-			}
+			err = verifyNodes()
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Modifying profile")
 			initialProfile = profile.DeepCopy()
 
 			irqLoadBalancingDisabled = !irqLoadBalancingDisabled
-			if irqLoadBalancingDisabled {
-				expectedBannedCPUs = isolatedCPUSet
-			} else {
-				expectedBannedCPUs = cpuset.NewCPUSet()
-			}
 			profile.Spec.GloballyDisableIrqLoadBalancing = &irqLoadBalancingDisabled
 
 			By("Updating the performance profile")
@@ -103,20 +131,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 				)).ToNot(HaveOccurred())
 			}()
 
-			Eventually(func() error {
-				for _, node := range workerRTNodes {
-					bannedCPUs, err := nodes.BannedCPUs(node)
-					if err != nil {
-						return fmt.Errorf("failed to extract the banned CPUs from node %s: %v", node.Name, err)
-					}
-					if !bannedCPUs.Equals(expectedBannedCPUs) {
-						return fmt.Errorf("banned CPUs %v do not match the expected mask %v on node %s",
-							bannedCPUs, expectedBannedCPUs, node.Name)
-					}
-				}
-				return nil
-			}, 1*time.Minute, 10*time.Second).ShouldNot(HaveOccurred())
-
+			Eventually(verifyNodes, 1*time.Minute, 10*time.Second).ShouldNot(HaveOccurred())
 		})
 	})
 
