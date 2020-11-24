@@ -1,4 +1,4 @@
-FROM centos:7
+FROM registry.access.redhat.com/ubi7/ubi
 
 ENV HOME=/home/ci
 ENV GOROOT /usr/local/go
