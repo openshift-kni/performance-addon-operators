@@ -1,0 +1,3 @@
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+RUN microdnf install -y iputils && microdnf clean all
+ENTRYPOINT [ "/bin/ping" ]
