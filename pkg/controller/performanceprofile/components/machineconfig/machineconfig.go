@@ -1,11 +1,13 @@
 package machineconfig
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"text/template"
 
 	"github.com/coreos/go-systemd/unit"
 	igntypes "github.com/coreos/ignition/config/v2_2/types"
@@ -37,6 +39,10 @@ const (
 	bashScriptsDir      = "/usr/local/bin"
 	crioConfd           = "/etc/crio/crio.conf.d"
 	crioRuntimesConfig  = "99-runtimes"
+	ociHooks            = "low-latency-hooks"
+	ociHooksConfigDir   = "/etc/containers/oci/hooks.d"
+	ociHooksConfig      = "99-low-latency-hooks"
+	ociTemplateRPSMask  = "RPSMask"
 )
 
 const (
@@ -116,7 +122,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 
 	// add script files under the node /usr/local/bin directory
 	mode := 0700
-	for _, script := range []string{hugepagesAllocation} {
+	for _, script := range []string{hugepagesAllocation, ociHooks} {
 		src := filepath.Join(assetsDir, "scripts", fmt.Sprintf("%s.sh", script))
 		if err := addFile(ignitionConfig, src, getBashScriptPath(script), &mode); err != nil {
 			return nil, err
@@ -131,6 +137,23 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 		filepath.Join(assetsDir, "configs", config),
 		filepath.Join(crioConfd, config),
 		&crioConfdRuntimesMode,
+	); err != nil {
+		return nil, err
+	}
+
+	// add crio hooks config  under the node cri-o hook directory
+	crioHooksConfigsMode := 0644
+	config = fmt.Sprintf("%s.json", ociHooksConfig)
+	ociHooksConfigContent, err := GetOCIHooksConfigContent(filepath.Join(assetsDir, "configs", config), profile)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := addContent(
+		ignitionConfig,
+		ociHooksConfigContent,
+		filepath.Join(ociHooksConfigDir, config),
+		&crioHooksConfigsMode,
 	); err != nil {
 		return nil, err
 	}
@@ -188,6 +211,31 @@ func getSystemdContent(options []*unit.UnitOption) (string, error) {
 	return string(outBytes), nil
 }
 
+// GetOCIHooksConfigContent reads and returns the content of the OCI hook file
+func GetOCIHooksConfigContent(configFile string, profile *performancev2.PerformanceProfile) ([]byte, error) {
+	content, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return nil, err
+	}
+
+	rpsMask := "0" // RPS disabled
+	if profile.Spec.CPU != nil && profile.Spec.CPU.Reserved != nil {
+		rpsMask, err = components.CPUListToMaskList(string(*profile.Spec.CPU.Reserved))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	outContent := &bytes.Buffer{}
+	templateArgs := map[string]string{ociTemplateRPSMask: rpsMask}
+	template := template.Must(template.New("crio").Parse(string(content)))
+	if err := template.Execute(outContent, templateArgs); err != nil {
+		return nil, err
+	}
+
+	return outContent.Bytes(), nil
+}
+
 // GetHugepagesSizeKilobytes retruns hugepages size in kilobytes
 func GetHugepagesSizeKilobytes(hugepagesSize performancev2.HugePageSize) (string, error) {
 	switch hugepagesSize {
@@ -224,11 +272,7 @@ func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int3
 	}
 }
 
-func addFile(ignitionConfig *igntypes.Config, src string, dst string, mode *int) error {
-	content, err := ioutil.ReadFile(src)
-	if err != nil {
-		return err
-	}
+func addContent(ignitionConfig *igntypes.Config, content []byte, dst string, mode *int) error {
 	contentBase64 := base64.StdEncoding.EncodeToString(content)
 	ignitionConfig.Storage.Files = append(ignitionConfig.Storage.Files, igntypes.File{
 		Node: igntypes.Node{
@@ -243,4 +287,12 @@ func addFile(ignitionConfig *igntypes.Config, src string, dst string, mode *int)
 		},
 	})
 	return nil
+}
+
+func addFile(ignitionConfig *igntypes.Config, src string, dst string, mode *int) error {
+	content, err := ioutil.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return addContent(ignitionConfig, content, dst, mode)
 }
