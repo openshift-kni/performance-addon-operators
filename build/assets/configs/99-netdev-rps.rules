@@ -1,0 +1,1 @@
+SUBSYSTEM=="net", ACTION=="add", TAG+="systemd", ENV{SYSTEMD_WANTS}="update-rps@%k.service"

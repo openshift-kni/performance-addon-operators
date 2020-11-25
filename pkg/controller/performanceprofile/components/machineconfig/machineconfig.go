@@ -43,6 +43,8 @@ const (
 	ociHooksConfigDir   = "/etc/containers/oci/hooks.d"
 	ociHooksConfig      = "99-low-latency-hooks"
 	ociTemplateRPSMask  = "RPSMask"
+	udevRulesDir        = "/etc/udev/rules.d"
+	udevRpsRule         = "99-netdev-rps"
 )
 
 const (
@@ -158,6 +160,18 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 		return nil, err
 	}
 
+	// add rps udev rule
+	rpsRuleMode := 0644
+	rule := fmt.Sprintf("%s.rules", udevRpsRule)
+	if err := addFile(
+		ignitionConfig,
+		filepath.Join(assetsDir, "configs", rule),
+		filepath.Join(udevRulesDir, rule),
+		&rpsRuleMode,
+	); err != nil {
+		return nil, err
+	}
+
 	if profile.Spec.HugePages != nil {
 		for _, page := range profile.Spec.HugePages.Pages {
 			// we already allocated non NUMA specific hugepages via kernel arguments
@@ -185,6 +199,23 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 				Name:     getSystemdService(fmt.Sprintf("%s-%skB-NUMA%d", hugepagesAllocation, hugepagesSize, *page.Node)),
 			})
 		}
+	}
+
+	if profile.Spec.CPU != nil && profile.Spec.CPU.Reserved != nil {
+		rpsMask, err := components.CPUListToMaskList(string(*profile.Spec.CPU.Reserved))
+		if err != nil {
+			return nil, err
+		}
+
+		rpsService, err := getSystemdContent(getRPSUnitOptions(rpsMask))
+		if err != nil {
+			return nil, err
+		}
+
+		ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
+			Contents: rpsService,
+			Name:     getSystemdService("update-rps@"),
+		})
 	}
 
 	return ignitionConfig, nil
@@ -269,6 +300,20 @@ func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int3
 		// [Install]
 		// WantedBy
 		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
+	}
+}
+
+func getRPSUnitOptions(rpsMask string) []*unit.UnitOption {
+	cmd := fmt.Sprintf("/bin/find /sys/class/net/%%i/queues -type f -name rps_cpus -exec sh -c \"echo %s | cat > {}\" \\;", rpsMask)
+	return []*unit.UnitOption{
+		// [Unit]
+		// Description
+		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Sets network devices RPS mask"),
+		// [Service]
+		// Type
+		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
+		// ExecStart
+		unit.NewUnitOption(systemdSectionService, systemdExecStart, cmd),
 	}
 }
 
