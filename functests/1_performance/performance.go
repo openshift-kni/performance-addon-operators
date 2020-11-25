@@ -89,11 +89,11 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 	})
 
 	Context("Tuned CRs generated from profile", func() {
+		tunedExpectedName := components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance)
 		It("[test_id:31748] Should have the expected name for tuned from the profile owner object", func() {
-			tunedExpectedName := components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance)
 			tunedList := &tunedv1.TunedList{}
 			key := types.NamespacedName{
-				Name:      components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance),
+				Name:      tunedExpectedName,
 				Namespace: components.NamespaceNodeTuningOperator,
 			}
 			tuned := &tunedv1.Tuned{}
@@ -115,6 +115,15 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				return true
 			}, 120*time.Second, testPollInterval*time.Second).Should(BeTrue(),
 				"tuned CR name owned by a performance profile CR should only be "+tunedExpectedName)
+		})
+
+		It("Node should point to right tuned profile", func() {
+			for _, node := range workerRTNodes {
+				tuned := tunedForNode(&node)
+				activeProfile, err := pods.ExecCommandOnPod(tuned, []string{"cat", "/etc/tuned/active_profile"})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(string(activeProfile)).To(Equal(tunedExpectedName))
+			}
 		})
 	})
 
