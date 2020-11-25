@@ -122,7 +122,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				tuned := tunedForNode(&node)
 				activeProfile, err := pods.ExecCommandOnPod(tuned, []string{"cat", "/etc/tuned/active_profile"})
 				Expect(err).ToNot(HaveOccurred())
-				Expect(string(activeProfile)).To(Equal(tunedExpectedName))
+				Expect(strings.TrimSpace(string(activeProfile))).To(Equal(tunedExpectedName))
 			}
 		})
 	})
