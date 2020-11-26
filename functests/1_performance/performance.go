@@ -117,7 +117,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				"tuned CR name owned by a performance profile CR should only be "+tunedExpectedName)
 		})
 
-		It("Node should point to right tuned profile", func() {
+		It("[test_id:37127] Node should point to right tuned profile", func() {
 			for _, node := range workerRTNodes {
 				tuned := tunedForNode(&node)
 				activeProfile, err := pods.ExecCommandOnPod(tuned, []string{"cat", "/etc/tuned/active_profile"})
