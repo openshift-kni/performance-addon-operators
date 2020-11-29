@@ -2,6 +2,7 @@ package __performance
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -19,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -231,6 +233,75 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+key.String())
 			validatTunedActiveProfile(workerRTNodes)
 			execSysctlOnWorkers(workerRTNodes, sysctlMap)
+		})
+	})
+
+	Context("RPS configuration", func() {
+		It("Should have the correct RPS configuration", func() {
+			if profile.Spec.CPU == nil || profile.Spec.CPU.Reserved != nil {
+				return
+			}
+
+			expectedRPSCPUs, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
+			Expect(err).ToNot(HaveOccurred())
+			ociHookPath := filepath.Join("/rootfs", machineconfig.OCIHooksConfigDir, machineconfig.OCIHooksConfig+".json")
+			Expect(err).ToNot(HaveOccurred())
+			for _, node := range workerRTNodes {
+				// Verify the OCI RPS hook uses the correct RPS mask
+				hooksConfig, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", ociHookPath})
+				Expect(err).ToNot(HaveOccurred())
+
+				var hooks map[string]interface{}
+				err = json.Unmarshal(hooksConfig, &hooks)
+				Expect(err).ToNot(HaveOccurred())
+				hook := hooks["hook"].(map[string]interface{})
+				Expect(hook).ToNot(BeNil())
+				args := hook["args"].([]interface{})
+				Expect(len(args)).To(Equal(2))
+
+				rpsCPUs, err := components.CPUMaskToCPUSet(args[1].(string))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(rpsCPUs).To(Equal(expectedRPSCPUs), "the hook rps mask is different from the reserved CPUs")
+
+				// Verify the systemd RPS service uses the correct RPS mask
+				cmd := []string{"sed", "-n", "s/^ExecStart=.*echo \\([A-Fa-f0-9]*\\) .*/\\1/p", "/rootfs/etc/systemd/system/update-rps@.service"}
+				serviceRPSCPUs, err := nodes.ExecCommandOnNode(cmd, &node)
+				Expect(err).ToNot(HaveOccurred())
+
+				rpsCPUs, err = components.CPUMaskToCPUSet(serviceRPSCPUs)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(rpsCPUs).To(Equal(expectedRPSCPUs), "the service rps mask is different from the reserved CPUs")
+
+				// Verify all host network devices have the correct RPS mask
+				cmd = []string{"find", "/rootfs/sys/devices", "-type", "f", "-name", "rps_cpus", "-exec", "cat", "{}", ";"}
+				devsRPS, err := nodes.ExecCommandOnNode(cmd, &node)
+				Expect(err).ToNot(HaveOccurred())
+
+				for _, devRPS := range strings.Split(devsRPS, "\n") {
+					rpsCPUs, err = components.CPUMaskToCPUSet(devRPS)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(rpsCPUs).To(Equal(expectedRPSCPUs), "a host device rps mask is different from the reserved CPUs")
+				}
+
+				// Verify all node pod network devices have the correct RPS mask
+				nodePods := &corev1.PodList{}
+				listOptions := &client.ListOptions{
+					Namespace:     "",
+					FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}),
+				}
+				err = testclient.Client.List(context.TODO(), nodePods, listOptions)
+				Expect(err).ToNot(HaveOccurred())
+
+				for _, pod := range nodePods.Items {
+					cmd := []string{"find", "/sys/devices", "-type", "f", "-name", "rps_cpus", "-exec", "cat", "{}", ";"}
+					devsRPS, err := pods.ExecCommandOnPod(&pod, cmd)
+					for _, devRPS := range strings.Split(strings.Trim(string(devsRPS), "\n"), "\n") {
+						rpsCPUs, err = components.CPUMaskToCPUSet(devRPS)
+						Expect(err).ToNot(HaveOccurred())
+						Expect(rpsCPUs).To(Equal(expectedRPSCPUs), pod.Name+" has a device rps mask different from the reserved CPUs")
+					}
+				}
+			}
 		})
 	})
 
