@@ -35,6 +35,9 @@ make build-containers
 make push-containers
 ```
 
+The building of the index image requires that the bundle image will be public available under the image registry,
+otherwise the creation of the index image will fail.
+
 # Building and pushing z-stream release
 
 It is number of ENV variables that you should define to get all components to have the right z-stream version `4.x.y`

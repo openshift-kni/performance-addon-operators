@@ -64,29 +64,6 @@ steps:
       - "/usr/local/bin/performance-operator 2>&1 | grep \"Operator Version: ${DRONE_TAG}\""
       - "/usr/local/bin/performance-operator 2>&1 | grep \"Git Commit: ${DRONE_COMMIT}\""
 
-  - name: build-registry-image
-    image: plugins/docker
-    settings:
-      dockerfile: openshift-ci/Dockerfile.registry.upstream.dev
-      username:
-        from_secret: QUAY_USER
-      password:
-        from_secret: QUAY_PASSWORD
-      build_args:
-        # This only works if github user == quay user!
-        - FULL_OPERATOR_IMAGE=quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator:${DRONE_TAG:-notset}
-        - OLM_SOURCE=build/_output/olm-catalog
-      registry: quay.io
-      # This only works if github user == quay user!
-      repo: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-registry
-
-  - name: validate-registry-image
-    image: quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator-registry:${DRONE_TAG:-notset}
-    commands:
-      - sqlite3 /registry/bundles.db "select * from package" | grep "performance-addon-operator|${DRONE_SEMVER_SHORT}"
-      - sqlite3 /registry/bundles.db "select * from channel" | grep "${DRONE_SEMVER_SHORT}|performance-addon-operator|performance-addon-operator.v${DRONE_SEMVER_SHORT}"
-      - sqlite3 /registry/bundles.db "select * from operatorbundle" | grep "\"image\":\"quay.io/${DRONE_REPO_NAMESPACE}/performance-addon-operator:${DRONE_TAG}\""
-
   - name: build-must-gather-image
     image: plugins/docker
     settings:
