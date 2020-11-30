@@ -1,24 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
+
+# shellcheck source=common.sh
+source "$(dirname "$0")/common.sh"
 
 GOROOT=$(go env GOROOT)
 export GOROOT
 
-OLD="4.4.0"
-PREV="4.5.0"
-LATEST="4.6.0"
-LATEST_CHANNEL="4.6"
+CSV_SKIP_RANGE=">=${PREV_CSV_VERSION} <${CSV_VERSION}"
 
 IS_DEV=$([[ $1 == "-dev" ]] && echo true || echo false)
-
-if [[ -z "$CSV_VERSION" ]]; then
-  CSV_VERSION=$LATEST
-fi
-
-if [[ -z "$CSV_CHANNEL" ]]; then
-  CSV_CHANNEL=$LATEST_CHANNEL
-fi
 
 PACKAGE_NAME="performance-addon-operator"
 PACKAGE_DIR="deploy/olm-catalog/${PACKAGE_NAME}"
@@ -61,7 +53,7 @@ fi
 clean_package
 
 # do not generate new CRD/CSV for old versions
-if [[ "$CSV_VERSION" != "$PREV" ]] && [[ "$CSV_VERSION" != "$OLD" ]]; then
+if [[ ${CSV_VERSION} =~ 4.6.* ]]; then
   cp -a deploy/olm-catalog build/_output
 
   # generate a temporary csv we'll use as a template
@@ -94,11 +86,8 @@ if [[ "$CSV_VERSION" != "$PREV" ]] && [[ "$CSV_VERSION" != "$OLD" ]]; then
 fi
 
 if [[ "$IS_DEV" == true ]]; then
-  # copy generated CSV and CRD back to repository dir
+  # copy generated CSV and CRD back to the repository dir
   cp "${OUT_CSV_DIR}"/* "${CSV_DIR}/"
-
-  # copy generated package yaml
-  cp "${OUT_DIR}/${PACKAGE_NAME}/${PACKAGE_NAME}.package.yaml" ${PACKAGE_DIR}/
 fi
 
 echo "New OLM manifests created at ${OUT_DIR}"

@@ -15,14 +15,12 @@ OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
 OPERATOR_IMAGE_NAME="performance-addon-operator"
-REGISTRY_IMAGE_NAME="performance-addon-operator-registry"
 BUNDLE_IMAGE_NAME="performance-addon-operator-bundle"
 INDEX_IMAGE_NAME="performance-addon-operator-index"
 MUSTGATHER_IMAGE_NAME="performance-addon-operator-must-gather"
 LATENCY_TEST_IMAGE_NAME="latency-test"
 
 FULL_OPERATOR_IMAGE ?= "$(IMAGE_REGISTRY)/$(REGISTRY_NAMESPACE)/$(OPERATOR_IMAGE_NAME):$(IMAGE_TAG)"
-FULL_REGISTRY_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${REGISTRY_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_BUNDLE_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${BUNDLE_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_INDEX_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${INDEX_IMAGE_NAME}:${IMAGE_TAG}"
 FULL_MUSTGATHER_IMAGE ?= "${IMAGE_REGISTRY}/${REGISTRY_NAMESPACE}/${MUSTGATHER_IMAGE_NAME}:${IMAGE_TAG}"
@@ -92,9 +90,7 @@ dist-functests:
 	./hack/build-test-bin.sh
 
 .PHONY: build-containers
-# order matters here. bundle-container must always run after registry-container because of both target deps.
-# generate-manifests-tree wants to run on up to date manifests.
-build-containers: registry-container bundle-container index-container operator-container must-gather-container
+build-containers: bundle-container index-container operator-container must-gather-container
 
 .PHONY: operator-container
 operator-container: build
@@ -106,19 +102,14 @@ operator-container: build
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.deploy -t $(FULL_OPERATOR_IMAGE) --build-arg BIN_DIR="_output/bin/" --build-arg ASSETS_DIR="assets" build/
 
 .PHONY: bundle-container
-bundle-container: generate-manifests-tree
+bundle-container: generate-metadata generate-manifests-tree
 	@echo "Building the performance-addon-operator bundle image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.bundle.upstream.dev -t "$(FULL_BUNDLE_IMAGE)" .
 
-.PHONY: registry-container
-registry-container: generate-manifests-tree
-	@echo "Building the performance-addon-operator registry image"
-	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.registry.upstream.dev -t "$(FULL_REGISTRY_IMAGE)" --build-arg FULL_OPERATOR_IMAGE="$(FULL_OPERATOR_IMAGE)"  .
-
 .PHONY: index-container
-index-container: generate-manifests-index
+index-container: generate-index-database
 	@echo "Building the performance-addon-operator index image"
-	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.index.upstream.dev -t "$(FULL_INDEX_IMAGE)" .
+	$(IMAGE_BUILD_CMD) build --no-cache -f build/_output/index.Dockerfile -t "$(FULL_INDEX_IMAGE)" build/_output
 
 .PHONY: must-gather-container
 must-gather-container:
@@ -130,10 +121,13 @@ latency-test-container:
 	@echo "Building the latency test image"
 	$(IMAGE_BUILD_CMD) build -f functests/4_latency/Dockerfile -t "$(FULL_LATENCY_TEST_IMAGE)"  .
 
+.PHONY: push-bundle-container
+push-bundle-container:
+	$(IMAGE_BUILD_CMD) push $(FULL_BUNDLE_IMAGE)	
+
 .PHONY: push-containers
 push-containers:
 	$(IMAGE_BUILD_CMD) push $(FULL_OPERATOR_IMAGE)
-	$(IMAGE_BUILD_CMD) push $(FULL_REGISTRY_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_BUNDLE_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_INDEX_IMAGE)
 	$(IMAGE_BUILD_CMD) push $(FULL_MUSTGATHER_IMAGE)
@@ -175,9 +169,13 @@ generate-docs: dist-docs-generator
 generate-manifests-tree: generate-latest-dev-csv
 	hack/generate-manifests-tree.sh "$(FULL_OPERATOR_IMAGE)"
 
-.PHONY: generate-manifests-index
-generate-manifests-index: generate-manifests-tree
-	hack/generate-manifests-index.sh
+.PHONY: generate-index-database
+generate-index-database: bundle-container push-bundle-container
+	BUNDLES="$(FULL_BUNDLE_IMAGE)" hack/generate-index-database.sh
+
+.PHONY: generate-metadata
+generate-metadata:
+	./hack/generate-metadata.sh
 
 .PHONY: deps-update
 deps-update:
@@ -191,7 +189,7 @@ deploy: cluster-deploy
 .PHONY: cluster-deploy
 cluster-deploy:
 	@echo "Deploying operator"
-	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) CLUSTER=$(CLUSTER) hack/deploy.sh
+	FULL_INDEX_IMAGE=$(FULL_INDEX_IMAGE) CLUSTER=$(CLUSTER) hack/deploy.sh
 
 .PHONY: cluster-label-worker-cnf
 cluster-label-worker-cnf:
@@ -208,7 +206,7 @@ cluster-wait-for-mcp:
 .PHONY: cluster-clean
 cluster-clean:
 	@echo "Deleting operator"
-	FULL_REGISTRY_IMAGE=$(FULL_REGISTRY_IMAGE) hack/clean-deploy.sh
+	FULL_INDEX_IMAGE=$(FULL_INDEX_IMAGE) hack/clean-deploy.sh
 
 .PHONY: functests
 functests: cluster-label-worker-cnf functests-only
