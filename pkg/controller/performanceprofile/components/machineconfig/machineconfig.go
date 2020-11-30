@@ -40,11 +40,13 @@ const (
 	crioConfd           = "/etc/crio/crio.conf.d"
 	crioRuntimesConfig  = "99-runtimes"
 	ociHooks            = "low-latency-hooks"
-	ociHooksConfigDir   = "/etc/containers/oci/hooks.d"
-	ociHooksConfig      = "99-low-latency-hooks"
-	ociTemplateRPSMask  = "RPSMask"
-	udevRulesDir        = "/etc/udev/rules.d"
-	udevRpsRule         = "99-netdev-rps"
+	// OCIHooksConfigDir is the default directory for the OCI hooks
+	OCIHooksConfigDir = "/etc/containers/oci/hooks.d"
+	// OCIHooksConfig file contains the low latency hooks configuration
+	OCIHooksConfig     = "99-low-latency-hooks"
+	ociTemplateRPSMask = "RPSMask"
+	udevRulesDir       = "/etc/udev/rules.d"
+	udevRpsRule        = "99-netdev-rps"
 )
 
 const (
@@ -145,7 +147,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 
 	// add crio hooks config  under the node cri-o hook directory
 	crioHooksConfigsMode := 0644
-	config = fmt.Sprintf("%s.json", ociHooksConfig)
+	config = fmt.Sprintf("%s.json", OCIHooksConfig)
 	ociHooksConfigContent, err := GetOCIHooksConfigContent(filepath.Join(assetsDir, "configs", config), profile)
 	if err != nil {
 		return nil, err
@@ -154,7 +156,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 	if err := addContent(
 		ignitionConfig,
 		ociHooksConfigContent,
-		filepath.Join(ociHooksConfigDir, config),
+		filepath.Join(OCIHooksConfigDir, config),
 		&crioHooksConfigsMode,
 	); err != nil {
 		return nil, err
