@@ -279,7 +279,7 @@ var _ = Describe("Controller", func() {
 				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profile)
 				Expect(err).ToNot(HaveOccurred())
 
-				runtimeClass = runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
+				runtimeClass = runtimeclass.New(profile, machineconfig.LowLatencyRuntime)
 			})
 
 			It("should not record new create event", func() {
@@ -602,7 +602,7 @@ var _ = Describe("Controller", func() {
 			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
 
-			runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
+			runtimeClass := runtimeclass.New(profile, machineconfig.LowLatencyRuntime)
 
 			r := newFakeReconciler(profile, mc, kc, tunedPerformance, runtimeClass)
 			result, err := r.Reconcile(request)

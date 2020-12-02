@@ -381,7 +381,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			runtimeClass := &v1beta1.RuntimeClass{}
 			err = testclient.GetWithRetry(context.TODO(), configKey, runtimeClass)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("cannot find RuntimeClass profile object %s", runtimeClass.Name))
-			Expect(runtimeClass.Handler).Should(Equal(machineconfig.HighPerformanceRuntime))
+			Expect(runtimeClass.Handler).Should(Equal(machineconfig.LowLatencyRuntime))
 
 			By("Checking that new Tuned profile created")
 			tunedKey := types.NamespacedName{

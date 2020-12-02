@@ -339,7 +339,7 @@ func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.Pe
 	}
 
 	// get mutated RuntimeClass
-	runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
+	runtimeClass := runtimeclass.New(profile, machineconfig.LowLatencyRuntime)
 	if err := controllerutil.SetControllerReference(profile, runtimeClass, r.Scheme); err != nil {
 		return nil, err
 	}
