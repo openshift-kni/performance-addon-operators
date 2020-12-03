@@ -32,8 +32,8 @@ const (
 	MCKernelRT = "realtime"
 	// MCKernelDefault is the value of the kernel setting in MachineConfig for the default kernel
 	MCKernelDefault = "default"
-	// HighPerformanceRuntime contains the name of the CPU load balancing runtime
-	HighPerformanceRuntime = "high-performance"
+	// LowLatencyRuntime contains the name of the low-latency runtime
+	LowLatencyRuntime = "low-latency"
 
 	hugepagesAllocation = "hugepages-allocation"
 	bashScriptsDir      = "/usr/local/bin"

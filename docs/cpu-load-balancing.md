@@ -33,7 +33,7 @@ Functionality to disable/enable the CPU load balancing will be implemented on th
 the code under the CRI-O will disable/enable CPU load balancing only when:
 
 - the pod uses ***performance-<profile_name>*** runtime class
-- the pod has ***cpu-load-balancing.crio.io: true*** annotation
+- the pod has ***cpu-load-balancing.crio.io: disable*** annotation
 
 The performance-addon-operator will be responsible for the creation of the high-performance runtime handler config snippet,
 it will have the same content as default runtime handler, under relevant nodes, 
@@ -50,7 +50,7 @@ metadata:
   ...
   annotations:
     ...
-    cpu-load-balancing.crio.io: "true"
+    cpu-load-balancing.crio.io: "disable"
     ...
   ... 
 spec:
