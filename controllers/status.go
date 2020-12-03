@@ -234,10 +234,6 @@ func (r *PerformanceProfileReconciler) getKubeletConditionsByProfile(profile *pe
 		return nil, nil
 	}
 
-	if latestCondition.Status != corev1.ConditionTrue {
-		return nil, nil
-	}
-
 	return r.getDegradedConditions(conditionKubeletFailed, latestCondition.Message), nil
 }
 
