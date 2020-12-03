@@ -12,6 +12,7 @@ import (
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -23,6 +24,8 @@ const (
 	conditionReasonComponentsCreationFailed = "ComponentCreationFailed"
 	conditionReasonMCPDegraded              = "MCPDegraded"
 	conditionFailedGettingMCPStatus         = "GettingMCPStatusFailed"
+	conditionKubeletFailed                  = "KubeletConfig failure"
+	conditionFailedGettingKubeletStatus     = "GettingKubeletStatusFailed"
 )
 
 func (r *PerformanceProfileReconciler) updateStatus(profile *performancev2.PerformanceProfile, conditions []conditionsv1.Condition) error {
@@ -209,8 +212,46 @@ func (r *PerformanceProfileReconciler) getMCPConditionsByProfile(profile *perfor
 	return r.getDegradedConditions(conditionReasonMCPDegraded, messageString), nil
 }
 
-func removeMCPDuplicateEntries(mcps []mcov1.MachineConfigPool) []mcov1.MachineConfigPool {
+func (r *PerformanceProfileReconciler) getKubeletConditionsByProfile(profile *performancev2.PerformanceProfile) ([]conditionsv1.Condition, error) {
+	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
+	kc, err := r.getKubeletConfig(name)
 
+	// do not drop an error when kubelet config does not exist
+	if errors.IsNotFound(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	latestCondition := getLatestKubeletConfigCondition(kc.Status.Conditions)
+	if latestCondition == nil {
+		return nil, nil
+	}
+
+	if latestCondition.Type != mcov1.KubeletConfigFailure {
+		return nil, nil
+	}
+
+	if latestCondition.Status != corev1.ConditionTrue {
+		return nil, nil
+	}
+
+	return r.getDegradedConditions(conditionKubeletFailed, latestCondition.Message), nil
+}
+
+func getLatestKubeletConfigCondition(conditions []mcov1.KubeletConfigCondition) *mcov1.KubeletConfigCondition {
+	var latestCondition *mcov1.KubeletConfigCondition
+	for i := 0; i < len(conditions); i++ {
+		if latestCondition == nil || latestCondition.LastTransitionTime.Before(&conditions[i].LastTransitionTime) {
+			latestCondition = &conditions[i]
+		}
+	}
+	return latestCondition
+}
+
+func removeMCPDuplicateEntries(mcps []mcov1.MachineConfigPool) []mcov1.MachineConfigPool {
 	items := map[string]mcov1.MachineConfigPool{}
 	for _, mcp := range mcps {
 		if _, exists := items[mcp.Name]; !exists {

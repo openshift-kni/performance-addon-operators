@@ -175,7 +175,100 @@ var _ = Describe("Controller", func() {
 			availableCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionAvailable)
 			Expect(availableCondition).ToNot(BeNil())
 			Expect(availableCondition.Status).To(Equal(corev1.ConditionTrue))
+		})
 
+		It("should promote kubelet config failure condition", func() {
+			r := newFakeReconciler(profile)
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+			name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
+			key := types.NamespacedName{
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+			}
+
+			kc := &mcov1.KubeletConfig{}
+			err := r.Get(context.TODO(), key, kc)
+			Expect(err).ToNot(HaveOccurred())
+
+			now := time.Now()
+			kc.Status.Conditions = []mcov1.KubeletConfigCondition{
+				{
+					Type:               mcov1.KubeletConfigFailure,
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: now.Add(time.Minute)},
+					Reason:             "Test failure condition",
+					Message:            "Test failure condition",
+				},
+				{
+					Type:               mcov1.KubeletConfigSuccess,
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: now},
+					Reason:             "Test succeed condition",
+					Message:            "Test succeed condition",
+				},
+			}
+			Expect(r.Update(context.TODO(), kc)).ToNot(HaveOccurred())
+
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+			updatedProfile := &performancev2.PerformanceProfile{}
+			key = types.NamespacedName{
+				Name:      profile.Name,
+				Namespace: metav1.NamespaceNone,
+			}
+			Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+
+			degradedCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionDegraded)
+			Expect(degradedCondition.Status).To(Equal(corev1.ConditionTrue))
+			Expect(degradedCondition.Message).To(Equal("Test failure condition"))
+			Expect(degradedCondition.Reason).To(Equal(conditionKubeletFailed))
+		})
+
+		It("should not promote old failure condition", func() {
+			r := newFakeReconciler(profile)
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+			name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
+			key := types.NamespacedName{
+				Name:      name,
+				Namespace: metav1.NamespaceNone,
+			}
+
+			kc := &mcov1.KubeletConfig{}
+			err := r.Get(context.TODO(), key, kc)
+			Expect(err).ToNot(HaveOccurred())
+
+			now := time.Now()
+			kc.Status.Conditions = []mcov1.KubeletConfigCondition{
+				{
+					Type:               mcov1.KubeletConfigFailure,
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: now},
+					Reason:             "Test failure condition",
+					Message:            "Test failure condition",
+				},
+				{
+					Type:               mcov1.KubeletConfigSuccess,
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: now.Add(time.Minute)},
+					Reason:             "Test succeed condition",
+					Message:            "Test succeed condition",
+				},
+			}
+			Expect(r.Update(context.TODO(), kc)).ToNot(HaveOccurred())
+
+			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+			updatedProfile := &performancev2.PerformanceProfile{}
+			key = types.NamespacedName{
+				Name:      profile.Name,
+				Namespace: metav1.NamespaceNone,
+			}
+			Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+
+			degradedCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionDegraded)
+			Expect(degradedCondition.Status).To(Equal(corev1.ConditionFalse))
 		})
 
 		It("should remove outdated tuned objects", func() {

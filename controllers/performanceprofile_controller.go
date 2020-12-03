@@ -68,20 +68,7 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	// we want to initate reconcile loop only on change under labels or spec of the object
 	p := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.MetaOld == nil {
-				klog.Error("Update event has no old metadata")
-				return false
-			}
-			if e.ObjectOld == nil {
-				klog.Error("Update event has no old runtime object to update")
-				return false
-			}
-			if e.ObjectNew == nil {
-				klog.Error("Update event has no new runtime object for update")
-				return false
-			}
-			if e.MetaNew == nil {
-				klog.Error("Update event has no new metadata")
+			if !validateUpdateEvent(&e) {
 				return false
 			}
 
@@ -90,40 +77,36 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		},
 	}
 
+	kubeletPredicates := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if !validateUpdateEvent(&e) {
+				return false
+			}
+
+			kubeletOld := e.ObjectOld.(*mcov1.KubeletConfig)
+			kubeletNew := e.ObjectNew.(*mcov1.KubeletConfig)
+
+			return !reflect.DeepEqual(kubeletOld.Status.Conditions, kubeletNew.Status.Conditions)
+		},
+	}
+
 	mcpPredicates := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if e.MetaOld == nil {
-				klog.Error("Update event has no old metadata")
-				return false
-			}
-			if e.ObjectOld == nil {
-				klog.Error("Update event has no old runtime object to update")
-				return false
-			}
-			if e.ObjectNew == nil {
-				klog.Error("Update event has no new runtime object for update")
-				return false
-			}
-			if e.MetaNew == nil {
-				klog.Error("Update event has no new metadata")
+			if !validateUpdateEvent(&e) {
 				return false
 			}
 
 			mcpOld := e.ObjectOld.(*mcov1.MachineConfigPool)
 			mcpNew := e.ObjectNew.(*mcov1.MachineConfigPool)
-			mcpNewCopy := mcpNew.DeepCopy()
 
-			mcpNewCopy.Spec.Paused = mcpOld.Spec.Paused
-			mcpNewCopy.Spec.Configuration = mcpOld.Spec.Configuration
-
-			return !reflect.DeepEqual(mcpOld.Status.Conditions, mcpNewCopy.Status.Conditions)
+			return !reflect.DeepEqual(mcpOld.Status.Conditions, mcpNew.Status.Conditions)
 		},
 	}
 
 	err := ctrl.NewControllerManagedBy(mgr).
 		For(&performancev2.PerformanceProfile{}).
 		Owns(&mcov1.MachineConfig{}, builder.WithPredicates(p)).
-		Owns(&mcov1.KubeletConfig{}, builder.WithPredicates(p)).
+		Owns(&mcov1.KubeletConfig{}, builder.WithPredicates(kubeletPredicates)).
 		Owns(&tunedv1.Tuned{}, builder.WithPredicates(p)).
 		Owns(&nodev1beta1.RuntimeClass{}, builder.WithPredicates(p)).
 		Owns(&mcov1.MachineConfigPool{}, builder.WithPredicates(mcpPredicates)).
@@ -132,6 +115,27 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		return err
 	}
 	return nil
+}
+
+func validateUpdateEvent(e *event.UpdateEvent) bool {
+	if e.MetaOld == nil {
+		klog.Error("Update event has no old metadata")
+		return false
+	}
+	if e.MetaNew == nil {
+		klog.Error("Update event has no new metadata")
+		return false
+	}
+	if e.ObjectOld == nil {
+		klog.Error("Update event has no old runtime object to update")
+		return false
+	}
+	if e.ObjectNew == nil {
+		klog.Error("Update event has no new runtime object for update")
+		return false
+	}
+
+	return true
 }
 
 // +kubebuilder:rbac:groups="",resources=events,verbs=*
@@ -230,20 +234,25 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		return reconcile.Result{}, err
 	}
 
-	conditions, err := r.getMCPConditionsByProfile(instance)
+	// get kubelet false condition
+	conditions, err := r.getKubeletConditionsByProfile(instance)
 	if err != nil {
-		conditions := r.getDegradedConditions(conditionFailedGettingMCPStatus, err.Error())
-		if err := r.updateStatus(instance, conditions); err != nil {
-			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
-			return reconcile.Result{}, err
-		}
-		return reconcile.Result{}, err
+		return r.updateDegradedCondition(instance, conditionFailedGettingKubeletStatus, err)
 	}
 
-	// if conditions were not added due to machine config pool status change then set as availble
+	// get MCP degraded conditions
+	if conditions == nil {
+		conditions, err = r.getMCPConditionsByProfile(instance)
+		if err != nil {
+			return r.updateDegradedCondition(instance, conditionFailedGettingMCPStatus, err)
+		}
+	}
+
+	// if conditions were not added due to machine config pool status change then set as available
 	if conditions == nil {
 		conditions = r.getAvailableConditions()
 	}
+
 	if err := r.updateStatus(instance, conditions); err != nil {
 		klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
 		// we still want to requeue after some, also in case of error, to avoid chance of multiple reboots
@@ -259,6 +268,15 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *PerformanceProfileReconciler) updateDegradedCondition(instance *performancev2.PerformanceProfile, conditionState string, conditionError error) (ctrl.Result, error) {
+	conditions := r.getDegradedConditions(conditionState, conditionError.Error())
+	if err := r.updateStatus(instance, conditions); err != nil {
+		klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, conditionError
 }
 
 func (r *PerformanceProfileReconciler) ppRequestsFromMCP(o handler.MapObject) []reconcile.Request {
