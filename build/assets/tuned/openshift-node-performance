@@ -35,8 +35,12 @@ transparent_hugepages=never                   #  network-latency
 [irqbalance]
 # Override the value set by cpu-partitioning with an empty one
 banned_cpus=""
+{{end}}
 
 [scheduler]
+group.ksoftirqd=0:f:11:*:ksoftirqd.*
+group.rcuc=0:f:11:*:rcuc.*
+{{if not .GloballyDisableIrqLoadBalancing}}
 default_irq_smp_affinity = ignore
 {{end}}
 
