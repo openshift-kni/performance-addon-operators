@@ -15,27 +15,28 @@ DEPLOY_PAO="${DEPLOY_PAO:-true}"
 subs=$(${OC_TOOL} get subscriptions -o name -n openshift-performance-addon-operator)
 if [ -n "$subs" ]; then
   echo "Operator exists, verifying the version"
-  channel=$(oc get $subs -n openshift-performance-addon-operator -o jsonpath={.spec.channel})
+  channel=$(oc get "$subs" -n openshift-performance-addon-operator -o jsonpath="{.spec.channel}")
   if [[ "$channel" != "$FROM_VERSION" ]]; then
     echo "Channel $channel is not equal to $FROM_VERSION, exit"
     exit 1
   fi
 fi
 
+set -e
 if [ "$DEPLOY_PAO" == true ]; then
   CLUSTER="${CLUSTER}" make cluster-deploy
   make cluster-label-worker-cnf
-  CLUSTER="upgrade-test" make cluster-wait-for-mcp
+  CLUSTER="${CLUSTER}" make cluster-wait-for-mcp
 fi
+set +e
 
-which ginkgo
-if [ $? -ne 0 ]; then
+if ! command -v ginkgo &>/dev/null 2>&1; then
   echo "Downloading ginkgo tool"
   go install github.com/onsi/ginkgo/ginkgo
 fi
 
 NO_COLOR=""
-if ! which tput &>/dev/null 2>&1 || [[ $(tput -T$TERM colors) -lt 8 ]]; then
+if ! command -v tput &>/dev/null 2>&1 || [[ $(tput -T$TERM colors) -lt 8 ]]; then
   echo "Terminal does not seem to support colored output, disabling it"
   NO_COLOR="-noColor"
 fi
@@ -57,8 +58,7 @@ sleep 60
 # run all tests after upgrade operator
 if [ "$RUN_TESTS_AFTER_UPGRADE" == true ] && [ $err = 0 ]; then
   echo "[INFO] Running tests after operator upgrade"
-  ${OC_TOOL} get performanceprofile "$PERF_TEST_PROFILE"
-  if [ $? -ne 0 ]; then
+  if ! ${OC_TOOL} get performanceprofile "${PERF_TEST_PROFILE}"; then
     echo "[ERROR] Performance profile $PERF_TEST_PROFILE not exists, exit"
     exit 1
   fi
