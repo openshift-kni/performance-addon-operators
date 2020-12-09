@@ -6,7 +6,7 @@ GOROOT=$(go env GOROOT)
 export GOROOT
 
 PREV="4.4.0"
-LATEST="4.5.1"
+LATEST="4.5.2"
 LATEST_CHANNEL="4.5"
 
 IS_DEV=$([[ $1 == "-dev" ]] && echo true || echo false)
