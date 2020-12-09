@@ -1,7 +1,7 @@
 channels:
 - currentCSV: performance-addon-operator.v4.4.1
   name: "4.4"
-- currentCSV: performance-addon-operator.v4.5.1
+- currentCSV: performance-addon-operator.v4.5.2
   name: "4.5"
 defaultChannel: "4.5"
 packageName: performance-addon-operator
