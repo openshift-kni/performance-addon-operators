@@ -1,7 +1,7 @@
 apiVersion: performance.openshift.io/v1alpha1
 kind: PerformanceProfile
 metadata:
-  name: upgrade-test
+  name: ci-upgrade-test
 spec:
   additionalKernelArgs:
     - "nmi_watchdog=0"
