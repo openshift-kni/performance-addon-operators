@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 # expect oc to be in PATH by default
 OC_TOOL="${OC_TOOL:-oc}"
