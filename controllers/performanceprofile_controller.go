@@ -246,21 +246,6 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		return reconcile.Result{}, nil
 	}
 
-	// TODO: we need to check if all under performance profiles values != nil
-	// first we need to decide if each of values required and we should move the check into validation webhook
-	// for now let's assume that all parameters needed for assets scrips are required
-	if err := profileutil.ValidateParameters(instance); err != nil {
-		klog.Errorf("failed to reconcile: %v", err)
-		r.Recorder.Eventf(instance, corev1.EventTypeWarning, "Validation failed", "Profile validation failed: %v", err)
-		conditions := r.getDegradedConditions(conditionReasonValidationFailed, err.Error())
-		if err := r.updateStatus(instance, conditions); err != nil {
-			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
-			return reconcile.Result{}, err
-		}
-		// we do not want to reconcile again in case of error, because a user will need to update the PerformanceProfile anyway
-		return reconcile.Result{}, nil
-	}
-
 	// apply components
 	result, err := r.applyComponents(instance)
 	if err != nil {
