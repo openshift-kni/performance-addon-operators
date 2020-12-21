@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
@@ -550,6 +551,197 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 		It("[test_id:35888] Verifies v1 <-> v2 conversions", func() {
 			verifyV2V1()
+		})
+	})
+
+	Context("Validation webhook", func() {
+		BeforeEach(func() {
+			if discovery.Enabled() {
+				Skip("Discovery mode enabled, test skipped because it creates incorrect profiles")
+			}
+		})
+
+		validateObject := func(obj runtime.Object, message string) {
+			err := testclient.Client.Create(context.TODO(), obj)
+			Expect(err).To(HaveOccurred(), "expected the validation error")
+			Expect(err.Error()).To(ContainSubstring(message))
+		}
+
+		Context("with API version v1alpha1 profile", func() {
+			var v1alpha1Profile *performancev1alpha1.PerformanceProfile
+
+			BeforeEach(func() {
+				v1alpha1Profile = &performancev1alpha1.PerformanceProfile{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "PerformanceProfile",
+						APIVersion: performancev1alpha1.GroupVersion.String(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "v1alpha1-profile",
+					},
+					Spec: performancev1alpha1.PerformanceProfileSpec{
+						RealTimeKernel: &performancev1alpha1.RealTimeKernel{
+							Enabled: pointer.BoolPtr(true),
+						},
+						NodeSelector: map[string]string{"v1alpha1/v1alpha1": "v1alpha1"},
+						NUMA: &performancev1alpha1.NUMA{
+							TopologyPolicy: pointer.StringPtr("restricted"),
+						},
+					},
+				}
+			})
+
+			It("should reject the creation of the profile with overlapping CPUs", func() {
+				reserved := performancev1alpha1.CPUSet("0-3")
+				isolated := performancev1alpha1.CPUSet("0-7")
+
+				v1alpha1Profile.Spec.CPU = &performancev1alpha1.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+				validateObject(v1alpha1Profile, "reserved and isolated cpus overlap")
+			})
+
+			It("should reject the creation of the profile with no isolated CPUs", func() {
+				reserved := performancev1alpha1.CPUSet("0-3")
+				isolated := performancev1alpha1.CPUSet("")
+
+				v1alpha1Profile.Spec.CPU = &performancev1alpha1.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+				validateObject(v1alpha1Profile, "isolated CPUs can not be empty")
+			})
+
+			It("should reject the creation of the profile with the node selector that already in use", func() {
+				reserved := performancev1alpha1.CPUSet("0,1")
+				isolated := performancev1alpha1.CPUSet("2,3")
+
+				v1alpha1Profile.Spec.CPU = &performancev1alpha1.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+				v1alpha1Profile.Spec.NodeSelector = testutils.NodeSelectorLabels
+				validateObject(v1alpha1Profile, "the profile has the same node selector as the performance profile")
+			})
+		})
+
+		Context("with API version v1 profile", func() {
+			var v1Profile *performancev1.PerformanceProfile
+
+			BeforeEach(func() {
+				v1Profile = &performancev1.PerformanceProfile{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "PerformanceProfile",
+						APIVersion: performancev1.GroupVersion.String(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "v1-profile",
+					},
+					Spec: performancev1.PerformanceProfileSpec{
+						RealTimeKernel: &performancev1.RealTimeKernel{
+							Enabled: pointer.BoolPtr(true),
+						},
+						NodeSelector: map[string]string{"v1/v1": "v1"},
+						NUMA: &performancev1.NUMA{
+							TopologyPolicy: pointer.StringPtr("restricted"),
+						},
+					},
+				}
+			})
+
+			It("should reject the creation of the profile with overlapping CPUs", func() {
+				reserved := performancev1.CPUSet("0-3")
+				isolated := performancev1.CPUSet("0-7")
+
+				v1Profile.Spec.CPU = &performancev1.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+				validateObject(v1Profile, "reserved and isolated cpus overlap")
+			})
+
+			It("should reject the creation of the profile with no isolated CPUs", func() {
+				reserved := performancev1.CPUSet("0-3")
+				isolated := performancev1.CPUSet("")
+
+				v1Profile.Spec.CPU = &performancev1.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+				validateObject(v1Profile, "isolated CPUs can not be empty")
+			})
+
+			It("should reject the creation of the profile with the node selector that already in use", func() {
+				reserved := performancev1.CPUSet("0,1")
+				isolated := performancev1.CPUSet("2,3")
+
+				v1Profile.Spec.CPU = &performancev1.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+				v1Profile.Spec.NodeSelector = testutils.NodeSelectorLabels
+				validateObject(v1Profile, "the profile has the same node selector as the performance profile")
+			})
+		})
+
+		Context("with profile version v2", func() {
+			var v2Profile *performancev2.PerformanceProfile
+
+			BeforeEach(func() {
+				v2Profile = &performancev2.PerformanceProfile{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "PerformanceProfile",
+						APIVersion: performancev2.GroupVersion.String(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "v2-profile",
+					},
+					Spec: performancev2.PerformanceProfileSpec{
+						RealTimeKernel: &performancev2.RealTimeKernel{
+							Enabled: pointer.BoolPtr(true),
+						},
+						NodeSelector: map[string]string{"v2/v2": "v2"},
+						NUMA: &performancev2.NUMA{
+							TopologyPolicy: pointer.StringPtr("restricted"),
+						},
+					},
+				}
+			})
+
+			It("should reject the creation of the profile with overlapping CPUs", func() {
+				reserved := performancev2.CPUSet("0-3")
+				isolated := performancev2.CPUSet("0-7")
+
+				v2Profile.Spec.CPU = &performancev2.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+				validateObject(v2Profile, "reserved and isolated cpus overlap")
+			})
+
+			It("should reject the creation of the profile with no isolated CPUs", func() {
+				reserved := performancev2.CPUSet("0-3")
+				isolated := performancev2.CPUSet("")
+
+				v2Profile.Spec.CPU = &performancev2.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+				validateObject(v2Profile, "isolated CPUs can not be empty")
+			})
+
+			It("should reject the creation of the profile with the node selector that already in use", func() {
+				reserved := performancev2.CPUSet("0,1")
+				isolated := performancev2.CPUSet("2,3")
+
+				v2Profile.Spec.CPU = &performancev2.CPU{
+					Reserved: &reserved,
+					Isolated: &isolated,
+				}
+				v2Profile.Spec.NodeSelector = testutils.NodeSelectorLabels
+				validateObject(v2Profile, "the profile has the same node selector as the performance profile")
+			})
 		})
 	})
 })
