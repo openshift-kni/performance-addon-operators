@@ -146,7 +146,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		})
 	})
 
-	Describe("[test_id:27492][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verification of cpu manager functionality", func() {
+	Describe("Verification of cpu manager functionality", func() {
 		var testpod *corev1.Pod
 		var discoveryFailed bool
 
@@ -215,8 +215,8 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 			Expect(cpu).To(BeElementOf(listCPU))
 		},
-			table.Entry("Non-guaranteed POD can work on any CPU", false),
-			table.Entry("Guaranteed POD should work on isolated cpu", true),
+			table.Entry("[test_id:37860] Non-guaranteed POD can work on any CPU", false),
+			table.Entry("[test_id:27492] Guaranteed POD should work on isolated cpu", true),
 		)
 	})
 
