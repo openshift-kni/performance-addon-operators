@@ -603,6 +603,10 @@ func verifyV1alpha1Conversion(v1alpha1Profile *performancev1alpha1.PerformancePr
 		return fmt.Errorf("spec RealTimeKernel field is different")
 	}
 
+	if (specRealTimeKernel.Enabled == nil) != (v1Profile.Spec.RealTimeKernel.Enabled == nil) {
+		return fmt.Errorf("spec RealTimeKernel.Enabled field is different")
+	}
+
 	if *specRealTimeKernel.Enabled != *v1Profile.Spec.RealTimeKernel.Enabled {
 		return fmt.Errorf("specRealTimeKernel field is different [v1alpha1: %t, v1: %t]",
 			*specRealTimeKernel.Enabled, *v1Profile.Spec.RealTimeKernel.Enabled)
@@ -722,6 +726,10 @@ func verifyV2Conversion(v2Profile *performancev2.PerformanceProfile, v1Profile *
 	specRealTimeKernel := v2Profile.Spec.RealTimeKernel
 	if (specRealTimeKernel == nil) != (v1Profile.Spec.RealTimeKernel == nil) {
 		return fmt.Errorf("spec RealTimeKernel field is different")
+	}
+
+	if (specRealTimeKernel.Enabled == nil) != (v2Profile.Spec.RealTimeKernel.Enabled == nil) {
+		return fmt.Errorf("spec RealTimeKernel.Enabled field is different")
 	}
 
 	if *specRealTimeKernel.Enabled != *v1Profile.Spec.RealTimeKernel.Enabled {
