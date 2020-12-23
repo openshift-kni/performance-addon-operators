@@ -81,7 +81,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			Expect(capacityCPU - allocatableCPU).To(Equal(int64(len(listReservedCPU))))
 		})
 
-		It("[test_id:27081][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify CPU affinity mask, CPU reservation and CPU isolation on worker node", func() {
+		It("[test_id:37862][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify CPU affinity mask, CPU reservation and CPU isolation on worker node", func() {
 			By("checking isolated CPU")
 			cmd := []string{"cat", "/sys/devices/system/cpu/isolated"}
 			sysIsolatedCpus, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
