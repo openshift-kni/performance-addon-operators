@@ -93,18 +93,18 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: PerformanceProfile is the Schema for the performanceprofiles API.
-      displayName: Performance Profile
+    - description: PerformanceProfile is the Schema for the performanceprofiles API v2.
+      displayName: Performance Profile v2
       kind: PerformanceProfile
       name: performanceprofiles.performance.openshift.io
       version: v2
-    - description: PerformanceProfile is the Schema for the performanceprofiles API.
-      displayName: Performance Profile
+    - description: PerformanceProfile is the Schema for the performanceprofiles API v1.
+      displayName: Performance Profile v1
       kind: PerformanceProfile
       name: performanceprofiles.performance.openshift.io
       version: v1
-    - description: PerformanceProfile is the Schema for the performanceprofiles API.
-      displayName: Performance Profile
+    - description: PerformanceProfile is the Schema for the performanceprofiles API v1alpha1.
+      displayName: Performance Profile v1alpha1
       kind: PerformanceProfile
       name: performanceprofiles.performance.openshift.io
       version: v1alpha1
