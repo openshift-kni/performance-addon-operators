@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/klog"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -222,33 +224,56 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 	When("pod runs with the CPU load balancing runtime class", func() {
 		var testpod *corev1.Pod
-		var defaultFlags []int
+		var defaultFlags map[int][]int
 
-		getCPUSchedulingDomainFlags := func(cpu int) ([]int, error) {
-			cmd := []string{"/bin/bash", "-c", fmt.Sprintf("cat /proc/sys/kernel/sched_domain/cpu%d/domain*/flags", cpu)}
+		getCPUsSchedulingDomainFlags := func() (map[int][]int, error) {
+			cmd := []string{"/bin/bash", "-c", "more /proc/sys/kernel/sched_domain/cpu*/domain*/flags | cat"}
 			out, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
 			if err != nil {
 				return nil, err
 			}
 
-			var domainsFlags []int
-			for _, domainFlags := range strings.Split(out, "\n") {
-				flags, err := strconv.Atoi(domainFlags)
+			re, err := regexp.Compile(`/proc/sys/kernel/sched_domain/cpu(\d+)/domain\d+/flags\n:+\n(\d+)`)
+			if err != nil {
+				return nil, err
+			}
+
+			allSubmatch := re.FindAllStringSubmatch(out, -1)
+			cpuToSchedDomains := map[int][]int{}
+			for _, submatch := range allSubmatch {
+				if len(submatch) != 3 {
+					return nil, fmt.Errorf("the sched_domain submatch %v does not have a valid length", submatch)
+				}
+
+				cpu, err := strconv.Atoi(submatch[1])
 				if err != nil {
 					return nil, err
 				}
-				domainsFlags = append(domainsFlags, flags)
+
+				if _, ok := cpuToSchedDomains[cpu]; !ok {
+					cpuToSchedDomains[cpu] = []int{}
+				}
+
+				flags, err := strconv.Atoi(submatch[2])
+				if err != nil {
+					return nil, err
+				}
+
+				cpuToSchedDomains[cpu] = append(cpuToSchedDomains[cpu], flags)
 			}
 
-			sort.Ints(domainsFlags)
-			return domainsFlags, nil
+			// sort sched_domain
+			for cpu := range cpuToSchedDomains {
+				sort.Ints(cpuToSchedDomains[cpu])
+			}
+
+			klog.Infof("Scheduler domains: %v", cpuToSchedDomains)
+			return cpuToSchedDomains, nil
 		}
 
 		BeforeEach(func() {
-			// get the default value for sched_domain flags, we will check the flags only for the CPU 0, because on the
-			// clean system it should be the same for all CPUs
 			var err error
-			defaultFlags, err = getCPUSchedulingDomainFlags(0)
+			defaultFlags, err = getCPUsSchedulingDomainFlags()
 			Expect(err).ToNot(HaveOccurred())
 
 			annotations := map[string]string{
@@ -282,32 +307,38 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			output, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
 			Expect(err).ToNot(HaveOccurred())
 
-			cpu, err := strconv.Atoi(output)
+			cpus, err := cpuset.Parse(output)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Getting the CPU scheduling flags")
-			flags, err := getCPUSchedulingDomainFlags(cpu)
+			flags, err := getCPUsSchedulingDomainFlags()
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Verifying that the CPU load balancing was disabled")
-			Expect(len(flags)).To(Equal(len(defaultFlags)))
-			// the CPU flags should be almost the same except the LSB that should be disabled
-			for i := range flags {
-				Expect(flags[i]).To(Equal(defaultFlags[i] - 1))
+			for _, cpu := range cpus.ToSlice() {
+				Expect(len(flags[cpu])).To(Equal(len(defaultFlags[cpu])))
+				// the CPU flags should be almost the same except the LSB that should be disabled
+				// see https://github.com/torvalds/linux/blob/0fe5f9ca223573167c4c4156903d751d2c8e160e/include/linux/sched/topology.h#L14
+				// for more information regarding the sched domain flags
+				for i := range flags[cpu] {
+					Expect(flags[cpu][i]).To(Equal(defaultFlags[cpu][i] - 1))
+				}
 			}
 
 			By("Deleting the pod")
 			deleteTestPod(testpod)
 
 			By("Getting the CPU scheduling flags")
-			flags, err = getCPUSchedulingDomainFlags(cpu)
+			flags, err = getCPUsSchedulingDomainFlags()
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Verifying that the CPU load balancing was enabled back")
-			Expect(len(flags)).To(Equal(len(defaultFlags)))
-			// the CPU scheduling flags should be restored to the default values
-			for i := range flags {
-				Expect(flags[i]).To(Equal(defaultFlags[i]))
+			for _, cpu := range cpus.ToSlice() {
+				Expect(len(flags[cpu])).To(Equal(len(defaultFlags[cpu])))
+				// the CPU scheduling flags should be restored to the default values
+				for i := range flags[cpu] {
+					Expect(flags[cpu][i]).To(Equal(defaultFlags[cpu][i]))
+				}
 			}
 		})
 	})
