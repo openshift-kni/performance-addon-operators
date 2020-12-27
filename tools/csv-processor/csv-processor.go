@@ -68,9 +68,9 @@ func generateUnifiedCSV(userData csvUserData) {
 	for i, definition := range operatorCSV.Spec.CustomResourceDefinitions.Owned {
 		switch definition.Name {
 		case "performanceprofiles.performance.openshift.io":
-			operatorCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = "Performance Profile"
+			operatorCSV.Spec.CustomResourceDefinitions.Owned[i].DisplayName = fmt.Sprintf("Performance Profile %s", operatorCSV.Spec.CustomResourceDefinitions.Owned[i].Version)
 			operatorCSV.Spec.CustomResourceDefinitions.Owned[i].Description =
-				"PerformanceProfile is the Schema for the performanceprofiles API."
+				fmt.Sprintf("PerformanceProfile is the Schema for the performanceprofiles API %v.", operatorCSV.Spec.CustomResourceDefinitions.Owned[i].Version)
 		}
 	}
 
