@@ -34,6 +34,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -734,6 +735,33 @@ var _ = Describe("Controller", func() {
 			Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
 			Expect(hasFinalizer(updatedProfile, finalizer)).To(Equal(false))
 		})
+	})
+
+	It("should map machine config pool to the performance profile", func() {
+		mcp := &mcov1.MachineConfigPool{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: mcov1.GroupVersion.String(),
+				Kind:       "MachineConfigPool",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "mcp-test",
+			},
+			Spec: mcov1.MachineConfigPoolSpec{
+				MachineConfigSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      testutils.MachineConfigPoolLabelKey,
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{testutils.MachineConfigPoolLabelValue},
+						},
+					},
+				},
+			},
+		}
+		r := newFakeReconciler(profile, mcp)
+		requests := r.mcpToPerformanceProfile(handler.MapObject{Meta: &metav1.ObjectMeta{Name: "mcp-test"}})
+		Expect(requests).NotTo(BeEmpty())
+		Expect(requests[0].Name).To(Equal(profile.Name))
 	})
 })
 
