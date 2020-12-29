@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# All test suits should be enabled once the bug https://bugzilla.redhat.com/show_bug.cgi?id=1865839 fixed
-# GINKGO_SUITS=${GINKGO_SUITS:-functests}
-GINKGO_SUITS=${GINKGO_SUITS:-"functests/0_config functests/1_performance functests/3_performance_status"}
+GINKGO_SUITS=${GINKGO_SUITS:-functests}
 LATENCY_TEST_RUN=${LATENCY_TEST_RUN:-"false"}
 
 which ginkgo
