@@ -54,6 +54,11 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		Expect(err).ToNot(HaveOccurred())
 		performanceMCP, err = mcps.GetByProfile(profile)
 		Expect(err).ToNot(HaveOccurred())
+
+		// Verify that worker and performance MCP have updated state equals to true
+		for _, mcpName := range []string{testutils.RoleWorker, performanceMCP} {
+			mcps.WaitForCondition(mcpName, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
+		}
 	})
 
 	Context("Verify GloballyDisableIrqLoadBalancing Spec field", func() {
@@ -268,7 +273,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			spec, err := json.Marshal(initialProfile.Spec)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(testclient.Client.Patch(context.TODO(), profile,
-				client.ConstantPatch(
+				client.RawPatch(
 					types.JSONPatchType,
 					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec", "value": %s }]`, spec)),
 				),
@@ -335,7 +340,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			label, err := json.Marshal(newCnfNode.Labels)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(testclient.Client.Patch(context.TODO(), newCnfNode,
-				client.ConstantPatch(
+				client.RawPatch(
 					types.JSONPatchType,
 					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/metadata/labels", "value": %s }]`, label)),
 				),
@@ -380,7 +385,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			}
 			nodeSelector := strings.Join(selectorLabels, ",")
 			Expect(testclient.Client.Patch(context.TODO(), profile,
-				client.ConstantPatch(
+				client.RawPatch(
 					types.JSONPatchType,
 					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/nodeSelector", "value": {%s} }]`, nodeSelector)),
 				),

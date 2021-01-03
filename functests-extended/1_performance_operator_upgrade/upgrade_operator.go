@@ -54,7 +54,7 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 
 		By(fmt.Sprintf("Switch subscription channel to %s version", toVersion))
 		Expect(testclient.Client.Patch(context.TODO(), subscription,
-			client.ConstantPatch(
+			client.RawPatch(
 				types.JSONPatchType,
 				[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/channel", "value": "%s" }]`, toVersion)),
 			),
