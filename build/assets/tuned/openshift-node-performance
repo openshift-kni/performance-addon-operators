@@ -23,10 +23,15 @@ not_isolated_cores_expanded=${f:cpulist_invert:${isolated_cores_expanded}}
 force_latency=cstate.id:1|3                   #  latency-performance  (override)
 governor=performance                          #  latency-performance 
 energy_perf_bias=performance                  #  latency-performance 
-min_perf_pct=100                              #  latency-performance 
+min_perf_pct=100                              #  latency-performance
 
+{{if .RealtimeKernel}}
 [service]
 service.stalld=start,enable
+{{else}}
+[service]
+service.stalld=stop,disable
+{{end}}
 
 [vm]
 transparent_hugepages=never                   #  network-latency
@@ -34,8 +39,10 @@ transparent_hugepages=never                   #  network-latency
 [sysctl]
 kernel.hung_task_timeout_secs = 600           # cpu-partitioning #realtime
 kernel.nmi_watchdog = 0                       # cpu-partitioning #realtime
-kernel.sched_rt_runtime_us = -1               # realtime 
+{{if .RealtimeKernel}}
+kernel.sched_rt_runtime_us = -1               # realtime
 kernel.timer_migration = 0                    # cpu-partitioning (= 1) #realtime (= 0)
+{{end}}
 kernel.numa_balancing=0                       # network-latency
 net.core.busy_read=50                         # network-latency
 net.core.busy_poll=50                         # network-latency

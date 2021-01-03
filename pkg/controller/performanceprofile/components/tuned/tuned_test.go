@@ -159,6 +159,43 @@ var _ = Describe("Tuned", func() {
 					Expect(cmdlineMultipleHugePages.MatchString(manifest)).To(BeFalse())
 				})
 			})
+
+			It("should contain sched_rt_runtime_us parameter", func() {
+				manifest := getTunedManifest(profile)
+				Expect(manifest).To(ContainSubstring("sched_rt_runtime_us"))
+			})
+
+			It("should contain timer_migration parameter", func() {
+				manifest := getTunedManifest(profile)
+				Expect(manifest).To(ContainSubstring("timer_migration"))
+			})
+
+			It("should start and enable stalld service", func() {
+				manifest := getTunedManifest(profile)
+				Expect(manifest).To(ContainSubstring("service.stalld=start,enable"))
+			})
+		})
+
+		When("real time kernel disable", func() {
+			BeforeEach(func() {
+				profile = testutils.NewPerformanceProfile("test")
+				profile.Spec.RealTimeKernel.Enabled = pointer.BoolPtr(false)
+			})
+
+			It("should not contain sched_rt_runtime_us parameter", func() {
+				manifest := getTunedManifest(profile)
+				Expect(manifest).NotTo(ContainSubstring("sched_rt_runtime_us"))
+			})
+
+			It("should not contain timer_migration parameter", func() {
+				manifest := getTunedManifest(profile)
+				Expect(manifest).NotTo(ContainSubstring("timer_migration"))
+			})
+
+			It("should stop and disable stalld service", func() {
+				manifest := getTunedManifest(profile)
+				Expect(manifest).To(ContainSubstring("service.stalld=stop,disable"))
+			})
 		})
 	})
 })
