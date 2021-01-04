@@ -1,4 +1,4 @@
-FROM quay.io/openshift/origin-must-gather:4.6.0 AS builder
+FROM quay.io/openshift/origin-must-gather:4.7.0 AS builder
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 RUN microdnf install -y pciutils util-linux hostname rsync
