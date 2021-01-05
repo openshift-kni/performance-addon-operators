@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
 
@@ -789,6 +790,21 @@ func validatTunedActiveProfile(nodes []corev1.Node) {
 	var err error
 	var out []byte
 	activeProfileName := components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance)
+
+	// check if some another Tuned profile overwrites PAO profile
+	tunedList := &tunedv1.TunedList{}
+	err = testclient.Client.List(context.TODO(), tunedList)
+	Expect(err).NotTo(HaveOccurred())
+
+	for _, t := range tunedList.Items {
+		if len(t.Spec.Profile) > 0 && t.Spec.Profile[0].Data != nil && strings.Contains(*t.Spec.Profile[0].Data, fmt.Sprintf("include=%s", activeProfileName)) {
+			klog.Warning(fmt.Sprintf("PAO tuned profile amended by '%s' profile, test may fail", t.Name))
+			if t.Spec.Profile[0].Name != nil {
+				activeProfileName = *t.Spec.Profile[0].Name
+			}
+		}
+	}
+
 	for _, node := range nodes {
 		tuned := tunedForNode(&node)
 		tunedName := tuned.ObjectMeta.Name
