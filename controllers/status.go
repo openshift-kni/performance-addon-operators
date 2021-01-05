@@ -172,33 +172,31 @@ func (r *PerformanceProfileReconciler) getProgressingConditions(reason string, m
 }
 
 func (r *PerformanceProfileReconciler) getMCPConditionsByProfile(profile *performancev2.PerformanceProfile) ([]conditionsv1.Condition, error) {
-
 	mcpList := &mcov1.MachineConfigPoolList{}
-
 	if err := r.List(context.TODO(), mcpList); err != nil {
 		klog.Errorf("Cannot list Machine config pools to match with profile %q : %v", profile.Name, err)
 		return nil, err
 	}
 
-	mcpItems := removeMCPDuplicateEntries(mcpList.Items)
-	performanceProfileLabels := labels.Set(profileutil.GetMachineConfigPoolSelector(profile))
+	machineConfigPoolSelector := labels.Set(profileutil.GetMachineConfigPoolSelector(profile))
 	message := bytes.Buffer{}
-
-	for _, mcp := range mcpItems {
+	for _, mcp := range mcpList.Items {
 		selector, err := metav1.LabelSelectorAsSelector(mcp.Spec.MachineConfigSelector)
 		if err != nil {
-			klog.Errorf("Cannot create label selector for %q : %v ", mcp.Name, err)
 			return nil, err
 		}
-		if selector.Matches(performanceProfileLabels) {
-			for _, condition := range mcp.Status.Conditions {
-				if (condition.Type == mcov1.MachineConfigPoolNodeDegraded || condition.Type == mcov1.MachineConfigPoolRenderDegraded) && condition.Status == corev1.ConditionTrue {
-					if len(condition.Reason) > 0 {
-						message.WriteString("Machine config pool " + mcp.GetName() + " Degraded Reason: " + condition.Reason + ".\n")
-					}
-					if len(condition.Message) > 0 {
-						message.WriteString("Machine config pool " + mcp.GetName() + " Degraded Message: " + condition.Message + ".\n")
-					}
+
+		if !selector.Matches(machineConfigPoolSelector) {
+			continue
+		}
+
+		for _, condition := range mcp.Status.Conditions {
+			if (condition.Type == mcov1.MachineConfigPoolNodeDegraded || condition.Type == mcov1.MachineConfigPoolRenderDegraded) && condition.Status == corev1.ConditionTrue {
+				if len(condition.Reason) > 0 {
+					message.WriteString("Machine config pool " + mcp.GetName() + " Degraded Reason: " + condition.Reason + ".\n")
+				}
+				if len(condition.Message) > 0 {
+					message.WriteString("Machine config pool " + mcp.GetName() + " Degraded Message: " + condition.Message + ".\n")
 				}
 			}
 		}
@@ -249,21 +247,4 @@ func getLatestKubeletConfigCondition(conditions []mcov1.KubeletConfigCondition) 
 		}
 	}
 	return latestCondition
-}
-
-func removeMCPDuplicateEntries(mcps []mcov1.MachineConfigPool) []mcov1.MachineConfigPool {
-	items := map[string]mcov1.MachineConfigPool{}
-	for _, mcp := range mcps {
-		if _, exists := items[mcp.Name]; !exists {
-			items[mcp.Name] = mcp
-		}
-	}
-
-	filtered := make([]mcov1.MachineConfigPool, 0, len(items))
-
-	for _, value := range items {
-		filtered = append(filtered, value)
-	}
-
-	return filtered
 }

@@ -41,6 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,6 +50,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const finalizer = "foreground-deletion"
@@ -109,12 +111,50 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Owns(&mcov1.KubeletConfig{}, builder.WithPredicates(kubeletPredicates)).
 		Owns(&tunedv1.Tuned{}, builder.WithPredicates(p)).
 		Owns(&nodev1beta1.RuntimeClass{}, builder.WithPredicates(p)).
-		Owns(&mcov1.MachineConfigPool{}, builder.WithPredicates(mcpPredicates)).
+		Watches(
+			&source.Kind{Type: &mcov1.MachineConfigPool{}},
+			&handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(r.mcpToPerformanceProfile)},
+			builder.WithPredicates(mcpPredicates)).
 		Complete(r)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj handler.MapObject) []reconcile.Request {
+	mcp := &mcov1.MachineConfigPool{}
+
+	key := types.NamespacedName{
+		Namespace: mcpObj.Meta.GetNamespace(),
+		Name:      mcpObj.Meta.GetName(),
+	}
+	if err := r.Get(context.TODO(), key, mcp); err != nil {
+		klog.Errorf("failed to get the machine config pool %+v", key)
+		return nil
+	}
+
+	profiles := &performancev2.PerformanceProfileList{}
+	if err := r.List(context.TODO(), profiles); err != nil {
+		klog.Error("failed to get performance profiles")
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for i, profile := range profiles.Items {
+		machineConfigPoolSelector := labels.Set(profileutil.GetMachineConfigPoolSelector(&profile))
+		selector, err := metav1.LabelSelectorAsSelector(mcp.Spec.MachineConfigSelector)
+		if err != nil {
+			klog.Errorf("failed to parse the selector %v", mcp.Spec.MachineConfigSelector)
+			return nil
+		}
+
+		if selector.Matches(machineConfigPoolSelector) {
+			requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&profiles.Items[i])})
+		}
+	}
+
+	return requests
 }
 
 func validateUpdateEvent(e *event.UpdateEvent) bool {
