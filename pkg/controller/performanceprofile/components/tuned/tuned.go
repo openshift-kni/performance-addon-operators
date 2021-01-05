@@ -25,6 +25,7 @@ const (
 	templateDefaultHugepagesSize = "DefaultHugepagesSize"
 	templateHugepages            = "Hugepages"
 	templateAdditionalArgs       = "AdditionalArgs"
+	templateRealtimeKernel       = "RealtimeKernel"
 )
 
 func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.TunedRecommend) *tunedv1.Tuned {
@@ -48,6 +49,12 @@ func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.Tune
 func NewNodePerformance(assetsDir string, profile *performancev1.PerformanceProfile) (*tunedv1.Tuned, error) {
 
 	templateArgs := make(map[string]string)
+
+	if profile.Spec.RealTimeKernel != nil && profile.Spec.RealTimeKernel.Enabled != nil {
+		if *profile.Spec.RealTimeKernel.Enabled {
+			templateArgs[templateRealtimeKernel] = "true"
+		}
+	}
 
 	if profile.Spec.CPU.Isolated != nil {
 		templateArgs[templateIsolatedCpus] = string(*profile.Spec.CPU.Isolated)
