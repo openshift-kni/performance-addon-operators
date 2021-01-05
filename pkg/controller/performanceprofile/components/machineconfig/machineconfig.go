@@ -36,10 +36,11 @@ const (
 	HighPerformanceRuntime = "high-performance"
 
 	hugepagesAllocation = "hugepages-allocation"
-	bashScriptsDir      = "/usr/local/bin"
-	crioConfd           = "/etc/crio/crio.conf.d"
-	crioRuntimesConfig  = "99-runtimes"
-	ociHooks            = "low-latency-hooks"
+	// BashScriptsDir is the default directory for scripts and helpers we deploy on the worker nodes
+	BashScriptsDir     = "/usr/local/bin"
+	crioConfd          = "/etc/crio/crio.conf.d"
+	crioRuntimesConfig = "99-runtimes"
+	ociHooks           = "low-latency-hooks"
 	// OCIHooksConfigDir is the default directory for the OCI hooks
 	OCIHooksConfigDir = "/etc/containers/oci/hooks.d"
 	// OCIHooksConfig file contains the low latency hooks configuration
@@ -48,6 +49,9 @@ const (
 	udevRulesDir       = "/etc/udev/rules.d"
 	udevRpsRule        = "99-netdev-rps"
 	setRPSMask         = "set-rps-mask"
+	// RunCWrapper is the name - without extension - of the runc wrapper script
+	RunCWrapper        = "runc-wrapper"
+	runCWrapperCPUList = "CPUList"
 )
 
 const (
@@ -175,6 +179,23 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 		return nil, err
 	}
 
+	// add runC wrapper
+	runCWrapperMode := 0755
+	wrapper := fmt.Sprintf("%s.sh", RunCWrapper)
+	runCWrapperContent, err := GetRunCWrapperContent(filepath.Join(assetsDir, "scripts", wrapper), profile)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := addContent(
+		ignitionConfig,
+		runCWrapperContent,
+		filepath.Join(BashScriptsDir, wrapper),
+		&runCWrapperMode,
+	); err != nil {
+		return nil, err
+	}
+
 	if profile.Spec.HugePages != nil {
 		for _, page := range profile.Spec.HugePages.Pages {
 			// we already allocated non NUMA specific hugepages via kernel arguments
@@ -225,7 +246,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 }
 
 func getBashScriptPath(scriptName string) string {
-	return fmt.Sprintf("%s/%s.sh", bashScriptsDir, scriptName)
+	return fmt.Sprintf("%s/%s.sh", BashScriptsDir, scriptName)
 }
 
 func getSystemdEnvironment(key string, value string) string {
@@ -263,6 +284,31 @@ func GetOCIHooksConfigContent(configFile string, profile *performancev2.Performa
 	outContent := &bytes.Buffer{}
 	templateArgs := map[string]string{ociTemplateRPSMask: rpsMask}
 	template := template.Must(template.New("crio").Parse(string(content)))
+	if err := template.Execute(outContent, templateArgs); err != nil {
+		return nil, err
+	}
+
+	return outContent.Bytes(), nil
+}
+
+// GetRunCWrapperContent reads and returns the content of the runC wrapper file
+func GetRunCWrapperContent(wrapperFile string, profile *performancev2.PerformanceProfile) ([]byte, error) {
+	content, err := ioutil.ReadFile(wrapperFile)
+	if err != nil {
+		return nil, err
+	}
+
+	// we either use a special sentinel value and we do logic in the wrapper itself, or we pass
+	// through a list of all the online CPUs. We don't know the latter, performance operator has
+	// no hardware awareness to date, so we need to do the former.
+	cpuList := "UNRESTRICTED"
+	if profile.Spec.CPU != nil && profile.Spec.CPU.Reserved != nil {
+		cpuList = string(*profile.Spec.CPU.Reserved)
+	}
+
+	outContent := &bytes.Buffer{}
+	templateArgs := map[string]string{runCWrapperCPUList: cpuList}
+	template := template.Must(template.New("runc").Parse(string(content)))
 	if err := template.Execute(outContent, templateArgs); err != nil {
 		return nil, err
 	}

@@ -1,6 +1,8 @@
 package __performance
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -302,6 +304,31 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 						Expect(rpsCPUs).To(Equal(expectedRPSCPUs), pod.Name+" has a device rps mask different from the reserved CPUs")
 					}
 				}
+			}
+		})
+	})
+
+	Context("runC wrapper", func() {
+		It("Should have the correct runC wrapper deployed", func() {
+			if profile.Spec.CPU == nil || profile.Spec.CPU.Reserved != nil {
+				return
+			}
+
+			expectedCPUMask, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
+			Expect(err).ToNot(HaveOccurred())
+			runCWrapperPath := filepath.Join("/rootfs", machineconfig.BashScriptsDir, machineconfig.RunCWrapper)
+			for _, node := range workerRTNodes {
+				// Verify the runc wrapper has the correct CPU mask set
+				runCWrapperContent, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", runCWrapperPath})
+				Expect(err).ToNot(HaveOccurred())
+
+				cpuMask, ok := findCPUMaksInRunCWrapperScriptContent(runCWrapperContent)
+				if !ok {
+					Fail(fmt.Sprintf("Cannot find the cpumask in %q", runCWrapperPath))
+				}
+				foundCPUMask, err := cpuset.Parse(cpuMask)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(foundCPUMask).To(Equal(expectedCPUMask))
 			}
 		})
 	})
@@ -845,4 +872,21 @@ func tunedForNode(node *corev1.Node) *corev1.Pod {
 		"there should be one tuned daemon per node")
 
 	return &tunedList.Items[0]
+}
+
+func findCPUMaksInRunCWrapperScriptContent(runCWrapperContent []byte) (string, bool) {
+	buf := bytes.NewBuffer(runCWrapperContent)
+	scanner := bufio.NewScanner(buf)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "taskset") {
+			items := strings.Split(line, "")
+			// expected: "taskset", "-c ", "$MASK", ...
+			if len(items) < 3 {
+				Fail(fmt.Sprintf("malformed taskset line: %q", line))
+			}
+			return items[2], true
+		}
+	}
+	return "", false
 }
