@@ -65,13 +65,16 @@ done
 
 # Collect journal logs for specified units for all nodes
 NODE_UNITS=(kubelet)
+ADM_PIDS=()
 for NODE in $(oc get nodes --no-headers -o custom-columns=':metadata.name'); do
     NODE_PATH=${NODES_PATH}/$NODE
     mkdir -p ${NODE_PATH}
     for UNIT in ${NODE_UNITS[@]}; do
-        oc adm node-logs $NODE -u $UNIT > ${NODE_PATH}/${NODE}_logs_$UNIT &
+        timeout -k 5m 30m oc adm node-logs $NODE -u $UNIT > ${NODE_PATH}/${NODE}_logs_$UNIT &
+	ADM_PIDS+=($!)
     done
 done
+wait "${ADM_PIDS[@]}"
 
 oc delete -f $DAEMONSET_MANIFEST
 oc delete -f $SERVICEACCOUNT_MANIFEST
