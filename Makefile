@@ -1,7 +1,9 @@
+# master version
+PAO_VERSION ?= "4.7"
 IMAGE_BUILD_CMD ?= "docker"
 IMAGE_REGISTRY ?= "quay.io"
 REGISTRY_NAMESPACE ?= "openshift-kni"
-IMAGE_TAG ?= "4.7-snapshot"
+IMAGE_TAG ?= "$(PAO_VERSION)-snapshot"
 
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
@@ -190,7 +192,7 @@ deploy: cluster-deploy
 .PHONY: cluster-deploy
 cluster-deploy:
 	@echo "Deploying operator"
-	FULL_INDEX_IMAGE=$(FULL_INDEX_IMAGE) CLUSTER=$(CLUSTER) hack/deploy.sh
+	FULL_INDEX_IMAGE=$(FULL_INDEX_IMAGE) CLUSTER=$(CLUSTER) VERSION=$(PAO_VERSION) hack/deploy.sh
 
 .PHONY: cluster-label-worker-cnf
 cluster-label-worker-cnf:

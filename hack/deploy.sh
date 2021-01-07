@@ -4,6 +4,8 @@ set -e
 
 # expect oc to be in PATH by default
 OC_TOOL="${OC_TOOL:-oc}"
+# TODO: factor out all the versions
+VERSION="${VERSION:-4.7}"
 
 echo "Deploying using image $FULL_INDEX_IMAGE."
 
@@ -12,7 +14,22 @@ success=0
 iterations=0
 sleep_time=10
 max_iterations=30 # results in 5 minute timeout
+
+
+if [ -z "${CLUSTER##*upgrade*}" ] ;then
+	case $VERSION in
+		4.[4-6])
+			# OLM <= 4.6
+			CLUSTER="olm-pre-4.6/${CLUSTER}"
+			;;
+		*)
+			;;
+	esac
+fi
 feature_dir=cluster-setup/${CLUSTER}-cluster/performance/
+echo "[INFO] Feature is $feature_dir."
+${OC_TOOL} kustomize $feature_dir | envsubst
+
 
 until [[ $success -eq 1 ]] || [[ $iterations -eq $max_iterations ]]
 do
