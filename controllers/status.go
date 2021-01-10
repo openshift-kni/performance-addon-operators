@@ -178,9 +178,14 @@ func (r *PerformanceProfileReconciler) getMCPConditionsByProfile(profile *perfor
 		return nil, err
 	}
 
+	// TODO: from some reason we have double entries for each MCP during the call to list
+	// for now the code will just filter duplicates entries, but it can be nice to understand
+	// why it happens
+	filtered := removeMCPDuplicateEntries(mcpList.Items)
+
 	machineConfigPoolSelector := labels.Set(profileutil.GetMachineConfigPoolSelector(profile))
 	message := bytes.Buffer{}
-	for _, mcp := range mcpList.Items {
+	for _, mcp := range filtered {
 		selector, err := metav1.LabelSelectorAsSelector(mcp.Spec.MachineConfigSelector)
 		if err != nil {
 			return nil, err
@@ -247,4 +252,17 @@ func getLatestKubeletConfigCondition(conditions []mcov1.KubeletConfigCondition) 
 		}
 	}
 	return latestCondition
+}
+
+func removeMCPDuplicateEntries(mcps []mcov1.MachineConfigPool) []mcov1.MachineConfigPool {
+	var filtered []mcov1.MachineConfigPool
+	items := map[string]mcov1.MachineConfigPool{}
+	for _, mcp := range mcps {
+		if _, exists := items[mcp.Name]; !exists {
+			items[mcp.Name] = mcp
+			filtered = append(filtered, mcp)
+		}
+	}
+
+	return filtered
 }
