@@ -70,7 +70,7 @@ for NODE in $(oc get nodes --no-headers -o custom-columns=':metadata.name'); do
     NODE_PATH=${NODES_PATH}/$NODE
     mkdir -p ${NODE_PATH}
     for UNIT in ${NODE_UNITS[@]}; do
-        timeout -k 5m 30m bash -c "oc adm node-logs $NODE -u $UNIT | gzip" > ${NODE_PATH}/${NODE}_logs_$UNIT.gz &
+        timeout -k 5m 30m bash -c "oc adm node-logs $NODE -u $UNIT --since '-8h' | gzip" > ${NODE_PATH}/${NODE}_logs_$UNIT.gz &
 	ADM_PIDS+=($!)
     done
 done
