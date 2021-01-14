@@ -79,6 +79,8 @@ This will deploy
   - a `Subscription`
 - a `PerformanceProfile`
 
+Note: The performance operator supports only `AllNamespaces` InstallModeType for `OperatorGroup`.
+
 The deployment will be retried in a loop until everything is deployed successfully, or until it times out.
 
 > Note: `CLUSTER=manual` lets the deploy script use the `cluster-setup/manual-cluster/performance/` kustomization directory.
