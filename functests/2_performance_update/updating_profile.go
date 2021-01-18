@@ -54,6 +54,11 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		Expect(err).ToNot(HaveOccurred())
 		performanceMCP, err = mcps.GetByProfile(profile)
 		Expect(err).ToNot(HaveOccurred())
+
+		// Verify that worker and performance MCP have updated state equals to true
+		for _, mcpName := range []string{testutils.RoleWorker, performanceMCP} {
+			mcps.WaitForCondition(mcpName, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
+		}
 	})
 
 	Context("Verify GloballyDisableIrqLoadBalancing Spec field", func() {
@@ -112,7 +117,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			profile.Spec.GloballyDisableIrqLoadBalancing = &irqLoadBalancingDisabled
 
 			By("Updating the performance profile")
-			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+			profiles.UpdateWithRetry(profile)
 			defer func() { // return initial configuration
 				spec, err := json.Marshal(initialProfile.Spec)
 				Expect(err).ToNot(HaveOccurred())
@@ -180,7 +185,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 
 			By("Applying changes in performance profile and waiting until mcp will start updating")
-			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+			profiles.UpdateWithRetry(profile)
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
 
 			By("Waiting when mcp finishes updates")
@@ -249,7 +254,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 
 			By("Applying changes in performance profile")
 			profile.Spec.RealTimeKernel = nil
-			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+			profiles.UpdateWithRetry(profile)
 
 			Expect(profile.Spec.RealTimeKernel).To(BeNil())
 			By("Checking that the updating MCP status will consistently stay false")
@@ -268,7 +273,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			spec, err := json.Marshal(initialProfile.Spec)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(testclient.Client.Patch(context.TODO(), profile,
-				client.ConstantPatch(
+				client.RawPatch(
 					types.JSONPatchType,
 					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec", "value": %s }]`, spec)),
 				),
@@ -312,7 +317,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 
 			By("Updating Node Selector performance profile")
 			profile.Spec.NodeSelector = newNodeSelector
-			Expect(testclient.Client.Update(context.TODO(), profile)).ToNot(HaveOccurred())
+			profiles.UpdateWithRetry(profile)
 			mcps.WaitForCondition(newRole, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
 
 			By("Waiting when MCP finishes updates and verifying new node has updated configuration")
@@ -335,7 +340,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			label, err := json.Marshal(newCnfNode.Labels)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(testclient.Client.Patch(context.TODO(), newCnfNode,
-				client.ConstantPatch(
+				client.RawPatch(
 					types.JSONPatchType,
 					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/metadata/labels", "value": %s }]`, label)),
 				),
@@ -380,7 +385,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			}
 			nodeSelector := strings.Join(selectorLabels, ",")
 			Expect(testclient.Client.Patch(context.TODO(), profile,
-				client.ConstantPatch(
+				client.RawPatch(
 					types.JSONPatchType,
 					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/nodeSelector", "value": {%s} }]`, nodeSelector)),
 				),
