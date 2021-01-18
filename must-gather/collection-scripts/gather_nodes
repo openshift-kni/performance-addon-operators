@@ -51,6 +51,7 @@ do
     echo "Failed to collect perf-node-gather data from node ${line} due to pod scheduling failure." >> ${NODES_PATH}/skipped_nodes.txt
 done
 
+WORKER_NODES=()
 for line in $(oc get pod -o=custom-columns=NODE:.spec.nodeName,NAME:.metadata.name --no-headers --field-selector=status.phase=Running -n perf-node-gather)
 do
     node=$(echo $line | awk -F ' ' '{print $1}')
@@ -61,16 +62,17 @@ do
     oc exec $pod -n perf-node-gather -- lspci -nvv 2>/dev/null >> $NODE_PATH/lspci
     oc exec $pod -n perf-node-gather -- lscpu -e 2>/dev/null >> $NODE_PATH/lscpu
     oc exec $pod -n perf-node-gather -- cat /proc/cmdline 2>/dev/null >> $NODE_PATH/proc_cmdline
+    WORKER_NODES+=($node)
 done
 
 # Collect journal logs for specified units for all nodes
 NODE_UNITS=(kubelet)
 ADM_PIDS=()
-for NODE in $(oc get nodes --no-headers -o custom-columns=':metadata.name'); do
+for NODE in ${WORKER_NODES[@]}; do
     NODE_PATH=${NODES_PATH}/$NODE
     mkdir -p ${NODE_PATH}
     for UNIT in ${NODE_UNITS[@]}; do
-        timeout -k 5m 30m oc adm node-logs $NODE -u $UNIT > ${NODE_PATH}/${NODE}_logs_$UNIT &
+        timeout -k 5m 30m bash -c "oc adm node-logs $NODE -u $UNIT --since '-8h' | gzip" > ${NODE_PATH}/${NODE}_logs_$UNIT.gz &
 	ADM_PIDS+=($!)
     done
 done
