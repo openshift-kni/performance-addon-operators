@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -36,6 +37,7 @@ var (
 	annotationsFile = flag.String("annotations-from", "", "add metadata annotations from given file")
 	maintainersFile = flag.String("maintainers-from", "", "add maintainers list from given file")
 	descriptionFile = flag.String("description-from", "", "replace the description with the content of the given file")
+	iconFile        = flag.String("icon-from", "", "inject icon from given file (must be svg)")
 )
 
 func finalizedCsvFilename() string {
@@ -135,10 +137,17 @@ Performance Addon Operator provides the ability to enable advanced node performa
 		}
 	}
 
-	// No icon defined yet
-	operatorCSV.Spec.Icon = nil
+	if *iconFile != "" {
+		operatorCSV.Spec.Icon = []csvv1.Icon{
+			{
+				Data:      base64.StdEncoding.EncodeToString(readFileOrPanic(*iconFile)),
+				MediaType: "image/svg+xml",
+			},
+		}
+	} else {
+		operatorCSV.Spec.Icon = nil
+	}
 
-	// Set Annotations
 	if *skipRange != "" {
 		operatorCSV.Annotations["olm.skipRange"] = *skipRange
 	}

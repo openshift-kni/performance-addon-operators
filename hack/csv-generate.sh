@@ -24,6 +24,7 @@ OUT_CSV_FILE="${OUT_DIR}/${CSV_VERSION}/${PACKAGE_NAME}.clusterserviceversion.ya
 
 TEMPLATES_DIR="${OUT_ROOT}/templates"
 CSV_TEMPLATE_FILE="${TEMPLATES_DIR}/${PACKAGE_NAME}.v${CSV_VERSION}.clusterserviceversion.yaml"
+ICON_FILE="docs/pao-icon.svg"
 
 EXTRA_ANNOTATIONS=""
 EXTRA_MAINTAINERS=""
@@ -83,6 +84,7 @@ if [[ ${CSV_VERSION} =~ 4.8.* ]]; then
     --replaces-csv-version "${REPLACES_CSV_VERSION}" \
     --skip-range "${CSV_SKIP_RANGE}" \
     --min-kube-version "${MIN_KUBE_VERSION}" \
+    --icon-from "${ICON_FILE}" \
     "${EXTRA_ANNOTATIONS}" \
     "${EXTRA_MAINTAINERS}"
 
