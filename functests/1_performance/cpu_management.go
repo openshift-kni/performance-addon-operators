@@ -415,6 +415,60 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			Expect(defaultSmpAffinitySet).To(Equal(onlineCPUsSet), fmt.Sprintf("Default SMP Affinity %s should be equal to all active CPUs %s", defaultSmpAffinitySet, onlineCPUsSet))
 		})
 	})
+
+	When("reserved CPUs specified", func() {
+		var testpod *corev1.Pod
+
+		BeforeEach(func() {
+			testpod = pods.GetTestPod()
+			testpod.Namespace = testutils.NamespaceTesting
+			testpod.Spec.NodeSelector = map[string]string{testutils.LabelHostname: workerRTNode.Name}
+
+			err := testclient.Client.Create(context.TODO(), testpod)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = pods.WaitForCondition(testpod, corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should run infra containers on reserved CPUs", func() {
+			// find used because that crictl does not show infra containers, `runc list` shows them
+			// but you will need somehow to find infra containers ID's
+			podUID := strings.Replace(string(testpod.UID), "-", "_", -1)
+
+			cmd := []string{"/bin/bash", "-c", fmt.Sprintf("find /rootfs/sys/fs/cgroup/cpuset/ -name *%s*", podUID)}
+			podCgroup, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred())
+
+			cmd = []string{"/bin/bash", "-c", fmt.Sprintf("find %s -name crio-*", podCgroup)}
+			containersCgroups, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred())
+
+			containerID, err := pods.GetContainerIDByName(testpod, "test")
+			Expect(err).ToNot(HaveOccurred())
+
+			containersCgroups = strings.Trim(containersCgroups, "\n")
+			containersCgroupsDirs := strings.Split(containersCgroups, "\n")
+			Expect(len(containersCgroupsDirs)).To(Equal(2), "unexpected amount of containers cgroups")
+
+			for _, dir := range containersCgroupsDirs {
+				// skip application container cgroup
+				if strings.Contains(dir, containerID) {
+					continue
+				}
+
+				By("Checking what CPU the infra container is using")
+				cmd = []string{"/bin/bash", "-c", fmt.Sprintf("cat %s/cpuset.cpus", dir)}
+				output, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+				Expect(err).ToNot(HaveOccurred())
+
+				cpus, err := cpuset.Parse(output)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(cpus.ToSlice()).To(Equal(reservedCPUSet.ToSlice()))
+			}
+		})
+	})
 })
 
 func getStressPod(nodeName string) *corev1.Pod {
