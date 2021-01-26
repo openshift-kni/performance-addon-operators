@@ -7,13 +7,15 @@ In addition to the performance-operator logs and manifests, the command will col
 This information is useful to understand and verify resource allocation to pods, whose proper alignment is critical for low-latency workloads.
 
 To collect the container-native performance-related data with must-gather, you must specify the extra image using the `--image` option.
+In the following examples, `TAG` has the format `major.minor-snapshot`. For example, the TAG for OpenShift 4.8 will be `4.8-snapshot`.
+
 Example command line:
 ```bash
-oc adm must-gather --image=quay.io/openshift-kni/performance-addon-operator-must-gather:latest
+oc adm must-gather --image=quay.io/openshift-kni/performance-addon-operator-must-gather:$TAG
 ```
 
 To collect the cluster-related data and *additionally* the performance-related data, you can use multiple `--image` options like in this example:
 ```bash
-oc adm must-gather --image=quay.io/openshift/origin-must-gather --image=quay.io/openshift-kni/performance-addon-operator-must-gather:latest
+oc adm must-gather --image=quay.io/openshift/origin-must-gather --image=quay.io/openshift-kni/performance-addon-operator-must-gather:$TAG
 ```
 
