@@ -39,7 +39,7 @@ BUILD_DATE=$$(date --utc -Iseconds)
 export GO111MODULE=on
 
 .PHONY: build
-build: gofmt golint govet dist generate-manifests-tree
+build: gofmt golint govet dist-gather-sysinfo dist generate-manifests-tree
 
 .PHONY: dist
 dist: build-output-dir
@@ -58,6 +58,15 @@ dist-tools: dist-csv-processor dist-csv-replace-imageref
 .PHONY: dist-clean
 dist-clean:
 	rm -rf build/_output/bin
+
+.PHONY: dist-gather-sysinfo
+dist-gather-sysinfo: build-output-dir
+	@if [ ! -x $(TOOLS_BIN_DIR)/gather-sysinfo ]; then\
+		echo "Building gather-sysinfo helper";\
+		env CGO_ENABLED=0 GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/gather-sysinfo ./tools/gather-sysinfo;\
+	else \
+		echo "Using pre-built gather-sysinfo helper";\
+	fi
 
 .PHONY: dist-csv-processor
 dist-csv-processor: build-output-dir
@@ -115,7 +124,7 @@ index-container: generate-index-database
 .PHONY: must-gather-container
 must-gather-container:
 	@echo "Building the performance-addon-operator must-gather image"
-	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.must-gather -t "$(FULL_MUSTGATHER_IMAGE)"  .
+	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.must-gather -t "$(FULL_MUSTGATHER_IMAGE)" --build-arg BIN_DIR="build/_output/bin/" .
 
 .PHONY: latency-test-container
 latency-test-container:
