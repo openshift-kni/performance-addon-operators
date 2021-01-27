@@ -144,6 +144,14 @@ operator-sdk:
 		echo "Using operator-sdk cached at $(OPERATOR_SDK)";\
 	fi
 
+.PHONY: create-performance-profile
+create-performance-profile:  build-output-dir
+	echo "Creating performance profile"
+	mkdir -p $(TOOLS_BIN_DIR); \
+	LDFLAGS="-s -w "; \
+	LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/cmd/performance-profile-creator "; \
+	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build  -v -i $(LDFLAGS) -o $(TOOLS_BIN_DIR)/performance-profile-creator ./cmd/performance-profile-creator
+
 .PHONY: generate-csv
 generate-csv: operator-sdk kustomize dist-csv-processor
 	@if [ -z "$(REGISTRY_NAMESPACE)" ]; then\
