@@ -17,7 +17,6 @@ spec:
       serviceaccount: perf-node-gather
       serviceAccountName: perf-node-gather
       terminationGracePeriodSeconds: 0
-      hostNetwork: true
       containers:
       - name: node-probe
         image: MUST_GATHER_IMAGE
