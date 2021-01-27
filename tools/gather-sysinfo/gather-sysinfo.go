@@ -36,11 +36,19 @@ func main() {
 
 	// extra, KNI-specific entries
 	fileSpecs := []string{
+		// generic information
 		"/proc/cmdline",
+		// IRQ affinities
 		"/proc/interrupts",
 		"/proc/irq/default_smp_affinity",
 		"/proc/irq/*/*affinity_list",
 		"/proc/irq/*/node",
+		// BIOS/firmware versions
+		"/sys/class/dmi/id/bios*",
+		"/sys/class/dmi/id/product_family",
+		"/sys/class/dmi/id/product_name",
+		"/sys/class/dmi/id/product_sku",
+		"/sys/class/dmi/id/product_version",
 	}
 	if err := snapshot.CopyFilesInto(fileSpecs, scratchDir, nil); err != nil {
 		log.Fatalf("error cloning extra files into %q: %v", scratchDir, err)
