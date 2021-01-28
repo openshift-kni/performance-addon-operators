@@ -8,12 +8,9 @@ A tool to automate the process of creating Performance Profile using the user su
 1. A wrapper script <!--(TODO: Add link to where the wrapper script is placed) --> automates the access to PPC tool. It pulls the PAO image, supplies arguments and runs the tool inside Performance Addon Operator container with performance-profile-creator entrypoint.
 
 ## Flow
-1. The user supplies the command line args to the tool by using a wrapper script.
-1. The wrapper triggers the must-gather tool.
-1. A must-gather output file is passed to PPC as an argument.
-1. The wrapper decompresses the must-gather output file and “mount” the ghw snapshot in order to inspect the hardware, and passes the snapshot to PPC. The ghw snapshots can also be supplied by the user may directly.
-1. PPC reuses decompressed ghw images and mount local dir for storage.
-1. Finally, PPC creates a PAO profile and optionally an NTO tuned overriding the PAO profile as yaml files. As an optional debug functionality and to enable the user to make further tuning decisions, it also outputs the interim queries and results.
+1. PPC consumes a must-gather output.
+1. PPC may run must-gather directly if the must-gather output is not given.
+1. PPC output is a bunch of YAML data (PAO profile + NTO tuned part).
 
 <!--
 ## Wrapper Setup/Configuration
