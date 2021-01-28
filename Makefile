@@ -39,7 +39,7 @@ BUILD_DATE=$$(date --utc -Iseconds)
 export GO111MODULE=on
 
 .PHONY: build
-build: gofmt golint govet dist-gather-sysinfo dist generate-manifests-tree
+build: gofmt golint govet dist-gather-sysinfo dist create-performance-profile generate-manifests-tree
 
 .PHONY: dist
 dist: build-output-dir
