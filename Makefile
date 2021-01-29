@@ -38,6 +38,13 @@ BUILD_DATE=$$(date --utc -Iseconds)
 # Export GO111MODULE=on to enable project to be built from within GOPATH/src
 export GO111MODULE=on
 
+.PHONY: new-zversion
+new-zversion: bump-zversion generate
+
+.PHONY: bump-zversion
+bump-zversion:
+	./hack/bump-zversion.sh
+
 .PHONY: build
 build: gofmt golint govet dist-gather-sysinfo dist create-performance-profile generate-manifests-tree
 
