@@ -6,7 +6,6 @@ A tool to automate the process of creating Performance Profile using the user su
 
 ## Flow
 1. PPC consumes a must-gather output.
-1. PPC may run must-gather directly if the must-gather output is not given.
 1. PPC output is a bunch of YAML data (PAO profile + NTO tuned part).
 
 ## Things to note before running Performance Profile Creator
@@ -45,11 +44,11 @@ Depending on how must-gather directory was setup run the Performance profile Cre
 
 1. Option 1: Using must-gather output dir (obtained after running must gather manually)
    ```bash
-   podman run --entrypoint performance-profile-creator -v ./must-gather:/must-gather:z\
-   quay.io/openshift-kni/performance-addon-operator:4.8-snapshot > my-profile.yaml
+   podman run --entrypoint performance-profile-creator -v /path/to/must-gather-output:/must-gather:z\
+   quay.io/openshift-kni/performance-addon-operator:4.8-snapshot -M /must-gather > performance-profile.yaml
    ```
 1. Option 2: Using an existing must-gather tarball which is decompressed to a directory.
    ```bash
-   podman run --entrypoint performance-profile-creator -v :/must-gather:z \
-   quay.io/openshift-kni/performance-addon-operator:4.8-snapshot -M /must-gather  > my-profile.yaml
+   podman run --entrypoint performance-profile-creator -v /path/to/decompressed-tarball:/must-gather:z \
+   quay.io/openshift-kni/performance-addon-operator:4.8-snapshot -M /must-gather > performance-profile.yaml
     ```
