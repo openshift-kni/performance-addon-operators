@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi7/ubi
+FROM registry.access.redhat.com/ubi8/ubi
 
 ENV HOME=/home/ci
 ENV GOROOT /usr/local/go
@@ -16,7 +16,6 @@ RUN yum --setopt=install_weak_deps=False -y install \
     make \
     gettext \
     which \
-    skopeo \
     findutils \
     python2 \
     && yum clean all
