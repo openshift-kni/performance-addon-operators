@@ -364,7 +364,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			onlineCPUsSet, err := nodes.GetOnlineCPUsSet(workerRTNode)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(defaultSmpAffinitySet).To(Equal(onlineCPUsSet), fmt.Sprintf("Default SMP Affinity %s should be equal to all active CPUs %s", defaultSmpAffinitySet, onlineCPUsSet))
+			Expect(onlineCPUsSet.IsSubsetOf(defaultSmpAffinitySet)).To(BeTrue(), fmt.Sprintf("All online CPUs %s should be subset of default SMP affinity %s", onlineCPUsSet, defaultSmpAffinitySet))
 
 			By("Running pod with annotations that disable specific CPU from IRQ balancer")
 			annotations := map[string]string{
@@ -388,7 +388,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			psrSet, err := cpuset.Parse(strings.Trim(string(psr), "\n"))
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(defaultSmpAffinitySet).To(Equal(onlineCPUsSet.Difference(psrSet)), fmt.Sprintf("Default SMP affinity should not contain isolated CPU %s", psr))
+			Expect(psrSet.IsSubsetOf(defaultSmpAffinitySet)).To(BeFalse(), fmt.Sprintf("Default SMP affinity should not contain isolated CPU %s", psr))
 
 			By("Checking that there are no any active IRQ on isolated CPU")
 			// It may takes some time for the system to reschedule active IRQs
@@ -412,7 +412,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			defaultSmpAffinitySet, err = nodes.GetDefaultSmpAffinitySet(workerRTNode)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(defaultSmpAffinitySet).To(Equal(onlineCPUsSet), fmt.Sprintf("Default SMP Affinity %s should be equal to all active CPUs %s", defaultSmpAffinitySet, onlineCPUsSet))
+			Expect(onlineCPUsSet.IsSubsetOf(defaultSmpAffinitySet)).To(BeTrue(), fmt.Sprintf("All online CPUs %s should be subset of default SMP affinity %s", onlineCPUsSet, defaultSmpAffinitySet))
 		})
 	})
 
