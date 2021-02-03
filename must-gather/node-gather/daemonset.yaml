@@ -21,7 +21,7 @@ spec:
       - name: node-probe
         image: MUST_GATHER_IMAGE
         command: ["/bin/bash", "-c", "echo ok > /tmp/healthy && sleep INF"]
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "100m"
