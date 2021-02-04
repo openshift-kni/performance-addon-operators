@@ -155,7 +155,9 @@ Performance Addon Operator provides the ability to enable advanced node performa
 	// Setup the Conversion Webhook
 	targetPort := intstr.FromInt(4343)
 	sideEffects := admissionregistrationv1.SideEffectClassNone
-	webhookPath := "/convert"
+	conversionWebhookPath := "/convert"
+	validationWebhookPath := "/validate-performance-openshift-io-v2-performanceprofile"
+	failurePolicy := admissionregistrationv1.Fail
 
 	operatorCSV.Spec.WebhookDefinitions = []csvv1.WebhookDescription{
 		{
@@ -166,8 +168,32 @@ Performance Addon Operator provides the ability to enable advanced node performa
 			TargetPort:              &targetPort,
 			SideEffects:             &sideEffects,
 			AdmissionReviewVersions: []string{"v1", "v1alpha1"},
-			WebhookPath:             &webhookPath,
+			WebhookPath:             &conversionWebhookPath,
 			ConversionCRDs:          []string{"performanceprofiles.performance.openshift.io"},
+		},
+		{
+			GenerateName:            "vwb.performance.openshift.io",
+			Type:                    csvv1.ValidatingAdmissionWebhook,
+			DeploymentName:          strategySpec.DeploymentSpecs[0].Name,
+			ContainerPort:           443,
+			TargetPort:              &targetPort,
+			SideEffects:             &sideEffects,
+			AdmissionReviewVersions: []string{"v1beta1"},
+			WebhookPath:             &validationWebhookPath,
+			FailurePolicy:           &failurePolicy,
+			Rules: []admissionregistrationv1.RuleWithOperations{
+				{
+					Operations: []admissionregistrationv1.OperationType{
+						admissionregistrationv1.Create,
+						admissionregistrationv1.Update,
+					},
+					Rule: admissionregistrationv1.Rule{
+						APIGroups:   []string{"performance.openshift.io"},
+						APIVersions: []string{"v2"},
+						Resources:   []string{"performanceprofiles"},
+					},
+				},
+			},
 		},
 	}
 

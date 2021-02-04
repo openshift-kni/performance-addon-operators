@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	ign2types "github.com/coreos/ignition/config/v2_2/types"
 	. "github.com/onsi/ginkgo"
@@ -14,7 +13,6 @@ import (
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
@@ -28,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/utils/pointer"
 )
 
 var _ = Describe("Status testing of performance profile", func() {
@@ -107,125 +104,6 @@ var _ = Describe("Status testing of performance profile", func() {
 
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 		})
-	})
-
-	Context("Status reports degraded condition", func() {
-		It("Should report Degraded status if overlapping cpus are configured", func() {
-			if discovery.Enabled() {
-				Skip("Discovery mode enabled, test skipped because it creates incorrect profiles")
-			}
-
-			newRole := "worker-overlapping"
-			newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
-
-			reserved := performancev2.CPUSet("0-3")
-			isolated := performancev2.CPUSet("0-7")
-
-			overlappingProfile := &performancev2.PerformanceProfile{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "PerformanceProfile",
-					APIVersion: performancev2.GroupVersion.String(),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "profile-overlapping-cpus",
-				},
-				Spec: performancev2.PerformanceProfileSpec{
-					CPU: &performancev2.CPU{
-						Reserved: &reserved,
-						Isolated: &isolated,
-					},
-					NodeSelector: map[string]string{newLabel: ""},
-					RealTimeKernel: &performancev2.RealTimeKernel{
-						Enabled: pointer.BoolPtr(true),
-					},
-					NUMA: &performancev2.NUMA{
-						TopologyPolicy: pointer.StringPtr("restricted"),
-					},
-				},
-			}
-			err := testclient.Client.Create(context.TODO(), overlappingProfile)
-			Expect(err).ToNot(HaveOccurred(), "error creating overlappingProfile: %v", err)
-			defer func() {
-				Expect(testclient.Client.Delete(context.TODO(), overlappingProfile)).ToNot(HaveOccurred())
-
-				key := types.NamespacedName{
-					Name:      overlappingProfile.Name,
-					Namespace: overlappingProfile.Namespace,
-				}
-				Expect(profiles.WaitForDeletion(key, 60*time.Second)).ToNot(HaveOccurred())
-
-				Consistently(func() corev1.ConditionStatus {
-					return mcps.GetConditionStatus(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdating)
-				}, 30, 5).Should(Equal(corev1.ConditionFalse), "Machine Config Pool is updating, and it should not")
-
-			}()
-
-			nodeLabels := map[string]string{
-				newLabel: "",
-			}
-
-			cond := profiles.GetConditionWithStatus(nodeLabels, v1.ConditionDegraded)
-			Expect(cond.Message).To(ContainSubstring("reserved and isolated cpus overlap"), "Profile condition degraded unexpected status: %q")
-		})
-
-		It("Should report Degraded status if no isolated cpus are configured", func() {
-			if discovery.Enabled() {
-				Skip("Discovery mode enabled, test skipped because it creates incorrect profiles")
-			}
-
-			newRole := "worker-without-isolated"
-			newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
-
-			reserved := performancev2.CPUSet("0-3")
-			isolated := performancev2.CPUSet("")
-
-			withoutIsolatedCPUsProfile := &performancev2.PerformanceProfile{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "PerformanceProfile",
-					APIVersion: performancev2.GroupVersion.String(),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "profile-without-isolated-cpus",
-				},
-				Spec: performancev2.PerformanceProfileSpec{
-					CPU: &performancev2.CPU{
-						Reserved: &reserved,
-						Isolated: &isolated,
-					},
-					NodeSelector: map[string]string{newLabel: ""},
-					RealTimeKernel: &performancev2.RealTimeKernel{
-						Enabled: pointer.BoolPtr(true),
-					},
-					NUMA: &performancev2.NUMA{
-						TopologyPolicy: pointer.StringPtr("restricted"),
-					},
-				},
-			}
-			err := testclient.Client.Create(context.TODO(), withoutIsolatedCPUsProfile)
-			Expect(err).ToNot(HaveOccurred(), "error creating withoutIsolatedCPUsProfile: %v", err)
-			defer func() {
-				Expect(testclient.Client.Delete(context.TODO(), withoutIsolatedCPUsProfile)).ToNot(HaveOccurred())
-
-				key := types.NamespacedName{
-					Name:      withoutIsolatedCPUsProfile.Name,
-					Namespace: withoutIsolatedCPUsProfile.Namespace,
-				}
-				Expect(profiles.WaitForDeletion(key, 60*time.Second)).ToNot(HaveOccurred())
-
-				Consistently(func() corev1.ConditionStatus {
-					return mcps.GetConditionStatus(testutils.RoleWorkerCNF, machineconfigv1.MachineConfigPoolUpdating)
-				}, 30, 5).Should(Equal(corev1.ConditionFalse), "Machine Config Pool is updating, and it should not")
-
-			}()
-
-			nodeLabels := map[string]string{
-				newLabel: "",
-			}
-
-			cond := profiles.GetConditionWithStatus(nodeLabels, v1.ConditionDegraded)
-			Expect(cond.Message).To(ContainSubstring("must contain isolated cpus"), "Profile condition degraded unexpected status: %q")
-		})
-
 	})
 })
 

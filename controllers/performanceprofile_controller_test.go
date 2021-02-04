@@ -73,41 +73,6 @@ var _ = Describe("Controller", func() {
 			profile.Finalizers = append(profile.Finalizers, finalizer)
 		})
 
-		It("should validate scripts required parameters", func() {
-			profile.Spec.MachineConfigPoolSelector = map[string]string{"fake1": "val1", "fake2": "val2"}
-			r := newFakeReconciler(profile)
-
-			// we do not return error, because we do not want to reconcile again, and just print error under the log,
-			// once we will have validation webhook, this test will not be relevant anymore
-			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
-
-			updatedProfile := &performancev2.PerformanceProfile{}
-			key := types.NamespacedName{
-				Name:      profile.Name,
-				Namespace: metav1.NamespaceNone,
-			}
-			Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
-
-			// verify profile conditions
-			degradeCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionDegraded)
-			Expect(degradeCondition).ToNot(BeNil())
-			Expect(degradeCondition.Status).To(Equal(corev1.ConditionTrue))
-			Expect(degradeCondition.Reason).To(Equal(conditionReasonValidationFailed))
-			Expect(degradeCondition.Message).To(Equal("validation error: you should provide only 1 MachineConfigPoolSelector"))
-
-			// verify validation event
-			fakeRecorder, ok := r.Recorder.(*record.FakeRecorder)
-			Expect(ok).To(BeTrue())
-			event := <-fakeRecorder.Events
-			Expect(event).To(ContainSubstring("Validation failed"))
-
-			// verify that no components created by the controller
-			mcp := &mcov1.MachineConfigPool{}
-			key.Name = components.GetComponentName(profile.Name, components.ComponentNamePrefix)
-			err := r.Get(context.TODO(), key, mcp)
-			Expect(errors.IsNotFound(err)).To(Equal(true))
-		})
-
 		It("should create all resources on first reconcile loop", func() {
 			r := newFakeReconciler(profile)
 
