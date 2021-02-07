@@ -246,6 +246,11 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		return reconcile.Result{}, nil
 	}
 
+	// remove components with the old name after the upgrade
+	if err := r.deleteDeprecatedComponents(instance); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// apply components
 	result, err := r.applyComponents(instance)
 	if err != nil {
@@ -293,6 +298,12 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *PerformanceProfileReconciler) deleteDeprecatedComponents(instance *performancev2.PerformanceProfile) error {
+	// remove the machine config with the deprecated name
+	name := components.GetComponentName(instance.Name, components.ComponentNamePrefix)
+	return r.deleteMachineConfig(name)
 }
 
 func (r *PerformanceProfileReconciler) updateDegradedCondition(instance *performancev2.PerformanceProfile, conditionState string, conditionError error) (ctrl.Result, error) {
@@ -440,11 +451,11 @@ func (r *PerformanceProfileReconciler) deleteComponents(profile *performancev2.P
 		return err
 	}
 
-	if err := r.deleteMachineConfig(name); err != nil {
+	if err := r.deleteRuntimeClass(name); err != nil {
 		return err
 	}
 
-	if err := r.deleteRuntimeClass(name); err != nil {
+	if err := r.deleteMachineConfig(machineconfig.GetMachineConfigName(profile)); err != nil {
 		return err
 	}
 
@@ -461,12 +472,17 @@ func (r *PerformanceProfileReconciler) isComponentsExist(profile *performancev2.
 
 	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	if _, err := r.getKubeletConfig(name); !errors.IsNotFound(err) {
-		klog.Infof("Kubelet Config %q custom resource is still exists under the cluster", name)
+		klog.Infof("Kubelet Config %q exists under the cluster", name)
 		return true
 	}
 
-	if _, err := r.getMachineConfig(name); !errors.IsNotFound(err) {
-		klog.Infof("Machine Config %q custom resource is still exists under the cluster", name)
+	if _, err := r.getRuntimeClass(name); !errors.IsNotFound(err) {
+		klog.Infof("Runtime class %q exists under the cluster", name)
+		return true
+	}
+
+	if _, err := r.getMachineConfig(machineconfig.GetMachineConfigName(profile)); !errors.IsNotFound(err) {
+		klog.Infof("Machine Config %q exists under the cluster", name)
 		return true
 	}
 

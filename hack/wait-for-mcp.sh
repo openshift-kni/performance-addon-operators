@@ -27,8 +27,12 @@ do
   set -e
 
   echo "[INFO] Checking if MCP picked up the performance MC"
+  # MC with new generated name
+  mc_new="$(${OC_TOOL} get mcp worker-cnf -o jsonpath='{.spec.configuration.source[?(@.name=="50-performance-'$CLUSTER'")].name}')"
+  # MC with old generated name
+  mc_old="$(${OC_TOOL} get mcp worker-cnf -o jsonpath='{.spec.configuration.source[?(@.name=="performance-'$CLUSTER'")].name}')"
   # No output means that the new machine config wasn't picked by MCO yet
-  if [ -z "$(${OC_TOOL} get mcp worker-cnf -o jsonpath='{.spec.configuration.source[?(@.name=="performance-'$CLUSTER'")].name}')" ]
+  if [ -z "${mc_new}" ] && [ -z "${mc_old}" ]
   then
     iterations=$((iterations + 1))
     iterations_left=$((max_iterations - iterations))

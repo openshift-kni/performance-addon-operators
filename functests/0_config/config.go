@@ -89,7 +89,7 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 		}
 
 		By("Waiting for the MCP to pick the PerformanceProfile's MC")
-		mcps.WaitForProfilePickedUp(performanceMCP.Name, performanceProfile.Name)
+		mcps.WaitForProfilePickedUp(performanceMCP.Name, performanceProfile)
 
 		// If the profile is already there, it's likely to have been through the updating phase, so we only
 		// wait for updated.
