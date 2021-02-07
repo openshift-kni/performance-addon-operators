@@ -3,11 +3,11 @@ module github.com/openshift-kni/performance-addon-operators
 go 1.13
 
 require (
-	cloud.google.com/go v0.56.0 // indirect
 	github.com/RHsyseng/operator-utils v0.0.0-20200213165520-1a022eb07a43
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f
 	github.com/coreos/ignition v0.35.0
+	github.com/coreos/ignition/v2 v2.9.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-logr/zapr v0.1.1 // indirect
 	github.com/go-openapi/errors v0.19.4 // indirect
@@ -41,7 +41,6 @@ require (
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 	golang.org/x/tools v0.1.0 // indirect
-	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.18.9
