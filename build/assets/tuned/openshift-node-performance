@@ -27,8 +27,8 @@ min_perf_pct=100                              #  latency-performance
 
 # Disable the stalld service until bugs https://bugzilla.redhat.com/show_bug.cgi?id=1912118 and
 # https://bugzilla.redhat.com/show_bug.cgi?id=1903302 will be fixed
-[service]
-service.stalld=stop,disable
+# [service]
+# service.stalld=start,enable
 
 [vm]
 transparent_hugepages=never                   #  network-latency
