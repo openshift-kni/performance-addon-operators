@@ -54,14 +54,19 @@ type profileCreatorArgs struct {
 	disableHT            bool
 	rtKernel             bool
 	userLevelNetworking  bool
+	mcpName              string
 }
 
 func init() {
 	args := &profileCreatorArgs{}
-	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs")
+	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs (required)")
+	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
+	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "T", "cnf-worker", "MCP name corresponding to the target machines (required)")
+	rootCmd.MarkPersistentFlagRequired("mcp-name")
 	rootCmd.PersistentFlags().BoolVarP(&args.splitCPUsAcrossNUMA, "split-cpus-across-numa", "S", true, "Split the CPUs across NUMA nodes")
 	rootCmd.PersistentFlags().BoolVarP(&args.disableHT, "disable-ht", "H", false, "Disable Hyperthreading")
-	rootCmd.PersistentFlags().BoolVarP(&args.rtKernel, "rt-kernel", "K", true, "Enable Real Time Kernel")
+	rootCmd.PersistentFlags().BoolVarP(&args.rtKernel, "rt-kernel", "K", true, "Enable Real Time Kernel (required)")
+	rootCmd.MarkPersistentFlagRequired("rt-kernel")
 	rootCmd.PersistentFlags().BoolVarP(&args.userLevelNetworking, "user-level-networking", "U", false, "Run with User level Networking(DPDK) enabled")
 	rootCmd.PersistentFlags().StringVarP(&args.powerConsumptionMode, "power-consumption-mode", "P", "cstate", "The power consumption mode")
 	rootCmd.PersistentFlags().StringVarP(&args.mustGatherDirPath, "must-gather-dir-path", "M", "must-gather", "Must gather directory path")
