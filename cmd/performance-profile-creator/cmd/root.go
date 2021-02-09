@@ -33,7 +33,10 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "performance-profile-creator",
 	Short: "A tool that automates creation of Performance Profiles",
-	Run:   func(cmd *cobra.Command, args []string) {},
+	Run: func(cmd *cobra.Command, args []string) {
+		profileName := cmd.Flag("profile-name").Value.String()
+		createProfile(profileName)
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -70,9 +73,6 @@ func init() {
 	// TODO: Input validation
 	// 1) Make flags required/optional
 	// 2) e.g.check to make sure that power consumption string is in {CSTATE NO_CSTATE IDLE_POLL}
-
-	// Creating Performance Profile
-	createProfile(args.profileName)
 }
 
 func createProfile(profileName string) {
