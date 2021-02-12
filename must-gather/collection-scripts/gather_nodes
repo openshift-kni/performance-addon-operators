@@ -65,7 +65,7 @@ do
     oc exec $pod -n perf-node-gather -- cat /proc/cmdline 2>/dev/null >> $NODE_PATH/proc_cmdline
     WORKER_NODES+=($node)
 
-    oc exec $pod -n perf-node-gather -- gather_sysinfo --output="/sysinfo.tgz"
+    oc exec $pod -n perf-node-gather -- gather_sysinfo --root=/host --output="/sysinfo.tgz"
     oc cp --loglevel 1 -n perf-node-gather "$pod":/sysinfo.tgz "${NODE_PATH}"/sysinfo.tgz > /dev/null 2>&1 && SYSINFO_PIDS+=($!)
 done
 wait "${SYSINFO_PIDS[@]}"
