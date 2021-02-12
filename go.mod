@@ -9,6 +9,7 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f
 	github.com/coreos/ignition v0.35.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
+	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/go-logr/zapr v0.1.1 // indirect
 	github.com/go-openapi/errors v0.19.4 // indirect
 	github.com/go-openapi/loads v0.19.5 // indirect
@@ -44,14 +45,15 @@ require (
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0
-	k8s.io/api v0.18.9
+	k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver v0.18.9
-	k8s.io/apimachinery v0.18.9
+	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/component-helpers v0.20.2
 	k8s.io/klog v1.0.0
 	k8s.io/kubelet v0.18.3
 	k8s.io/kubernetes v1.18.3
-	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
+	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	kubevirt.io/qe-tools v0.1.6
 	sigs.k8s.io/controller-runtime v0.6.2
 	sigs.k8s.io/controller-tools v0.3.0
