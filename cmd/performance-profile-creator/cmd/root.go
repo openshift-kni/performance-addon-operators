@@ -23,8 +23,6 @@ import (
 	"path"
 	"path/filepath"
 
-	"log"
-
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -34,24 +32,22 @@ import (
 
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
-	clientmachineconfigv1 "github.com/openshift/machine-config-operator/pkg/generated/clientset/versioned/typed/machineconfiguration.openshift.io/v1"
 	v1 "k8s.io/api/core/v1"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
+	// ClusterScopedResources defines the cluster scope resources under
+	// must-gather-dir/quay-io-openshift-kni-performance-addon-operator-must-gather*
 	ClusterScopedResources = "cluster-scoped-resources"
-	CoreNodes              = "core/nodes"
-	MCPools                = "machineconfiguration.openshift.io/machineconfigpools"
-	YAMLSuffix             = ".yaml"
+	// CoreNodes defines substring in the path to obtain node data
+	CoreNodes = "core/nodes"
+	// MCPools defines substring in the path to obtain mcp data
+	MCPools = "machineconfiguration.openshift.io/machineconfigpools"
+	// YAMLSuffix defines yaml suffix
+	YAMLSuffix = ".yaml"
 )
-
-type ClientSet struct {
-	corev1client.CoreV1Interface
-	clientmachineconfigv1.MachineconfigurationV1Interface
-}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -74,7 +70,6 @@ var rootCmd = &cobra.Command{
 		for _, node := range nodes {
 			matches, _ := corev1.MatchNodeSelectorTerms(node, getNodeSelectorFromLabelSelector(labelSelector))
 			if matches {
-				log.Println("Matched Node:", node.GetName())
 				matchedNodes = append(matchedNodes, node)
 			}
 		}

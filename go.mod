@@ -9,8 +9,8 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f
 	github.com/coreos/ignition v0.35.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
-	github.com/go-logr/logr v0.4.0 // indirect
-	github.com/go-logr/zapr v0.1.1 // indirect
+	github.com/go-logr/logr v0.2.1 // indirect
+	github.com/go-logr/zapr v0.2.0 // indirect
 	github.com/go-openapi/errors v0.19.4 // indirect
 	github.com/go-openapi/loads v0.19.5 // indirect
 	github.com/go-openapi/runtime v0.19.15 // indirect
@@ -92,7 +92,6 @@ replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v14.1.1+incompatible
 	github.com/coreos/prometheus-operator => github.com/coreos/prometheus-operator v0.40.0
 	github.com/cri-o/cri-o => github.com/cri-o/cri-o v1.18.1
-	github.com/go-log/log => github.com/go-log/log v0.1.0
 	github.com/mtrmac/gpgme => github.com/mtrmac/gpgme v0.1.1
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20200526144822-34f54f12813a // release-4.5
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c // release-4.5
