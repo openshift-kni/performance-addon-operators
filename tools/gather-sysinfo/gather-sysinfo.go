@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/jaypipes/ghw/pkg/snapshot"
@@ -23,7 +24,10 @@ func main() {
 
 	// ghw can't handle duplicates in CopyFilesInto, the operation will fail.
 	// Hence we need to make sure we just don't feed duplicates.
-	fileSpecs := dedupExpectedContent(kniExpectedCloneContent(), snapshot.ExpectedCloneContent())
+	fileSpecs := snapshot.ExpectedCloneContent()
+	fileSpecs = dedupExpectedContent(fileSpecs, kniExpectedCloneContent())
+	fileSpecs = dedupExpectedContent(fileSpecs, kniNetCloneContent())
+
 	if *dumpList {
 		for _, fileSpec := range fileSpecs {
 			fmt.Printf("%s\n", fileSpec)
@@ -82,6 +86,67 @@ func chrootFileSpecs(fileSpecs []string, root string) []string {
 		entries = append(entries, filepath.Join(root, fileSpec))
 	}
 	return entries
+}
+
+func dedupExpectedContent(fileSpecs, extraFileSpecs []string) []string {
+	specSet := make(map[string]int)
+	for _, fileSpec := range fileSpecs {
+		specSet[fileSpec]++
+	}
+	for _, extraFileSpec := range extraFileSpecs {
+		specSet[extraFileSpec]++
+	}
+
+	var retSpecs []string
+	for retSpec := range specSet {
+		retSpecs = append(retSpecs, retSpec)
+	}
+	return retSpecs
+}
+
+func kniExpectedCloneContent() []string {
+	return []string{
+		// generic information
+		"/proc/cmdline",
+		// IRQ affinities
+		"/proc/interrupts",
+		"/proc/irq/default_smp_affinity",
+		"/proc/irq/*/*affinity_list",
+		"/proc/irq/*/node",
+		// BIOS/firmware versions
+		"/sys/class/dmi/id/bios*",
+		"/sys/class/dmi/id/product_family",
+		"/sys/class/dmi/id/product_name",
+		"/sys/class/dmi/id/product_sku",
+		"/sys/class/dmi/id/product_version",
+	}
+}
+
+const (
+	sysClassNet = "/sys/class/net"
+)
+
+func kniNetCloneContent() []string {
+	var fileSpecs []string
+	ifaceEntries := []string{
+		"addr_assign_type",
+		// intentionally avoid to clone "address" to avoid to leak any host-idenfifiable data.
+		"queues/rx-*/rps_*",
+	}
+
+	// some files are created only if the network interface is of given type (e.g. SRIOV).
+	// so we need to list only what's there
+	ifaceOptionalEntries := []string{
+		// we know we are on linux, so we hardcode the path separator
+		"device/physfn",
+		"device/sriov_*",
+		"device/virtfn*",
+	}
+	entries, err := ioutil.ReadDir(sysClassNet)
+	if err != nil {
+		// we should not import context, hence we can't Warn()
+		return fileSpecs
+	}
 }
 
 func dedupExpectedContent(fileSpecs, extraFileSpecs []string) []string {
