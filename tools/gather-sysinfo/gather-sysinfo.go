@@ -82,8 +82,15 @@ func main() {
 		scratchDir = filepath.Join(scratchDir, *rootDir)
 	}
 
-	if err := snapshot.PackFrom(*output, scratchDir); err != nil {
-		log.Fatalf("error packing %q into %q: %v", scratchDir, *output, err)
+	dest := *output
+	if dest == "-" {
+		err = snapshot.PackWithWriter(os.Stdout, scratchDir)
+		dest = "stdout"
+	} else {
+		err = snapshot.PackFrom(dest, scratchDir)
+	}
+	if err != nil {
+		log.Fatalf("error packing %q to %q: %v", scratchDir, dest, err)
 	}
 }
 
