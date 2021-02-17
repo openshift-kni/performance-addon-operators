@@ -52,7 +52,6 @@ do
 done
 
 WORKER_NODES=()
-SYSINFO_PIDS=()
 for line in $(oc get pod -o=custom-columns=NODE:.spec.nodeName,NAME:.metadata.name --no-headers --field-selector=status.phase=Running -n perf-node-gather)
 do
     node=$(echo $line | awk -F ' ' '{print $1}')
@@ -66,9 +65,8 @@ do
     WORKER_NODES+=($node)
 
     oc exec $pod -n perf-node-gather -- gather_sysinfo --root=/host --output="/sysinfo.tgz"
-    oc cp --loglevel 1 -n perf-node-gather "$pod":/sysinfo.tgz "${NODE_PATH}"/sysinfo.tgz > /dev/null 2>&1 && SYSINFO_PIDS+=($!)
+    oc cp --loglevel 1 -n perf-node-gather "$pod":/sysinfo.tgz "${NODE_PATH}"/sysinfo.tgz > /dev/null 2>&1
 done
-wait "${SYSINFO_PIDS[@]}"
 
 # Collect journal logs for specified units for all nodes
 NODE_UNITS=(kubelet)
