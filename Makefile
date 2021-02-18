@@ -45,6 +45,10 @@ all: build
 .PHONY: build
 build: gofmt golint govet dist-gather-sysinfo dist create-performance-profile generate-manifests-tree
 
+# just a shortcut for now
+.PHONY: clean
+clean: dist-clean
+
 .PHONY: dist
 dist: build-output-dir
 	@echo "Building operator binary"
@@ -133,7 +137,7 @@ index-container: generate-index-database
 	$(IMAGE_BUILD_CMD) build --no-cache -f build/_output/index.Dockerfile -t "$(FULL_INDEX_IMAGE)" build/_output
 
 .PHONY: must-gather-container
-must-gather-container:
+must-gather-container: build
 	@echo "Building the performance-addon-operator must-gather image"
 	$(IMAGE_BUILD_CMD) build --no-cache -f openshift-ci/Dockerfile.must-gather -t "$(FULL_MUSTGATHER_IMAGE)" --build-arg BIN_DIR="build/_output/bin/" .
 
