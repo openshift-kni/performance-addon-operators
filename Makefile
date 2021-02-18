@@ -285,6 +285,11 @@ verify: golint govet generate
 .PHONY: ci-job
 ci-job: verify build unittests
 
+.PHONY: ci-tools-job
+ci-tools-job:
+	@echo "Verifying tools operation"
+	hack/verify-tools.sh
+	
 .PHONY: release-note
 release-note:
 	hack/release-note.sh
