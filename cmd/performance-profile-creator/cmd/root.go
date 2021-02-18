@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
@@ -38,14 +39,16 @@ import (
 )
 
 const (
-	// ClusterScopedResources defines the cluster scope resources under
-	// must-gather-dir/quay-io-openshift-kni-performance-addon-operator-must-gather*
+	// ClusterScopedResources defines the subpath, relative to the top-level must-gather directory.
+	// A top-level must-gather directory is of the following format:
+	// must-gather-dir/quay-io-openshift-kni-performance-addon-operator-must-gather-sha256-<Image SHA>
+	// Here we find the cluster-scoped definitions saved by must-gather
 	ClusterScopedResources = "cluster-scoped-resources"
-	// CoreNodes defines substring in the path to obtain node data
+	// CoreNodes defines the subpath, relative to ClusterScopedResources, on which we find node-specific data
 	CoreNodes = "core/nodes"
-	// MCPools defines substring in the path to obtain mcp data
+	// MCPools defines the subpath, relative to ClusterScopedResources, on which we find the machine config pool definitions
 	MCPools = "machineconfiguration.openshift.io/machineconfigpools"
-	// YAMLSuffix defines yaml suffix
+	// YAMLSuffix is the extension of the yaml files saved by must-gather
 	YAMLSuffix = ".yaml"
 )
 
@@ -56,7 +59,7 @@ var rootCmd = &cobra.Command{
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		mcpName := cmd.Flag("mcp-name").Value.String()
 		mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
-		mcp, err := getMCPByName(mustGatherDirPath, mcpName)
+		mcp, err := getMCP(mustGatherDirPath, mcpName)
 		if err != nil {
 			return fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
 		}
@@ -115,17 +118,34 @@ func getNodeSelectorFromLabelSelector(labelSelector *metav1.LabelSelector) *v1.N
 }
 
 func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error) {
-	// The regular expression below depends on the must gather image name. It is assumed here
+	// The glob pattern below depends on the must gather image name. It is assumed here
 	// that the image would have "performance-addon-operator-must-gather" substring in the name.
 	paths, err := filepath.Glob(mustGatherPath + "/*performance-addon-operator-must-gather*/" + suffix)
-	// we return only one path here, we could add a validation
-	// 1) If len(paths) == 1 i.e. there is only one possible subdirectory under must gather prefix with the above prefix, we return the path
-	// 2) If len(paths) != 1 we choose one, one option could be to check the timestamp of the directory and choose the most fresh one
-	return paths[0], err
+
+	// Out of all the paths that match the glob pattern we choose the path that was modified most recently.
+	var latestTime time.Time
+	var lastModifiedPath string
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err != nil {
+			return "", fmt.Errorf("Error obtaining the path stats %s: %v", path, err)
+		}
+		if info.ModTime().After(latestTime) {
+			lastModifiedPath = path
+		}
+	}
+
+	return lastModifiedPath, err
 }
 
-func getNode(path string) (*v1.Node, error) {
+func getNode(mustGatherDirPath, nodeName string) (*v1.Node, error) {
 	var node v1.Node
+	nodePathSuffix := path.Join(ClusterScopedResources, CoreNodes, nodeName)
+	path, err := getMustGatherFullPaths(mustGatherDirPath, nodePathSuffix)
+	if err != nil {
+		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", nodeName, err)
+	}
+
 	src, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("Error opening %q: %v", path, err)
@@ -136,23 +156,7 @@ func getNode(path string) (*v1.Node, error) {
 	if err := dec.Decode(&node); err != nil {
 		return nil, fmt.Errorf("Error opening %q: %v", path, err)
 	}
-
 	return &node, nil
-}
-
-func getNodeByName(mustGatherDirPath, nodeName string) (*v1.Node, error) {
-	var node *v1.Node
-	nodePathSuffix := path.Join(ClusterScopedResources, CoreNodes, nodeName)
-	path, err := getMustGatherFullPaths(mustGatherDirPath, nodePathSuffix)
-	if err != nil {
-		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", nodeName, err)
-	}
-
-	node, err = getNode(path)
-	if err != nil {
-		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", node.GetName(), err)
-	}
-	return node, nil
 }
 
 func getNodeList(mustGatherDirPath string) ([]*v1.Node, error) {
@@ -169,7 +173,7 @@ func getNodeList(mustGatherDirPath string) ([]*v1.Node, error) {
 	}
 	for _, node := range nodes {
 		nodeName := node.Name()
-		node, err := getNodeByName(mustGatherDirPath, nodeName)
+		node, err := getNode(mustGatherDirPath, nodeName)
 		if err != nil {
 			return nil, fmt.Errorf("Error obtaining Nodes %s: %v", nodeName, err)
 		}
@@ -178,8 +182,8 @@ func getNodeList(mustGatherDirPath string) ([]*v1.Node, error) {
 	return machines, nil
 }
 
-func getMCPByName(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPool, error) {
-	var mcp *machineconfigv1.MachineConfigPool
+func getMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPool, error) {
+	var mcp machineconfigv1.MachineConfigPool
 
 	mcpPathSuffix := path.Join(ClusterScopedResources, MCPools, mcpName+YAMLSuffix)
 	mcpPath, err := getMustGatherFullPaths(mustGatherDirPath, mcpPathSuffix)
@@ -187,24 +191,14 @@ func getMCPByName(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineCo
 		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
 	}
 
-	mcp, err = getMCP(mcpPath)
+	src, err := os.Open(mcpPath)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
-	}
-	return mcp, nil
-
-}
-func getMCP(path string) (*machineconfigv1.MachineConfigPool, error) {
-	var mcp machineconfigv1.MachineConfigPool
-
-	src, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("Error opening %q: %v", path, err)
+		return nil, fmt.Errorf("Error opening %q: %v", mcpPath, err)
 	}
 	defer src.Close()
 	dec := k8syaml.NewYAMLOrJSONDecoder(src, 1024)
 	if err := dec.Decode(&mcp); err != nil {
-		return nil, fmt.Errorf("Error opening %q: %v", path, err)
+		return nil, fmt.Errorf("Error opening %q: %v", mcpPath, err)
 	}
 	return &mcp, nil
 }
