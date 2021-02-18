@@ -24,6 +24,8 @@ import (
 	"path/filepath"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -73,6 +75,7 @@ var rootCmd = &cobra.Command{
 		for _, node := range nodes {
 			matches, _ := corev1.MatchNodeSelectorTerms(node, getNodeSelectorFromLabelSelector(labelSelector))
 			if matches {
+				log.Infof("%s is targetted by %s MCP", node.GetName(), mcpName)
 				matchedNodes = append(matchedNodes, node)
 			}
 		}
@@ -125,6 +128,7 @@ func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error
 	// Out of all the paths that match the glob pattern we choose the path that was modified most recently.
 	var latestTime time.Time
 	var lastModifiedPath string
+
 	for _, path := range paths {
 		info, err := os.Stat(path)
 		if err != nil {
@@ -134,7 +138,10 @@ func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error
 			lastModifiedPath = path
 		}
 	}
-
+	if len(paths) > 1 {
+		log.Infof("Multiple matches for the specified must gather directory path: %s and suffix: %s", mustGatherPath, suffix)
+		log.Infof("Selecting the most fresh path (the path that was last modified): %s", lastModifiedPath)
+	}
 	return lastModifiedPath, err
 }
 

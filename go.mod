@@ -33,6 +33,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.6.0 // indirect
 	github.com/prometheus/common v0.10.0 // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v1.1.1
 	github.com/vincent-petithory/dataurl v0.0.0-20191104211930-d1553a71de50 // indirect
 	go.mongodb.org/mongo-driver v1.3.2 // indirect
