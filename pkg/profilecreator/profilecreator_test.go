@@ -3,6 +3,7 @@ package profilecreator
 import (
 	"path/filepath"
 
+	"github.com/jaypipes/ghw"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
@@ -96,6 +97,45 @@ var _ = Describe("PerformanceProfileCreator: Getting Nodes from Must Gather", fu
 			mustGatherDirPath = "../../testdata/must-gather/foo-path"
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			_, err := GetNodeList(mustGatherDirAbsolutePath)
+			Expect(err).To(HaveOccurred())
+		})
+
+	})
+})
+
+var _ = Describe("PerformanceProfileCreator: Loading GHW Snapshot from Must Gather", func() {
+	var mustGatherDirPath, mustGatherDirAbsolutePath string
+	var node *v1.Node
+	var err error
+
+	Context("Identifying Nodes Info of the nodes cluster", func() {
+		It("gets the Nodes Info successfully", func() {
+			node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
+			mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			snapShotOptions, err := LoadSnapshot(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			cpuInfo, err := ghw.CPU(snapShotOptions)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(cpuInfo.Processors)).To(Equal(2))
+			Expect(int(cpuInfo.TotalCores)).To(Equal(40))
+			Expect(int(cpuInfo.TotalThreads)).To(Equal(80))
+			topologyInfo, err := ghw.Topology(snapShotOptions)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(topologyInfo.Nodes)).To(Equal(2))
+		})
+		It("fails to get Nodes Info due to misconfigured must-gather path", func() {
+			mustGatherDirPath = "../../testdata/must-gather/foo-path"
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			_, err := LoadSnapshot(mustGatherDirAbsolutePath, node)
+			Expect(err).To(HaveOccurred())
+		})
+		It("fails to get Nodes Info for a node that does not exist", func() {
+			node = newTestNode("foo")
+			mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			_, err := LoadSnapshot(mustGatherDirAbsolutePath, node)
 			Expect(err).To(HaveOccurred())
 		})
 

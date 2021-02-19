@@ -23,6 +23,8 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/jaypipes/ghw"
+	"github.com/jaypipes/ghw/pkg/option"
 	log "github.com/sirupsen/logrus"
 
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -46,6 +48,10 @@ const (
 	MCPools = "machineconfiguration.openshift.io/machineconfigpools"
 	// YAMLSuffix is the extension of the yaml files saved by must-gather
 	YAMLSuffix = ".yaml"
+	// Nodes defines the subpath, relative to top-level must-gather directory, on which we find node-specific data
+	Nodes = "nodes"
+	// SysInfoFileName defines the name of the file where ghw snapshot is stored
+	SysInfoFileName = "sysinfo.tgz"
 )
 
 func init() {
@@ -188,4 +194,22 @@ func GetMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPo
 		return nil, fmt.Errorf("Error opening %q: %v", mcpPath, err)
 	}
 	return &mcp, nil
+}
+
+// LoadSnapshot loads a ghw snapshot corresponding to a node
+func LoadSnapshot(mustGatherDirPath string, node *v1.Node) (*option.Option, error) {
+	nodeName := node.GetName()
+	nodePathSuffix := path.Join(Nodes)
+	nodepath, err := getMustGatherFullPaths(mustGatherDirPath, nodePathSuffix)
+	if err != nil {
+		return nil, fmt.Errorf("Error obtaining the node path %s: %v", nodeName, err)
+	}
+	_, err = os.Stat(path.Join(nodepath, nodeName, SysInfoFileName))
+	if err != nil {
+		return nil, fmt.Errorf("Error obtaining the path for node %s: %v", nodeName, err)
+	}
+	snapShotOptions := ghw.WithSnapshot(ghw.SnapshotOptions{
+		Path: path.Join(nodepath, nodeName, SysInfoFileName),
+	})
+	return snapShotOptions, nil
 }
