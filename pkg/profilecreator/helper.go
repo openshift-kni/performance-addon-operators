@@ -1,8 +1,6 @@
 package profilecreator
 
 import (
-	"path/filepath"
-
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -17,8 +15,4 @@ func newTestNodeList(nodes ...*v1.Node) []*v1.Node {
 		nodeList = append(nodeList, node)
 	}
 	return nodeList
-}
-
-func getAbsolutePath(mustGatherDirPath string) (string, error) {
-	return filepath.Abs(mustGatherDirPath)
 }

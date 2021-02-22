@@ -46,7 +46,7 @@ var rootCmd = &cobra.Command{
 		labelSelector := mcp.Spec.NodeSelector
 		nodes, err := profilecreator.GetNodeList(mustGatherDirPath)
 		if err != nil {
-			return fmt.Errorf("Error obtaining Nods %s: %v", mcpName, err)
+			return fmt.Errorf("Error obtaining Nodes %s: %v", mcpName, err)
 		}
 
 		matchedNodes, err := profilecreator.GetMatchedNodes(nodes, labelSelector)
@@ -84,6 +84,7 @@ type profileCreatorArgs struct {
 
 func init() {
 	args := &profileCreatorArgs{}
+	log.SetOutput(os.Stderr)
 	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
 	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "T", "worker-cnf", "MCP name corresponding to the target machines (required)")

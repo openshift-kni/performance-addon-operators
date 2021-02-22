@@ -22,7 +22,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -48,6 +47,10 @@ const (
 	// YAMLSuffix is the extension of the yaml files saved by must-gather
 	YAMLSuffix = ".yaml"
 )
+
+func init() {
+	log.SetOutput(os.Stderr)
+}
 
 // GetMatchedNodes returns the list of nodes that are targetted by a specified labelSelector
 func GetMatchedNodes(nodes []*v1.Node, labelSelector *metav1.LabelSelector) ([]*v1.Node, error) {
@@ -98,25 +101,19 @@ func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error
 	// The glob pattern below depends on the must gather image name. It is assumed here
 	// that the image would have "performance-addon-operator-must-gather" substring in the name.
 	paths, err := filepath.Glob(mustGatherPath + "/*performance-addon-operator-must-gather*/" + suffix)
+	if err != nil {
+		return "", fmt.Errorf("Error obtaining the path mustGatherPath:%s, suffix:%s %v", mustGatherPath, suffix, err)
+	}
+	if paths == nil {
+		return "", fmt.Errorf("No match for the specified must gather directory path: %s and suffix: %s", mustGatherPath, suffix)
 
-	// Out of all the paths that match the glob pattern we choose the path that was modified most recently.
-	var latestTime time.Time
-	var lastModifiedPath string
-
-	for _, path := range paths {
-		info, err := os.Stat(path)
-		if err != nil {
-			return "", fmt.Errorf("Error obtaining the path stats %s: %v", path, err)
-		}
-		if info.ModTime().After(latestTime) {
-			lastModifiedPath = path
-		}
 	}
 	if len(paths) > 1 {
 		log.Infof("Multiple matches for the specified must gather directory path: %s and suffix: %s", mustGatherPath, suffix)
-		log.Infof("Selecting the most fresh path (the path that was last modified): %s", lastModifiedPath)
+		return "", fmt.Errorf("Multiple matches for the specified must gather directory path: %s and suffix: %s.\n Expected only one performance-addon-operator-must-gather* directory, please check the must-gather tarball", mustGatherPath, suffix)
 	}
-	return lastModifiedPath, err
+	// returning one possible path
+	return paths[0], err
 }
 
 func getNode(mustGatherDirPath, nodeName string) (*v1.Node, error) {
@@ -149,6 +146,10 @@ func GetNodeList(mustGatherDirPath string) ([]*v1.Node, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error obtaining Nodes: %v", err)
 	}
+	if nodePath == "" {
+		return nil, fmt.Errorf("Error obtaining Nodes: %v", err)
+	}
+
 	nodes, err := ioutil.ReadDir(nodePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list mustGatherPath directories: %v", err)
@@ -172,6 +173,9 @@ func GetMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPo
 	mcpPath, err := getMustGatherFullPaths(mustGatherDirPath, mcpPathSuffix)
 	if err != nil {
 		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
+	}
+	if mcpPath == "" {
+		return nil, fmt.Errorf("Error obtaining MachineConfigPool, mcp:%s does not exist: %v", mcpName, err)
 	}
 
 	src, err := os.Open(mcpPath)
