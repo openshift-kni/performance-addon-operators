@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/openshift-kni/performance-addon-operators/pkg/profilecreator"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 
@@ -33,6 +36,25 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "performance-profile-creator",
 	Short: "A tool that automates creation of Performance Profiles",
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		mcpName := cmd.Flag("mcp-name").Value.String()
+		mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
+		mcp, err := profilecreator.GetMCP(mustGatherDirPath, mcpName)
+		if err != nil {
+			return fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
+		}
+		labelSelector := mcp.Spec.NodeSelector
+		nodes, err := profilecreator.GetNodeList(mustGatherDirPath)
+		if err != nil {
+			return fmt.Errorf("Error obtaining Nodes %s: %v", mcpName, err)
+		}
+
+		matchedNodes, err := profilecreator.GetMatchedNodes(nodes, labelSelector)
+		for _, node := range matchedNodes {
+			log.Infof("%s is targetted by %s MCP", node.GetName(), mcpName)
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		profileName := cmd.Flag("profile-name").Value.String()
 		createProfile(profileName)
@@ -62,9 +84,10 @@ type profileCreatorArgs struct {
 
 func init() {
 	args := &profileCreatorArgs{}
+	log.SetOutput(os.Stderr)
 	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
-	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "T", "cnf-worker", "MCP name corresponding to the target machines (required)")
+	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "T", "worker-cnf", "MCP name corresponding to the target machines (required)")
 	rootCmd.MarkPersistentFlagRequired("mcp-name")
 	rootCmd.PersistentFlags().BoolVarP(&args.splitCPUsAcrossNUMA, "split-cpus-across-numa", "S", true, "Split the CPUs across NUMA nodes")
 	rootCmd.PersistentFlags().BoolVarP(&args.disableHT, "disable-ht", "H", false, "Disable Hyperthreading")
