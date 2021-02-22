@@ -206,7 +206,7 @@ func LoadSnapshot(mustGatherDirPath string, node *v1.Node) (*option.Option, erro
 	}
 	_, err = os.Stat(path.Join(nodepath, nodeName, SysInfoFileName))
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining the path for node %s: %v", nodeName, err)
+		return nil, fmt.Errorf("Error obtaining the path: %s for node %s: %v", nodeName, nodepath, err)
 	}
 	snapShotOptions := ghw.WithSnapshot(ghw.SnapshotOptions{
 		Path: path.Join(nodepath, nodeName, SysInfoFileName),
