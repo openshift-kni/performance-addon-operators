@@ -51,7 +51,19 @@ var rootCmd = &cobra.Command{
 
 		matchedNodes, err := profilecreator.GetMatchedNodes(nodes, labelSelector)
 		for _, node := range matchedNodes {
-			log.Infof("%s is targetted by %s MCP", node.GetName(), mcpName)
+			nodeName := node.GetName()
+			log.Infof("%s is targetted by %s MCP", nodeName, mcpName)
+			handle, err := profilecreator.NewGHWHandler(mustGatherDirPath, node)
+			cpuInfo, err := handle.CPU()
+			if err != nil {
+				return fmt.Errorf("Error obtaining CPU Info from GHW snapshot for %s: %v", nodeName, err)
+			}
+			log.Infof("CPU Info: %v\n", cpuInfo)
+			topologyInfo, err := handle.Topology()
+			if err != nil {
+				return fmt.Errorf("Error obtaining Topology Info from GHW snapshot for %s: %v", nodeName, err)
+			}
+			log.Infof("Topology Info: %v\n", topologyInfo)
 		}
 		return nil
 	},
@@ -96,6 +108,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&args.userLevelNetworking, "user-level-networking", "U", false, "Run with User level Networking(DPDK) enabled")
 	rootCmd.PersistentFlags().StringVarP(&args.powerConsumptionMode, "power-consumption-mode", "P", "cstate", "The power consumption mode")
 	rootCmd.PersistentFlags().StringVarP(&args.mustGatherDirPath, "must-gather-dir-path", "M", "must-gather", "Must gather directory path")
+	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
 	rootCmd.PersistentFlags().StringVarP(&args.profileName, "profile-name", "N", "performance", "Name of the performance profile to be created")
 
 	// TODO: Input validation
