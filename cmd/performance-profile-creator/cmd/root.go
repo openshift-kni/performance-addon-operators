@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jaypipes/ghw"
 	"github.com/openshift-kni/performance-addon-operators/pkg/profilecreator"
 	log "github.com/sirupsen/logrus"
 
@@ -54,17 +53,13 @@ var rootCmd = &cobra.Command{
 		for _, node := range matchedNodes {
 			nodeName := node.GetName()
 			log.Infof("%s is targetted by %s MCP", nodeName, mcpName)
-			snapShotOptions, err := profilecreator.LoadSnapshot(mustGatherDirPath, node)
-			if err != nil {
-				return fmt.Errorf("Error loading snaphot for %s: %v", nodeName, err)
-			}
-			//Examples of how GHW snapshots can be consumed
-			cpuInfo, err := ghw.CPU(snapShotOptions)
+			handle, err := profilecreator.NewGHWHandler(mustGatherDirPath, node)
+			cpuInfo, err := handle.CPU()
 			if err != nil {
 				return fmt.Errorf("Error obtaining CPU Info from GHW snapshot for %s: %v", nodeName, err)
 			}
 			log.Infof("CPU Info: %v\n", cpuInfo)
-			topologyInfo, err := ghw.Topology(snapShotOptions)
+			topologyInfo, err := handle.Topology()
 			if err != nil {
 				return fmt.Errorf("Error obtaining Topology Info from GHW snapshot for %s: %v", nodeName, err)
 			}

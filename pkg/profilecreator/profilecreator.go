@@ -24,7 +24,9 @@ import (
 	"path/filepath"
 
 	"github.com/jaypipes/ghw"
+	"github.com/jaypipes/ghw/pkg/cpu"
 	"github.com/jaypipes/ghw/pkg/option"
+	"github.com/jaypipes/ghw/pkg/topology"
 	log "github.com/sirupsen/logrus"
 
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -196,8 +198,8 @@ func GetMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPo
 	return &mcp, nil
 }
 
-// LoadSnapshot loads a ghw snapshot corresponding to a node
-func LoadSnapshot(mustGatherDirPath string, node *v1.Node) (*option.Option, error) {
+// NewGHWHandler is a handler to use ghw options corresponding to a node
+func NewGHWHandler(mustGatherDirPath string, node *v1.Node) (*GHWHandler, error) {
 	nodeName := node.GetName()
 	nodePathSuffix := path.Join(Nodes)
 	nodepath, err := getMustGatherFullPaths(mustGatherDirPath, nodePathSuffix)
@@ -208,8 +210,24 @@ func LoadSnapshot(mustGatherDirPath string, node *v1.Node) (*option.Option, erro
 	if err != nil {
 		return nil, fmt.Errorf("Error obtaining the path: %s for node %s: %v", nodeName, nodepath, err)
 	}
-	snapShotOptions := ghw.WithSnapshot(ghw.SnapshotOptions{
+	options := ghw.WithSnapshot(ghw.SnapshotOptions{
 		Path: path.Join(nodepath, nodeName, SysInfoFileName),
 	})
-	return snapShotOptions, nil
+	ghwHandler := &GHWHandler{snapShotOptions: options}
+	return ghwHandler, nil
+}
+
+// GHWHandler is a wrapper around ghw to get the API object
+type GHWHandler struct {
+	snapShotOptions *option.Option
+}
+
+// CPU returns a CPUInfo struct that contains information about the CPUs on the host system
+func (ghwHandler GHWHandler) CPU() (*cpu.Info, error) {
+	return ghw.CPU(ghwHandler.snapShotOptions)
+}
+
+// Topology returns a TopologyInfo struct that contains information about the Topology on the host system
+func (ghwHandler GHWHandler) Topology() (*topology.Info, error) {
+	return ghw.Topology(ghwHandler.snapShotOptions)
 }
