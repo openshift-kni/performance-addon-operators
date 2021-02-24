@@ -90,6 +90,13 @@ dist-docs-generator: build-output-dir
 dist-functests:
 	./hack/build-test-bin.sh
 
+.PHONY: new-zversion
+new-zversion: dist-clean bump-zversion generate
+
+.PHONY: bump-zversion
+bump-zversion:
+	./hack/bump-zversion.sh
+
 .PHONY: build-containers
 build-containers: bundle-container index-container operator-container must-gather-container
 
