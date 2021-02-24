@@ -3,7 +3,6 @@ package __performance_status
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	ign2types "github.com/coreos/ignition/config/v2_2/types"
 	. "github.com/onsi/ginkgo"
@@ -39,7 +38,7 @@ var _ = Describe("Status testing of performance profile", func() {
 		workerCNFNodes, err = nodes.GetByLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
 		workerCNFNodes, err = nodes.MatchingOptionalSelector(workerCNFNodes)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
+		Expect(err).ToNot(HaveOccurred(), "error looking for the optional selector: %v", err)
 		Expect(workerCNFNodes).ToNot(BeEmpty())
 	})
 

@@ -49,7 +49,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		Expect(err).ToNot(HaveOccurred())
 		workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
-		Expect(workerRTNodes).ToNot(BeEmpty())
+		Expect(workerRTNodes).ToNot(BeEmpty(), "cannot find RT enabled worker nodes")
 		profile, err = profiles.GetByNodeLabels(nodeLabel)
 		Expect(err).ToNot(HaveOccurred())
 		performanceMCP, err = mcps.GetByProfile(profile)
@@ -65,7 +65,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		It("[test_id:36150] Verify that IRQ load balancing is enabled/disabled correctly", func() {
 			irqLoadBalancingDisabled := profile.Spec.GloballyDisableIrqLoadBalancing != nil && *profile.Spec.GloballyDisableIrqLoadBalancing
 
-			Expect(profile.Spec.CPU.Isolated).NotTo(BeNil())
+			Expect(profile.Spec.CPU.Isolated).NotTo(BeNil(), "expected isolated CPUs, found none")
 			isolatedCPUSet, err := cpuset.Parse(string(*profile.Spec.CPU.Isolated))
 			Expect(err).ToNot(HaveOccurred())
 
@@ -79,7 +79,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 
 				for _, node := range workerRTNodes {
 					bannedCPUs, err := nodes.BannedCPUs(node)
-					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to extract the banned CPUs from node %s", node.Name))
+					Expect(err).ToNot(HaveOccurred(), "failed to extract the banned CPUs from node %s", node.Name)
 
 					if !bannedCPUs.Equals(expectedBannedCPUs) {
 						return fmt.Errorf("banned CPUs %v do not match the expected mask %v on node %s",
@@ -196,7 +196,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			for _, node := range workerRTNodes {
 				for _, param := range parameter {
 					result, err := nodes.ExecCommandOnNode(cmd, &node)
-					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", cmd))
+					Expect(err).ToNot(HaveOccurred(), "failed to execute %s", cmd)
 
 					matcher := ContainSubstring(param)
 					if useRegex {
@@ -233,14 +233,14 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		It("[test_id:28612]Verify that Kernel arguments can me updated (added, removed) thru performance profile", func() {
 			for _, node := range workerRTNodes {
 				cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, &node)
-				Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
+				Expect(err).ToNot(HaveOccurred(), "failed to execute %s", chkCmdLine)
 
 				// Verifying that new argument was added
 				Expect(cmdline).To(ContainSubstring("new-argument=test"))
 
 				// Verifying that one of old arguments was removed
 				if removedKernelArgs != "" {
-					Expect(cmdline).NotTo(ContainSubstring(removedKernelArgs), fmt.Sprintf("%s should be removed from /proc/cmdline", removedKernelArgs))
+					Expect(cmdline).NotTo(ContainSubstring(removedKernelArgs), "%s should be removed from /proc/cmdline", removedKernelArgs)
 				}
 			}
 		})
@@ -256,7 +256,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			profile.Spec.RealTimeKernel = nil
 			profiles.UpdateWithRetry(profile)
 
-			Expect(profile.Spec.RealTimeKernel).To(BeNil())
+			Expect(profile.Spec.RealTimeKernel).To(BeNil(), "real time kernel setting expected in profile spec but missing")
 			By("Checking that the updating MCP status will consistently stay false")
 			Consistently(func() corev1.ConditionStatus {
 				return mcps.GetConditionStatus(performanceMCP, conditionUpdating)
@@ -324,11 +324,11 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			mcps.WaitForCondition(newRole, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 
 			kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, newCnfNode)
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKubeletConfig))
+			Expect(err).ToNot(HaveOccurred(), "failed to execute %s", chkKubeletConfig)
 			Expect(kblcfg).To(ContainSubstring("topologyManagerPolicy"))
 
 			cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, newCnfNode)
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
+			Expect(err).ToNot(HaveOccurred(), "failed to execute %s", chkCmdLine)
 			Expect(cmdline).To(ContainSubstring("tuned.non_isolcpus"))
 		})
 
@@ -362,19 +362,19 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			Expect(err).To(HaveOccurred())
 
 			cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, newCnfNode)
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkCmdLine))
+			Expect(err).ToNot(HaveOccurred(), "failed to execute %s", chkCmdLine)
 			Expect(cmdline).NotTo(ContainSubstring("tuned.non_isolcpus"))
 
 			kblcfg, err := nodes.ExecCommandOnNode(chkKubeletConfig, newCnfNode)
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkKubeletConfig))
+			Expect(err).ToNot(HaveOccurred(), "failed to execute %s", chkKubeletConfig)
 			Expect(kblcfg).NotTo(ContainSubstring("reservedSystemCPUs"))
 
 			Expect(profile.Spec.CPU.Reserved).NotTo(BeNil())
 			reservedCPU := string(*profile.Spec.CPU.Reserved)
 			cpuMask, err := components.CPUListToHexMask(reservedCPU)
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to list in Hex %s", reservedCPU))
+			Expect(err).ToNot(HaveOccurred(), "failed to list in Hex %s", reservedCPU)
 			irqBal, err := nodes.ExecCommandOnNode(chkIrqbalance, newCnfNode)
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s", chkIrqbalance))
+			Expect(err).ToNot(HaveOccurred(), "failed to execute %s", chkIrqbalance)
 			Expect(irqBal).NotTo(ContainSubstring(cpuMask))
 		})
 
