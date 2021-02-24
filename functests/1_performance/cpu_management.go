@@ -134,7 +134,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 				mask := strings.SplitAfter(taskset, " ")
 				maskSet, err := cpuset.Parse(mask[len(mask)-1])
 				Expect(err).ToNot(HaveOccurred())
-				Expect(reservedCPUSet.IsSubsetOf(maskSet)).To(Equal(true), fmt.Sprintf("The process should have cpu affinity: %s", reservedCPU))
+				Expect(reservedCPUSet.IsSubsetOf(maskSet)).To(Equal(true), "The process should have cpu affinity: %s", reservedCPU)
 
 				// check which cpu is used
 				cmd = []string{"/bin/bash", "-c", fmt.Sprintf("ps -o psr %s | tail -1", rcuo)}
@@ -365,7 +365,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			onlineCPUsSet, err := nodes.GetOnlineCPUsSet(workerRTNode)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(onlineCPUsSet.IsSubsetOf(defaultSmpAffinitySet)).To(BeTrue(), fmt.Sprintf("All online CPUs %s should be subset of default SMP affinity %s", onlineCPUsSet, defaultSmpAffinitySet))
+			Expect(onlineCPUsSet.IsSubsetOf(defaultSmpAffinitySet)).To(BeTrue(), "All online CPUs %s should be subset of default SMP affinity %s", onlineCPUsSet, defaultSmpAffinitySet)
 
 			By("Running pod with annotations that disable specific CPU from IRQ balancer")
 			annotations := map[string]string{
@@ -413,7 +413,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			defaultSmpAffinitySet, err = nodes.GetDefaultSmpAffinitySet(workerRTNode)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(onlineCPUsSet.IsSubsetOf(defaultSmpAffinitySet)).To(BeTrue(), fmt.Sprintf("All online CPUs %s should be subset of default SMP affinity %s", onlineCPUsSet, defaultSmpAffinitySet))
+			Expect(onlineCPUsSet.IsSubsetOf(defaultSmpAffinitySet)).To(BeTrue(), "All online CPUs %s should be subset of default SMP affinity %s", onlineCPUsSet, defaultSmpAffinitySet)
 		})
 	})
 

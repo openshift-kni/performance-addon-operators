@@ -49,7 +49,7 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 		}
 		if discovery.Enabled() {
 			performanceProfile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
-			Expect(err).ToNot(HaveOccurred(), "Failed finding a performance profile in discovery mode")
+			Expect(err).ToNot(HaveOccurred(), "Failed finding a performance profile in discovery mode using selector %v", testutils.NodeSelectorLabels)
 			testlog.Info("Discovery mode: consuming a deployed performance profile from the cluster")
 			profileAlreadyExists = true
 		}
@@ -58,7 +58,7 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 		mcpLabel := profile.GetMachineConfigLabel(performanceProfile)
 		key, value := components.GetFirstKeyAndValue(mcpLabel)
 		mcpsByLabel, err := mcps.GetByLabel(key, value)
-		Expect(err).ToNot(HaveOccurred(), "Failed getting MCP")
+		Expect(err).ToNot(HaveOccurred(), "Failed getting MCP by label key %v value %v", key, value)
 		Expect(len(mcpsByLabel)).To(Equal(1), fmt.Sprintf("Unexpected number of MCPs found: %v", len(mcpsByLabel)))
 		performanceMCP := &mcpsByLabel[0]
 
