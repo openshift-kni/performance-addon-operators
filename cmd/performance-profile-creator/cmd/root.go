@@ -19,6 +19,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/profilecreator"
 	log "github.com/sirupsen/logrus"
@@ -31,6 +32,13 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// ProfileData collects and stores all the data needed for profile creation
+type ProfileData struct {
+	isolatedCPUs, reservedCPUs string
+}
+
+var profileData ProfileData
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -48,28 +56,31 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("Error obtaining Nodes %s: %v", mcpName, err)
 		}
-
+		splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
+		if err != nil {
+			return fmt.Errorf("Error parsing split-reserved-cpus-across-numa flag: %v", err)
+		}
+		reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
+		if err != nil {
+			return fmt.Errorf("Error parsing reserved-cpu-count flag: %v", err)
+		}
 		matchedNodes, err := profilecreator.GetMatchedNodes(nodes, labelSelector)
 		for _, node := range matchedNodes {
 			nodeName := node.GetName()
 			log.Infof("%s is targetted by %s MCP", nodeName, mcpName)
 			handle, err := profilecreator.NewGHWHandler(mustGatherDirPath, node)
-			cpuInfo, err := handle.CPU()
+			reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
 			if err != nil {
-				return fmt.Errorf("Error obtaining CPU Info from GHW snapshot for %s: %v", nodeName, err)
+				return fmt.Errorf("Error obtaining Reserved and Isolated CPUs for %s: %v", nodeName, err)
 			}
-			log.Infof("CPU Info: %v\n", cpuInfo)
-			topologyInfo, err := handle.Topology()
-			if err != nil {
-				return fmt.Errorf("Error obtaining Topology Info from GHW snapshot for %s: %v", nodeName, err)
-			}
-			log.Infof("Topology Info: %v\n", topologyInfo)
+			profileData.reservedCPUs = reservedCPUs
+			profileData.isolatedCPUs = isolatedCPUs
 		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		profileName := cmd.Flag("profile-name").Value.String()
-		createProfile(profileName)
+		createProfile(profileName, profileData)
 	},
 }
 
@@ -83,15 +94,15 @@ func Execute() {
 }
 
 type profileCreatorArgs struct {
-	powerConsumptionMode string
-	mustGatherDirPath    string
-	profileName          string
-	reservedCPUCount     int
-	splitCPUsAcrossNUMA  bool
-	disableHT            bool
-	rtKernel             bool
-	userLevelNetworking  bool
-	mcpName              string
+	powerConsumptionMode        string
+	mustGatherDirPath           string
+	profileName                 string
+	reservedCPUCount            int
+	splitReservedCPUsAcrossNUMA bool
+	disableHT                   bool
+	rtKernel                    bool
+	userLevelNetworking         bool
+	mcpName                     string
 }
 
 func init() {
@@ -99,9 +110,9 @@ func init() {
 	log.SetOutput(os.Stderr)
 	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
+	rootCmd.PersistentFlags().BoolVarP(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", "S", true, "Split the Reserved CPUs across NUMA nodes")
 	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "T", "worker-cnf", "MCP name corresponding to the target machines (required)")
 	rootCmd.MarkPersistentFlagRequired("mcp-name")
-	rootCmd.PersistentFlags().BoolVarP(&args.splitCPUsAcrossNUMA, "split-cpus-across-numa", "S", true, "Split the CPUs across NUMA nodes")
 	rootCmd.PersistentFlags().BoolVarP(&args.disableHT, "disable-ht", "H", false, "Disable Hyperthreading")
 	rootCmd.PersistentFlags().BoolVarP(&args.rtKernel, "rt-kernel", "K", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
@@ -116,8 +127,10 @@ func init() {
 	// 2) e.g.check to make sure that power consumption string is in {CSTATE NO_CSTATE IDLE_POLL}
 }
 
-func createProfile(profileName string) {
+func createProfile(profileName string, profileData ProfileData) {
 
+	reserved := performancev2.CPUSet(profileData.reservedCPUs)
+	isolated := performancev2.CPUSet(profileData.isolatedCPUs)
 	// TODO: Get the name from MCP if not specified in the command line arguments
 	profile := &performancev2.PerformanceProfile{
 		TypeMeta: metav1.TypeMeta{
@@ -128,6 +141,10 @@ func createProfile(profileName string) {
 			Name: profileName,
 		},
 		Spec: performancev2.PerformanceProfileSpec{
+			CPU: &performancev2.CPU{
+				Isolated: &isolated,
+				Reserved: &reserved,
+			},
 			RealTimeKernel: &performancev2.RealTimeKernel{
 				Enabled: pointer.BoolPtr(true),
 			},

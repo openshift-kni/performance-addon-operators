@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 
 	"github.com/jaypipes/ghw"
 	"github.com/jaypipes/ghw/pkg/cpu"
@@ -31,6 +32,7 @@ import (
 
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/component-helpers/scheduling/corev1"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	v1 "k8s.io/api/core/v1"
@@ -230,4 +232,65 @@ func (ghwHandler GHWHandler) CPU() (*cpu.Info, error) {
 // Topology returns a TopologyInfo struct that contains information about the Topology on the host system
 func (ghwHandler GHWHandler) Topology() (*topology.Info, error) {
 	return ghw.Topology(ghwHandler.snapShotOptions)
+}
+
+// GetReservedAndIsolatedCPUs returns Reserved and Isolated CPUs
+func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, splitReservedCPUsAcrossNUMA bool) (string, string, error) {
+	if reservedCPUCount < 0 {
+		return "", "", fmt.Errorf("Specified eservered CPU count is negative, please specify it correctly")
+	}
+	topologyInfo, err := ghwHandler.Topology()
+	if err != nil {
+		return "", "", fmt.Errorf("Error obtaining Topology Info from GHW snapshot: %v", err)
+	}
+	reservedCPUSet := cpuset.NewBuilder()
+	isolatedCPUSet := cpuset.NewBuilder()
+	var numaNodeNum int
+	if splitReservedCPUsAcrossNUMA {
+		numaNodeNum = len(topologyInfo.Nodes)
+	} else {
+		numaNodeNum = 1
+	}
+
+	var max = 0
+	reservedPerNuma := reservedCPUCount / numaNodeNum
+	remainder := reservedCPUCount % numaNodeNum
+	for numaID, node := range topologyInfo.Nodes {
+		if splitReservedCPUsAcrossNUMA {
+			if remainder != 0 {
+				max = (numaID+1)*reservedPerNuma + (numaNodeNum - remainder)
+				remainder--
+			} else {
+				max = max + reservedPerNuma
+			}
+		} else {
+			max = reservedCPUCount
+		}
+		//sorting by comparing the first logical core of processor cores
+		sort.Slice(node.Cores, func(i, j int) bool {
+			//sorting the logical cores a processor
+			sort.Slice(node.Cores[i].LogicalProcessors, func(x, y int) bool {
+				return node.Cores[i].LogicalProcessors[x] < node.Cores[i].LogicalProcessors[y]
+			})
+			sort.Slice(node.Cores[j].LogicalProcessors, func(x, y int) bool {
+				return node.Cores[j].LogicalProcessors[x] < node.Cores[j].LogicalProcessors[y]
+			})
+			return node.Cores[i].LogicalProcessors[0] < node.Cores[j].LogicalProcessors[0]
+		})
+		for _, cores := range node.Cores {
+			for _, core := range cores.LogicalProcessors {
+				if reservedCPUSet.Result().Size() < max {
+					reservedCPUSet.Add(core)
+				} else {
+					isolatedCPUSet.Add(core)
+				}
+			}
+		}
+	}
+
+	log.Infof("reservedCPUs: %v len(reservedCPUs): %d \n", reservedCPUSet.Result().String(), reservedCPUSet.Result().Size())
+	log.Infof("isolatedCPUs: %v len(isolatedCPUs): %d \n", isolatedCPUSet.Result().String(), isolatedCPUSet.Result().Size())
+
+	return reservedCPUSet.Result().String(), isolatedCPUSet.Result().String(), nil
+
 }
