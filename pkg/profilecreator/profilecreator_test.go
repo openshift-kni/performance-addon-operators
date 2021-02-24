@@ -140,3 +140,54 @@ var _ = Describe("PerformanceProfileCreator: Consuming GHW Snapshot from Must Ga
 
 	})
 })
+
+var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CPUs in Performance Profile", func() {
+	var mustGatherDirPath, mustGatherDirAbsolutePath string
+	var node *v1.Node
+	var handle *GHWHandler
+	var splitReservedCPUsAcrossNUMA bool
+	var reservedCPUCount int
+	var err error
+
+	BeforeEach(func() {
+		node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
+		mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
+	})
+	Context("Check if reserved and isolated CPUs are properly populated in the performance profile", func() {
+		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is disabled", func() {
+			reservedCPUCount = 20
+			splitReservedCPUsAcrossNUMA = false
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(reservedCPUs).To(Equal("0,2,4,6,8,10,12,14,16,18,40,42,44,46,48,50,52,54,56,58"))
+			Expect(isolatedCPUs).To(Equal("1,3,5,7,9,11,13,15,17,19-39,41,43,45,47,49,51,53,55,57,59-79"))
+		})
+		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is enabled", func() {
+			reservedCPUCount = 20
+			splitReservedCPUsAcrossNUMA = true
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(reservedCPUs).To(Equal("0-9,40-49"))
+			Expect(isolatedCPUs).To(Equal("10-39,50-79"))
+		})
+		It("Errors out in case negative reservedCPUCount is specified", func() {
+			reservedCPUCount = -2
+			splitReservedCPUsAcrossNUMA = true
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			Expect(err).To(HaveOccurred())
+		})
+
+	})
+})
