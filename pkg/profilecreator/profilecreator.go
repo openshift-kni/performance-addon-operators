@@ -229,9 +229,29 @@ func (ghwHandler GHWHandler) CPU() (*cpu.Info, error) {
 	return ghw.CPU(ghwHandler.snapShotOptions)
 }
 
-// Topology returns a TopologyInfo struct that contains information about the Topology on the host system
-func (ghwHandler GHWHandler) Topology() (*topology.Info, error) {
-	return ghw.Topology(ghwHandler.snapShotOptions)
+// SortedTopology returns a TopologyInfo struct that contains information about the Topology on the host system
+func (ghwHandler GHWHandler) SortedTopology() (*topology.Info, error) {
+	topologyInfo, err := ghw.Topology(ghwHandler.snapShotOptions)
+	if err != nil {
+		return nil, fmt.Errorf("Error obtaining Topology Info from GHW snapshot: %v", err)
+	}
+	// Sorting the NUMA nodes
+	sort.Slice(topologyInfo.Nodes, func(x, y int) bool {
+		return topologyInfo.Nodes[x].ID < topologyInfo.Nodes[y].ID
+	})
+	for _, node := range topologyInfo.Nodes {
+		//Sorting the logical cores in a processor
+		for _, core := range node.Cores {
+			sort.Slice(core.LogicalProcessors, func(x, y int) bool {
+				return core.LogicalProcessors[x] < core.LogicalProcessors[y]
+			})
+		}
+		//Sorting by comparing the first logical core of processor cores
+		sort.Slice(node.Cores, func(i, j int) bool {
+			return node.Cores[i].LogicalProcessors[0] < node.Cores[j].LogicalProcessors[0]
+		})
+	}
+	return topologyInfo, nil
 }
 
 // GetReservedAndIsolatedCPUs returns Reserved and Isolated CPUs
@@ -239,12 +259,13 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	if reservedCPUCount < 0 {
 		return "", "", fmt.Errorf("Specified eservered CPU count is negative, please specify it correctly")
 	}
-	topologyInfo, err := ghwHandler.Topology()
+	topologyInfo, err := ghwHandler.SortedTopology()
 	if err != nil {
 		return "", "", fmt.Errorf("Error obtaining Topology Info from GHW snapshot: %v", err)
 	}
+
+	totalCPUSet := cpuset.NewBuilder()
 	reservedCPUSet := cpuset.NewBuilder()
-	isolatedCPUSet := cpuset.NewBuilder()
 	var numaNodeNum int
 	if splitReservedCPUsAcrossNUMA {
 		numaNodeNum = len(topologyInfo.Nodes)
@@ -255,6 +276,14 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	var max = 0
 	reservedPerNuma := reservedCPUCount / numaNodeNum
 	remainder := reservedCPUCount % numaNodeNum
+	if remainder != 0 {
+		log.Warnf("The reserved CPUs cannot be split equally across NUMA Nodes")
+	}
+	htEnabled, err := ghwHandler.isHyperthreadingEnabled()
+	if err != nil {
+		return "", "", fmt.Errorf("Error determining if Hyperthreading is enabled or not: %v", err)
+	}
+
 	for numaID, node := range topologyInfo.Nodes {
 		if splitReservedCPUsAcrossNUMA {
 			if remainder != 0 {
@@ -266,31 +295,38 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 		} else {
 			max = reservedCPUCount
 		}
-		//sorting by comparing the first logical core of processor cores
-		sort.Slice(node.Cores, func(i, j int) bool {
-			//sorting the logical cores a processor
-			sort.Slice(node.Cores[i].LogicalProcessors, func(x, y int) bool {
-				return node.Cores[i].LogicalProcessors[x] < node.Cores[i].LogicalProcessors[y]
-			})
-			sort.Slice(node.Cores[j].LogicalProcessors, func(x, y int) bool {
-				return node.Cores[j].LogicalProcessors[x] < node.Cores[j].LogicalProcessors[y]
-			})
-			return node.Cores[i].LogicalProcessors[0] < node.Cores[j].LogicalProcessors[0]
-		})
+		if max%2 != 0 && htEnabled {
+			return "", "", fmt.Errorf("Can't allocatable odd number of CPUs from a NUMA Node")
+		}
 		for _, cores := range node.Cores {
 			for _, core := range cores.LogicalProcessors {
+				totalCPUSet.Add(core)
 				if reservedCPUSet.Result().Size() < max {
 					reservedCPUSet.Add(core)
-				} else {
-					isolatedCPUSet.Add(core)
 				}
 			}
 		}
 	}
+	isolatedCPUSet := totalCPUSet.Result().Difference(reservedCPUSet.Result())
+	log.Infof("reservedCPUs: %v len(reservedCPUs): %d\n isolatedCPUs: %v len(isolatedCPUs): %d\n", reservedCPUSet.Result().String(), reservedCPUSet.Result().Size(), isolatedCPUSet.String(), isolatedCPUSet.Size())
+	return reservedCPUSet.Result().String(), isolatedCPUSet.String(), nil
 
-	log.Infof("reservedCPUs: %v len(reservedCPUs): %d \n", reservedCPUSet.Result().String(), reservedCPUSet.Result().Size())
-	log.Infof("isolatedCPUs: %v len(isolatedCPUs): %d \n", isolatedCPUSet.Result().String(), isolatedCPUSet.Result().Size())
+}
+func (ghwHandler GHWHandler) isHyperthreadingEnabled() (bool, error) {
+	cpuInfo, err := ghwHandler.CPU()
+	if err != nil {
+		return false, fmt.Errorf("Error obtaining CPU Info from GHW snapshot: %v", err)
+	}
+	return contains(cpuInfo.Processors[0].Capabilities, "ht"), nil
+}
 
-	return reservedCPUSet.Result().String(), isolatedCPUSet.Result().String(), nil
+// contains checks if a string is present in a slice
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
 
+	return false
 }

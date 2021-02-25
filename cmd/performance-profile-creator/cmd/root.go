@@ -38,13 +38,11 @@ type ProfileData struct {
 	isolatedCPUs, reservedCPUs string
 }
 
-var profileData ProfileData
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "performance-profile-creator",
 	Short: "A tool that automates creation of Performance Profiles",
-	PreRunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		mcpName := cmd.Flag("mcp-name").Value.String()
 		mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
 		mcp, err := profilecreator.GetMCP(mustGatherDirPath, mcpName)
@@ -65,22 +63,24 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("Error parsing reserved-cpu-count flag: %v", err)
 		}
 		matchedNodes, err := profilecreator.GetMatchedNodes(nodes, labelSelector)
-		for _, node := range matchedNodes {
-			nodeName := node.GetName()
-			log.Infof("%s is targetted by %s MCP", nodeName, mcpName)
-			handle, err := profilecreator.NewGHWHandler(mustGatherDirPath, node)
-			reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
-			if err != nil {
-				return fmt.Errorf("Error obtaining Reserved and Isolated CPUs for %s: %v", nodeName, err)
-			}
-			profileData.reservedCPUs = reservedCPUs
-			profileData.isolatedCPUs = isolatedCPUs
+		// We make sure that the matched Nodes are the same
+		// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
+		// same from hardware topology point of view
+		var profileData ProfileData
+		nodeName := matchedNodes[0].GetName()
+		log.Infof("%s is targetted by %s MCP", nodeName, mcpName)
+		handle, err := profilecreator.NewGHWHandler(mustGatherDirPath, matchedNodes[0])
+		reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+		if err != nil {
+			return fmt.Errorf("Error obtaining Reserved and Isolated CPUs for %s: %v", nodeName, err)
 		}
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {
+		profileData = ProfileData{
+			reservedCPUs: reservedCPUs,
+			isolatedCPUs: isolatedCPUs,
+		}
 		profileName := cmd.Flag("profile-name").Value.String()
 		createProfile(profileName, profileData)
+		return nil
 	},
 }
 
