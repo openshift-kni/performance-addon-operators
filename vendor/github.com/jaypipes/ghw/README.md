@@ -653,6 +653,9 @@ Each `ghw.NIC` struct contains the following fields:
 * `ghw.NIC.Capabilities` is an array of pointers to `ghw.NICCapability` structs
   that can describe the things the NIC supports. These capabilities match the
   returned values from the `ethtool -k <DEVICE>` call on Linux
+* `ghw.NIC.PCIAddress` is the PCI device address of the device backing the NIC.
+  this is not-nil only if the backing device is indeed a PCI device; more backing
+  devices (e.g. USB) will be added in future versions.
 
 The `ghw.NICCapability` struct contains the following fields:
 
@@ -1036,6 +1039,49 @@ information
 `ghw.TopologyNode` struct if you'd like to dig deeper into the NUMA/topology
 subsystem
 
+### SRIOV
+
+*This API is PROVISIONAL! ghw will try hard to not make breaking changes to this API, but still users are advice this new API is not
+declared stable yet. We expect to declare it stable with ghw version 1.0.0*
+
+SRIOV (Single-Root Input/Output Virtualization) is a class of PCI devices that ghw models explicitly, like gpus; but unlike
+gpus, support for sriov devices is part of the `pci` package.
+
+To get the SRIOV-specific information of a given PCI device, you may use the `GetSRIOVInfo` function like in the example below:
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+
+	"github.com/jaypipes/ghw"
+)
+
+func main() {
+	pci, err := ghw.PCI()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting PCI info: %v", err)
+	}
+
+	addr := "0000:00:00.0"
+	if len(os.Args) == 2 {
+		addr = os.Args[1]
+	}
+	sriovInfo := pci.GetSRIOVInfo(addr)
+	if sriovInfo == nil {
+		fmt.Fprintf(os.Stderr, "could not retrieve SRIOV device information for %s\n", addr)
+		return
+	}
+
+	json.NewEncoder(os.Stdout).Encode(sriovInfo)
+}
+```
+
+If the function returns `nil`, then the device is not recognized as a SRIOV device.
+
 ### Chassis
 
 The host's chassis information is accessible with the `ghw.Chassis()` function.  This
@@ -1274,6 +1320,18 @@ memory:
   total_physical_bytes: 25263415296
   total_usable_bytes: 25263415296
 ```
+
+## Calling external programs
+
+By default ghw may call external programs, for example `ethtool`, to learn about hardware capabilities.
+In some rare circumstances it may be useful to opt out from this behaviour and rely only on the data
+provided by pseudo-filesystems, like sysfs.
+The most common use case is when we want to consume a snapshot from ghw. In these cases the information
+provided by tools will be most likely inconsistent with the data from the snapshot - they will run on
+a different host!
+To prevent ghw from calling external tools, set the environs variable `GHW_DISABLE_TOOLS` to any value,
+or, programmatically, check the `WithDisableTools` function.
+The default behaviour of ghw is to call external tools when available.
 
 ## Developers
 

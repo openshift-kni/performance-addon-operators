@@ -6,7 +6,6 @@
 package pci
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/jaypipes/ghw/pkg/context"
 	"github.com/jaypipes/ghw/pkg/linuxpath"
+	pciaddr "github.com/jaypipes/ghw/pkg/pci/address"
+	"github.com/jaypipes/ghw/pkg/topology"
 	"github.com/jaypipes/ghw/pkg/util"
 )
 
@@ -33,7 +34,7 @@ func (i *Info) load() error {
 
 func getDeviceModaliasPath(ctx *context.Context, address string) string {
 	paths := linuxpath.New(ctx)
-	pciAddr := AddressFromString(address)
+	pciAddr := pciaddr.FromString(address)
 	if pciAddr == nil {
 		return ""
 	}
@@ -46,13 +47,13 @@ func getDeviceModaliasPath(ctx *context.Context, address string) string {
 
 func getDeviceRevision(ctx *context.Context, address string) string {
 	paths := linuxpath.New(ctx)
-	pciAddr := AddressFromString(address)
+	pciAddr := pciaddr.FromString(address)
 	if pciAddr == nil {
 		return ""
 	}
 	revisionPath := filepath.Join(
 		paths.SysBusPciDevices,
-		pciAddr.Domain+":"+pciAddr.Bus+":"+pciAddr.Slot+"."+pciAddr.Function,
+		pciAddr.String(),
 		"revision",
 	)
 
@@ -63,7 +64,29 @@ func getDeviceRevision(ctx *context.Context, address string) string {
 	if err != nil {
 		return ""
 	}
-	return string(revision)
+	return strings.TrimSpace(string(revision))
+}
+
+func getDeviceNUMANode(ctx *context.Context, address string) *topology.Node {
+	paths := linuxpath.New(ctx)
+	pciAddr := AddressFromString(address)
+	if pciAddr == nil {
+		return nil
+	}
+	numaNodePath := filepath.Join(paths.SysBusPciDevices, pciAddr.String(), "numa_node")
+
+	if _, err := os.Stat(numaNodePath); err != nil {
+		return nil
+	}
+
+	nodeIdx := util.SafeIntFromFile(ctx, numaNodePath)
+	if nodeIdx == -1 {
+		return nil
+	}
+
+	return &topology.Node{
+		ID: nodeIdx,
+	}
 }
 
 type deviceModaliasInfo struct {
@@ -253,17 +276,29 @@ func findPCIProgrammingInterface(
 func (info *Info) GetDevice(address string) *Device {
 	fp := getDeviceModaliasPath(info.ctx, address)
 	if fp == "" {
+		info.ctx.Warn("error finding modalias info for device %q", address)
 		return nil
 	}
 
 	modaliasInfo := parseModaliasFile(fp)
 	if modaliasInfo == nil {
+		info.ctx.Warn("error parsing modalias info for device %q", address)
 		return nil
 	}
 
 	device := info.getDeviceFromModaliasInfo(address, modaliasInfo)
 	device.Revision = getDeviceRevision(info.ctx, address)
+	if info.arch == topology.ARCHITECTURE_NUMA {
+		device.Node = getDeviceNUMANode(info.ctx, address)
+	}
 	return device
+}
+
+// GetSRIOVInfo returns a pointer to a SRIOV struct that describes the SRIOV attributes of
+// the PCI device at the requested address. If no such device could be found, or if the
+// device exists but it is not recognized as SRIOV device, returns nil
+func (info *Info) GetSRIOVInfo(address string) *SRIOVInfo {
+	return getDeviceSriovInfo(info.ctx, address)
 }
 
 // ParseDevice returns a pointer to a Device given its describing data.
@@ -328,7 +363,7 @@ func (info *Info) ListDevices() []*Device {
 	// address and append to the returned array.
 	links, err := ioutil.ReadDir(paths.SysBusPciDevices)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "error: failed to read /sys/bus/pci/devices")
+		info.ctx.Warn("failed to read /sys/bus/pci/devices")
 		return nil
 	}
 	var dev *Device
@@ -336,7 +371,7 @@ func (info *Info) ListDevices() []*Device {
 		addr := link.Name()
 		dev = info.GetDevice(addr)
 		if dev == nil {
-			_, _ = fmt.Fprintf(os.Stderr, "error: failed to get device information for PCI address %s\n", addr)
+			info.ctx.Warn("failed to get device information for PCI address %s", addr)
 		} else {
 			devs = append(devs, dev)
 		}

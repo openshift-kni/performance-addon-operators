@@ -104,3 +104,5 @@ replace (
 )
 
 replace vbom.ml/util => github.com/fvbommel/util v0.0.0-20180919145318-efcd4e0f9787
+
+replace github.com/jaypipes/ghw => github.com/fromanirh/ghw v0.0.23
