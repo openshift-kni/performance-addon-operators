@@ -109,6 +109,8 @@ func kniExpectedCloneContent() []string {
 		"/proc/irq/default_smp_affinity",
 		"/proc/irq/*/*affinity_list",
 		"/proc/irq/*/node",
+		// KNI-specific CPU infos:
+		"/sys/devices/system/cpu/smt/active",
 		// BIOS/firmware versions
 		"/sys/class/dmi/id/bios*",
 		"/sys/class/dmi/id/product_family",
