@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 
 	"github.com/jaypipes/ghw"
 	"github.com/jaypipes/ghw/pkg/cpu"
@@ -31,6 +32,7 @@ import (
 
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/component-helpers/scheduling/corev1"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	v1 "k8s.io/api/core/v1"
@@ -227,7 +229,106 @@ func (ghwHandler GHWHandler) CPU() (*cpu.Info, error) {
 	return ghw.CPU(ghwHandler.snapShotOptions)
 }
 
-// Topology returns a TopologyInfo struct that contains information about the Topology on the host system
-func (ghwHandler GHWHandler) Topology() (*topology.Info, error) {
-	return ghw.Topology(ghwHandler.snapShotOptions)
+// SortedTopology returns a TopologyInfo struct that contains information about the Topology sorted by numa ids and cpu ids on the host system
+func (ghwHandler GHWHandler) SortedTopology() (*topology.Info, error) {
+	topologyInfo, err := ghw.Topology(ghwHandler.snapShotOptions)
+	if err != nil {
+		return nil, fmt.Errorf("Error obtaining Topology Info from GHW snapshot: %v", err)
+	}
+	sort.Slice(topologyInfo.Nodes, func(x, y int) bool {
+		return topologyInfo.Nodes[x].ID < topologyInfo.Nodes[y].ID
+	})
+	for _, node := range topologyInfo.Nodes {
+		for _, core := range node.Cores {
+			sort.Slice(core.LogicalProcessors, func(x, y int) bool {
+				return core.LogicalProcessors[x] < core.LogicalProcessors[y]
+			})
+		}
+		sort.Slice(node.Cores, func(i, j int) bool {
+			return node.Cores[i].LogicalProcessors[0] < node.Cores[j].LogicalProcessors[0]
+		})
+	}
+	return topologyInfo, nil
+}
+
+// GetReservedAndIsolatedCPUs returns Reserved and Isolated CPUs
+func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, splitReservedCPUsAcrossNUMA bool) (string, string, error) {
+	if reservedCPUCount < 0 {
+		return "", "", fmt.Errorf("Specified eservered CPU count is negative, please specify it correctly")
+	}
+	topologyInfo, err := ghwHandler.SortedTopology()
+	if err != nil {
+		return "", "", fmt.Errorf("Error obtaining Topology Info from GHW snapshot: %v", err)
+	}
+
+	totalCPUSet := cpuset.NewBuilder()
+	reservedCPUSet := cpuset.NewBuilder()
+	var numaNodeNum int
+	if splitReservedCPUsAcrossNUMA {
+		numaNodeNum = len(topologyInfo.Nodes)
+	} else {
+		numaNodeNum = 1
+	}
+
+	var max = 0
+	reservedPerNuma := reservedCPUCount / numaNodeNum
+	remainder := reservedCPUCount % numaNodeNum
+	if remainder != 0 {
+		log.Warnf("The reserved CPUs cannot be split equally across NUMA Nodes")
+	}
+	htEnabled, err := ghwHandler.isHyperthreadingEnabled()
+	if err != nil {
+		return "", "", fmt.Errorf("Error determining if Hyperthreading is enabled or not: %v", err)
+	}
+
+	//TODO: Make the allocation logic below more readable by using separate helper functions, one per allocation strategy
+	// (splitReservedCPUsAcrossNUMA=false/true -> two strategies) each one with its clear and nice allocation loop
+	for numaID, node := range topologyInfo.Nodes {
+		if splitReservedCPUsAcrossNUMA {
+			if remainder != 0 {
+				max = (numaID+1)*reservedPerNuma + (numaNodeNum - remainder)
+				remainder--
+			} else {
+				max = max + reservedPerNuma
+			}
+		} else {
+			max = reservedCPUCount
+		}
+		if max%2 != 0 && htEnabled {
+			return "", "", fmt.Errorf("Can't allocatable odd number of CPUs from a NUMA Node")
+		}
+		for _, processorCores := range node.Cores {
+			for _, core := range processorCores.LogicalProcessors {
+				totalCPUSet.Add(core)
+				if reservedCPUSet.Result().Size() < max {
+					reservedCPUSet.Add(core)
+				}
+			}
+		}
+	}
+	isolatedCPUSet := totalCPUSet.Result().Difference(reservedCPUSet.Result())
+	log.Infof("reservedCPUs: %v len(reservedCPUs): %d\n isolatedCPUs: %v len(isolatedCPUs): %d\n", reservedCPUSet.Result().String(), reservedCPUSet.Result().Size(), isolatedCPUSet.String(), isolatedCPUSet.Size())
+	return reservedCPUSet.Result().String(), isolatedCPUSet.String(), nil
+
+}
+
+// isHyperthreadingEnabled checks if hyperthreading is enabled on the system or not
+func (ghwHandler GHWHandler) isHyperthreadingEnabled() (bool, error) {
+	cpuInfo, err := ghwHandler.CPU()
+	if err != nil {
+		return false, fmt.Errorf("Error obtaining CPU Info from GHW snapshot: %v", err)
+	}
+	// Since there is no way to disable flags per-processor (not system wide) we check the flags of the first available processor.
+	// A following implementation will leverage the /sys/devices/system/cpu/smt/active file which is the "standard" way to query HT.
+	return contains(cpuInfo.Processors[0].Capabilities, "ht"), nil
+}
+
+// contains checks if a string is present in a slice
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }
