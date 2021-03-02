@@ -229,24 +229,21 @@ func (ghwHandler GHWHandler) CPU() (*cpu.Info, error) {
 	return ghw.CPU(ghwHandler.snapShotOptions)
 }
 
-// SortedTopology returns a TopologyInfo struct that contains information about the Topology on the host system
+// SortedTopology returns a TopologyInfo struct that contains information about the Topology sorted by numa ids and cpu ids on the host system
 func (ghwHandler GHWHandler) SortedTopology() (*topology.Info, error) {
 	topologyInfo, err := ghw.Topology(ghwHandler.snapShotOptions)
 	if err != nil {
 		return nil, fmt.Errorf("Error obtaining Topology Info from GHW snapshot: %v", err)
 	}
-	// Sorting the NUMA nodes
 	sort.Slice(topologyInfo.Nodes, func(x, y int) bool {
 		return topologyInfo.Nodes[x].ID < topologyInfo.Nodes[y].ID
 	})
 	for _, node := range topologyInfo.Nodes {
-		//Sorting the logical cores in a processor
 		for _, core := range node.Cores {
 			sort.Slice(core.LogicalProcessors, func(x, y int) bool {
 				return core.LogicalProcessors[x] < core.LogicalProcessors[y]
 			})
 		}
-		//Sorting by comparing the first logical core of processor cores
 		sort.Slice(node.Cores, func(i, j int) bool {
 			return node.Cores[i].LogicalProcessors[0] < node.Cores[j].LogicalProcessors[0]
 		})
@@ -284,6 +281,8 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 		return "", "", fmt.Errorf("Error determining if Hyperthreading is enabled or not: %v", err)
 	}
 
+	//TODO: Make the allocation logic below more readable by using separate helper functions, one per allocation strategy
+	// (splitReservedCPUsAcrossNUMA=false/true -> two strategies) each one with its clear and nice allocation loop
 	for numaID, node := range topologyInfo.Nodes {
 		if splitReservedCPUsAcrossNUMA {
 			if remainder != 0 {
@@ -298,8 +297,8 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 		if max%2 != 0 && htEnabled {
 			return "", "", fmt.Errorf("Can't allocatable odd number of CPUs from a NUMA Node")
 		}
-		for _, cores := range node.Cores {
-			for _, core := range cores.LogicalProcessors {
+		for _, processorCores := range node.Cores {
+			for _, core := range processorCores.LogicalProcessors {
 				totalCPUSet.Add(core)
 				if reservedCPUSet.Result().Size() < max {
 					reservedCPUSet.Add(core)
@@ -312,11 +311,15 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	return reservedCPUSet.Result().String(), isolatedCPUSet.String(), nil
 
 }
+
+// isHyperthreadingEnabled checks if hyperthreading is enabled on the system or not
 func (ghwHandler GHWHandler) isHyperthreadingEnabled() (bool, error) {
 	cpuInfo, err := ghwHandler.CPU()
 	if err != nil {
 		return false, fmt.Errorf("Error obtaining CPU Info from GHW snapshot: %v", err)
 	}
+	// Since there is no way to disable flags per-processor (not system wide) we check the flags of the first available processor.
+	// A following implementation will leverage the /sys/devices/system/cpu/smt/active file which is the "standard" way to query HT.
 	return contains(cpuInfo.Processors[0].Capabilities, "ht"), nil
 }
 
@@ -327,6 +330,5 @@ func contains(s []string, str string) bool {
 			return true
 		}
 	}
-
 	return false
 }

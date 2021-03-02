@@ -188,7 +188,7 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
 			Expect(err).To(HaveOccurred())
 		})
-		It("Errors out in case splitReservedCPUsAcrossNUMA is enabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
+		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is enabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
 			reservedCPUCount = 21 // random number which results in a CPU split per NUMA node (11 + 10 in this case) such that odd number of reserved CPUs (11) have to be allocated from a NUMA node
 			splitReservedCPUsAcrossNUMA = true
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
@@ -198,7 +198,7 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
 			Expect(err).To(HaveOccurred())
 		})
-		It("Errors out in case splitReservedCPUsAcrossNUMA is disabled and number of reserved CPUs are odd", func() {
+		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is disabled and number of reserved CPUs are odd", func() {
 			reservedCPUCount = 21 // random number which results in odd number (21) of CPUs to be allocated from a NUMA node
 			splitReservedCPUsAcrossNUMA = false
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
@@ -209,5 +209,38 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 			Expect(err).To(HaveOccurred())
 		})
 
+	})
+})
+
+var _ = Describe("PerformanceProfileCreator: Check if Hyperthreading enabled/disabled in a system to correctly populate reserved and isolated CPUs in the performance profile", func() {
+	var mustGatherDirPath, mustGatherDirAbsolutePath string
+	var node *v1.Node
+	var handle *GHWHandler
+	var err error
+
+	BeforeEach(func() {
+		mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
+	})
+	Context("Check if hyperthreading is enabled on the system or not", func() {
+		It("Ensure we detect correctly that hyperthreading is enabled on a system", func() {
+			node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			htEnabled, err := handle.isHyperthreadingEnabled()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(htEnabled).To(Equal(true))
+		})
+		It("Ensure we detect correctly that hyperthreading is disabled on a system", func() {
+			node = newTestNode("dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com")
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			htEnabled, err := handle.isHyperthreadingEnabled()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(htEnabled).To(Equal(false))
+		})
 	})
 })
