@@ -8,8 +8,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+
+	mcfgv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -17,35 +18,38 @@ const (
 )
 
 var _ = Describe("PerformanceProfileCreator: MCP and Node Matching", func() {
-	var node *v1.Node
-	var labelSelector *metav1.LabelSelector
+	var nodes []*v1.Node
+	var mcps []*mcfgv1.MachineConfigPool
+
 	BeforeEach(func() {
-		node = newTestNode("test-node")
-		labelSelector = metav1.AddLabelToSelector(&metav1.LabelSelector{}, "node-role.kubernetes.io/worker-cnf", "")
+		var err error
+
+		nodes, err = GetNodeList(mustGatherDirPath)
+		Expect(err).ToNot(HaveOccurred())
+		mcps, err = GetMCPList(mustGatherDirPath)
+		Expect(err).ToNot(HaveOccurred())
 	})
 
-	Context("Identifying Nodes targetted by MCP", func() {
-		It("should find a match", func() {
-			nodeLabel := map[string]string{
-				"node-role.kubernetes.io/worker-cnf": "",
-			}
-			node.Labels = nodeLabel
-			nodes := newTestNodeList(node)
-			matchedNodes, err := GetMatchedNodes(nodes, labelSelector)
+	Context("Identifying Nodes targeted by MCP", func() {
+		It("should find one machine in cnf-worker MCP", func() {
+			mcp, err := GetMCP(mustGatherDirPath, "worker-cnf")
+			Expect(err).ToNot(HaveOccurred())
+
+			matchedNodes, err := GetNodesForPool(mcp, mcps, nodes)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(matchedNodes).ToNot(BeNil())
-			Expect(len(matchedNodes)).ToNot(Equal(0))
-			Expect(matchedNodes[0].GetName()).To(Equal("test-node"))
+			Expect(len(matchedNodes)).To(Equal(1))
+			Expect(matchedNodes[0].GetName()).To(Equal("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com"))
 		})
-		It("should not find a match", func() {
-			nodeLabel := map[string]string{
-				"node-role.kubernetes.io/foo": "",
-			}
-			node.Labels = nodeLabel
-			nodes := newTestNodeList(node)
-			matchedNodes, err := GetMatchedNodes(nodes, labelSelector)
+		It("should find 1 machine in worker MCP", func() {
+			mcp, err := GetMCP(mustGatherDirPath, "worker")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(matchedNodes)).To(Equal(0))
+
+			matchedNodes, err := GetNodesForPool(mcp, mcps, nodes)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(matchedNodes).ToNot(BeNil())
+			Expect(len(matchedNodes)).To(Equal(1))
+			Expect(matchedNodes[0].GetName()).To(Equal("dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com"))
 		})
 	})
 })

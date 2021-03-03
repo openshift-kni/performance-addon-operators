@@ -49,11 +49,17 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
 		}
-		labelSelector := mcp.Spec.NodeSelector
+
 		nodes, err := profilecreator.GetNodeList(mustGatherDirPath)
 		if err != nil {
 			return fmt.Errorf("Error obtaining Nodes %s: %v", mcpName, err)
 		}
+
+		mcps, err := profilecreator.GetMCPList(mustGatherDirPath)
+		if err != nil {
+			return fmt.Errorf("can't get the MCP list under %s: %v", mustGatherDirPath, err)
+		}
+
 		splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
 		if err != nil {
 			return fmt.Errorf("Error parsing split-reserved-cpus-across-numa flag: %v", err)
@@ -62,7 +68,12 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("Error parsing reserved-cpu-count flag: %v", err)
 		}
-		matchedNodes, err := profilecreator.GetMatchedNodes(nodes, labelSelector)
+
+		matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
+		if err != nil {
+			return fmt.Errorf("can't find matching nodes for %s: %v", mcpName, err)
+		}
+
 		// We make sure that the matched Nodes are the same
 		// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
 		// same from hardware topology point of view

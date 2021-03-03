@@ -23,6 +23,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/jaypipes/ghw"
 	"github.com/jaypipes/ghw/pkg/cpu"
@@ -31,13 +32,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/component-helpers/scheduling/corev1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	v1 "k8s.io/api/core/v1"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -60,51 +58,6 @@ const (
 
 func init() {
 	log.SetOutput(os.Stderr)
-}
-
-// GetMatchedNodes returns the list of nodes that are targetted by a specified labelSelector
-func GetMatchedNodes(nodes []*v1.Node, labelSelector *metav1.LabelSelector) ([]*v1.Node, error) {
-	matchedNodes := make([]*v1.Node, 0)
-	for _, node := range nodes {
-		matches, _ := corev1.MatchNodeSelectorTerms(node, getNodeSelectorFromLabelSelector(labelSelector))
-		if matches {
-			matchedNodes = append(matchedNodes, node)
-		}
-	}
-	return matchedNodes, nil
-}
-
-func getNodeSelectorFromLabelSelector(labelSelector *metav1.LabelSelector) *v1.NodeSelector {
-
-	matchExpressions := make([]v1.NodeSelectorRequirement, 0)
-	for key, value := range labelSelector.MatchLabels {
-		matchExpressions = append(matchExpressions, v1.NodeSelectorRequirement{
-			Key:      key,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{value},
-		})
-	}
-	matchFields := make([]v1.NodeSelectorRequirement, 0)
-	for _, labelSelectorRequirement := range labelSelector.MatchExpressions {
-		matchExpressions = append(matchFields, v1.NodeSelectorRequirement{
-			Key:      labelSelectorRequirement.Key,
-			Operator: v1.NodeSelectorOperator(string(labelSelectorRequirement.Operator)),
-			Values:   labelSelectorRequirement.Values,
-		})
-	}
-
-	nodeSelectorTerms := []v1.NodeSelectorTerm{
-		{
-			MatchExpressions: matchExpressions,
-			MatchFields:      matchFields,
-		},
-	}
-	nodeSelector := &v1.NodeSelector{
-		NodeSelectorTerms: nodeSelectorTerms,
-	}
-
-	return nodeSelector
-
 }
 
 func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error) {
@@ -173,6 +126,40 @@ func GetNodeList(mustGatherDirPath string) ([]*v1.Node, error) {
 		machines = append(machines, node)
 	}
 	return machines, nil
+}
+
+// GetMCPList returns the list of MCPs using the mcp YAMLs stored in Must Gather
+func GetMCPList(mustGatherDirPath string) ([]*machineconfigv1.MachineConfigPool, error) {
+	pools := make([]*machineconfigv1.MachineConfigPool, 0)
+
+	mcpPathSuffix := path.Join(ClusterScopedResources, MCPools)
+	mcpPath, err := getMustGatherFullPaths(mustGatherDirPath, mcpPathSuffix)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MCPs: %v", err)
+	}
+	if mcpPath == "" {
+		return nil, fmt.Errorf("failed to get MCPs path: %v", err)
+	}
+
+	mcpFiles, err := ioutil.ReadDir(mcpPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list mustGatherPath directories: %v", err)
+	}
+	for _, mcp := range mcpFiles {
+		mcpName := strings.TrimSuffix(mcp.Name(), filepath.Ext(mcp.Name()))
+
+		// must-gather does not return the master nodes
+		if mcpName == "master" {
+			continue
+		}
+
+		mcp, err := GetMCP(mustGatherDirPath, mcpName)
+		if err != nil {
+			return nil, fmt.Errorf("can't obtain MCP %s: %v", mcpName, err)
+		}
+		pools = append(pools, mcp)
+	}
+	return pools, nil
 }
 
 // GetMCP returns an MCP object corresponding to a specified MCP Name
