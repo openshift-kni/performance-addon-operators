@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -352,4 +353,72 @@ func contains(s []string, str string) bool {
 		}
 	}
 	return false
+}
+
+// EnsureNodesHaveTheSameHardware returns an error if all the input nodes do not have the same hardware configuration
+func EnsureNodesHaveTheSameHardware(mustGatherDirPath string, nodes []*v1.Node) error {
+	if len(nodes) < 1 {
+		return fmt.Errorf("no suitable nodes to compare")
+	}
+
+	first := nodes[0]
+	firstHandle, err := NewGHWHandler(mustGatherDirPath, first)
+	if err != nil {
+		return fmt.Errorf("can't obtain GHW snapshot handle for %s: %v", first.GetName(), err)
+	}
+
+	firstTopology, err := firstHandle.SortedTopology()
+	if err != nil {
+		return fmt.Errorf("can't obtain Topology info from GHW snapshot for %s: %v", first.GetName(), err)
+	}
+
+	for _, node := range nodes[1:] {
+		handle, err := NewGHWHandler(mustGatherDirPath, node)
+		if err != nil {
+			return fmt.Errorf("can't obtain GHW snapshot handle for %s: %v", node.GetName(), err)
+		}
+
+		topology, err := handle.SortedTopology()
+		if err != nil {
+			return fmt.Errorf("can't obtain Topology info from GHW snapshot for %s: %v", node.GetName(), err)
+		}
+		err = ensureSameTopology(firstTopology, topology)
+		if err != nil {
+			return fmt.Errorf("nodes %s and %s have different topology: %v", first.GetName(), node.GetName(), err)
+		}
+	}
+
+	return nil
+}
+
+func ensureSameTopology(topology1, topology2 *topology.Info) error {
+	if topology1.Architecture != topology2.Architecture {
+		return fmt.Errorf("the arhitecture is different: %v vs %v", topology1.Architecture, topology2.Architecture)
+	}
+
+	if len(topology1.Nodes) != len(topology2.Nodes) {
+		return fmt.Errorf("the number of NUMA nodes differ: %v vs %v", len(topology1.Nodes), len(topology2.Nodes))
+	}
+
+	for i, node1 := range topology1.Nodes {
+		node2 := topology2.Nodes[i]
+		if node1.ID != node2.ID {
+			return fmt.Errorf("the NUMA node ids differ: %v vs %v", node1.ID, node2.ID)
+		}
+
+		cores1 := node1.Cores
+		cores2 := node2.Cores
+		if len(cores1) != len(cores2) {
+			return fmt.Errorf("the number of CPU cores in NUMA node %d differ: %v vs %v",
+				node1.ID, len(topology1.Nodes), len(topology2.Nodes))
+		}
+
+		for j, core1 := range cores1 {
+			if !reflect.DeepEqual(core1, cores2[j]) {
+				return fmt.Errorf("the CPU corres differ: %v vs %v", core1, cores2[j])
+			}
+		}
+	}
+
+	return nil
 }

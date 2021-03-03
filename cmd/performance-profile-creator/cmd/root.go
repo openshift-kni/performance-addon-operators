@@ -74,6 +74,11 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("can't find matching nodes for %s: %v", mcpName, err)
 		}
 
+		err = profilecreator.EnsureNodesHaveTheSameHardware(mustGatherDirPath, matchedNodes)
+		if err != nil {
+			return fmt.Errorf("targeted nodes differ: %v", err)
+		}
+
 		// We make sure that the matched Nodes are the same
 		// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
 		// same from hardware topology point of view
