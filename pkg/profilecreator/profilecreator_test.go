@@ -253,6 +253,7 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 	var handle *GHWHandler
 	var reservedCPUCount int
 	var topologyInfoNodes []*topology.Node
+	var htEnabled bool
 	var err error
 
 	BeforeEach(func() {
@@ -315,43 +316,67 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 	Context("Check if getCPUsSplitAcrossNUMA and getCPUsSequentially are working correctly and reserved and isolated CPUs are properly populated in the performance profile", func() {
 		It("Ensure reserved and isolated CPUs populated are correctly by getCPUsSplitAcrossNUMAwhen when splitReservedCPUsAcrossNUMA is enabled", func() {
 			reservedCPUCount = 20 // random number, no special meaning
+			htEnabled = true
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			reservedCPUs, isolatedCPUs, err := handle.getCPUsSplitAcrossNUMA(reservedCPUCount, topologyInfoNodes)
+			reservedCPUs, isolatedCPUs, err := handle.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfoNodes)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(reservedCPUs).To(Equal("0-9,40-49"))
 			Expect(isolatedCPUs).To(Equal("10-39,50-79"))
 		})
 		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is enabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
 			reservedCPUCount = 21 // random number which results in a CPU split per NUMA node (11 + 10 in this case) such that odd number of reserved CPUs (11) have to be allocated from a NUMA node
+			htEnabled = true
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			_, _, err := handle.getCPUsSplitAcrossNUMA(reservedCPUCount, topologyInfoNodes)
+			_, _, err := handle.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfoNodes)
 			Expect(err).To(HaveOccurred())
+		})
+		It("Works without error in case hyperthreading is disabled, splitReservedCPUsAcrossNUMA is enabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
+			reservedCPUCount = 21 // random number which results in a CPU split per NUMA node (11 + 10 in this case) such that odd number of reserved CPUs (11) have to be allocated from a NUMA node
+			htEnabled = false
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			_, _, err := handle.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfoNodes)
+			Expect(err).ToNot(HaveOccurred())
 		})
 		It("Ensure reserved and isolated CPUs populated are correctly by getCPUsSequentially when splitReservedCPUsAcrossNUMA is disabled", func() {
 			reservedCPUCount = 20 // random number, no special meaning
+			htEnabled = true
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			reservedCPUs, isolatedCPUs, err := handle.getCPUsSequentially(reservedCPUCount, topologyInfoNodes)
+			reservedCPUs, isolatedCPUs, err := handle.getCPUsSequentially(reservedCPUCount, htEnabled, topologyInfoNodes)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(reservedCPUs).To(Equal("0,2,4,6,8,10,12,14,16,18,40,42,44,46,48,50,52,54,56,58"))
 			Expect(isolatedCPUs).To(Equal("1,3,5,7,9,11,13,15,17,19-39,41,43,45,47,49,51,53,55,57,59-79"))
 		})
 		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is disabled and number of reserved CPUs are odd", func() {
 			reservedCPUCount = 21 // random number which results in odd number (21) of CPUs to be allocated from a NUMA node
+			htEnabled = true
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			_, _, err := handle.getCPUsSequentially(reservedCPUCount, topologyInfoNodes)
+			_, _, err := handle.getCPUsSequentially(reservedCPUCount, htEnabled, topologyInfoNodes)
 			Expect(err).To(HaveOccurred())
+		})
+		It("Works without error in case hyperthreading is disabled, splitReservedCPUsAcrossNUMA is disabled and number of reserved CPUs are odd", func() {
+			reservedCPUCount = 21 // random number which results in odd number (21) of CPUs to be allocated from a NUMA node
+			htEnabled = false
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			_, _, err := handle.getCPUsSequentially(reservedCPUCount, htEnabled, topologyInfoNodes)
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })
