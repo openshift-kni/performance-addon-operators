@@ -126,7 +126,7 @@ func init() {
 	log.SetOutput(os.Stderr)
 	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
-	rootCmd.PersistentFlags().BoolVarP(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", "S", true, "Split the Reserved CPUs across NUMA nodes")
+	rootCmd.PersistentFlags().BoolVarP(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", "S", false, "Split the Reserved CPUs across NUMA nodes")
 	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "T", "worker-cnf", "MCP name corresponding to the target machines (required)")
 	rootCmd.MarkPersistentFlagRequired("mcp-name")
 	rootCmd.PersistentFlags().BoolVarP(&args.disableHT, "disable-ht", "H", false, "Disable Hyperthreading")
