@@ -376,3 +376,115 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 		})
 	})
 })
+
+var _ = Describe("PerformanceProfileCreator: Ensuring Nodes hardware equality", func() {
+	Context("Testing matching nodes with the same hardware ", func() {
+		It("should pass hardware equality test", func() {
+			mustGatherDirAbsolutePath, err := filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+
+			node1, err := getNode(mustGatherDirAbsolutePath, "cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			Expect(err).ToNot(HaveOccurred())
+
+			node2, err := getNode(mustGatherDirAbsolutePath, "cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			Expect(err).ToNot(HaveOccurred())
+
+			nodes := []*v1.Node{node1, node2}
+			err = EnsureNodesHaveTheSameHardware(mustGatherDirAbsolutePath, nodes)
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+
+	Context("Testing matching nodes with different hardware ", func() {
+		It("should fail hardware equality test", func() {
+			mustGatherDirAbsolutePath, err := filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+
+			node1, err := getNode(mustGatherDirAbsolutePath, "cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			Expect(err).ToNot(HaveOccurred())
+
+			node2, err := getNode(mustGatherDirAbsolutePath, "dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			Expect(err).ToNot(HaveOccurred())
+
+			nodes := []*v1.Node{node1, node2}
+			err = EnsureNodesHaveTheSameHardware(mustGatherDirAbsolutePath, nodes)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+})
+
+var _ = Describe("PerformanceProfileCreator: Test Helper Function ensureSameTopology", func() {
+	var nodes2 []*topology.Node
+	var topology2 topology.Info
+
+	nodes1 := []*topology.Node{
+		{
+			ID: 0,
+			Cores: []*cpu.ProcessorCore{
+				{ID: 0, Index: 0, NumThreads: 2, LogicalProcessors: []int{0, 1}},
+				{ID: 1, Index: 1, NumThreads: 2, LogicalProcessors: []int{2, 3}},
+			},
+		},
+		{
+			ID: 1,
+			Cores: []*cpu.ProcessorCore{
+				{ID: 2, Index: 2, NumThreads: 2, LogicalProcessors: []int{4, 5}},
+				{ID: 3, Index: 3, NumThreads: 2, LogicalProcessors: []int{6, 7}},
+			},
+		},
+	}
+	topology1 := topology.Info{
+		Architecture: topology.ARCHITECTURE_NUMA,
+		Nodes:        nodes1,
+	}
+
+	BeforeEach(func() {
+		nodes2 = []*topology.Node{
+			{
+				ID: 0,
+				Cores: []*cpu.ProcessorCore{
+					{ID: 0, Index: 0, NumThreads: 2, LogicalProcessors: []int{0, 1}},
+					{ID: 1, Index: 1, NumThreads: 2, LogicalProcessors: []int{2, 3}},
+				},
+			},
+			{
+				ID: 1,
+				Cores: []*cpu.ProcessorCore{
+					{ID: 2, Index: 2, NumThreads: 2, LogicalProcessors: []int{4, 5}},
+					{ID: 3, Index: 3, NumThreads: 2, LogicalProcessors: []int{6, 7}},
+				},
+			},
+		}
+		topology2 = topology.Info{
+			Architecture: topology.ARCHITECTURE_NUMA,
+			Nodes:        nodes2,
+		}
+	})
+
+	Context("Check if ensureSameTopology is working correctly", func() {
+		It("nodes with similar topology should not return error", func() {
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).ToNot(HaveOccurred())
+		})
+		It("nodes with different architecture should return error", func() {
+			topology2.Architecture = topology.ARCHITECTURE_SMP
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).To(HaveOccurred())
+		})
+		It("nodes with different number of NUMA nodes should return error", func() {
+			topology2.Nodes = topology2.Nodes[1:]
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).To(HaveOccurred())
+		})
+		It("nodes with different number threads per core should return error", func() {
+			topology2.Nodes[1].Cores[1].NumThreads = 1
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).To(HaveOccurred())
+		})
+		It("nodes with different thread IDs should return error", func() {
+			topology2.Nodes[1].Cores[1].LogicalProcessors[1] = 15
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+})
