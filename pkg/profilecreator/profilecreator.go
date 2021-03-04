@@ -260,56 +260,90 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	if err != nil {
 		return "", "", fmt.Errorf("Error obtaining Topology Info from GHW snapshot: %v", err)
 	}
-
-	totalCPUSet := cpuset.NewBuilder()
-	reservedCPUSet := cpuset.NewBuilder()
-	var numaNodeNum int
-	if splitReservedCPUsAcrossNUMA {
-		numaNodeNum = len(topologyInfo.Nodes)
-	} else {
-		numaNodeNum = 1
+	htEnabled, err := ghwHandler.isHyperthreadingEnabled()
+	if err != nil {
+		return "", "", fmt.Errorf("Error determining if Hyperthreading is enabled or not: %v", err)
 	}
+	if splitReservedCPUsAcrossNUMA {
+		return ghwHandler.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfo.Nodes)
+	}
+	return ghwHandler.getCPUsSequentially(reservedCPUCount, htEnabled, topologyInfo.Nodes)
+}
 
-	var max = 0
+// getCPUsSplitAcrossNUMA returns Reserved and Isolated CPUs split across NUMA nodes
+// We identify the right number of CPUs that need to be allocated per NUMA node, meaning reservedPerNuma + (the additional number based on the remainder and the NUMA node)
+// E.g. If the user requests 15 reserved cpus and we have 4 numa nodes, we find reservedPerNuma in this case is 3 and remainder = 3.
+// For each numa node we find a max which keeps track of the cumulative resources that should be allocated for each NUMA node:
+// max = (numaID+1)*reservedPerNuma + (numaNodeNum - remainder)
+// For NUMA node 0 max = (0+1)*3 + 4-3 = 4 remainder is decremented => remainder is 2
+// For NUMA node 1 max = (1+1)*3 + 4-2 = 8 remainder is decremented => remainder is 1
+// For NUMA node 2 max = (2+1)*3 + 4-2 = 12 remainder is decremented => remainder is 0
+// For NUMA Node 3 remainder = 0 so max = 12 + 3 = 15.
+func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnabled bool, topologyInfoNodes []*topology.Node) (string, string, error) {
+	reservedCPUSet := cpuset.NewBuilder()
+	numaNodeNum := len(topologyInfoNodes)
+	max := 0
 	reservedPerNuma := reservedCPUCount / numaNodeNum
 	remainder := reservedCPUCount % numaNodeNum
 	if remainder != 0 {
 		log.Warnf("The reserved CPUs cannot be split equally across NUMA Nodes")
 	}
-	htEnabled, err := ghwHandler.isHyperthreadingEnabled()
-	if err != nil {
-		return "", "", fmt.Errorf("Error determining if Hyperthreading is enabled or not: %v", err)
-	}
-
-	//TODO: Make the allocation logic below more readable by using separate helper functions, one per allocation strategy
-	// (splitReservedCPUsAcrossNUMA=false/true -> two strategies) each one with its clear and nice allocation loop
-	for numaID, node := range topologyInfo.Nodes {
-		if splitReservedCPUsAcrossNUMA {
-			if remainder != 0 {
-				max = (numaID+1)*reservedPerNuma + (numaNodeNum - remainder)
-				remainder--
-			} else {
-				max = max + reservedPerNuma
-			}
+	for numaID, node := range topologyInfoNodes {
+		if remainder != 0 {
+			max = (numaID+1)*reservedPerNuma + (numaNodeNum - remainder)
+			remainder--
 		} else {
-			max = reservedCPUCount
+			max = max + reservedPerNuma
 		}
 		if max%2 != 0 && htEnabled {
 			return "", "", fmt.Errorf("Can't allocatable odd number of CPUs from a NUMA Node")
 		}
 		for _, processorCores := range node.Cores {
 			for _, core := range processorCores.LogicalProcessors {
-				totalCPUSet.Add(core)
 				if reservedCPUSet.Result().Size() < max {
 					reservedCPUSet.Add(core)
 				}
 			}
 		}
 	}
-	isolatedCPUSet := totalCPUSet.Result().Difference(reservedCPUSet.Result())
+	totalCPUSet := totalCPUSetFromTopology(topologyInfoNodes)
+	isolatedCPUSet := totalCPUSet.Difference(reservedCPUSet.Result())
 	log.Infof("reservedCPUs: %v len(reservedCPUs): %d\n isolatedCPUs: %v len(isolatedCPUs): %d\n", reservedCPUSet.Result().String(), reservedCPUSet.Result().Size(), isolatedCPUSet.String(), isolatedCPUSet.Size())
 	return reservedCPUSet.Result().String(), isolatedCPUSet.String(), nil
 
+}
+
+// getCPUsSequentially returns Reserved and Isolated CPUs sequentially
+func (ghwHandler GHWHandler) getCPUsSequentially(reservedCPUCount int, htEnabled bool, topologyInfoNodes []*topology.Node) (string, string, error) {
+	reservedCPUSet := cpuset.NewBuilder()
+	if reservedCPUCount%2 != 0 && htEnabled {
+		return "", "", fmt.Errorf("Can't allocatable odd number of CPUs from a NUMA Node")
+	}
+	for _, node := range topologyInfoNodes {
+		for _, processorCores := range node.Cores {
+			for _, core := range processorCores.LogicalProcessors {
+				if reservedCPUSet.Result().Size() < reservedCPUCount {
+					reservedCPUSet.Add(core)
+				}
+			}
+		}
+	}
+	totalCPUSet := totalCPUSetFromTopology(topologyInfoNodes)
+	isolatedCPUSet := totalCPUSet.Difference(reservedCPUSet.Result())
+	log.Infof("reservedCPUs: %v len(reservedCPUs): %d\n isolatedCPUs: %v len(isolatedCPUs): %d\n", reservedCPUSet.Result().String(), reservedCPUSet.Result().Size(), isolatedCPUSet.String(), isolatedCPUSet.Size())
+	return reservedCPUSet.Result().String(), isolatedCPUSet.String(), nil
+
+}
+func totalCPUSetFromTopology(topologyInfoNodes []*topology.Node) cpuset.CPUSet {
+	totalCPUSet := cpuset.NewBuilder()
+	for _, node := range topologyInfoNodes {
+		for _, processorCores := range node.Cores {
+			for _, core := range processorCores.LogicalProcessors {
+				totalCPUSet.Add(core)
+			}
+		}
+	}
+	return totalCPUSet.Result()
 }
 
 // isHyperthreadingEnabled checks if hyperthreading is enabled on the system or not
