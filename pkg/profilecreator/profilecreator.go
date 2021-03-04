@@ -61,14 +61,23 @@ func init() {
 	log.SetOutput(os.Stderr)
 }
 
-func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error) {
-	// The glob pattern below depends on the must gather image name. It is assumed here
-	// that the image would have "performance-addon-operator-must-gather" substring in the name.
-	paths, err := filepath.Glob(mustGatherPath + "/*performance-addon-operator-must-gather*/" + suffix)
+func getMustGatherFullPathsWithFilter(mustGatherPath string, suffix string, filter string) (string, error) {
+	var paths []string
+
+	// don't assume directory names, only look for the suffix, filter out files having "filter" in their names
+	err := filepath.Walk(mustGatherPath, func(path string, info os.FileInfo, err error) error {
+		if strings.HasSuffix(path, suffix) {
+			if len(filter) == 0 || !strings.Contains(path, filter) {
+				paths = append(paths, path)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return "", fmt.Errorf("Error obtaining the path mustGatherPath:%s, suffix:%s %v", mustGatherPath, suffix, err)
 	}
-	if paths == nil {
+
+	if len(paths) == 0 {
 		return "", fmt.Errorf("No match for the specified must gather directory path: %s and suffix: %s", mustGatherPath, suffix)
 
 	}
@@ -78,6 +87,10 @@ func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error
 	}
 	// returning one possible path
 	return paths[0], err
+}
+
+func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error) {
+	return getMustGatherFullPathsWithFilter(mustGatherPath, suffix, "")
 }
 
 func getNode(mustGatherDirPath, nodeName string) (*v1.Node, error) {
@@ -192,7 +205,7 @@ func GetMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPo
 func NewGHWHandler(mustGatherDirPath string, node *v1.Node) (*GHWHandler, error) {
 	nodeName := node.GetName()
 	nodePathSuffix := path.Join(Nodes)
-	nodepath, err := getMustGatherFullPaths(mustGatherDirPath, nodePathSuffix)
+	nodepath, err := getMustGatherFullPathsWithFilter(mustGatherDirPath, nodePathSuffix, ClusterScopedResources)
 	if err != nil {
 		return nil, fmt.Errorf("Error obtaining the node path %s: %v", nodeName, err)
 	}
