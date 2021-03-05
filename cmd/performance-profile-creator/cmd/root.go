@@ -38,6 +38,7 @@ import (
 type ProfileData struct {
 	isolatedCPUs, reservedCPUs string
 	nodeSelector               *metav1.LabelSelector
+	performanceProfileName     string
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -45,60 +46,15 @@ var rootCmd = &cobra.Command{
 	Use:   "performance-profile-creator",
 	Short: "A tool that automates creation of Performance Profiles",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		mcpName := cmd.Flag("mcp-name").Value.String()
-		mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
-		mcp, err := profilecreator.GetMCP(mustGatherDirPath, mcpName)
+		flagData, err := getDataFromFlags(cmd)
 		if err != nil {
-			return fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
+			return fmt.Errorf("Error obtaining profileData %v", err)
 		}
-
-		nodes, err := profilecreator.GetNodeList(mustGatherDirPath)
+		profileData, err := getProfileData(flagData)
 		if err != nil {
-			return fmt.Errorf("Error obtaining Nodes %s: %v", mcpName, err)
+			return fmt.Errorf("Error obtaining profileData %v", err)
 		}
-
-		mcps, err := profilecreator.GetMCPList(mustGatherDirPath)
-		if err != nil {
-			return fmt.Errorf("can't get the MCP list under %s: %v", mustGatherDirPath, err)
-		}
-
-		splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
-		if err != nil {
-			return fmt.Errorf("Error parsing split-reserved-cpus-across-numa flag: %v", err)
-		}
-		reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
-		if err != nil {
-			return fmt.Errorf("Error parsing reserved-cpu-count flag: %v", err)
-		}
-
-		matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
-		if err != nil {
-			return fmt.Errorf("can't find matching nodes for %s: %v", mcpName, err)
-		}
-
-		err = profilecreator.EnsureNodesHaveTheSameHardware(mustGatherDirPath, matchedNodes)
-		if err != nil {
-			return fmt.Errorf("targeted nodes differ: %v", err)
-		}
-
-		// We make sure that the matched Nodes are the same
-		// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
-		// same from hardware topology point of view
-		var profileData ProfileData
-		nodeName := matchedNodes[0].GetName()
-		log.Infof("%s is targetted by %s MCP", nodeName, mcpName)
-		handle, err := profilecreator.NewGHWHandler(mustGatherDirPath, matchedNodes[0])
-		reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
-		if err != nil {
-			return fmt.Errorf("Error obtaining Reserved and Isolated CPUs for %s: %v", nodeName, err)
-		}
-		profileData = ProfileData{
-			reservedCPUs: reservedCPUs,
-			isolatedCPUs: isolatedCPUs,
-			nodeSelector: mcp.Spec.NodeSelector,
-		}
-		profileName := cmd.Flag("profile-name").Value.String()
-		createProfile(profileName, profileData)
+		createProfile(*profileData)
 		return nil
 	},
 }
@@ -110,6 +66,73 @@ func Execute() {
 		fmt.Fprintf(os.Stderr, "Error while executing root command: %v", err)
 		os.Exit(1)
 	}
+}
+
+func getDataFromFlags(cmd *cobra.Command) (*profileCreatorArgs, error) {
+	mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
+	mcpName := cmd.Flag("mcp-name").Value.String()
+	reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing reserved-cpu-count flag: %v", err)
+	}
+	splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing split-reserved-cpus-across-numa flag: %v", err)
+	}
+	profileName := cmd.Flag("profile-name").Value.String()
+	flagData := &profileCreatorArgs{
+		mustGatherDirPath:           mustGatherDirPath,
+		profileName:                 profileName,
+		reservedCPUCount:            reservedCPUCount,
+		splitReservedCPUsAcrossNUMA: splitReservedCPUsAcrossNUMA,
+		mcpName:                     mcpName,
+	}
+	return flagData, nil
+}
+
+func getProfileData(args *profileCreatorArgs) (*ProfileData, error) {
+	mcp, err := profilecreator.GetMCP(args.mustGatherDirPath, args.mcpName)
+	if err != nil {
+		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", args.mcpName, err)
+	}
+
+	nodes, err := profilecreator.GetNodeList(args.mustGatherDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("Error obtaining Nodes %s: %v", args.mcpName, err)
+	}
+
+	mcps, err := profilecreator.GetMCPList(args.mustGatherDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("can't get the MCP list under %s: %v", args.mustGatherDirPath, err)
+	}
+
+	matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
+	if err != nil {
+		return nil, fmt.Errorf("can't find matching nodes for %s: %v", args.mcpName, err)
+	}
+
+	err = profilecreator.EnsureNodesHaveTheSameHardware(args.mustGatherDirPath, matchedNodes)
+	if err != nil {
+		return nil, fmt.Errorf("targeted nodes differ: %v", err)
+	}
+
+	// We make sure that the matched Nodes are the same
+	// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
+	// same from hardware topology point of view
+	nodeName := matchedNodes[0].GetName()
+	log.Infof("%s is targetted by %s MCP", nodeName, args.mcpName)
+	handle, err := profilecreator.NewGHWHandler(args.mustGatherDirPath, matchedNodes[0])
+	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA)
+	if err != nil {
+		return nil, fmt.Errorf("Error obtaining Reserved and Isolated CPUs for %s: %v", nodeName, err)
+	}
+	profileData := &ProfileData{
+		reservedCPUs:           reservedCPUs,
+		isolatedCPUs:           isolatedCPUs,
+		nodeSelector:           mcp.Spec.NodeSelector,
+		performanceProfileName: args.profileName,
+	}
+	return profileData, nil
 }
 
 type profileCreatorArgs struct {
@@ -146,7 +169,7 @@ func init() {
 	// 2) e.g.check to make sure that power consumption string is in {CSTATE NO_CSTATE IDLE_POLL}
 }
 
-func createProfile(profileName string, profileData ProfileData) {
+func createProfile(profileData ProfileData) {
 
 	reserved := performancev2.CPUSet(profileData.reservedCPUs)
 	isolated := performancev2.CPUSet(profileData.isolatedCPUs)
@@ -157,7 +180,7 @@ func createProfile(profileName string, profileData ProfileData) {
 			APIVersion: performancev2.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: profileName,
+			Name: profileData.performanceProfileName,
 		},
 		Spec: performancev2.PerformanceProfileSpec{
 			CPU: &performancev2.CPU{
