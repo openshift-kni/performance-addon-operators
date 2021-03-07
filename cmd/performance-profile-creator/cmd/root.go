@@ -37,6 +37,7 @@ import (
 // ProfileData collects and stores all the data needed for profile creation
 type ProfileData struct {
 	isolatedCPUs, reservedCPUs string
+	nodeSelector               *metav1.LabelSelector
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -94,6 +95,7 @@ var rootCmd = &cobra.Command{
 		profileData = ProfileData{
 			reservedCPUs: reservedCPUs,
 			isolatedCPUs: isolatedCPUs,
+			nodeSelector: mcp.Spec.NodeSelector,
 		}
 		profileName := cmd.Flag("profile-name").Value.String()
 		createProfile(profileName, profileData)
@@ -162,6 +164,7 @@ func createProfile(profileName string, profileData ProfileData) {
 				Isolated: &isolated,
 				Reserved: &reserved,
 			},
+			NodeSelector: profileData.nodeSelector.MatchLabels,
 			RealTimeKernel: &performancev2.RealTimeKernel{
 				Enabled: pointer.BoolPtr(true),
 			},
