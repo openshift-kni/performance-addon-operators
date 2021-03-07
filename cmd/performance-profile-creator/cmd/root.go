@@ -20,12 +20,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/profilecreator"
+	"github.com/openshift-kni/performance-addon-operators/pkg/utils/csvtools"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
-	yaml "gopkg.in/yaml.v2"
 
 	"k8s.io/utils/pointer"
 
@@ -171,13 +172,9 @@ func createProfile(profileName string, profileData ProfileData) {
 		},
 	}
 
-	var performanceProfileData []byte
-	var err error
+	// write CSV to out dir
+	writer := strings.Builder{}
+	csvtools.MarshallObject(&profile, &writer)
 
-	if performanceProfileData, err = yaml.Marshal(&profile); err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to Marshal sample performance profile: %v", err)
-	}
-
-	fmt.Printf("%s", string(performanceProfileData))
-
+	fmt.Printf("%s", writer.String())
 }
