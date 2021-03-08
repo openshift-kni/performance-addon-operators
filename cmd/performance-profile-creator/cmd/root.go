@@ -39,7 +39,8 @@ const (
 )
 
 var (
-	validTMPolicyValues = []string{"single-numa-node", "best-effort", "restricted", "none", ""}
+	validTMPolicyValues        = []string{"single-numa-node", "best-effort", "restricted", "none", ""}
+	validPowerConsumptionModes = []string{"cstate", "no-state", "idle-poll"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
@@ -100,6 +101,16 @@ func getDataFromFlags(cmd *cobra.Command) (*profileCreatorArgs, error) {
 	if tmPolicy == singleNumaNodeTopologyManagerPolicy && splitReservedCPUsAcrossNUMA {
 		return nil, fmt.Errorf("Error as it is not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
 	}
+	powerConsumptionMode := cmd.Flag("power-consumption-mode").Value.String()
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing power-consumption-mode flag: %v", err)
+	}
+	err = validateFlag(powerConsumptionMode, validPowerConsumptionModes)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid value for power-consumption-mode flag specified: %v", err)
+	}
+	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
+
 	flagData := &profileCreatorArgs{
 		mustGatherDirPath:           mustGatherDirPath,
 		profileName:                 profileName,
@@ -194,15 +205,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&args.rtKernel, "rt-kernel", "K", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
 	rootCmd.PersistentFlags().BoolVarP(&args.userLevelNetworking, "user-level-networking", "U", false, "Run with User level Networking(DPDK) enabled")
-	rootCmd.PersistentFlags().StringVarP(&args.powerConsumptionMode, "power-consumption-mode", "P", "cstate", "The power consumption mode")
+	rootCmd.PersistentFlags().StringVarP(&args.powerConsumptionMode, "power-consumption-mode", "P", "cstate", "The power consumption mode. [Valid values: cstate, no-state, idle-poll]")
 	rootCmd.PersistentFlags().StringVarP(&args.mustGatherDirPath, "must-gather-dir-path", "M", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
 	rootCmd.PersistentFlags().StringVarP(&args.profileName, "profile-name", "N", "performance", "Name of the performance profile to be created")
 	rootCmd.PersistentFlags().StringVarP(&args.tmPolicy, "topology-manager-policy", "Q", "restricted", "Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: single-numa-node, best-effort, restricted, none]")
-
-	// TODO: Input validation
-	// 1) Make flags required/optional
-	// 2) e.g.check to make sure that power consumption string is in {CSTATE NO_CSTATE IDLE_POLL}
 }
 
 func createProfile(profileData ProfileData) {
