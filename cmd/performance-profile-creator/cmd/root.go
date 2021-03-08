@@ -34,11 +34,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	singleNumaNodeTopologyManagerPolicy = "single-numa-node"
+)
+
+var (
+	validTMPolicyValues = []string{"single-numa-node", "best-effort", "restricted", "none", ""}
+)
+
 // ProfileData collects and stores all the data needed for profile creation
 type ProfileData struct {
 	isolatedCPUs, reservedCPUs string
 	nodeSelector               *metav1.LabelSelector
 	performanceProfileName     string
+	topologyPoilcy             string
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -80,12 +89,24 @@ func getDataFromFlags(cmd *cobra.Command) (*profileCreatorArgs, error) {
 		return nil, fmt.Errorf("Error parsing split-reserved-cpus-across-numa flag: %v", err)
 	}
 	profileName := cmd.Flag("profile-name").Value.String()
+	tmPolicy := cmd.Flag("topology-manager-policy").Value.String()
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing topology-manager-policy flag: %v", err)
+	}
+	err = validateFlag(tmPolicy, validTMPolicyValues)
+	if err != nil {
+		return nil, fmt.Errorf("Invalid value for topology-manager-policy flag specified: %v", err)
+	}
+	if tmPolicy == singleNumaNodeTopologyManagerPolicy && splitReservedCPUsAcrossNUMA {
+		return nil, fmt.Errorf("Error as it is not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
+	}
 	flagData := &profileCreatorArgs{
 		mustGatherDirPath:           mustGatherDirPath,
 		profileName:                 profileName,
 		reservedCPUCount:            reservedCPUCount,
 		splitReservedCPUsAcrossNUMA: splitReservedCPUsAcrossNUMA,
 		mcpName:                     mcpName,
+		tmPolicy:                    tmPolicy,
 	}
 	return flagData, nil
 }
@@ -131,8 +152,21 @@ func getProfileData(args *profileCreatorArgs) (*ProfileData, error) {
 		isolatedCPUs:           isolatedCPUs,
 		nodeSelector:           mcp.Spec.NodeSelector,
 		performanceProfileName: args.profileName,
+		topologyPoilcy:         args.tmPolicy,
 	}
 	return profileData, nil
+}
+
+func validateFlag(value string, validValues []string) error {
+	for _, validValue := range validValues {
+		if strings.ToLower(value) == validValue {
+			// value is valid
+			return nil
+		}
+	}
+	// if we're here, value is invalid
+	return fmt.Errorf("Value '%s' is invalid for flag 'color'. Valid values "+
+		"come from the set %v", value, validValues)
 }
 
 type profileCreatorArgs struct {
@@ -145,6 +179,7 @@ type profileCreatorArgs struct {
 	rtKernel                    bool
 	userLevelNetworking         bool
 	mcpName                     string
+	tmPolicy                    string
 }
 
 func init() {
@@ -163,6 +198,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&args.mustGatherDirPath, "must-gather-dir-path", "M", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
 	rootCmd.PersistentFlags().StringVarP(&args.profileName, "profile-name", "N", "performance", "Name of the performance profile to be created")
+	rootCmd.PersistentFlags().StringVarP(&args.tmPolicy, "topology-manager-policy", "Q", "restricted", "Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: single-numa-node, best-effort, restricted, none]")
 
 	// TODO: Input validation
 	// 1) Make flags required/optional
@@ -193,7 +229,7 @@ func createProfile(profileData ProfileData) {
 			},
 			AdditionalKernelArgs: []string{},
 			NUMA: &performancev2.NUMA{
-				TopologyPolicy: pointer.StringPtr("restricted"),
+				TopologyPolicy: &profileData.topologyPoilcy,
 			},
 		},
 	}
