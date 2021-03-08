@@ -22,7 +22,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/jaypipes/ghw"
 	"github.com/jaypipes/ghw/pkg/cpu"
@@ -31,13 +33,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/component-helpers/scheduling/corev1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	v1 "k8s.io/api/core/v1"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -62,59 +61,23 @@ func init() {
 	log.SetOutput(os.Stderr)
 }
 
-// GetMatchedNodes returns the list of nodes that are targetted by a specified labelSelector
-func GetMatchedNodes(nodes []*v1.Node, labelSelector *metav1.LabelSelector) ([]*v1.Node, error) {
-	matchedNodes := make([]*v1.Node, 0)
-	for _, node := range nodes {
-		matches, _ := corev1.MatchNodeSelectorTerms(node, getNodeSelectorFromLabelSelector(labelSelector))
-		if matches {
-			matchedNodes = append(matchedNodes, node)
+func getMustGatherFullPathsWithFilter(mustGatherPath string, suffix string, filter string) (string, error) {
+	var paths []string
+
+	// don't assume directory names, only look for the suffix, filter out files having "filter" in their names
+	err := filepath.Walk(mustGatherPath, func(path string, info os.FileInfo, err error) error {
+		if strings.HasSuffix(path, suffix) {
+			if len(filter) == 0 || !strings.Contains(path, filter) {
+				paths = append(paths, path)
+			}
 		}
-	}
-	return matchedNodes, nil
-}
-
-func getNodeSelectorFromLabelSelector(labelSelector *metav1.LabelSelector) *v1.NodeSelector {
-
-	matchExpressions := make([]v1.NodeSelectorRequirement, 0)
-	for key, value := range labelSelector.MatchLabels {
-		matchExpressions = append(matchExpressions, v1.NodeSelectorRequirement{
-			Key:      key,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{value},
-		})
-	}
-	matchFields := make([]v1.NodeSelectorRequirement, 0)
-	for _, labelSelectorRequirement := range labelSelector.MatchExpressions {
-		matchExpressions = append(matchFields, v1.NodeSelectorRequirement{
-			Key:      labelSelectorRequirement.Key,
-			Operator: v1.NodeSelectorOperator(string(labelSelectorRequirement.Operator)),
-			Values:   labelSelectorRequirement.Values,
-		})
-	}
-
-	nodeSelectorTerms := []v1.NodeSelectorTerm{
-		{
-			MatchExpressions: matchExpressions,
-			MatchFields:      matchFields,
-		},
-	}
-	nodeSelector := &v1.NodeSelector{
-		NodeSelectorTerms: nodeSelectorTerms,
-	}
-
-	return nodeSelector
-
-}
-
-func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error) {
-	// The glob pattern below depends on the must gather image name. It is assumed here
-	// that the image would have "performance-addon-operator-must-gather" substring in the name.
-	paths, err := filepath.Glob(mustGatherPath + "/*performance-addon-operator-must-gather*/" + suffix)
+		return nil
+	})
 	if err != nil {
 		return "", fmt.Errorf("Error obtaining the path mustGatherPath:%s, suffix:%s %v", mustGatherPath, suffix, err)
 	}
-	if paths == nil {
+
+	if len(paths) == 0 {
 		return "", fmt.Errorf("No match for the specified must gather directory path: %s and suffix: %s", mustGatherPath, suffix)
 
 	}
@@ -124,6 +87,10 @@ func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error
 	}
 	// returning one possible path
 	return paths[0], err
+}
+
+func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error) {
+	return getMustGatherFullPathsWithFilter(mustGatherPath, suffix, "")
 }
 
 func getNode(mustGatherDirPath, nodeName string) (*v1.Node, error) {
@@ -175,6 +142,40 @@ func GetNodeList(mustGatherDirPath string) ([]*v1.Node, error) {
 	return machines, nil
 }
 
+// GetMCPList returns the list of MCPs using the mcp YAMLs stored in Must Gather
+func GetMCPList(mustGatherDirPath string) ([]*machineconfigv1.MachineConfigPool, error) {
+	pools := make([]*machineconfigv1.MachineConfigPool, 0)
+
+	mcpPathSuffix := path.Join(ClusterScopedResources, MCPools)
+	mcpPath, err := getMustGatherFullPaths(mustGatherDirPath, mcpPathSuffix)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MCPs: %v", err)
+	}
+	if mcpPath == "" {
+		return nil, fmt.Errorf("failed to get MCPs path: %v", err)
+	}
+
+	mcpFiles, err := ioutil.ReadDir(mcpPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list mustGatherPath directories: %v", err)
+	}
+	for _, mcp := range mcpFiles {
+		mcpName := strings.TrimSuffix(mcp.Name(), filepath.Ext(mcp.Name()))
+
+		// must-gather does not return the master nodes
+		if mcpName == "master" {
+			continue
+		}
+
+		mcp, err := GetMCP(mustGatherDirPath, mcpName)
+		if err != nil {
+			return nil, fmt.Errorf("can't obtain MCP %s: %v", mcpName, err)
+		}
+		pools = append(pools, mcp)
+	}
+	return pools, nil
+}
+
 // GetMCP returns an MCP object corresponding to a specified MCP Name
 func GetMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPool, error) {
 	var mcp machineconfigv1.MachineConfigPool
@@ -204,7 +205,7 @@ func GetMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPo
 func NewGHWHandler(mustGatherDirPath string, node *v1.Node) (*GHWHandler, error) {
 	nodeName := node.GetName()
 	nodePathSuffix := path.Join(Nodes)
-	nodepath, err := getMustGatherFullPaths(mustGatherDirPath, nodePathSuffix)
+	nodepath, err := getMustGatherFullPathsWithFilter(mustGatherDirPath, nodePathSuffix, ClusterScopedResources)
 	if err != nil {
 		return nil, fmt.Errorf("Error obtaining the node path %s: %v", nodeName, err)
 	}
@@ -365,4 +366,72 @@ func contains(s []string, str string) bool {
 		}
 	}
 	return false
+}
+
+// EnsureNodesHaveTheSameHardware returns an error if all the input nodes do not have the same hardware configuration
+func EnsureNodesHaveTheSameHardware(mustGatherDirPath string, nodes []*v1.Node) error {
+	if len(nodes) < 1 {
+		return fmt.Errorf("no suitable nodes to compare")
+	}
+
+	first := nodes[0]
+	firstHandle, err := NewGHWHandler(mustGatherDirPath, first)
+	if err != nil {
+		return fmt.Errorf("can't obtain GHW snapshot handle for %s: %v", first.GetName(), err)
+	}
+
+	firstTopology, err := firstHandle.SortedTopology()
+	if err != nil {
+		return fmt.Errorf("can't obtain Topology info from GHW snapshot for %s: %v", first.GetName(), err)
+	}
+
+	for _, node := range nodes[1:] {
+		handle, err := NewGHWHandler(mustGatherDirPath, node)
+		if err != nil {
+			return fmt.Errorf("can't obtain GHW snapshot handle for %s: %v", node.GetName(), err)
+		}
+
+		topology, err := handle.SortedTopology()
+		if err != nil {
+			return fmt.Errorf("can't obtain Topology info from GHW snapshot for %s: %v", node.GetName(), err)
+		}
+		err = ensureSameTopology(firstTopology, topology)
+		if err != nil {
+			return fmt.Errorf("nodes %s and %s have different topology: %v", first.GetName(), node.GetName(), err)
+		}
+	}
+
+	return nil
+}
+
+func ensureSameTopology(topology1, topology2 *topology.Info) error {
+	if topology1.Architecture != topology2.Architecture {
+		return fmt.Errorf("the arhitecture is different: %v vs %v", topology1.Architecture, topology2.Architecture)
+	}
+
+	if len(topology1.Nodes) != len(topology2.Nodes) {
+		return fmt.Errorf("the number of NUMA nodes differ: %v vs %v", len(topology1.Nodes), len(topology2.Nodes))
+	}
+
+	for i, node1 := range topology1.Nodes {
+		node2 := topology2.Nodes[i]
+		if node1.ID != node2.ID {
+			return fmt.Errorf("the NUMA node ids differ: %v vs %v", node1.ID, node2.ID)
+		}
+
+		cores1 := node1.Cores
+		cores2 := node2.Cores
+		if len(cores1) != len(cores2) {
+			return fmt.Errorf("the number of CPU cores in NUMA node %d differ: %v vs %v",
+				node1.ID, len(topology1.Nodes), len(topology2.Nodes))
+		}
+
+		for j, core1 := range cores1 {
+			if !reflect.DeepEqual(core1, cores2[j]) {
+				return fmt.Errorf("the CPU corres differ: %v vs %v", core1, cores2[j])
+			}
+		}
+	}
+
+	return nil
 }

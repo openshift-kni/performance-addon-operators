@@ -47,6 +47,7 @@ check_requirements() {
 
   DATA_DIR=$(mktemp -d -t "${CURRENT_SCRIPT}XXXX") || exit_error "Cannot create the data directory"
   tar -zxf "${MG_TARBALL}" --directory "${DATA_DIR}" || exit_error "Cannot decompress the must-gather tarball"
+  chmod a+rx "${DATA_DIR}"
 
   return 0
 }
@@ -74,6 +75,7 @@ main() {
   check_requirements || exit 1
 
   ${CMD} -v "${DATA_DIR}:${MUST_GATHER_VOL}:z" "${PAO_IMG}" "$@" -M "${MUST_GATHER_VOL}"
+  echo "" 1>&2
 }
 
 main "$@"

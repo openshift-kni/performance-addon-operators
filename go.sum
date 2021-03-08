@@ -1276,8 +1276,6 @@ k8s.io/cloud-provider v0.18.3/go.mod h1:sZelqNhA+TI+FqV6smLvZ84/DQCNdrEUmdQLneZp
 k8s.io/cluster-bootstrap v0.18.3/go.mod h1:iM3iptIPGNWCvFBvm67JJWaFdYb+7Gzle2bj125ZBy8=
 k8s.io/code-generator v0.18.3/go.mod h1:TgNEVx9hCyPGpdtCWA34olQYLkh3ok9ar7XfSsr8b6c=
 k8s.io/component-base v0.18.3/go.mod h1:bp5GzGR0aGkYEfTj+eTY0AN/vXTgkJdQXjNTTVUaa3k=
-k8s.io/component-helpers v0.20.2 h1:UM92JwXHAd2fN/LoJtm0zayIEypCYHxNBKaGhNRT7YE=
-k8s.io/component-helpers v0.20.2/go.mod h1:qeM6iAWGqIr+WE8n2QW2OK9XkpZkPNTxAoEv9jl40/I=
 k8s.io/cri-api v0.18.3/go.mod h1:OJtpjDvfsKoLGhvcc0qfygved0S0dGX56IJzPbqTG1s=
 k8s.io/csi-translation-lib v0.18.3/go.mod h1:4UtVGtxPzhtFdadhRCYBL084NvJLNMouCat3UcTbbu0=
 k8s.io/gengo v0.0.0-20190128074634-0689ccc1d7d6/go.mod h1:ezvh/TsK7cY6rbqRK0oQQ8IAqLxYwwyPxAX1Pzy0ii0=

@@ -8,52 +8,59 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+
+	mcfgv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
 )
 
 var _ = Describe("PerformanceProfileCreator: MCP and Node Matching", func() {
-	var node *v1.Node
-	var labelSelector *metav1.LabelSelector
+	var nodes []*v1.Node
+	var mcps []*mcfgv1.MachineConfigPool
+
 	BeforeEach(func() {
-		node = newTestNode("test-node")
-		labelSelector = metav1.AddLabelToSelector(&metav1.LabelSelector{}, "node-role.kubernetes.io/worker-cnf", "")
+		var err error
+
+		nodes, err = GetNodeList(mustGatherDirPath)
+		Expect(err).ToNot(HaveOccurred())
+		mcps, err = GetMCPList(mustGatherDirPath)
+		Expect(err).ToNot(HaveOccurred())
 	})
 
-	Context("Identifying Nodes targetted by MCP", func() {
-		It("should find a match", func() {
-			nodeLabel := map[string]string{
-				"node-role.kubernetes.io/worker-cnf": "",
-			}
-			node.Labels = nodeLabel
-			nodes := newTestNodeList(node)
-			matchedNodes, err := GetMatchedNodes(nodes, labelSelector)
+	Context("Identifying Nodes targeted by MCP", func() {
+		It("should find one machine in cnf-worker MCP", func() {
+			mcp, err := GetMCP(mustGatherDirPath, "worker-cnf")
+			Expect(err).ToNot(HaveOccurred())
+
+			matchedNodes, err := GetNodesForPool(mcp, mcps, nodes)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(matchedNodes).ToNot(BeNil())
-			Expect(len(matchedNodes)).ToNot(Equal(0))
-			Expect(matchedNodes[0].GetName()).To(Equal("test-node"))
+			Expect(len(matchedNodes)).To(Equal(1))
+			Expect(matchedNodes[0].GetName()).To(Equal("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com"))
 		})
-		It("should not find a match", func() {
-			nodeLabel := map[string]string{
-				"node-role.kubernetes.io/foo": "",
-			}
-			node.Labels = nodeLabel
-			nodes := newTestNodeList(node)
-			matchedNodes, err := GetMatchedNodes(nodes, labelSelector)
+		It("should find 1 machine in worker MCP", func() {
+			mcp, err := GetMCP(mustGatherDirPath, "worker")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(matchedNodes)).To(Equal(0))
+
+			matchedNodes, err := GetNodesForPool(mcp, mcps, nodes)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(matchedNodes).ToNot(BeNil())
+			Expect(len(matchedNodes)).To(Equal(1))
+			Expect(matchedNodes[0].GetName()).To(Equal("dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com"))
 		})
 	})
 })
 
 var _ = Describe("PerformanceProfileCreator: Getting MCP from Must Gather", func() {
-	var mustGatherDirPath, mcpName, mcpNodeSelectorKey, mustGatherDirAbsolutePath string
+	var mcpName, mcpNodeSelectorKey, mustGatherDirAbsolutePath string
 	var err error
 	Context("Identifying Nodes targetted by MCP", func() {
 		It("gets the MCP successfully", func() {
 			mcpName = "worker-cnf"
 			mcpNodeSelectorKey = "node-role.kubernetes.io/worker-cnf"
-			mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			mcp, err := GetMCP(mustGatherDirAbsolutePath, mcpName)
@@ -63,7 +70,6 @@ var _ = Describe("PerformanceProfileCreator: Getting MCP from Must Gather", func
 		})
 		It("fails to get MCP as an MCP with that name doesn't exist", func() {
 			mcpName = "foo"
-			mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			mcp, err := GetMCP(mustGatherDirAbsolutePath, mcpName)
 			Expect(mcp).To(BeNil())
@@ -71,8 +77,7 @@ var _ = Describe("PerformanceProfileCreator: Getting MCP from Must Gather", func
 		})
 		It("fails to get MCP due to misconfigured must-gather path", func() {
 			mcpName = "worker-cnf"
-			mustGatherDirPath = "../../testdata/must-gather/foo-path"
-			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			mustGatherDirAbsolutePath, err = filepath.Abs("foo-path")
 			Expect(err).ToNot(HaveOccurred())
 			_, err := GetMCP(mustGatherDirAbsolutePath, mcpName)
 			Expect(err).To(HaveOccurred())
@@ -82,12 +87,11 @@ var _ = Describe("PerformanceProfileCreator: Getting MCP from Must Gather", func
 })
 
 var _ = Describe("PerformanceProfileCreator: Getting Nodes from Must Gather", func() {
-	var mustGatherDirPath, mustGatherDirAbsolutePath string
+	var mustGatherDirAbsolutePath string
 	var err error
 
 	Context("Identifying Nodes in the cluster", func() {
 		It("gets the Nodes successfully", func() {
-			mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			nodes, err := GetNodeList(mustGatherDirAbsolutePath)
@@ -95,8 +99,7 @@ var _ = Describe("PerformanceProfileCreator: Getting Nodes from Must Gather", fu
 			Expect(len(nodes)).To(Equal(5))
 		})
 		It("fails to get Nodes due to misconfigured must-gather path", func() {
-			mustGatherDirPath = "../../testdata/must-gather/foo-path"
-			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			mustGatherDirAbsolutePath, err = filepath.Abs("foo-path")
 			_, err := GetNodeList(mustGatherDirAbsolutePath)
 			Expect(err).To(HaveOccurred())
 		})
@@ -105,14 +108,13 @@ var _ = Describe("PerformanceProfileCreator: Getting Nodes from Must Gather", fu
 })
 
 var _ = Describe("PerformanceProfileCreator: Consuming GHW Snapshot from Must Gather", func() {
-	var mustGatherDirPath, mustGatherDirAbsolutePath string
+	var mustGatherDirAbsolutePath string
 	var node *v1.Node
 	var err error
 
 	Context("Identifying Nodes Info of the nodes cluster", func() {
 		It("gets the Nodes Info successfully", func() {
 			node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
-			mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err := NewGHWHandler(mustGatherDirAbsolutePath, node)
@@ -127,14 +129,12 @@ var _ = Describe("PerformanceProfileCreator: Consuming GHW Snapshot from Must Ga
 			Expect(len(topologyInfo.Nodes)).To(Equal(2))
 		})
 		It("fails to get Nodes Info due to misconfigured must-gather path", func() {
-			mustGatherDirPath = "../../testdata/must-gather/foo-path"
-			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			mustGatherDirAbsolutePath, err = filepath.Abs("foo-path")
 			_, err := NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).To(HaveOccurred())
 		})
 		It("fails to get Nodes Info for a node that does not exist", func() {
 			node = newTestNode("foo")
-			mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			_, err := NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).To(HaveOccurred())
@@ -144,7 +144,7 @@ var _ = Describe("PerformanceProfileCreator: Consuming GHW Snapshot from Must Ga
 })
 
 var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CPUs in Performance Profile", func() {
-	var mustGatherDirPath, mustGatherDirAbsolutePath string
+	var mustGatherDirAbsolutePath string
 	var node *v1.Node
 	var handle *GHWHandler
 	var splitReservedCPUsAcrossNUMA bool
@@ -153,7 +153,6 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 
 	BeforeEach(func() {
 		node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
-		mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
 	})
 	Context("Check if reserved and isolated CPUs are properly populated in the performance profile", func() {
 		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is disabled", func() {
@@ -215,14 +214,11 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 })
 
 var _ = Describe("PerformanceProfileCreator: Check if Hyperthreading enabled/disabled in a system to correctly populate reserved and isolated CPUs in the performance profile", func() {
-	var mustGatherDirPath, mustGatherDirAbsolutePath string
+	var mustGatherDirAbsolutePath string
 	var node *v1.Node
 	var handle *GHWHandler
 	var err error
 
-	BeforeEach(func() {
-		mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
-	})
 	Context("Check if hyperthreading is enabled on the system or not", func() {
 		It("Ensure we detect correctly that hyperthreading is enabled on a system", func() {
 			node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
@@ -377,6 +373,118 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 			Expect(err).ToNot(HaveOccurred())
 			_, _, err := handle.getCPUsSequentially(reservedCPUCount, htEnabled, topologyInfoNodes)
 			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+})
+
+var _ = Describe("PerformanceProfileCreator: Ensuring Nodes hardware equality", func() {
+	Context("Testing matching nodes with the same hardware ", func() {
+		It("should pass hardware equality test", func() {
+			mustGatherDirAbsolutePath, err := filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+
+			node1, err := getNode(mustGatherDirAbsolutePath, "cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			Expect(err).ToNot(HaveOccurred())
+
+			node2, err := getNode(mustGatherDirAbsolutePath, "cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			Expect(err).ToNot(HaveOccurred())
+
+			nodes := []*v1.Node{node1, node2}
+			err = EnsureNodesHaveTheSameHardware(mustGatherDirAbsolutePath, nodes)
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+
+	Context("Testing matching nodes with different hardware ", func() {
+		It("should fail hardware equality test", func() {
+			mustGatherDirAbsolutePath, err := filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+
+			node1, err := getNode(mustGatherDirAbsolutePath, "cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			Expect(err).ToNot(HaveOccurred())
+
+			node2, err := getNode(mustGatherDirAbsolutePath, "dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			Expect(err).ToNot(HaveOccurred())
+
+			nodes := []*v1.Node{node1, node2}
+			err = EnsureNodesHaveTheSameHardware(mustGatherDirAbsolutePath, nodes)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+})
+
+var _ = Describe("PerformanceProfileCreator: Test Helper Function ensureSameTopology", func() {
+	var nodes2 []*topology.Node
+	var topology2 topology.Info
+
+	nodes1 := []*topology.Node{
+		{
+			ID: 0,
+			Cores: []*cpu.ProcessorCore{
+				{ID: 0, Index: 0, NumThreads: 2, LogicalProcessors: []int{0, 1}},
+				{ID: 1, Index: 1, NumThreads: 2, LogicalProcessors: []int{2, 3}},
+			},
+		},
+		{
+			ID: 1,
+			Cores: []*cpu.ProcessorCore{
+				{ID: 2, Index: 2, NumThreads: 2, LogicalProcessors: []int{4, 5}},
+				{ID: 3, Index: 3, NumThreads: 2, LogicalProcessors: []int{6, 7}},
+			},
+		},
+	}
+	topology1 := topology.Info{
+		Architecture: topology.ARCHITECTURE_NUMA,
+		Nodes:        nodes1,
+	}
+
+	BeforeEach(func() {
+		nodes2 = []*topology.Node{
+			{
+				ID: 0,
+				Cores: []*cpu.ProcessorCore{
+					{ID: 0, Index: 0, NumThreads: 2, LogicalProcessors: []int{0, 1}},
+					{ID: 1, Index: 1, NumThreads: 2, LogicalProcessors: []int{2, 3}},
+				},
+			},
+			{
+				ID: 1,
+				Cores: []*cpu.ProcessorCore{
+					{ID: 2, Index: 2, NumThreads: 2, LogicalProcessors: []int{4, 5}},
+					{ID: 3, Index: 3, NumThreads: 2, LogicalProcessors: []int{6, 7}},
+				},
+			},
+		}
+		topology2 = topology.Info{
+			Architecture: topology.ARCHITECTURE_NUMA,
+			Nodes:        nodes2,
+		}
+	})
+
+	Context("Check if ensureSameTopology is working correctly", func() {
+		It("nodes with similar topology should not return error", func() {
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).ToNot(HaveOccurred())
+		})
+		It("nodes with different architecture should return error", func() {
+			topology2.Architecture = topology.ARCHITECTURE_SMP
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).To(HaveOccurred())
+		})
+		It("nodes with different number of NUMA nodes should return error", func() {
+			topology2.Nodes = topology2.Nodes[1:]
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).To(HaveOccurred())
+		})
+		It("nodes with different number threads per core should return error", func() {
+			topology2.Nodes[1].Cores[1].NumThreads = 1
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).To(HaveOccurred())
+		})
+		It("nodes with different thread IDs should return error", func() {
+			topology2.Nodes[1].Cores[1].LogicalProcessors[1] = 15
+			err := ensureSameTopology(&topology1, &topology2)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

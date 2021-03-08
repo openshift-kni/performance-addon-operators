@@ -45,13 +45,12 @@ require (
 	golang.org/x/tools v0.1.0 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
-	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver v0.18.9
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/component-helpers v0.20.2
 	k8s.io/klog v1.0.0
+	k8s.io/klog/v2 v2.4.0 // indirect
 	k8s.io/kubelet v0.18.3
 	k8s.io/kubernetes v1.18.3
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920

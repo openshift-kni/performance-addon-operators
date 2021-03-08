@@ -20,12 +20,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/profilecreator"
+	"github.com/openshift-kni/performance-addon-operators/pkg/utils/csvtools"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
-	yaml "gopkg.in/yaml.v2"
 
 	"k8s.io/utils/pointer"
 
@@ -36,6 +37,7 @@ import (
 // ProfileData collects and stores all the data needed for profile creation
 type ProfileData struct {
 	isolatedCPUs, reservedCPUs string
+	nodeSelector               *metav1.LabelSelector
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -49,11 +51,17 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
 		}
-		labelSelector := mcp.Spec.NodeSelector
+
 		nodes, err := profilecreator.GetNodeList(mustGatherDirPath)
 		if err != nil {
 			return fmt.Errorf("Error obtaining Nodes %s: %v", mcpName, err)
 		}
+
+		mcps, err := profilecreator.GetMCPList(mustGatherDirPath)
+		if err != nil {
+			return fmt.Errorf("can't get the MCP list under %s: %v", mustGatherDirPath, err)
+		}
+
 		splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
 		if err != nil {
 			return fmt.Errorf("Error parsing split-reserved-cpus-across-numa flag: %v", err)
@@ -62,7 +70,17 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("Error parsing reserved-cpu-count flag: %v", err)
 		}
-		matchedNodes, err := profilecreator.GetMatchedNodes(nodes, labelSelector)
+
+		matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
+		if err != nil {
+			return fmt.Errorf("can't find matching nodes for %s: %v", mcpName, err)
+		}
+
+		err = profilecreator.EnsureNodesHaveTheSameHardware(mustGatherDirPath, matchedNodes)
+		if err != nil {
+			return fmt.Errorf("targeted nodes differ: %v", err)
+		}
+
 		// We make sure that the matched Nodes are the same
 		// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
 		// same from hardware topology point of view
@@ -77,6 +95,7 @@ var rootCmd = &cobra.Command{
 		profileData = ProfileData{
 			reservedCPUs: reservedCPUs,
 			isolatedCPUs: isolatedCPUs,
+			nodeSelector: mcp.Spec.NodeSelector,
 		}
 		profileName := cmd.Flag("profile-name").Value.String()
 		createProfile(profileName, profileData)
@@ -110,7 +129,7 @@ func init() {
 	log.SetOutput(os.Stderr)
 	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
-	rootCmd.PersistentFlags().BoolVarP(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", "S", true, "Split the Reserved CPUs across NUMA nodes")
+	rootCmd.PersistentFlags().BoolVarP(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", "S", false, "Split the Reserved CPUs across NUMA nodes")
 	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "T", "worker-cnf", "MCP name corresponding to the target machines (required)")
 	rootCmd.MarkPersistentFlagRequired("mcp-name")
 	rootCmd.PersistentFlags().BoolVarP(&args.disableHT, "disable-ht", "H", false, "Disable Hyperthreading")
@@ -145,6 +164,7 @@ func createProfile(profileName string, profileData ProfileData) {
 				Isolated: &isolated,
 				Reserved: &reserved,
 			},
+			NodeSelector: profileData.nodeSelector.MatchLabels,
 			RealTimeKernel: &performancev2.RealTimeKernel{
 				Enabled: pointer.BoolPtr(true),
 			},
@@ -155,13 +175,9 @@ func createProfile(profileName string, profileData ProfileData) {
 		},
 	}
 
-	var performanceProfileData []byte
-	var err error
+	// write CSV to out dir
+	writer := strings.Builder{}
+	csvtools.MarshallObject(&profile, &writer)
 
-	if performanceProfileData, err = yaml.Marshal(&profile); err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to Marshal sample performance profile: %v", err)
-	}
-
-	fmt.Printf("%s", string(performanceProfileData))
-
+	fmt.Printf("%s", writer.String())
 }
