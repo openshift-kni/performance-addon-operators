@@ -28,8 +28,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/utils/pointer"
-
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -49,6 +47,7 @@ type ProfileData struct {
 	nodeSelector               *metav1.LabelSelector
 	performanceProfileName     string
 	topologyPoilcy             string
+	rtKernel                   bool
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -110,7 +109,10 @@ func getDataFromFlags(cmd *cobra.Command) (*profileCreatorArgs, error) {
 		return nil, fmt.Errorf("Invalid value for power-consumption-mode flag specified: %v", err)
 	}
 	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
-
+	rtKernelEnabled, err := strconv.ParseBool(cmd.Flag("rt-kernel").Value.String())
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing rt-kernel flag: %v", err)
+	}
 	flagData := &profileCreatorArgs{
 		mustGatherDirPath:           mustGatherDirPath,
 		profileName:                 profileName,
@@ -118,6 +120,7 @@ func getDataFromFlags(cmd *cobra.Command) (*profileCreatorArgs, error) {
 		splitReservedCPUsAcrossNUMA: splitReservedCPUsAcrossNUMA,
 		mcpName:                     mcpName,
 		tmPolicy:                    tmPolicy,
+		rtKernel:                    rtKernelEnabled,
 	}
 	return flagData, nil
 }
@@ -164,6 +167,7 @@ func getProfileData(args *profileCreatorArgs) (*ProfileData, error) {
 		nodeSelector:           mcp.Spec.NodeSelector,
 		performanceProfileName: args.profileName,
 		topologyPoilcy:         args.tmPolicy,
+		rtKernel:               args.rtKernel,
 	}
 	return profileData, nil
 }
@@ -232,7 +236,7 @@ func createProfile(profileData ProfileData) {
 			},
 			NodeSelector: profileData.nodeSelector.MatchLabels,
 			RealTimeKernel: &performancev2.RealTimeKernel{
-				Enabled: pointer.BoolPtr(true),
+				Enabled: &profileData.rtKernel,
 			},
 			AdditionalKernelArgs: []string{},
 			NUMA: &performancev2.NUMA{
