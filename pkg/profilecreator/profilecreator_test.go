@@ -189,6 +189,16 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
 			Expect(err).To(HaveOccurred())
 		})
+		It("Errors out in case specified reservedCPUCount is greater than the total CPUs present in the system", func() {
+			reservedCPUCount = 100 // random positive number greater than that total number of CPUs
+			splitReservedCPUsAcrossNUMA = true
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			Expect(err).To(HaveOccurred())
+		})
 		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is enabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
 			reservedCPUCount = 21 // random number which results in a CPU split per NUMA node (11 + 10 in this case) such that odd number of reserved CPUs (11) have to be allocated from a NUMA node
 			splitReservedCPUsAcrossNUMA = true
