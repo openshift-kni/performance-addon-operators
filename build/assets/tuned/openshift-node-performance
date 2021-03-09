@@ -95,6 +95,9 @@ avc_cache_threshold=8192                      # Custom (atomic host)
 
 [net]
 nf_conntrack_hashsize=131072                  # Custom (atomic host)
+{{if .NetDevices}}
+{{.NetDevices}} 
+{{end}}
 
 [bootloader]
 # set empty values to disable RHEL initrd setting in cpu-partitioning 

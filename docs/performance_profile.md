@@ -9,10 +9,12 @@ This document documents the PerformanceProfile API introduced by the Performance
 ## Table of Contents
 * [CPU](#cpu)
 * [CPUSet](#cpuset)
+* [Device](#device)
 * [HugePage](#hugepage)
 * [HugePageSize](#hugepagesize)
 * [HugePages](#hugepages)
 * [NUMA](#numa)
+* [Net](#net)
 * [PerformanceProfile](#performanceprofile)
 * [PerformanceProfileList](#performanceprofilelist)
 * [PerformanceProfileSpec](#performanceprofilespec)
@@ -36,6 +38,20 @@ CPU defines a set of CPU related features.
 CPUSet defines the set of CPUs(0-3,8-11).
 
 CPUSet is of type `string`.
+
+[Back to TOC](#table-of-contents)
+
+## Device
+
+Device defines a way to represent a network device in several options: device name, vendor ID, model ID, PCI path and MAC address
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| name | Network device name | *string | false |
+| vendor | Network device vendor ID represnted as a 16 bit Hexmadecimal number. | *string | false |
+| model | Network device model ID (device) represnted as a 16 bit hexmadecimal number. | *string | false |
+| pciPath | Network device PCI path | *string | false |
+| mac | Network device MAC address | *string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -80,6 +96,17 @@ NUMA defines parameters related to topology awareness and affinity.
 
 [Back to TOC](#table-of-contents)
 
+## Net
+
+Net defines a set of network related features
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| userLevelNetworking | UserLevelNetworking defines if the specified network devices . Defaults to \"false\". | *bool | false |
+| devices | Devices contains a list of network device representations that will be set with a netqueue count equals to CPU.Reserved . If no devices are specified then the default is all devices. | [][Device](#device) | false |
+
+[Back to TOC](#table-of-contents)
+
 ## PerformanceProfile
 
 PerformanceProfile is the Schema for the performanceprofiles API
@@ -117,6 +144,7 @@ PerformanceProfileSpec defines the desired state of PerformanceProfile.
 | realTimeKernel | RealTimeKernel defines a set of real time kernel related parameters. RT kernel won't be installed when not set. | *[RealTimeKernel](#realtimekernel) | false |
 | additionalKernelArgs | Addional kernel arguments. | []string | false |
 | numa | NUMA defines options related to topology aware affinities | *[NUMA](#numa) | false |
+| net | Net defines a set of network related features | *[Net](#net) | false |
 | globallyDisableIrqLoadBalancing | GloballyDisableIrqLoadBalancing toggles whether IRQ load balancing will be disabled for the Isolated CPU set. When the option is set to \"true\" it disables IRQs load balancing for the Isolated CPU set. Setting the option to \"false\" allows the IRQs to be balanced across all CPUs, however the IRQs load balancing can be disabled per pod CPUs when using irq-load-balancing.crio.io/cpu-quota.crio.io annotations. Defaults to \"false\" | *bool | false |
 
 [Back to TOC](#table-of-contents)

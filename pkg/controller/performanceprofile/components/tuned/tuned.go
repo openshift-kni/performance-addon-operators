@@ -16,6 +16,7 @@ import (
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	cpuset "k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 )
 
 const (
@@ -26,6 +27,7 @@ const (
 	templateHugepages                       = "Hugepages"
 	templateAdditionalArgs                  = "AdditionalArgs"
 	templateGloballyDisableIrqLoadBalancing = "GloballyDisableIrqLoadBalancing"
+	templateNetDevices                      = "NetDevices"
 )
 
 func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.TunedRecommend) *tunedv1.Tuned {
@@ -108,6 +110,49 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 	if profile.Spec.GloballyDisableIrqLoadBalancing != nil &&
 		*profile.Spec.GloballyDisableIrqLoadBalancing == true {
 		templateArgs[templateGloballyDisableIrqLoadBalancing] = strconv.FormatBool(true)
+	}
+
+	if profile.Spec.Net != nil && *profile.Spec.Net.UserLevelNetworking && profile.Spec.CPU.Reserved != nil {
+
+		reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
+		if err != nil {
+			return nil, err
+		}
+		reserveCPUcount := reservedSet.Size()
+
+		var devices []string
+		var tunedNetDevicesOutput []string
+		netPluginSequence := 0
+
+		for _, device := range profile.Spec.Net.Devices {
+			devices = make([]string, 0)
+			if device.Name != nil {
+				devices = append(devices, *device.Name)
+			}
+			if device.VendorID != nil {
+				devices = append(devices, *device.VendorID)
+			}
+			if device.ModelID != nil {
+				devices = append(devices, *device.ModelID)
+			}
+			if device.PCIpath != nil {
+				devices = append(devices, *device.PCIpath)
+			}
+			if device.MAC != nil {
+				//TODO - properly parse mac address
+				devices = append(devices, *device.MAC)
+			}
+
+			devicesArgs := strings.Join(devices, ",")
+			netPluginSequence++
+			tunedNetDevicesOutput = append(tunedNetDevicesOutput, fmt.Sprintf("\n[net_%d]\ntype=net\ndevices=%s\nchannels=combined %d", netPluginSequence, devicesArgs, reserveCPUcount))
+		}
+
+		if len(tunedNetDevicesOutput) == 0 {
+			templateArgs[templateNetDevices] = fmt.Sprintf("channels=combined %d", reserveCPUcount)
+		} else {
+			templateArgs[templateNetDevices] = strings.Join(tunedNetDevicesOutput, "")
+		}
 	}
 
 	profileData, err := getProfileData(getProfilePath(components.ProfileNamePerformance, assetsDir), templateArgs)

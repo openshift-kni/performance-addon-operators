@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -325,6 +326,58 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+components.ProfileNamePerformance)
 			validatTunedActiveProfile(workerRTNodes)
 			execSysctlOnWorkers(workerRTNodes, sysctlMap)
+		})
+	})
+
+	Context("Network device queues adjusted by Tuned", func() {
+		//TODO - set test id
+		It("[test_id:XXXXX][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should be set to the profile's reserverd CPUs count ", func() {
+			noDeviceFound := true
+			if profile.Spec.Net != nil {
+				reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
+				Expect(err).ToNot(HaveOccurred())
+				reserveCPUsCount := reservedSet.Size()
+				if *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
+					By("To all non virtual network devices when no devices are specified under profile.Spec.Net.Devices")
+					for _, node := range workerRTNodes {
+
+						cmdGetPhysicalDevices := []string{"find", "/sys/class/net", "-type", "l", "-not", "-lname", "*virtual*", "-printf", "%f "}
+						By(fmt.Sprintf("getting a list of physical network devices: %v", cmdGetPhysicalDevices))
+						tuned := tunedForNode(&node)
+						phyDevs, err := pods.ExecCommandOnPod(tuned, cmdGetPhysicalDevices)
+						Expect(err).ToNot(HaveOccurred())
+
+						for _, d := range strings.Split(string(phyDevs), " ") {
+							if d == "" {
+								continue
+							}
+							// See if the device 'd' supports querying the channels.
+							_, err := pods.ExecCommandOnPod(tuned, []string{"ethtool", "-l", d})
+							if err == nil {
+								cmdCombinedChannelsCurrent := []string{"bash", "-c",
+									fmt.Sprintf("ethtool -l %s | sed -n '/Current hardware settings:/,/Combined:/{s/^Combined:\\s*//p}'", d)}
+
+								By(fmt.Sprintf("using physical network device %s for testing", d))
+								out, err := pods.ExecCommandOnPod(tuned, cmdCombinedChannelsCurrent)
+								Expect(err).NotTo(HaveOccurred())
+								channelCurrentCombined, err := strconv.Atoi(strings.TrimSpace(string(out)))
+								if err != nil {
+									testlog.Warningf(fmt.Sprintf("unable to retrieve current multi-purpose channels hardware settings for device %s on %s; skipping test: %v",
+										d, node.Name, err))
+								} else {
+									Expect(err).ToNot(HaveOccurred())
+									Expect(channelCurrentCombined).To(Equal(reserveCPUsCount), " Channel current combine %d does not match the count of reserverd CPUs %d")
+								}
+								noDeviceFound = false
+							}
+						}
+
+						if noDeviceFound {
+							Skip(fmt.Sprintf("no network devices supporting querying channels found on node %s; skipping test", node.Name))
+						}
+					}
+				}
+			}
 		})
 	})
 

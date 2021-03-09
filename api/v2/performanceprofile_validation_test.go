@@ -28,12 +28,23 @@ const (
 
 	//MachineConfigLabelKey defines the MachineConfig label key of the test profile
 	MachineConfigLabelKey = "mcKey"
-	//MachineConfigLabelValue defines the MachineConfig label vlue of the test profile
+	//MachineConfigLabelValue defines the MachineConfig label value of the test profile
 	MachineConfigLabelValue = "mcValue"
 	//MachineConfigPoolLabelKey defines the MachineConfigPool label key of the test profile
 	MachineConfigPoolLabelKey = "mcpKey"
 	//MachineConfigPoolLabelValue defines the MachineConfigPool label value of the test profile
 	MachineConfigPoolLabelValue = "mcpValue"
+
+	//NetDeviceName defines a net device name for the test profile
+	NetDeviceName = "enp0s4"
+	//NetDeviceVendorID defines a net device vendor ID for the test profile
+	NetDeviceVendorID = "0x1af4"
+	//NetDeviceModelID defines a net device model ID for the test profile
+	NetDeviceModelID = "0x1000"
+	//NetDeviceMAC defines a net device PCI path for the test profile
+	NetDevicePCIpath = "pci-0000:00:04.0"
+	//NetDeviceMAC defines a net device MAC address for the test profile
+	NetDeviceMAC = "enx54ee75491111"
 )
 
 // NewPerformanceProfile returns new performance profile object that used for tests
@@ -42,6 +53,12 @@ func NewPerformanceProfile(name string) *PerformanceProfile {
 	isolatedCPUs := IsolatedCPUs
 	reservedCPUs := ReservedCPUs
 	numaPolicy := SingleNUMAPolicy
+
+	netDeviceName := NetDeviceName
+	netDeviceVendorID := NetDeviceVendorID
+	netDeviceModelID := NetDeviceModelID
+	netDevicePCIpath := NetDevicePCIpath
+	netDeviceMAC := NetDeviceMAC
 
 	return &PerformanceProfile{
 		TypeMeta: metav1.TypeMeta{Kind: "PerformanceProfile"},
@@ -68,6 +85,18 @@ func NewPerformanceProfile(name string) *PerformanceProfile {
 			},
 			NUMA: &NUMA{
 				TopologyPolicy: &numaPolicy,
+			},
+			Net: &Net{
+				UserLevelNetworking: pointer.BoolPtr(true),
+				Devices: []Device{
+					{
+						Name:     &netDeviceName,
+						VendorID: &netDeviceVendorID,
+						ModelID:  &netDeviceModelID,
+						PCIpath:  &netDevicePCIpath,
+						MAC:      &netDeviceMAC,
+					},
+				},
 			},
 			MachineConfigLabel: map[string]string{
 				MachineConfigLabelKey: MachineConfigLabelValue,
@@ -260,6 +289,14 @@ var _ = Describe("PerformanceProfile", func() {
 				})
 			})
 		})
+	})
+
+	Describe("Net validation", func() {
+		It("should have net fields properly populated", func() {
+			errors := profile.validateNet()
+			Expect(errors).To(BeEmpty(), "should not have validation errors with properly populated net devices fields")
+		})
+		//TODO - add negative tests
 	})
 })
 
