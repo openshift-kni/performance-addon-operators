@@ -18,7 +18,7 @@ require (
 	github.com/go-openapi/strfmt v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.9 // indirect
 	github.com/go-openapi/validate v0.19.8 // indirect
-	github.com/jaypipes/ghw v0.7.0
+	github.com/jaypipes/ghw v0.7.1-0.20210309000509-b593e32e58a7
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
