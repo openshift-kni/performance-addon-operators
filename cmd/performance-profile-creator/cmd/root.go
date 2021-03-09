@@ -37,7 +37,7 @@ const (
 )
 
 var (
-	validTMPolicyValues        = []string{"single-numa-node", "best-effort", "restricted", "none", ""}
+	validTMPolicyValues        = []string{"single-numa-node", "best-effort", "restricted", "none"}
 	validPowerConsumptionModes = []string{"cstate", "no-state", "idle-poll"}
 )
 
@@ -57,11 +57,11 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		flagData, err := getDataFromFlags(cmd)
 		if err != nil {
-			return fmt.Errorf("Error obtaining profileData %v", err)
+			return fmt.Errorf("failed to obtain data from flags %v", err)
 		}
 		profileData, err := getProfileData(flagData)
 		if err != nil {
-			return fmt.Errorf("Error obtaining profileData %v", err)
+			return fmt.Errorf("failed to obtain profileData %v", err)
 		}
 		createProfile(*profileData)
 		return nil
@@ -72,7 +72,7 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error while executing root command: %v", err)
+		fmt.Fprintf(os.Stderr, "failed to execute root command: %v", err)
 		os.Exit(1)
 	}
 }
@@ -82,36 +82,36 @@ func getDataFromFlags(cmd *cobra.Command) (*profileCreatorArgs, error) {
 	mcpName := cmd.Flag("mcp-name").Value.String()
 	reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing reserved-cpu-count flag: %v", err)
+		return nil, fmt.Errorf("failed to parse reserved-cpu-count flag: %v", err)
 	}
 	splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing split-reserved-cpus-across-numa flag: %v", err)
+		return nil, fmt.Errorf("failed to parse split-reserved-cpus-across-numa flag: %v", err)
 	}
 	profileName := cmd.Flag("profile-name").Value.String()
 	tmPolicy := cmd.Flag("topology-manager-policy").Value.String()
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing topology-manager-policy flag: %v", err)
+		return nil, fmt.Errorf("failed to parse topology-manager-policy flag: %v", err)
 	}
 	err = validateFlag(tmPolicy, validTMPolicyValues)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid value for topology-manager-policy flag specified: %v", err)
+		return nil, fmt.Errorf("invalid value for topology-manager-policy flag specified: %v", err)
 	}
 	if tmPolicy == singleNumaNodeTopologyManagerPolicy && splitReservedCPUsAcrossNUMA {
-		return nil, fmt.Errorf("Error as it is not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
+		return nil, fmt.Errorf("not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
 	}
 	powerConsumptionMode := cmd.Flag("power-consumption-mode").Value.String()
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing power-consumption-mode flag: %v", err)
+		return nil, fmt.Errorf("failed to parse power-consumption-mode flag: %v", err)
 	}
 	err = validateFlag(powerConsumptionMode, validPowerConsumptionModes)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid value for power-consumption-mode flag specified: %v", err)
+		return nil, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
 	}
 	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
 	rtKernelEnabled, err := strconv.ParseBool(cmd.Flag("rt-kernel").Value.String())
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing rt-kernel flag: %v", err)
+		return nil, fmt.Errorf("failed to parse rt-kernel flag: %v", err)
 	}
 	flagData := &profileCreatorArgs{
 		mustGatherDirPath:           mustGatherDirPath,
@@ -128,22 +128,22 @@ func getDataFromFlags(cmd *cobra.Command) (*profileCreatorArgs, error) {
 func getProfileData(args *profileCreatorArgs) (*ProfileData, error) {
 	mcp, err := profilecreator.GetMCP(args.mustGatherDirPath, args.mcpName)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", args.mcpName, err)
+		return nil, fmt.Errorf("failed to get MachineConfigPool with mcp-name %s: %v", args.mcpName, err)
 	}
 
 	nodes, err := profilecreator.GetNodeList(args.mustGatherDirPath)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining Nodes %s: %v", args.mcpName, err)
+		return nil, fmt.Errorf("failed to get Nodes with mcp-name %s: %v", args.mcpName, err)
 	}
 
 	mcps, err := profilecreator.GetMCPList(args.mustGatherDirPath)
 	if err != nil {
-		return nil, fmt.Errorf("can't get the MCP list under %s: %v", args.mustGatherDirPath, err)
+		return nil, fmt.Errorf("failed to get the MCP list under %s: %v", args.mustGatherDirPath, err)
 	}
 
 	matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
 	if err != nil {
-		return nil, fmt.Errorf("can't find matching nodes for %s: %v", args.mcpName, err)
+		return nil, fmt.Errorf("failed to find matching nodes for %s: %v", args.mcpName, err)
 	}
 
 	err = profilecreator.EnsureNodesHaveTheSameHardware(args.mustGatherDirPath, matchedNodes)
@@ -159,7 +159,7 @@ func getProfileData(args *profileCreatorArgs) (*ProfileData, error) {
 	handle, err := profilecreator.NewGHWHandler(args.mustGatherDirPath, matchedNodes[0])
 	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining Reserved and Isolated CPUs for %s: %v", nodeName, err)
+		return nil, fmt.Errorf("failed to get reserved and isolated CPUs for %s: %v", nodeName, err)
 	}
 	profileData := &ProfileData{
 		reservedCPUs:           reservedCPUs,
