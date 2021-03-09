@@ -30,15 +30,16 @@ import (
 
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	singleNumaNodeTopologyManagerPolicy = "single-numa-node"
+	kubeletconfig "k8s.io/kubelet/config/v1beta1"
 )
 
 var (
-	validTMPolicyValues        = []string{"single-numa-node", "best-effort", "restricted", "none"}
-	validPowerConsumptionModes = []string{"cstate", "no-state", "idle-poll"}
+	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
+	// Values part of validPowerConsumptionModes are explained below:
+	// default => Use CPU C-states but limit them to 1, meaning the processor is idle it can sleep but not "deep sleep"
+	// performance => Disable CPU sleep (c-states), processor never sleeps even if is idle
+	// low-latency => processor is never idle, it is in polling mode (cpu=poll)
+	validPowerConsumptionModes = []string{"default", "performance", "low-latency"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
@@ -55,13 +56,13 @@ var rootCmd = &cobra.Command{
 	Use:   "performance-profile-creator",
 	Short: "A tool that automates creation of Performance Profiles",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		flagData, err := getDataFromFlags(cmd)
+		profileCreatorArgsFromFlags, err := getDataFromFlags(cmd)
 		if err != nil {
 			return fmt.Errorf("failed to obtain data from flags %v", err)
 		}
-		profileData, err := getProfileData(flagData)
+		profileData, err := getProfileData(profileCreatorArgsFromFlags)
 		if err != nil {
-			return fmt.Errorf("failed to obtain profileData %v", err)
+			return fmt.Errorf("failed to create the profile: %v", err)
 		}
 		createProfile(*profileData)
 		return nil
@@ -77,43 +78,44 @@ func Execute() {
 	}
 }
 
-func getDataFromFlags(cmd *cobra.Command) (*profileCreatorArgs, error) {
+func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
+	creatorArgs := profileCreatorArgs{}
 	mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
 	mcpName := cmd.Flag("mcp-name").Value.String()
 	reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse reserved-cpu-count flag: %v", err)
+		return creatorArgs, fmt.Errorf("failed to parse reserved-cpu-count flag: %v", err)
 	}
 	splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse split-reserved-cpus-across-numa flag: %v", err)
+		return creatorArgs, fmt.Errorf("failed to parse split-reserved-cpus-across-numa flag: %v", err)
 	}
 	profileName := cmd.Flag("profile-name").Value.String()
 	tmPolicy := cmd.Flag("topology-manager-policy").Value.String()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse topology-manager-policy flag: %v", err)
+		return creatorArgs, fmt.Errorf("failed to parse topology-manager-policy flag: %v", err)
 	}
 	err = validateFlag(tmPolicy, validTMPolicyValues)
 	if err != nil {
-		return nil, fmt.Errorf("invalid value for topology-manager-policy flag specified: %v", err)
+		return creatorArgs, fmt.Errorf("invalid value for topology-manager-policy flag specified: %v", err)
 	}
-	if tmPolicy == singleNumaNodeTopologyManagerPolicy && splitReservedCPUsAcrossNUMA {
-		return nil, fmt.Errorf("not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
+	if tmPolicy == kubeletconfig.SingleNumaNodeTopologyManager && splitReservedCPUsAcrossNUMA {
+		return creatorArgs, fmt.Errorf("not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
 	}
 	powerConsumptionMode := cmd.Flag("power-consumption-mode").Value.String()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse power-consumption-mode flag: %v", err)
+		return creatorArgs, fmt.Errorf("failed to parse power-consumption-mode flag: %v", err)
 	}
 	err = validateFlag(powerConsumptionMode, validPowerConsumptionModes)
 	if err != nil {
-		return nil, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
+		return creatorArgs, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
 	}
 	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
 	rtKernelEnabled, err := strconv.ParseBool(cmd.Flag("rt-kernel").Value.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse rt-kernel flag: %v", err)
+		return creatorArgs, fmt.Errorf("failed to parse rt-kernel flag: %v", err)
 	}
-	flagData := &profileCreatorArgs{
+	creatorArgs = profileCreatorArgs{
 		mustGatherDirPath:           mustGatherDirPath,
 		profileName:                 profileName,
 		reservedCPUCount:            reservedCPUCount,
@@ -122,10 +124,10 @@ func getDataFromFlags(cmd *cobra.Command) (*profileCreatorArgs, error) {
 		tmPolicy:                    tmPolicy,
 		rtKernel:                    rtKernelEnabled,
 	}
-	return flagData, nil
+	return creatorArgs, nil
 }
 
-func getProfileData(args *profileCreatorArgs) (*ProfileData, error) {
+func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	mcp, err := profilecreator.GetMCP(args.mustGatherDirPath, args.mcpName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get MachineConfigPool with mcp-name %s: %v", args.mcpName, err)
@@ -173,15 +175,20 @@ func getProfileData(args *profileCreatorArgs) (*ProfileData, error) {
 }
 
 func validateFlag(value string, validValues []string) error {
-	for _, validValue := range validValues {
-		if strings.ToLower(value) == validValue {
-			// value is valid
-			return nil
+	if isStringInSlice(value, validValues) {
+		return nil
+	}
+	return fmt.Errorf("Value '%s' is invalid. Valid values "+
+		"come from the set %v", value, validValues)
+}
+
+func isStringInSlice(value string, candidates []string) bool {
+	for _, candidate := range candidates {
+		if strings.EqualFold(candidate, value) {
+			return true
 		}
 	}
-	// if we're here, value is invalid
-	return fmt.Errorf("Value '%s' is invalid for flag 'color'. Valid values "+
-		"come from the set %v", value, validValues)
+	return false
 }
 
 type profileCreatorArgs struct {
@@ -203,17 +210,17 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
 	rootCmd.PersistentFlags().BoolVarP(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", "S", false, "Split the Reserved CPUs across NUMA nodes")
-	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "T", "worker-cnf", "MCP name corresponding to the target machines (required)")
+	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "n", "worker-cnf", "MCP name corresponding to the target machines (required)")
 	rootCmd.MarkPersistentFlagRequired("mcp-name")
 	rootCmd.PersistentFlags().BoolVarP(&args.disableHT, "disable-ht", "H", false, "Disable Hyperthreading")
 	rootCmd.PersistentFlags().BoolVarP(&args.rtKernel, "rt-kernel", "K", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
 	rootCmd.PersistentFlags().BoolVarP(&args.userLevelNetworking, "user-level-networking", "U", false, "Run with User level Networking(DPDK) enabled")
-	rootCmd.PersistentFlags().StringVarP(&args.powerConsumptionMode, "power-consumption-mode", "P", "cstate", "The power consumption mode. [Valid values: cstate, no-state, idle-poll]")
+	rootCmd.PersistentFlags().StringVarP(&args.powerConsumptionMode, "power-consumption-mode", "P", "default", "The power consumption mode. [Valid values: default, performance, low-latency]")
 	rootCmd.PersistentFlags().StringVarP(&args.mustGatherDirPath, "must-gather-dir-path", "M", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
 	rootCmd.PersistentFlags().StringVarP(&args.profileName, "profile-name", "N", "performance", "Name of the performance profile to be created")
-	rootCmd.PersistentFlags().StringVarP(&args.tmPolicy, "topology-manager-policy", "Q", "restricted", "Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: single-numa-node, best-effort, restricted, none]")
+	rootCmd.PersistentFlags().StringVarP(&args.tmPolicy, "topology-manager-policy", "T", "restricted", fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
 }
 
 func createProfile(profileData ProfileData) {
