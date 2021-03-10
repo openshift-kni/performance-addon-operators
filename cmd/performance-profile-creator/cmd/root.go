@@ -28,16 +28,24 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"k8s.io/utils/pointer"
-
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeletconfig "k8s.io/kubelet/config/v1beta1"
+)
+
+var (
+	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
+	// TODO: Explain the power-consumption-mode and associated kernel args
+	validPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
 type ProfileData struct {
 	isolatedCPUs, reservedCPUs string
 	nodeSelector               *metav1.LabelSelector
+	performanceProfileName     string
+	topologyPoilcy             string
+	rtKernel                   bool
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -45,60 +53,15 @@ var rootCmd = &cobra.Command{
 	Use:   "performance-profile-creator",
 	Short: "A tool that automates creation of Performance Profiles",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		mcpName := cmd.Flag("mcp-name").Value.String()
-		mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
-		mcp, err := profilecreator.GetMCP(mustGatherDirPath, mcpName)
+		profileCreatorArgsFromFlags, err := getDataFromFlags(cmd)
 		if err != nil {
-			return fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
+			return fmt.Errorf("failed to obtain data from flags %v", err)
 		}
-
-		nodes, err := profilecreator.GetNodeList(mustGatherDirPath)
+		profileData, err := getProfileData(profileCreatorArgsFromFlags)
 		if err != nil {
-			return fmt.Errorf("Error obtaining Nodes %s: %v", mcpName, err)
+			return fmt.Errorf("failed to create the profile: %v", err)
 		}
-
-		mcps, err := profilecreator.GetMCPList(mustGatherDirPath)
-		if err != nil {
-			return fmt.Errorf("can't get the MCP list under %s: %v", mustGatherDirPath, err)
-		}
-
-		splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
-		if err != nil {
-			return fmt.Errorf("Error parsing split-reserved-cpus-across-numa flag: %v", err)
-		}
-		reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
-		if err != nil {
-			return fmt.Errorf("Error parsing reserved-cpu-count flag: %v", err)
-		}
-
-		matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
-		if err != nil {
-			return fmt.Errorf("can't find matching nodes for %s: %v", mcpName, err)
-		}
-
-		err = profilecreator.EnsureNodesHaveTheSameHardware(mustGatherDirPath, matchedNodes)
-		if err != nil {
-			return fmt.Errorf("targeted nodes differ: %v", err)
-		}
-
-		// We make sure that the matched Nodes are the same
-		// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
-		// same from hardware topology point of view
-		var profileData ProfileData
-		nodeName := matchedNodes[0].GetName()
-		log.Infof("%s is targetted by %s MCP", nodeName, mcpName)
-		handle, err := profilecreator.NewGHWHandler(mustGatherDirPath, matchedNodes[0])
-		reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
-		if err != nil {
-			return fmt.Errorf("Error obtaining Reserved and Isolated CPUs for %s: %v", nodeName, err)
-		}
-		profileData = ProfileData{
-			reservedCPUs: reservedCPUs,
-			isolatedCPUs: isolatedCPUs,
-			nodeSelector: mcp.Spec.NodeSelector,
-		}
-		profileName := cmd.Flag("profile-name").Value.String()
-		createProfile(profileName, profileData)
+		createProfile(*profileData)
 		return nil
 	},
 }
@@ -107,9 +70,122 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error while executing root command: %v", err)
+		fmt.Fprintf(os.Stderr, "failed to execute root command: %v", err)
 		os.Exit(1)
 	}
+}
+
+func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
+	creatorArgs := profileCreatorArgs{}
+	mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
+	mcpName := cmd.Flag("mcp-name").Value.String()
+	reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
+	if err != nil {
+		return creatorArgs, fmt.Errorf("failed to parse reserved-cpu-count flag: %v", err)
+	}
+	splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
+	if err != nil {
+		return creatorArgs, fmt.Errorf("failed to parse split-reserved-cpus-across-numa flag: %v", err)
+	}
+	profileName := cmd.Flag("profile-name").Value.String()
+	tmPolicy := cmd.Flag("topology-manager-policy").Value.String()
+	if err != nil {
+		return creatorArgs, fmt.Errorf("failed to parse topology-manager-policy flag: %v", err)
+	}
+	err = validateFlag(tmPolicy, validTMPolicyValues)
+	if err != nil {
+		return creatorArgs, fmt.Errorf("invalid value for topology-manager-policy flag specified: %v", err)
+	}
+	if tmPolicy == kubeletconfig.SingleNumaNodeTopologyManager && splitReservedCPUsAcrossNUMA {
+		return creatorArgs, fmt.Errorf("not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
+	}
+	powerConsumptionMode := cmd.Flag("power-consumption-mode").Value.String()
+	if err != nil {
+		return creatorArgs, fmt.Errorf("failed to parse power-consumption-mode flag: %v", err)
+	}
+	err = validateFlag(powerConsumptionMode, validPowerConsumptionModes)
+	if err != nil {
+		return creatorArgs, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
+	}
+	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
+	rtKernelEnabled, err := strconv.ParseBool(cmd.Flag("rt-kernel").Value.String())
+	if err != nil {
+		return creatorArgs, fmt.Errorf("failed to parse rt-kernel flag: %v", err)
+	}
+	creatorArgs = profileCreatorArgs{
+		mustGatherDirPath:           mustGatherDirPath,
+		profileName:                 profileName,
+		reservedCPUCount:            reservedCPUCount,
+		splitReservedCPUsAcrossNUMA: splitReservedCPUsAcrossNUMA,
+		mcpName:                     mcpName,
+		tmPolicy:                    tmPolicy,
+		rtKernel:                    rtKernelEnabled,
+	}
+	return creatorArgs, nil
+}
+
+func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
+	mcp, err := profilecreator.GetMCP(args.mustGatherDirPath, args.mcpName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MachineConfigPool with mcp-name %s: %v", args.mcpName, err)
+	}
+
+	nodes, err := profilecreator.GetNodeList(args.mustGatherDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Nodes with mcp-name %s: %v", args.mcpName, err)
+	}
+
+	mcps, err := profilecreator.GetMCPList(args.mustGatherDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the MCP list under %s: %v", args.mustGatherDirPath, err)
+	}
+
+	matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find matching nodes for %s: %v", args.mcpName, err)
+	}
+
+	err = profilecreator.EnsureNodesHaveTheSameHardware(args.mustGatherDirPath, matchedNodes)
+	if err != nil {
+		return nil, fmt.Errorf("targeted nodes differ: %v", err)
+	}
+
+	// We make sure that the matched Nodes are the same
+	// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
+	// same from hardware topology point of view
+	nodeName := matchedNodes[0].GetName()
+	log.Infof("%s is targetted by %s MCP", nodeName, args.mcpName)
+	handle, err := profilecreator.NewGHWHandler(args.mustGatherDirPath, matchedNodes[0])
+	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get reserved and isolated CPUs for %s: %v", nodeName, err)
+	}
+	profileData := &ProfileData{
+		reservedCPUs:           reservedCPUs,
+		isolatedCPUs:           isolatedCPUs,
+		nodeSelector:           mcp.Spec.NodeSelector,
+		performanceProfileName: args.profileName,
+		topologyPoilcy:         args.tmPolicy,
+		rtKernel:               args.rtKernel,
+	}
+	return profileData, nil
+}
+
+func validateFlag(value string, validValues []string) error {
+	if isStringInSlice(value, validValues) {
+		return nil
+	}
+	return fmt.Errorf("Value '%s' is invalid. Valid values "+
+		"come from the set %v", value, validValues)
+}
+
+func isStringInSlice(value string, candidates []string) bool {
+	for _, candidate := range candidates {
+		if strings.EqualFold(candidate, value) {
+			return true
+		}
+	}
+	return false
 }
 
 type profileCreatorArgs struct {
@@ -122,31 +198,29 @@ type profileCreatorArgs struct {
 	rtKernel                    bool
 	userLevelNetworking         bool
 	mcpName                     string
+	tmPolicy                    string
 }
 
 func init() {
 	args := &profileCreatorArgs{}
 	log.SetOutput(os.Stderr)
-	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs (required)")
+	rootCmd.PersistentFlags().IntVar(&args.reservedCPUCount, "reserved-cpu-count", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
-	rootCmd.PersistentFlags().BoolVarP(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", "S", false, "Split the Reserved CPUs across NUMA nodes")
-	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "T", "worker-cnf", "MCP name corresponding to the target machines (required)")
+	rootCmd.PersistentFlags().BoolVar(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", false, "Split the Reserved CPUs across NUMA nodes")
+	rootCmd.PersistentFlags().StringVar(&args.mcpName, "mcp-name", "worker-cnf", "MCP name corresponding to the target machines (required)")
 	rootCmd.MarkPersistentFlagRequired("mcp-name")
-	rootCmd.PersistentFlags().BoolVarP(&args.disableHT, "disable-ht", "H", false, "Disable Hyperthreading")
-	rootCmd.PersistentFlags().BoolVarP(&args.rtKernel, "rt-kernel", "K", true, "Enable Real Time Kernel (required)")
+	rootCmd.PersistentFlags().BoolVar(&args.disableHT, "disable-ht", false, "Disable Hyperthreading")
+	rootCmd.PersistentFlags().BoolVar(&args.rtKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
-	rootCmd.PersistentFlags().BoolVarP(&args.userLevelNetworking, "user-level-networking", "U", false, "Run with User level Networking(DPDK) enabled")
-	rootCmd.PersistentFlags().StringVarP(&args.powerConsumptionMode, "power-consumption-mode", "P", "cstate", "The power consumption mode")
-	rootCmd.PersistentFlags().StringVarP(&args.mustGatherDirPath, "must-gather-dir-path", "M", "must-gather", "Must gather directory path")
+	rootCmd.PersistentFlags().BoolVar(&args.userLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
+	rootCmd.PersistentFlags().StringVar(&args.powerConsumptionMode, "power-consumption-mode", "default", "The power consumption mode. [Valid values: default, low-latency, ultra-low-latency]")
+	rootCmd.PersistentFlags().StringVar(&args.mustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
-	rootCmd.PersistentFlags().StringVarP(&args.profileName, "profile-name", "N", "performance", "Name of the performance profile to be created")
-
-	// TODO: Input validation
-	// 1) Make flags required/optional
-	// 2) e.g.check to make sure that power consumption string is in {CSTATE NO_CSTATE IDLE_POLL}
+	rootCmd.PersistentFlags().StringVar(&args.profileName, "profile-name", "performance", "Name of the performance profile to be created")
+	rootCmd.PersistentFlags().StringVar(&args.tmPolicy, "topology-manager-policy", "restricted", fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
 }
 
-func createProfile(profileName string, profileData ProfileData) {
+func createProfile(profileData ProfileData) {
 
 	reserved := performancev2.CPUSet(profileData.reservedCPUs)
 	isolated := performancev2.CPUSet(profileData.isolatedCPUs)
@@ -157,7 +231,7 @@ func createProfile(profileName string, profileData ProfileData) {
 			APIVersion: performancev2.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: profileName,
+			Name: profileData.performanceProfileName,
 		},
 		Spec: performancev2.PerformanceProfileSpec{
 			CPU: &performancev2.CPU{
@@ -166,11 +240,11 @@ func createProfile(profileName string, profileData ProfileData) {
 			},
 			NodeSelector: profileData.nodeSelector.MatchLabels,
 			RealTimeKernel: &performancev2.RealTimeKernel{
-				Enabled: pointer.BoolPtr(true),
+				Enabled: &profileData.rtKernel,
 			},
 			AdditionalKernelArgs: []string{},
 			NUMA: &performancev2.NUMA{
-				TopologyPolicy: pointer.StringPtr("restricted"),
+				TopologyPolicy: &profileData.topologyPoilcy,
 			},
 		},
 	}

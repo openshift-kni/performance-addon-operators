@@ -74,11 +74,11 @@ func getMustGatherFullPathsWithFilter(mustGatherPath string, suffix string, filt
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("Error obtaining the path mustGatherPath:%s, suffix:%s %v", mustGatherPath, suffix, err)
+		return "", fmt.Errorf("failed to get the path mustGatherPath:%s, suffix:%s %v", mustGatherPath, suffix, err)
 	}
 
 	if len(paths) == 0 {
-		return "", fmt.Errorf("No match for the specified must gather directory path: %s and suffix: %s", mustGatherPath, suffix)
+		return "", fmt.Errorf("no match for the specified must gather directory path: %s and suffix: %s", mustGatherPath, suffix)
 
 	}
 	if len(paths) > 1 {
@@ -98,18 +98,18 @@ func getNode(mustGatherDirPath, nodeName string) (*v1.Node, error) {
 	nodePathSuffix := path.Join(ClusterScopedResources, CoreNodes, nodeName)
 	path, err := getMustGatherFullPaths(mustGatherDirPath, nodePathSuffix)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", nodeName, err)
+		return nil, fmt.Errorf("failed to get MachineConfigPool for %s: %v", nodeName, err)
 	}
 
 	src, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("Error opening %q: %v", path, err)
+		return nil, fmt.Errorf("failed to open %q: %v", path, err)
 	}
 	defer src.Close()
 
 	dec := k8syaml.NewYAMLOrJSONDecoder(src, 1024)
 	if err := dec.Decode(&node); err != nil {
-		return nil, fmt.Errorf("Error opening %q: %v", path, err)
+		return nil, fmt.Errorf("failed to decode %q: %v", path, err)
 	}
 	return &node, nil
 }
@@ -121,10 +121,10 @@ func GetNodeList(mustGatherDirPath string) ([]*v1.Node, error) {
 	nodePathSuffix := path.Join(ClusterScopedResources, CoreNodes)
 	nodePath, err := getMustGatherFullPaths(mustGatherDirPath, nodePathSuffix)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining Nodes: %v", err)
+		return nil, fmt.Errorf("failed to get Nodes from must gather directory: %v", err)
 	}
 	if nodePath == "" {
-		return nil, fmt.Errorf("Error obtaining Nodes: %v", err)
+		return nil, fmt.Errorf("failed to get Nodes from must gather directory: %v", err)
 	}
 
 	nodes, err := ioutil.ReadDir(nodePath)
@@ -135,7 +135,7 @@ func GetNodeList(mustGatherDirPath string) ([]*v1.Node, error) {
 		nodeName := node.Name()
 		node, err := getNode(mustGatherDirPath, nodeName)
 		if err != nil {
-			return nil, fmt.Errorf("Error obtaining Nodes %s: %v", nodeName, err)
+			return nil, fmt.Errorf("failed to get Nodes %s: %v", nodeName, err)
 		}
 		machines = append(machines, node)
 	}
@@ -183,20 +183,20 @@ func GetMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPo
 	mcpPathSuffix := path.Join(ClusterScopedResources, MCPools, mcpName+YAMLSuffix)
 	mcpPath, err := getMustGatherFullPaths(mustGatherDirPath, mcpPathSuffix)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining MachineConfigPool %s: %v", mcpName, err)
+		return nil, fmt.Errorf("failed to obtain MachineConfigPool %s: %v", mcpName, err)
 	}
 	if mcpPath == "" {
-		return nil, fmt.Errorf("Error obtaining MachineConfigPool, mcp:%s does not exist: %v", mcpName, err)
+		return nil, fmt.Errorf("failed to obtain MachineConfigPool, mcp:%s does not exist: %v", mcpName, err)
 	}
 
 	src, err := os.Open(mcpPath)
 	if err != nil {
-		return nil, fmt.Errorf("Error opening %q: %v", mcpPath, err)
+		return nil, fmt.Errorf("failed to open %q: %v", mcpPath, err)
 	}
 	defer src.Close()
 	dec := k8syaml.NewYAMLOrJSONDecoder(src, 1024)
 	if err := dec.Decode(&mcp); err != nil {
-		return nil, fmt.Errorf("Error opening %q: %v", mcpPath, err)
+		return nil, fmt.Errorf("failed to decode %q: %v", mcpPath, err)
 	}
 	return &mcp, nil
 }
@@ -207,11 +207,11 @@ func NewGHWHandler(mustGatherDirPath string, node *v1.Node) (*GHWHandler, error)
 	nodePathSuffix := path.Join(Nodes)
 	nodepath, err := getMustGatherFullPathsWithFilter(mustGatherDirPath, nodePathSuffix, ClusterScopedResources)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining the node path %s: %v", nodeName, err)
+		return nil, fmt.Errorf("can't obtain the node path %s: %v", nodeName, err)
 	}
 	_, err = os.Stat(path.Join(nodepath, nodeName, SysInfoFileName))
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining the path: %s for node %s: %v", nodeName, nodepath, err)
+		return nil, fmt.Errorf("can't obtain the path: %s for node %s: %v", nodeName, nodepath, err)
 	}
 	options := ghw.WithSnapshot(ghw.SnapshotOptions{
 		Path: path.Join(nodepath, nodeName, SysInfoFileName),
@@ -234,7 +234,7 @@ func (ghwHandler GHWHandler) CPU() (*cpu.Info, error) {
 func (ghwHandler GHWHandler) SortedTopology() (*topology.Info, error) {
 	topologyInfo, err := ghw.Topology(ghwHandler.snapShotOptions)
 	if err != nil {
-		return nil, fmt.Errorf("Error obtaining Topology Info from GHW snapshot: %v", err)
+		return nil, fmt.Errorf("can't obtain topology info from GHW snapshot: %v", err)
 	}
 	sort.Slice(topologyInfo.Nodes, func(x, y int) bool {
 		return topologyInfo.Nodes[x].ID < topologyInfo.Nodes[y].ID
@@ -254,16 +254,23 @@ func (ghwHandler GHWHandler) SortedTopology() (*topology.Info, error) {
 
 // GetReservedAndIsolatedCPUs returns Reserved and Isolated CPUs
 func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, splitReservedCPUsAcrossNUMA bool) (string, string, error) {
-	if reservedCPUCount < 0 {
-		return "", "", fmt.Errorf("Specified eservered CPU count is negative, please specify it correctly")
+	cpuInfo, err := ghwHandler.CPU()
+	if err != nil {
+		return "", "", fmt.Errorf("can't obtain CPU info from GHW snapshot: %v", err)
+	}
+	if reservedCPUCount == int(cpuInfo.TotalThreads) {
+		log.Warnf("The reserved CPU count specified is equal to the total CPUs available on the node")
+	}
+	if reservedCPUCount < 0 || reservedCPUCount >= int(cpuInfo.TotalThreads) {
+		return "", "", fmt.Errorf("invalid reserved CPU count specified, please specify it in the range [0,%d]", cpuInfo.TotalThreads-1)
 	}
 	topologyInfo, err := ghwHandler.SortedTopology()
 	if err != nil {
-		return "", "", fmt.Errorf("Error obtaining Topology Info from GHW snapshot: %v", err)
+		return "", "", fmt.Errorf("can't obtain Topology Info from GHW snapshot: %v", err)
 	}
 	htEnabled, err := ghwHandler.isHyperthreadingEnabled()
 	if err != nil {
-		return "", "", fmt.Errorf("Error determining if Hyperthreading is enabled or not: %v", err)
+		return "", "", fmt.Errorf("can't determine if Hyperthreading is enabled or not: %v", err)
 	}
 	if splitReservedCPUsAcrossNUMA {
 		return ghwHandler.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfo.Nodes)
@@ -297,7 +304,7 @@ func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnab
 			max = max + reservedPerNuma
 		}
 		if max%2 != 0 && htEnabled {
-			return "", "", fmt.Errorf("Can't allocatable odd number of CPUs from a NUMA Node")
+			return "", "", fmt.Errorf("can't allocate odd number of CPUs from a NUMA Node")
 		}
 		for _, processorCores := range node.Cores {
 			for _, core := range processorCores.LogicalProcessors {
@@ -318,7 +325,7 @@ func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnab
 func (ghwHandler GHWHandler) getCPUsSequentially(reservedCPUCount int, htEnabled bool, topologyInfoNodes []*topology.Node) (string, string, error) {
 	reservedCPUSet := cpuset.NewBuilder()
 	if reservedCPUCount%2 != 0 && htEnabled {
-		return "", "", fmt.Errorf("Can't allocatable odd number of CPUs from a NUMA Node")
+		return "", "", fmt.Errorf("can't allocate odd number of CPUs from a NUMA Node")
 	}
 	for _, node := range topologyInfoNodes {
 		for _, processorCores := range node.Cores {
