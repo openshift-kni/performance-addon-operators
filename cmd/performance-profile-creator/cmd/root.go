@@ -35,8 +35,11 @@ import (
 
 var (
 	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
-	// TODO: Explain the power-consumption-mode and associated kernel args
+	// default => no args
+	// low-latency => "nmi_watchdog=0", "audit=0",  "mce=off"
+	// ultra-low-latency: low-latency values + "processor.max_cstate=1", "intel_idle.max_cstate=0", "idle=poll"
 	validPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
+	additionalKernelArgs       = []string{"nmi_watchdog=0", "audit=0", "mce=off", "processor.max_cstate=1", "intel_idle.max_cstate=0", "idle=poll"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
@@ -46,6 +49,7 @@ type ProfileData struct {
 	performanceProfileName     string
 	topologyPoilcy             string
 	rtKernel                   bool
+	additionalKernelArgs       []string
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -120,6 +124,7 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 		mcpName:                     mcpName,
 		tmPolicy:                    tmPolicy,
 		rtKernel:                    rtKernelEnabled,
+		powerConsumptionMode:        powerConsumptionMode,
 	}
 	return creatorArgs, nil
 }
@@ -160,6 +165,7 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get reserved and isolated CPUs for %s: %v", nodeName, err)
 	}
+	kernelArgs := getAdditionalKernelArgs(args.powerConsumptionMode)
 	profileData := &ProfileData{
 		reservedCPUs:           reservedCPUs,
 		isolatedCPUs:           isolatedCPUs,
@@ -167,8 +173,23 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 		performanceProfileName: args.profileName,
 		topologyPoilcy:         args.tmPolicy,
 		rtKernel:               args.rtKernel,
+		additionalKernelArgs:   kernelArgs,
 	}
 	return profileData, nil
+}
+
+func getAdditionalKernelArgs(powerMode string) []string {
+	var kernelArgs []string
+	switch powerMode {
+	case validPowerConsumptionModes[0]:
+		kernelArgs = []string{}
+	case validPowerConsumptionModes[1]:
+		kernelArgs = additionalKernelArgs[:3]
+	case validPowerConsumptionModes[2]:
+		kernelArgs = additionalKernelArgs
+	}
+	log.Infof("Additional Kernel Args based on the power consumption mode (%s): %v", powerMode, kernelArgs)
+	return kernelArgs
 }
 
 func validateFlag(value string, validValues []string) error {
@@ -213,11 +234,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&args.rtKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
 	rootCmd.PersistentFlags().BoolVar(&args.userLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
-	rootCmd.PersistentFlags().StringVar(&args.powerConsumptionMode, "power-consumption-mode", "default", "The power consumption mode. [Valid values: default, low-latency, ultra-low-latency]")
+	rootCmd.PersistentFlags().StringVar(&args.powerConsumptionMode, "power-consumption-mode", validPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s, %s, %s]", validPowerConsumptionModes[0], validPowerConsumptionModes[1], validPowerConsumptionModes[2]))
 	rootCmd.PersistentFlags().StringVar(&args.mustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
 	rootCmd.PersistentFlags().StringVar(&args.profileName, "profile-name", "performance", "Name of the performance profile to be created")
-	rootCmd.PersistentFlags().StringVar(&args.tmPolicy, "topology-manager-policy", "restricted", fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
+	rootCmd.PersistentFlags().StringVar(&args.tmPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
 }
 
 func createProfile(profileData ProfileData) {
@@ -242,7 +263,7 @@ func createProfile(profileData ProfileData) {
 			RealTimeKernel: &performancev2.RealTimeKernel{
 				Enabled: &profileData.rtKernel,
 			},
-			AdditionalKernelArgs: []string{},
+			AdditionalKernelArgs: profileData.additionalKernelArgs,
 			NUMA: &performancev2.NUMA{
 				TopologyPolicy: &profileData.topologyPoilcy,
 			},
