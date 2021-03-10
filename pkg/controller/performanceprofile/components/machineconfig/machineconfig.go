@@ -79,9 +79,9 @@ const (
 	templateReservedCpus = "ReservedCpus"
 )
 
-// New returns new machine configuration object for performance sensetive workflows
+// New returns new machine configuration object for performance sensitive workloads
 func New(assetsDir string, profile *performancev2.PerformanceProfile) (*machineconfigv1.MachineConfig, error) {
-	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
+	name := GetMachineConfigName(profile)
 	mc := &machineconfigv1.MachineConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: machineconfigv1.GroupVersion.String(),
@@ -116,6 +116,12 @@ func New(assetsDir string, profile *performancev2.PerformanceProfile) (*machinec
 	}
 
 	return mc, nil
+}
+
+// GetMachineConfigName generates machine config name from the performance profile
+func GetMachineConfigName(profile *performancev2.PerformanceProfile) string {
+	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
+	return fmt.Sprintf("50-%s", name)
 }
 
 func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfile) (*igntypes.Config, error) {

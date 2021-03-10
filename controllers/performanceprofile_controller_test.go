@@ -78,9 +78,8 @@ var _ = Describe("Controller", func() {
 
 			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
-			name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 			key := types.NamespacedName{
-				Name:      name,
+				Name:      machineconfig.GetMachineConfigName(profile),
 				Namespace: metav1.NamespaceNone,
 			}
 
@@ -88,6 +87,11 @@ var _ = Describe("Controller", func() {
 			mc := &mcov1.MachineConfig{}
 			err := r.Get(context.TODO(), key, mc)
 			Expect(err).ToNot(HaveOccurred())
+
+			key = types.NamespacedName{
+				Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
+				Namespace: metav1.NamespaceNone,
+			}
 
 			// verify KubeletConfig creation
 			kc := &mcov1.KubeletConfig{}
@@ -363,9 +367,8 @@ var _ = Describe("Controller", func() {
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
-				name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 				key := types.NamespacedName{
-					Name:      name,
+					Name:      machineconfig.GetMachineConfigName(profile),
 					Namespace: metav1.NamespaceNone,
 				}
 
@@ -517,7 +520,7 @@ var _ = Describe("Controller", func() {
 
 				By("Verifying MC update")
 				key = types.NamespacedName{
-					Name:      components.GetComponentName(profile.Name, components.ComponentNamePrefix),
+					Name:      machineconfig.GetMachineConfigName(profile),
 					Namespace: metav1.NamespaceNone,
 				}
 				mc := &mcov1.MachineConfig{}
