@@ -35,11 +35,8 @@ import (
 
 var (
 	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
-	// Values part of validPowerConsumptionModes are explained below:
-	// default => Use CPU C-states but limit them to 1, meaning the processor is idle it can sleep but not "deep sleep"
-	// performance => Disable CPU sleep (c-states), processor never sleeps even if is idle
-	// low-latency => processor is never idle, it is in polling mode (cpu=poll)
-	validPowerConsumptionModes = []string{"default", "performance", "low-latency"}
+	// TODO: Explain the power-consumption-mode and associated kernel args
+	validPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
@@ -207,20 +204,20 @@ type profileCreatorArgs struct {
 func init() {
 	args := &profileCreatorArgs{}
 	log.SetOutput(os.Stderr)
-	rootCmd.PersistentFlags().IntVarP(&args.reservedCPUCount, "reserved-cpu-count", "R", 0, "Number of reserved CPUs (required)")
+	rootCmd.PersistentFlags().IntVar(&args.reservedCPUCount, "reserved-cpu-count", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
-	rootCmd.PersistentFlags().BoolVarP(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", "S", false, "Split the Reserved CPUs across NUMA nodes")
-	rootCmd.PersistentFlags().StringVarP(&args.mcpName, "mcp-name", "n", "worker-cnf", "MCP name corresponding to the target machines (required)")
+	rootCmd.PersistentFlags().BoolVar(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", false, "Split the Reserved CPUs across NUMA nodes")
+	rootCmd.PersistentFlags().StringVar(&args.mcpName, "mcp-name", "worker-cnf", "MCP name corresponding to the target machines (required)")
 	rootCmd.MarkPersistentFlagRequired("mcp-name")
-	rootCmd.PersistentFlags().BoolVarP(&args.disableHT, "disable-ht", "H", false, "Disable Hyperthreading")
-	rootCmd.PersistentFlags().BoolVarP(&args.rtKernel, "rt-kernel", "K", true, "Enable Real Time Kernel (required)")
+	rootCmd.PersistentFlags().BoolVar(&args.disableHT, "disable-ht", false, "Disable Hyperthreading")
+	rootCmd.PersistentFlags().BoolVar(&args.rtKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
-	rootCmd.PersistentFlags().BoolVarP(&args.userLevelNetworking, "user-level-networking", "U", false, "Run with User level Networking(DPDK) enabled")
-	rootCmd.PersistentFlags().StringVarP(&args.powerConsumptionMode, "power-consumption-mode", "P", "default", "The power consumption mode. [Valid values: default, performance, low-latency]")
-	rootCmd.PersistentFlags().StringVarP(&args.mustGatherDirPath, "must-gather-dir-path", "M", "must-gather", "Must gather directory path")
+	rootCmd.PersistentFlags().BoolVar(&args.userLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
+	rootCmd.PersistentFlags().StringVar(&args.powerConsumptionMode, "power-consumption-mode", "default", "The power consumption mode. [Valid values: default, low-latency, ultra-low-latency]")
+	rootCmd.PersistentFlags().StringVar(&args.mustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
-	rootCmd.PersistentFlags().StringVarP(&args.profileName, "profile-name", "N", "performance", "Name of the performance profile to be created")
-	rootCmd.PersistentFlags().StringVarP(&args.tmPolicy, "topology-manager-policy", "T", "restricted", fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
+	rootCmd.PersistentFlags().StringVar(&args.profileName, "profile-name", "performance", "Name of the performance profile to be created")
+	rootCmd.PersistentFlags().StringVar(&args.tmPolicy, "topology-manager-policy", "restricted", fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
 }
 
 func createProfile(profileData ProfileData) {
