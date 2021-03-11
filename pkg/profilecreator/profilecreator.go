@@ -290,6 +290,8 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnabled bool, topologyInfoNodes []*topology.Node) (string, string, error) {
 	reservedCPUSet := cpuset.NewBuilder()
 	numaNodeNum := len(topologyInfoNodes)
+	log.Infof("Number of NUMA nodes on the node are: %d", numaNodeNum)
+
 	max := 0
 	reservedPerNuma := reservedCPUCount / numaNodeNum
 	remainder := reservedCPUCount % numaNodeNum
@@ -316,9 +318,9 @@ func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnab
 	}
 	totalCPUSet := totalCPUSetFromTopology(topologyInfoNodes)
 	isolatedCPUSet := totalCPUSet.Difference(reservedCPUSet.Result())
-	log.Infof("reservedCPUs: %v len(reservedCPUs): %d\n isolatedCPUs: %v len(isolatedCPUs): %d\n", reservedCPUSet.Result().String(), reservedCPUSet.Result().Size(), isolatedCPUSet.String(), isolatedCPUSet.Size())
+	log.Infof("%d reserved CPUs allocated: %v ", reservedCPUSet.Result().Size(), reservedCPUSet.Result().String())
+	log.Infof("%d isolated CPUs allocated: %v", isolatedCPUSet.Size(), isolatedCPUSet.String())
 	return reservedCPUSet.Result().String(), isolatedCPUSet.String(), nil
-
 }
 
 // getCPUsSequentially returns Reserved and Isolated CPUs sequentially
@@ -338,10 +340,11 @@ func (ghwHandler GHWHandler) getCPUsSequentially(reservedCPUCount int, htEnabled
 	}
 	totalCPUSet := totalCPUSetFromTopology(topologyInfoNodes)
 	isolatedCPUSet := totalCPUSet.Difference(reservedCPUSet.Result())
-	log.Infof("reservedCPUs: %v len(reservedCPUs): %d\n isolatedCPUs: %v len(isolatedCPUs): %d\n", reservedCPUSet.Result().String(), reservedCPUSet.Result().Size(), isolatedCPUSet.String(), isolatedCPUSet.Size())
+	log.Infof("%d reserved CPUs allocated: %v ", reservedCPUSet.Result().Size(), reservedCPUSet.Result().String())
+	log.Infof("%d isolated CPUs allocated: %v", isolatedCPUSet.Size(), isolatedCPUSet.String())
 	return reservedCPUSet.Result().String(), isolatedCPUSet.String(), nil
-
 }
+
 func totalCPUSetFromTopology(topologyInfoNodes []*topology.Node) cpuset.CPUSet {
 	totalCPUSet := cpuset.NewBuilder()
 	for _, node := range topologyInfoNodes {
@@ -413,7 +416,7 @@ func EnsureNodesHaveTheSameHardware(mustGatherDirPath string, nodes []*v1.Node) 
 
 func ensureSameTopology(topology1, topology2 *topology.Info) error {
 	if topology1.Architecture != topology2.Architecture {
-		return fmt.Errorf("the arhitecture is different: %v vs %v", topology1.Architecture, topology2.Architecture)
+		return fmt.Errorf("the architecture is different: %v vs %v", topology1.Architecture, topology2.Architecture)
 	}
 
 	if len(topology1.Nodes) != len(topology2.Nodes) {

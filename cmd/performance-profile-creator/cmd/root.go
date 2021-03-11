@@ -83,14 +83,17 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 	creatorArgs := profileCreatorArgs{}
 	mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
 	mcpName := cmd.Flag("mcp-name").Value.String()
+	log.Infof("mcp-name: %s ", mcpName)
 	reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse reserved-cpu-count flag: %v", err)
 	}
+	log.Infof("reserved-cpu-count: %d ", reservedCPUCount)
 	splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse split-reserved-cpus-across-numa flag: %v", err)
 	}
+	log.Infof("split-reserved-cpus-across-numa = %t", splitReservedCPUsAcrossNUMA)
 	profileName := cmd.Flag("profile-name").Value.String()
 	tmPolicy := cmd.Flag("topology-manager-policy").Value.String()
 	if err != nil {
@@ -103,6 +106,7 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 	if tmPolicy == kubeletconfig.SingleNumaNodeTopologyManager && splitReservedCPUsAcrossNUMA {
 		return creatorArgs, fmt.Errorf("not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
 	}
+	log.Infof("topology-manager-policy: %s ", tmPolicy)
 	powerConsumptionMode := cmd.Flag("power-consumption-mode").Value.String()
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse power-consumption-mode flag: %v", err)
@@ -111,6 +115,7 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 	if err != nil {
 		return creatorArgs, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
 	}
+	log.Infof("power-consumption-mode: %s ", powerConsumptionMode)
 	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
 	rtKernelEnabled, err := strconv.ParseBool(cmd.Flag("rt-kernel").Value.String())
 	if err != nil {
