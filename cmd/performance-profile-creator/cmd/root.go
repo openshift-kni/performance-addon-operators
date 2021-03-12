@@ -35,11 +35,6 @@ import (
 
 var (
 	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
-	// default => no args
-	// low-latency => "nmi_watchdog=0", "audit=0",  "mce=off"
-	// ultra-low-latency: low-latency values + "processor.max_cstate=1", "intel_idle.max_cstate=0", "idle=poll"
-	validPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
-	additionalKernelArgs       = []string{"nmi_watchdog=0", "audit=0", "mce=off", "processor.max_cstate=1", "intel_idle.max_cstate=0", "idle=poll"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
@@ -83,17 +78,14 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 	creatorArgs := profileCreatorArgs{}
 	mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
 	mcpName := cmd.Flag("mcp-name").Value.String()
-	log.Infof("mcp-name: %s ", mcpName)
 	reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse reserved-cpu-count flag: %v", err)
 	}
-	log.Infof("reserved-cpu-count: %d ", reservedCPUCount)
 	splitReservedCPUsAcrossNUMA, err := strconv.ParseBool(cmd.Flag("split-reserved-cpus-across-numa").Value.String())
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse split-reserved-cpus-across-numa flag: %v", err)
 	}
-	log.Infof("split-reserved-cpus-across-numa = %t", splitReservedCPUsAcrossNUMA)
 	profileName := cmd.Flag("profile-name").Value.String()
 	tmPolicy := cmd.Flag("topology-manager-policy").Value.String()
 	if err != nil {
@@ -106,16 +98,15 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 	if tmPolicy == kubeletconfig.SingleNumaNodeTopologyManager && splitReservedCPUsAcrossNUMA {
 		return creatorArgs, fmt.Errorf("not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
 	}
-	log.Infof("topology-manager-policy: %s ", tmPolicy)
 	powerConsumptionMode := cmd.Flag("power-consumption-mode").Value.String()
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse power-consumption-mode flag: %v", err)
 	}
-	err = validateFlag(powerConsumptionMode, validPowerConsumptionModes)
+	err = validateFlag(powerConsumptionMode, profilecreator.ValidPowerConsumptionModes)
 	if err != nil {
 		return creatorArgs, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
 	}
-	log.Infof("power-consumption-mode: %s ", powerConsumptionMode)
+
 	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
 	rtKernelEnabled, err := strconv.ParseBool(cmd.Flag("rt-kernel").Value.String())
 	if err != nil {
@@ -154,7 +145,11 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to find matching nodes for %s: %v", args.mcpName, err)
 	}
-
+	var matchedNodeNames []string
+	for _, node := range matchedNodes {
+		matchedNodeNames = append(matchedNodeNames, node.GetName())
+	}
+	log.Infof("Nodes targetted by %s MCP are: %v", args.mcpName, matchedNodeNames)
 	err = profilecreator.EnsureNodesHaveTheSameHardware(args.mustGatherDirPath, matchedNodes)
 	if err != nil {
 		return nil, fmt.Errorf("targeted nodes differ: %v", err)
@@ -163,17 +158,18 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	// We make sure that the matched Nodes are the same
 	// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
 	// same from hardware topology point of view
-	nodeName := matchedNodes[0].GetName()
-	log.Infof("%s is targetted by %s MCP", nodeName, args.mcpName)
+
 	handle, err := profilecreator.NewGHWHandler(args.mustGatherDirPath, matchedNodes[0])
 	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get reserved and isolated CPUs for %s: %v", nodeName, err)
+		return nil, fmt.Errorf("failed to get reserved and isolated CPUs for the nodes: %v", err)
 	}
-	kernelArgs := getAdditionalKernelArgs(args.powerConsumptionMode)
+	log.Infof("%d reserved CPUs allocated: %v ", reservedCPUs.Size(), reservedCPUs.String())
+	log.Infof("%d isolated CPUs allocated: %v", isolatedCPUs.Size(), isolatedCPUs.String())
+	kernelArgs := profilecreator.GetAdditionalKernelArgs(args.powerConsumptionMode)
 	profileData := &ProfileData{
-		reservedCPUs:           reservedCPUs,
-		isolatedCPUs:           isolatedCPUs,
+		reservedCPUs:           reservedCPUs.String(),
+		isolatedCPUs:           isolatedCPUs.String(),
 		nodeSelector:           mcp.Spec.NodeSelector,
 		performanceProfileName: args.profileName,
 		topologyPoilcy:         args.tmPolicy,
@@ -181,20 +177,6 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 		additionalKernelArgs:   kernelArgs,
 	}
 	return profileData, nil
-}
-
-func getAdditionalKernelArgs(powerMode string) []string {
-	var kernelArgs []string
-	switch powerMode {
-	case validPowerConsumptionModes[0]:
-		kernelArgs = []string{}
-	case validPowerConsumptionModes[1]:
-		kernelArgs = additionalKernelArgs[:3]
-	case validPowerConsumptionModes[2]:
-		kernelArgs = additionalKernelArgs
-	}
-	log.Infof("Additional Kernel Args based on the power consumption mode (%s): %v", powerMode, kernelArgs)
-	return kernelArgs
 }
 
 func validateFlag(value string, validValues []string) error {
@@ -239,7 +221,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&args.rtKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
 	rootCmd.PersistentFlags().BoolVar(&args.userLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
-	rootCmd.PersistentFlags().StringVar(&args.powerConsumptionMode, "power-consumption-mode", validPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s, %s, %s]", validPowerConsumptionModes[0], validPowerConsumptionModes[1], validPowerConsumptionModes[2]))
+	rootCmd.PersistentFlags().StringVar(&args.powerConsumptionMode, "power-consumption-mode", profilecreator.ValidPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s, %s, %s]", profilecreator.ValidPowerConsumptionModes[0], profilecreator.ValidPowerConsumptionModes[1], profilecreator.ValidPowerConsumptionModes[2]))
 	rootCmd.PersistentFlags().StringVar(&args.mustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
 	rootCmd.PersistentFlags().StringVar(&args.profileName, "profile-name", "performance", "Name of the performance profile to be created")
