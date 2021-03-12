@@ -2,6 +2,7 @@ package profilecreator
 
 import (
 	"path/filepath"
+	"sort"
 
 	"github.com/jaypipes/ghw/pkg/cpu"
 	"github.com/jaypipes/ghw/pkg/topology"
@@ -162,10 +163,10 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			reservedCPUSet, isolatedCPUSet, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(reservedCPUs).To(Equal("0,2,4,6,8,10,12,14,16,18,40,42,44,46,48,50,52,54,56,58"))
-			Expect(isolatedCPUs).To(Equal("1,3,5,7,9,11,13,15,17,19-39,41,43,45,47,49,51,53,55,57,59-79"))
+			Expect(reservedCPUSet.String()).To(Equal("0,2,4,6,8,10,12,14,16,18,40,42,44,46,48,50,52,54,56,58"))
+			Expect(isolatedCPUSet.String()).To(Equal("1,3,5,7,9,11,13,15,17,19-39,41,43,45,47,49,51,53,55,57,59-79"))
 		})
 		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is enabled", func() {
 			reservedCPUCount = 20 // random number, no special meaning
@@ -174,10 +175,10 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			reservedCPUSet, isolatedCPUSet, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(reservedCPUs).To(Equal("0-9,40-49"))
-			Expect(isolatedCPUs).To(Equal("10-39,50-79"))
+			Expect(reservedCPUSet.String()).To(Equal("0-9,40-49"))
+			Expect(isolatedCPUSet.String()).To(Equal("10-39,50-79"))
 		})
 		It("Errors out in case negative reservedCPUCount is specified", func() {
 			reservedCPUCount = -2 // random negative number, no special meaning
@@ -327,10 +328,10 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			reservedCPUs, isolatedCPUs, err := handle.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfoNodes)
+			reservedCPUSet, isolatedCPUSet, err := handle.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfoNodes)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(reservedCPUs).To(Equal("0-9,40-49"))
-			Expect(isolatedCPUs).To(Equal("10-39,50-79"))
+			Expect(reservedCPUSet.String()).To(Equal("0-9,40-49"))
+			Expect(isolatedCPUSet.String()).To(Equal("10-39,50-79"))
 		})
 		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is enabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
 			reservedCPUCount = 21 // random number which results in a CPU split per NUMA node (11 + 10 in this case) such that odd number of reserved CPUs (11) have to be allocated from a NUMA node
@@ -359,10 +360,10 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			reservedCPUs, isolatedCPUs, err := handle.getCPUsSequentially(reservedCPUCount, htEnabled, topologyInfoNodes)
+			reservedCPUSet, isolatedCPUSet, err := handle.getCPUsSequentially(reservedCPUCount, htEnabled, topologyInfoNodes)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(reservedCPUs).To(Equal("0,2,4,6,8,10,12,14,16,18,40,42,44,46,48,50,52,54,56,58"))
-			Expect(isolatedCPUs).To(Equal("1,3,5,7,9,11,13,15,17,19-39,41,43,45,47,49,51,53,55,57,59-79"))
+			Expect(reservedCPUSet.String()).To(Equal("0,2,4,6,8,10,12,14,16,18,40,42,44,46,48,50,52,54,56,58"))
+			Expect(isolatedCPUSet.String()).To(Equal("1,3,5,7,9,11,13,15,17,19-39,41,43,45,47,49,51,53,55,57,59-79"))
 		})
 		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is disabled and number of reserved CPUs are odd", func() {
 			reservedCPUCount = 21 // random number which results in odd number (21) of CPUs to be allocated from a NUMA node
@@ -496,5 +497,47 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Function ensureSameTopo
 			err := ensureSameTopology(&topology1, &topology2)
 			Expect(err).To(HaveOccurred())
 		})
+	})
+})
+
+var _ = Describe("PerformanceProfileCreator: Test Helper Function GetAdditionalKernelArgs", func() {
+	var powerMode string
+	// var args []string
+	Context("Ensure kernel args are populated correctly", func() {
+		It("Ensure kernel args are populated correctly in case of low-latency ", func() {
+			powerMode = "default"
+			kernelArgs := GetAdditionalKernelArgs(powerMode)
+			Expect(kernelArgs).To(BeEquivalentTo([]string{}))
+		})
+
+	})
+	Context("Ensure kernel args are populated correctly", func() {
+		It("Ensure kernel args are populated correctly in case of low-latency ", func() {
+			powerMode = "low-latency"
+			args := []string{"audit=0",
+				"mce=off",
+				"nmi_watchdog=0",
+			}
+			kernelArgs := GetAdditionalKernelArgs(powerMode)
+			sort.Strings(kernelArgs) // sort to avoid inequality due to difference in order
+			Expect(kernelArgs).To(BeEquivalentTo(args))
+		})
+
+	})
+	Context("Ensure kernel args are populated correctly", func() {
+		It("Ensure kernel args are populated correctly in case of ultra-low-latency ", func() {
+			powerMode = "ultra-low-latency"
+			args := []string{"audit=0",
+				"idle=poll",
+				"intel_idle.max_cstate=0",
+				"mce=off",
+				"nmi_watchdog=0",
+				"processor.max_cstate=1",
+			}
+			kernelArgs := GetAdditionalKernelArgs(powerMode)
+			sort.Strings(kernelArgs) // sort to avoid inequality due to difference in order
+			Expect(kernelArgs).To(BeEquivalentTo(args))
+		})
+
 	})
 })
