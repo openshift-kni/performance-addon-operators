@@ -74,7 +74,7 @@ main() {
 
   check_requirements || exit 1
 
-  ${CMD} -v "${DATA_DIR}:${MUST_GATHER_VOL}:z" "${PAO_IMG}" "$@" -M "${MUST_GATHER_VOL}"
+  ${CMD} -v "${DATA_DIR}:${MUST_GATHER_VOL}:z" "${PAO_IMG}" "$@" --must-gather-dir-path "${MUST_GATHER_VOL}"
   echo "" 1>&2
 }
 
