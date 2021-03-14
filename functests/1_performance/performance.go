@@ -339,6 +339,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				reserveCPUsCount := reservedSet.Size()
 				if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
 					By("To all non virtual network devices when no devices are specified under profile.Spec.Net.Devices")
+					validatTunedActiveProfile(workerRTNodes)
 					for _, node := range workerRTNodes {
 
 						cmdGetPhysicalDevices := []string{"find", "/sys/class/net", "-type", "l", "-not", "-lname", "*virtual*", "-printf", "%f "}
