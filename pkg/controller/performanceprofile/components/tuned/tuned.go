@@ -132,8 +132,8 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 			if device.VendorID != nil {
 				devices = append(devices, *device.VendorID)
 			}
-			if device.ModelID != nil {
-				devices = append(devices, *device.ModelID)
+			if device.DeviceID != nil {
+				devices = append(devices, *device.DeviceID)
 			}
 			devicesArgs := strings.Join(devices, ",")
 			netPluginSequence++

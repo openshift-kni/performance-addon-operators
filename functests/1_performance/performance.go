@@ -233,7 +233,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			tuned := &tunedv1.Tuned{}
 			err := testclient.Client.Get(context.TODO(), key, tuned)
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+key.String())
-			validatTunedActiveProfile(workerRTNodes)
+			validateTunedActiveProfile(workerRTNodes)
 			execSysctlOnWorkers(workerRTNodes, sysctlMap)
 		})
 	})
@@ -324,14 +324,14 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			tuned := &tunedv1.Tuned{}
 			err := testclient.Client.Get(context.TODO(), key, tuned)
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+components.ProfileNamePerformance)
-			validatTunedActiveProfile(workerRTNodes)
+			validateTunedActiveProfile(workerRTNodes)
 			execSysctlOnWorkers(workerRTNodes, sysctlMap)
 		})
 	})
 
 	Context("Network device queues adjusted by Tuned", func() {
 		//TODO - set test id
-		It("[test_id:XXXXX][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should be set to the profile's reserverd CPUs count ", func() {
+		It("[test_id:XXXXX][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should be set to the profile's reserved CPUs count ", func() {
 			noDeviceFound := true
 			if profile.Spec.Net != nil {
 				reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
@@ -339,7 +339,6 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				reserveCPUsCount := reservedSet.Size()
 				if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
 					By("To all non virtual network devices when no devices are specified under profile.Spec.Net.Devices")
-					validatTunedActiveProfile(workerRTNodes)
 					for _, node := range workerRTNodes {
 
 						cmdGetPhysicalDevices := []string{"find", "/sys/class/net", "-type", "l", "-not", "-lname", "*virtual*", "-printf", "%f "}
@@ -1089,7 +1088,7 @@ func execSysctlOnWorkers(workerNodes []corev1.Node, sysctlMap map[string]string)
 }
 
 // execute sysctl command inside container in a tuned pod
-func validatTunedActiveProfile(nodes []corev1.Node) {
+func validateTunedActiveProfile(nodes []corev1.Node) {
 	var err error
 	var out []byte
 	activeProfileName := components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance)

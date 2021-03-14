@@ -68,8 +68,8 @@ func (in *Device) DeepCopyInto(out *Device) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.ModelID != nil {
-		in, out := &in.ModelID, &out.ModelID
+	if in.DeviceID != nil {
+		in, out := &in.DeviceID, &out.DeviceID
 		*out = new(string)
 		**out = **in
 	}

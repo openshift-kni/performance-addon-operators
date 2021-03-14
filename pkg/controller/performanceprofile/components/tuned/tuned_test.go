@@ -187,7 +187,7 @@ var _ = Describe("Tuned", func() {
 							{
 								InterfaceName: &netDeviceName,
 								VendorID:      &netDeviceVendorID,
-								ModelID:       &netDeviceModelID,
+								DeviceID:      &netDeviceModelID,
 							},
 						}}
 					manifest := getTunedManifest(profile)

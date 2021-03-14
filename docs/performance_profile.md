@@ -47,9 +47,9 @@ Device defines a way to represent a network device in several options: device na
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| interfaceName | Network device name | *string | false |
+| interfaceName | Network device name to be matched. It uses a syntax of shell-style wildcards which are either positive or negative. | *string | false |
 | vendor | Network device vendor ID represnted as a 16 bit Hexmadecimal number. | *string | false |
-| model | Network device model ID (device) represnted as a 16 bit hexmadecimal number. | *string | false |
+| device | Network device ID (model) represnted as a 16 bit hexmadecimal number. | *string | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -100,8 +100,8 @@ Net defines a set of network related features
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| userLevelNetworking | UserLevelNetworking defines if the defined network devices queues (all or specified devices) should be set to the amount of reserved CPUs. Defaults to \"false\". | *bool | false |
-| devices | Devices contains a list of network device representations that will be set with a netqueue count equals to CPU.Reserved . If no devices are specified then the default is all devices. | [][Device](#device) | false |
+| userLevelNetworking | UserLevelNetworking when enabled - sets either all or specified network devices queue size to the amount of reserved CPUs. Defaults to \"false\". | *bool | false |
+| devices | Devices contains a list of network device representations that will be set with a netqueue count equal to CPU.Reserved . If no devices are specified then the default is all devices. | [][Device](#device) | false |
 
 [Back to TOC](#table-of-contents)
 

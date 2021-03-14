@@ -86,7 +86,7 @@ func NewPerformanceProfile(name string) *PerformanceProfile {
 					{
 						InterfaceName: &netDeviceName,
 						VendorID:      &netDeviceVendorID,
-						ModelID:       &netDeviceModelID,
+						DeviceID:      &netDeviceModelID,
 					},
 				},
 			},
@@ -293,23 +293,23 @@ var _ = Describe("PerformanceProfile", func() {
 		Context("with misconfigured fields", func() {
 			It("should raise the validation syntax errors", func() {
 				invalidVendor := "123"
-				invalidModel := "0x12345"
+				invalidDevice := "0x12345"
 				profile.Spec.Net.Devices[0].InterfaceName = pointer.StringPtr("")
 				profile.Spec.Net.Devices[0].VendorID = pointer.StringPtr(invalidVendor)
-				profile.Spec.Net.Devices[0].ModelID = pointer.StringPtr(invalidModel)
+				profile.Spec.Net.Devices[0].DeviceID = pointer.StringPtr(invalidDevice)
 				errors := profile.validateNet()
 				Expect(errors).NotTo(BeEmpty())
 				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device name cannot be empty")))
 				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device vendor ID %s has an invalid format. Vendor ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidVendor)))
-				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device model ID %s has an invalid format. Model ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidModel)))
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device model ID %s has an invalid format. Model ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidDevice)))
 
 			})
 			It("should raise the validation errors for missing fields", func() {
 				profile.Spec.Net.Devices[0].VendorID = nil
-				profile.Spec.Net.Devices[0].ModelID = pointer.StringPtr("0x1")
+				profile.Spec.Net.Devices[0].DeviceID = pointer.StringPtr("0x1")
 				errors := profile.validateNet()
 				Expect(errors).NotTo(BeEmpty())
-				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device model ID can not be used without specifying the device vendor ID.")))
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device ID can not be used without specifying the device vendor ID.")))
 			})
 		})
 	})
