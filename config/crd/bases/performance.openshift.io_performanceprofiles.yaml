@@ -356,17 +356,11 @@ spec:
                     items:
                       description: 'Device defines a way to represent a network device in several options: device name, vendor ID, model ID, PCI path and MAC address'
                       properties:
-                        mac:
-                          description: Network device MAC address
+                        interfaceName:
+                          description: Network device name
                           type: string
                         model:
                           description: Network device model ID (device) represnted as a 16 bit hexmadecimal number.
-                          type: string
-                        name:
-                          description: Network device name
-                          type: string
-                        pciPath:
-                          description: Network device PCI path
                           type: string
                         vendor:
                           description: Network device vendor ID represnted as a 16 bit Hexmadecimal number.
@@ -374,7 +368,7 @@ spec:
                       type: object
                     type: array
                   userLevelNetworking:
-                    description: UserLevelNetworking defines if the specified network devices . Defaults to "false".
+                    description: UserLevelNetworking defines if the defined network devices queues (all or specified devices) should be set to the amount of reserved CPUs. Defaults to "false".
                     type: boolean
                 type: object
               nodeSelector:

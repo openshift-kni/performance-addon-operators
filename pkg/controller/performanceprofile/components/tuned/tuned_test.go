@@ -180,26 +180,21 @@ var _ = Describe("Tuned", func() {
 					netDeviceName := "enp0s4"
 					netDeviceVendorID := "0x1af4"
 					netDeviceModelID := "0x1000"
-					netDevicePCIpath := "pci-0000:00:04.0"
-					netDeviceMAC := "enx54ee75491111"
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
 						Devices: []performancev2.Device{
 							{
-								Name:     &netDeviceName,
-								VendorID: &netDeviceVendorID,
-								ModelID:  &netDeviceModelID,
-								PCIpath:  &netDevicePCIpath,
-								MAC:      &netDeviceMAC,
+								InterfaceName: &netDeviceName,
+								VendorID:      &netDeviceVendorID,
+								ModelID:       &netDeviceModelID,
 							},
 						}}
 					manifest := getTunedManifest(profile)
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net_1\]\\ntype=net\\ndevices=` + netDeviceName + `,` + netDeviceVendorID + `,` + netDeviceModelID +
-						`,` + netDevicePCIpath + `,` + netDeviceMAC + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net_1\]\\ntype=net\\ndevices=` + netDeviceName + `,` + netDeviceVendorID + `,` + netDeviceModelID + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 			})

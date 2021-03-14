@@ -128,7 +128,8 @@ type NUMA struct {
 
 // Net defines a set of network related features
 type Net struct {
-	// UserLevelNetworking defines if the specified network devices . Defaults to "false".
+	// UserLevelNetworking defines if the defined network devices queues (all or specified devices)
+	// should be set to the amount of reserved CPUs. Defaults to "false".
 	UserLevelNetworking *bool `json:"userLevelNetworking,omitempty"`
 	// Devices contains a list of network device representations that will be
 	// set with a netqueue count equals to CPU.Reserved .
@@ -141,19 +142,13 @@ type Net struct {
 type Device struct {
 	// Network device name
 	// +optional
-	Name *string `json:"name,omitempty"`
+	InterfaceName *string `json:"interfaceName,omitempty"`
 	// Network device vendor ID represnted as a 16 bit Hexmadecimal number.
 	// +optional
 	VendorID *string `json:"vendor,omitempty"`
 	// Network device model ID (device) represnted as a 16 bit hexmadecimal number.
 	// +optional
 	ModelID *string `json:"model,omitempty"`
-	// Network device PCI path
-	// +optional
-	PCIpath *string `json:"pciPath,omitempty"`
-	// Network device MAC address
-	// +optional
-	MAC *string `json:"mac,omitempty"`
 }
 
 // RealTimeKernel defines the set of parameters relevant for the real time kernel.

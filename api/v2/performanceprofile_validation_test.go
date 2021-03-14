@@ -41,10 +41,6 @@ const (
 	NetDeviceVendorID = "0x1af4"
 	//NetDeviceModelID defines a net device model ID for the test profile
 	NetDeviceModelID = "0x1000"
-	//NetDeviceMAC defines a net device PCI path for the test profile
-	NetDevicePCIpath = "pci-0000:00:04.0"
-	//NetDeviceMAC defines a net device MAC address for the test profile
-	NetDeviceMAC = "enx54ee75491111"
 )
 
 // NewPerformanceProfile returns new performance profile object that used for tests
@@ -57,8 +53,6 @@ func NewPerformanceProfile(name string) *PerformanceProfile {
 	netDeviceName := NetDeviceName
 	netDeviceVendorID := NetDeviceVendorID
 	netDeviceModelID := NetDeviceModelID
-	netDevicePCIpath := NetDevicePCIpath
-	netDeviceMAC := NetDeviceMAC
 
 	return &PerformanceProfile{
 		TypeMeta: metav1.TypeMeta{Kind: "PerformanceProfile"},
@@ -90,11 +84,9 @@ func NewPerformanceProfile(name string) *PerformanceProfile {
 				UserLevelNetworking: pointer.BoolPtr(true),
 				Devices: []Device{
 					{
-						Name:     &netDeviceName,
-						VendorID: &netDeviceVendorID,
-						ModelID:  &netDeviceModelID,
-						PCIpath:  &netDevicePCIpath,
-						MAC:      &netDeviceMAC,
+						InterfaceName: &netDeviceName,
+						VendorID:      &netDeviceVendorID,
+						ModelID:       &netDeviceModelID,
 					},
 				},
 			},
@@ -292,11 +284,34 @@ var _ = Describe("PerformanceProfile", func() {
 	})
 
 	Describe("Net validation", func() {
-		It("should have net fields properly populated", func() {
-			errors := profile.validateNet()
-			Expect(errors).To(BeEmpty(), "should not have validation errors with properly populated net devices fields")
+		Context("with properly populated fields", func() {
+			It("should have net fields properly populated", func() {
+				errors := profile.validateNet()
+				Expect(errors).To(BeEmpty(), "should not have validation errors with properly populated net devices fields")
+			})
 		})
-		//TODO - add negative tests
+		Context("with misconfigured fields", func() {
+			It("should raise the validation syntax errors", func() {
+				invalidVendor := "123"
+				invalidModel := "0x12345"
+				profile.Spec.Net.Devices[0].InterfaceName = pointer.StringPtr("")
+				profile.Spec.Net.Devices[0].VendorID = pointer.StringPtr(invalidVendor)
+				profile.Spec.Net.Devices[0].ModelID = pointer.StringPtr(invalidModel)
+				errors := profile.validateNet()
+				Expect(errors).NotTo(BeEmpty())
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device name cannot be empty")))
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device vendor ID %s has an invalid format. Vendor ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidVendor)))
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device model ID %s has an invalid format. Model ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidModel)))
+
+			})
+			It("should raise the validation errors for missing fields", func() {
+				profile.Spec.Net.Devices[0].VendorID = nil
+				profile.Spec.Net.Devices[0].ModelID = pointer.StringPtr("0x1")
+				errors := profile.validateNet()
+				Expect(errors).NotTo(BeEmpty())
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device model ID can not be used without specifying the device vendor ID.")))
+			})
+		})
 	})
 })
 

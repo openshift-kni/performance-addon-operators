@@ -126,8 +126,8 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 
 		for _, device := range profile.Spec.Net.Devices {
 			devices = make([]string, 0)
-			if device.Name != nil {
-				devices = append(devices, *device.Name)
+			if device.InterfaceName != nil {
+				devices = append(devices, *device.InterfaceName)
 			}
 			if device.VendorID != nil {
 				devices = append(devices, *device.VendorID)
@@ -135,14 +135,6 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 			if device.ModelID != nil {
 				devices = append(devices, *device.ModelID)
 			}
-			if device.PCIpath != nil {
-				devices = append(devices, *device.PCIpath)
-			}
-			if device.MAC != nil {
-				//TODO - properly parse mac address
-				devices = append(devices, *device.MAC)
-			}
-
 			devicesArgs := strings.Join(devices, ",")
 			netPluginSequence++
 			tunedNetDevicesOutput = append(tunedNetDevicesOutput, fmt.Sprintf("\n[net_%d]\ntype=net\ndevices=%s\nchannels=combined %d", netPluginSequence, devicesArgs, reserveCPUcount))

@@ -263,31 +263,28 @@ func (r *PerformanceProfile) validateNet() field.ErrorList {
 		return allErrs
 	}
 
-	if *r.Spec.Net.UserLevelNetworking && r.Spec.CPU.Reserved == nil {
+	if r.Spec.Net.UserLevelNetworking != nil && *r.Spec.Net.UserLevelNetworking && r.Spec.CPU.Reserved == nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec.net"), r.Spec.Net, "Can not set network devices queues count without specifiying spec.cpu.reserved"))
 	}
 
 	for _, device := range r.Spec.Net.Devices {
-		if device.Name != nil && *device.Name == "" {
+		if device.InterfaceName != nil && *device.InterfaceName == "" {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec.net.devices"), r.Spec.Net.Devices, "device name cannot be empty"))
 		}
-		if device.VendorID != nil && !isValidHexID(*device.VendorID) {
+		if device.VendorID != nil && !isValid16bitsHexID(*device.VendorID) {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec.net.devices"), r.Spec.Net.Devices, fmt.Sprintf("device vendor ID %s has an invalid format. Vendor ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", *device.VendorID)))
 		}
-		if device.ModelID != nil && !isValidHexID(*device.ModelID) {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec.net.devices"), r.Spec.Net.Devices, fmt.Sprintf("device Model ID %s has an invalid format. Model ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", *device.ModelID)))
+		if device.ModelID != nil && !isValid16bitsHexID(*device.ModelID) {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec.net.devices"), r.Spec.Net.Devices, fmt.Sprintf("device model ID %s has an invalid format. Model ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", *device.ModelID)))
 		}
-		if device.PCIpath != nil && *device.PCIpath == "" {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec.net.devices"), r.Spec.Net.Devices, "device pci path cannot be empty"))
-		}
-		if device.MAC != nil && *device.MAC == "" {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec.net.devices"), r.Spec.Net.Devices, "device MAC address cannot be empty"))
+		if device.ModelID != nil && device.VendorID == nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec.net.devices"), r.Spec.Net.Devices, fmt.Sprintf("device model ID can not be used without specifying the device vendor ID.")))
 		}
 	}
 	return allErrs
 }
 
-func isValidHexID(v string) bool {
+func isValid16bitsHexID(v string) bool {
 	re := regexp.MustCompile("^0x[0-9a-fA-F]+$")
-	return re.MatchString(v)
+	return re.MatchString(v) && len(v) < 7
 }

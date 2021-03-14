@@ -337,7 +337,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 				Expect(err).ToNot(HaveOccurred())
 				reserveCPUsCount := reservedSet.Size()
-				if *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
+				if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
 					By("To all non virtual network devices when no devices are specified under profile.Spec.Net.Devices")
 					for _, node := range workerRTNodes {
 
@@ -366,7 +366,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 										d, node.Name, err))
 								} else {
 									Expect(err).ToNot(HaveOccurred())
-									Expect(channelCurrentCombined).To(Equal(reserveCPUsCount), " Channel current combine %d does not match the count of reserverd CPUs %d")
+									Expect(channelCurrentCombined).To(Equal(reserveCPUsCount), " Channel current combine count does not match the count of reserverd CPUs")
 								}
 								noDeviceFound = false
 							}
