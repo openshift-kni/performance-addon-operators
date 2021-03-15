@@ -41,6 +41,8 @@ spec:
             mountPath: /host/sys
           - name: proc
             mountPath: /host/proc
+          - name: podres
+            mountPath: /host/podresources
       volumes:
       - name: sys
         hostPath:
@@ -49,4 +51,8 @@ spec:
       - name: proc
         hostPath:
           path: /proc
+          type: Directory
+      - name: podres
+        hostPath:
+          path: /var/lib/kubelet/pod-resources
           type: Directory
