@@ -19,6 +19,7 @@ package v1beta1
 import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 )
 
 // HairpinMode denotes how the kubelet should configure networking to handle
@@ -60,12 +61,18 @@ const (
 	// BestEffortTopologyManagerPolicy is a mode in which kubelet will favour
 	// pods with NUMA alignment of CPU and device resources.
 	BestEffortTopologyManagerPolicy = "best-effort"
-	// NoneTopologyManager Policy is a mode in which kubelet has no knowledge
+	// NoneTopologyManagerPolicy is a mode in which kubelet has no knowledge
 	// of NUMA alignment of a pod's CPU and device resources.
 	NoneTopologyManagerPolicy = "none"
-	// SingleNumaNodeTopologyManager Policy iis a mode in which kubelet only allows
+	// SingleNumaNodeTopologyManagerPolicy is a mode in which kubelet only allows
 	// pods with a single NUMA alignment of CPU and device resources.
-	SingleNumaNodeTopologyManager = "single-numa-node"
+	SingleNumaNodeTopologyManagerPolicy = "single-numa-node"
+	// ContainerTopologyManagerScope represents that
+	// topology policy is applied on a per-container basis.
+	ContainerTopologyManagerScope = "container"
+	// PodTopologyManagerScope represents that
+	// topology policy is applied on a per-pod basis.
+	PodTopologyManagerScope = "pod"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -74,6 +81,12 @@ const (
 type KubeletConfiguration struct {
 	metav1.TypeMeta `json:",inline"`
 
+	// enableServer enables Kubelet's secured server.
+	// Note: Kubelet's insecure port is controlled by the readOnlyPort option.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
+	// it may disrupt components that interact with the Kubelet server.
+	// Default: true
+	EnableServer *bool `json:"enableServer,omitempty"`
 	// staticPodPath is the path to the directory containing local (static) pods to
 	// run, or the path to a single static pod file.
 	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
@@ -171,8 +184,7 @@ type KubeletConfiguration struct {
 	TLSMinVersion string `json:"tlsMinVersion,omitempty"`
 	// rotateCertificates enables client certificate rotation. The Kubelet will request a
 	// new certificate from the certificates.k8s.io API. This requires an approver to approve the
-	// certificate signing requests. The RotateKubeletClientCertificate feature
-	// must be enabled.
+	// certificate signing requests.
 	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
 	// disabling it may disrupt the Kubelet's ability to authenticate with the API server
 	// after the current certificate expires.
@@ -428,6 +440,12 @@ type KubeletConfiguration struct {
 	// Default: "none"
 	// +optional
 	TopologyManagerPolicy string `json:"topologyManagerPolicy,omitempty"`
+	// TopologyManagerScope represents the scope of topology hint generation
+	// that topology manager requests and hint providers generate.
+	// "pod" scope requires the TopologyManager feature gate to be enabled.
+	// Default: "container"
+	// +optional
+	TopologyManagerScope string `json:"topologyManagerScope,omitempty"`
 	// qosReserved is a set of resource name to percentage pairs that specify
 	// the minimum percentage of a resource reserved for exclusive use by the
 	// guaranteed QoS tier.
@@ -476,7 +494,6 @@ type KubeletConfiguration struct {
 	// +optional
 	PodCIDR string `json:"podCIDR,omitempty"`
 	// PodPidsLimit is the maximum number of pids in any pod.
-	// Requires the SupportPodPidsLimit feature gate to be enabled.
 	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
 	// lowering it may prevent container processes from forking after the change.
 	// Default: -1
@@ -490,6 +507,11 @@ type KubeletConfiguration struct {
 	// Default: "/etc/resolv.conf"
 	// +optional
 	ResolverConfig string `json:"resolvConf,omitempty"`
+	// RunOnce causes the Kubelet to check the API server once for pods,
+	// run those in addition to the pods specified by static pod files, and exit.
+	// Default: false
+	// +optional
+	RunOnce bool `json:"runOnce,omitempty"`
 	// cpuCFSQuota enables CPU CFS quota enforcement for containers that
 	// specify CPU limits.
 	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
@@ -504,6 +526,13 @@ type KubeletConfiguration struct {
 	// Default: "100ms"
 	// +optional
 	CPUCFSQuotaPeriod *metav1.Duration `json:"cpuCFSQuotaPeriod,omitempty"`
+	// nodeStatusMaxImages caps the number of images reported in Node.Status.Images.
+	// Note: If -1 is specified, no cap will be applied. If 0 is specified, no image is returned.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
+	// different values can be reported on node status.
+	// Default: 50
+	// +optional
+	NodeStatusMaxImages *int32 `json:"nodeStatusMaxImages,omitempty"`
 	// maxOpenFiles is Number of files that can be opened by Kubelet process.
 	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
 	// it may impact the ability of the Kubelet to interact with the node's filesystem.
@@ -755,6 +784,46 @@ type KubeletConfiguration struct {
 	// Default: []
 	// +optional
 	AllowedUnsafeSysctls []string `json:"allowedUnsafeSysctls,omitempty"`
+	// volumePluginDir is the full path of the directory in which to search
+	// for additional third party volume plugins.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that changing
+	// the volumePluginDir may disrupt workloads relying on third party volume plugins.
+	// Default: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"
+	// +optional
+	VolumePluginDir string `json:"volumePluginDir,omitempty"`
+	// providerID, if set, sets the unique id of the instance that an external provider (i.e. cloudprovider)
+	// can use to identify a specific node.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
+	// it may impact the ability of the Kubelet to interact with cloud providers.
+	// Default: ""
+	// +optional
+	ProviderID string `json:"providerID,omitempty"`
+	// kernelMemcgNotification, if set, the kubelet will integrate with the kernel memcg notification
+	// to determine if memory eviction thresholds are crossed rather than polling.
+	// Dynamic Kubelet Config (beta): If dynamically updating this field, consider that
+	// it may impact the way Kubelet interacts with the kernel.
+	// Default: false
+	// +optional
+	KernelMemcgNotification bool `json:"kernelMemcgNotification,omitempty"`
+	// Logging specifies the options of logging.
+	// Refer [Logs Options](https://github.com/kubernetes/component-base/blob/master/logs/options.go) for more information.
+	// Defaults:
+	//   Format: text
+	// + optional
+	Logging componentbaseconfigv1alpha1.LoggingConfiguration `json:"logging,omitempty"`
+	// enableSystemLogHandler enables system logs via web interface host:port/logs/
+	// Default: true
+	// +optional
+	EnableSystemLogHandler *bool `json:"enableSystemLogHandler,omitempty"`
+	// ShutdownGracePeriod specifies the total duration that the node should delay the shutdown and total grace period for pod termination during a node shutdown.
+	// Default: "30s"
+	// +optional
+	ShutdownGracePeriod metav1.Duration `json:"shutdownGracePeriod,omitempty"`
+	// ShutdownGracePeriodCriticalPods specifies the duration used to terminate critical pods during a node shutdown. This should be less than ShutdownGracePeriod.
+	// For example, if ShutdownGracePeriod=30s, and ShutdownGracePeriodCriticalPods=10s, during a node shutdown the first 20 seconds would be reserved for gracefully terminating normal pods, and the last 10 seconds would be reserved for terminating critical pods.
+	// Default: "10s"
+	// +optional
+	ShutdownGracePeriodCriticalPods metav1.Duration `json:"shutdownGracePeriodCriticalPods,omitempty"`
 }
 
 type KubeletAuthorizationMode string

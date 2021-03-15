@@ -34,7 +34,9 @@ import (
 )
 
 var (
-	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
+	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
+	// TODO: Explain the power-consumption-mode and associated kernel args
+	validPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
@@ -95,7 +97,7 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 	if err != nil {
 		return creatorArgs, fmt.Errorf("invalid value for topology-manager-policy flag specified: %v", err)
 	}
-	if tmPolicy == kubeletconfig.SingleNumaNodeTopologyManager && splitReservedCPUsAcrossNUMA {
+	if tmPolicy == kubeletconfig.SingleNumaNodeTopologyManagerPolicy && splitReservedCPUsAcrossNUMA {
 		return creatorArgs, fmt.Errorf("not appropriate to split reserved CPUs in case of topology-manager-policy: %v", tmPolicy)
 	}
 	powerConsumptionMode := cmd.Flag("power-consumption-mode").Value.String()
@@ -225,7 +227,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&args.mustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
 	rootCmd.PersistentFlags().StringVar(&args.profileName, "profile-name", "performance", "Name of the performance profile to be created")
-	rootCmd.PersistentFlags().StringVar(&args.tmPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
+	rootCmd.PersistentFlags().StringVar(&args.tmPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
 }
 
 func createProfile(profileData ProfileData) {
