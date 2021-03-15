@@ -35,8 +35,6 @@ import (
 
 var (
 	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
-	// TODO: Explain the power-consumption-mode and associated kernel args
-	validPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
@@ -46,6 +44,7 @@ type ProfileData struct {
 	performanceProfileName     string
 	topologyPoilcy             string
 	rtKernel                   bool
+	additionalKernelArgs       []string
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -103,10 +102,11 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse power-consumption-mode flag: %v", err)
 	}
-	err = validateFlag(powerConsumptionMode, validPowerConsumptionModes)
+	err = validateFlag(powerConsumptionMode, profilecreator.ValidPowerConsumptionModes)
 	if err != nil {
 		return creatorArgs, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
 	}
+
 	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
 	rtKernelEnabled, err := strconv.ParseBool(cmd.Flag("rt-kernel").Value.String())
 	if err != nil {
@@ -120,6 +120,7 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 		mcpName:                     mcpName,
 		tmPolicy:                    tmPolicy,
 		rtKernel:                    rtKernelEnabled,
+		powerConsumptionMode:        powerConsumptionMode,
 	}
 	return creatorArgs, nil
 }
@@ -144,7 +145,11 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to find matching nodes for %s: %v", args.mcpName, err)
 	}
-
+	var matchedNodeNames []string
+	for _, node := range matchedNodes {
+		matchedNodeNames = append(matchedNodeNames, node.GetName())
+	}
+	log.Infof("Nodes targetted by %s MCP are: %v", args.mcpName, matchedNodeNames)
 	err = profilecreator.EnsureNodesHaveTheSameHardware(args.mustGatherDirPath, matchedNodes)
 	if err != nil {
 		return nil, fmt.Errorf("targeted nodes differ: %v", err)
@@ -153,20 +158,23 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	// We make sure that the matched Nodes are the same
 	// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
 	// same from hardware topology point of view
-	nodeName := matchedNodes[0].GetName()
-	log.Infof("%s is targetted by %s MCP", nodeName, args.mcpName)
+
 	handle, err := profilecreator.NewGHWHandler(args.mustGatherDirPath, matchedNodes[0])
 	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get reserved and isolated CPUs for %s: %v", nodeName, err)
+		return nil, fmt.Errorf("failed to get reserved and isolated CPUs for the nodes: %v", err)
 	}
+	log.Infof("%d reserved CPUs allocated: %v ", reservedCPUs.Size(), reservedCPUs.String())
+	log.Infof("%d isolated CPUs allocated: %v", isolatedCPUs.Size(), isolatedCPUs.String())
+	kernelArgs := profilecreator.GetAdditionalKernelArgs(args.powerConsumptionMode)
 	profileData := &ProfileData{
-		reservedCPUs:           reservedCPUs,
-		isolatedCPUs:           isolatedCPUs,
+		reservedCPUs:           reservedCPUs.String(),
+		isolatedCPUs:           isolatedCPUs.String(),
 		nodeSelector:           mcp.Spec.NodeSelector,
 		performanceProfileName: args.profileName,
 		topologyPoilcy:         args.tmPolicy,
 		rtKernel:               args.rtKernel,
+		additionalKernelArgs:   kernelArgs,
 	}
 	return profileData, nil
 }
@@ -213,11 +221,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&args.rtKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
 	rootCmd.PersistentFlags().BoolVar(&args.userLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
-	rootCmd.PersistentFlags().StringVar(&args.powerConsumptionMode, "power-consumption-mode", "default", "The power consumption mode. [Valid values: default, low-latency, ultra-low-latency]")
+	rootCmd.PersistentFlags().StringVar(&args.powerConsumptionMode, "power-consumption-mode", profilecreator.ValidPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s, %s, %s]", profilecreator.ValidPowerConsumptionModes[0], profilecreator.ValidPowerConsumptionModes[1], profilecreator.ValidPowerConsumptionModes[2]))
 	rootCmd.PersistentFlags().StringVar(&args.mustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
 	rootCmd.PersistentFlags().StringVar(&args.profileName, "profile-name", "performance", "Name of the performance profile to be created")
-	rootCmd.PersistentFlags().StringVar(&args.tmPolicy, "topology-manager-policy", "restricted", fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
+	rootCmd.PersistentFlags().StringVar(&args.tmPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManager, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
 }
 
 func createProfile(profileData ProfileData) {
@@ -242,7 +250,7 @@ func createProfile(profileData ProfileData) {
 			RealTimeKernel: &performancev2.RealTimeKernel{
 				Enabled: &profileData.rtKernel,
 			},
-			AdditionalKernelArgs: []string{},
+			AdditionalKernelArgs: profileData.additionalKernelArgs,
 			NUMA: &performancev2.NUMA{
 				TopologyPolicy: &profileData.topologyPoilcy,
 			},
