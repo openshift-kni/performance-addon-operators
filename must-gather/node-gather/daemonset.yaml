@@ -39,8 +39,10 @@ spec:
         volumeMounts:
           - name: sys
             mountPath: /host/sys
+            readOnly: true
           - name: proc
             mountPath: /host/proc
+            readOnly: true
           - name: podres
             mountPath: /host/podresources
       volumes:
