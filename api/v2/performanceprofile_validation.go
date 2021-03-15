@@ -246,7 +246,7 @@ func (r *PerformanceProfile) validateNUMA() field.ErrorList {
 		if policy != kubeletconfigv1beta1.NoneTopologyManagerPolicy &&
 			policy != kubeletconfigv1beta1.BestEffortTopologyManagerPolicy &&
 			policy != kubeletconfigv1beta1.RestrictedTopologyManagerPolicy &&
-			policy != kubeletconfigv1beta1.SingleNumaNodeTopologyManager {
+			policy != kubeletconfigv1beta1.SingleNumaNodeTopologyManagerPolicy {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec.numa.topologyPolicy"), r.Spec.NUMA.TopologyPolicy, "unrecognized value for topologyPolicy"))
 		}
 	}
