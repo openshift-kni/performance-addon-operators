@@ -67,10 +67,6 @@ var (
 	ultraLowLatencyKernelArgs  = map[string]bool{"processor.max_cstate=1": true, "intel_idle.max_cstate=0": true, "idle=poll": true}
 )
 
-func init() {
-	log.SetOutput(os.Stderr)
-}
-
 func getMustGatherFullPathsWithFilter(mustGatherPath string, suffix string, filter string) (string, error) {
 	var paths []string
 

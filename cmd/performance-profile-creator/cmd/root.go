@@ -214,6 +214,9 @@ type profileCreatorArgs struct {
 func init() {
 	args := &profileCreatorArgs{}
 	log.SetOutput(os.Stderr)
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp: true,
+	})
 	rootCmd.PersistentFlags().IntVar(&args.reservedCPUCount, "reserved-cpu-count", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
 	rootCmd.PersistentFlags().BoolVar(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", false, "Split the Reserved CPUs across NUMA nodes")
