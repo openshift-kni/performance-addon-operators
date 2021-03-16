@@ -60,7 +60,7 @@ var rootCmd = &cobra.Command{
 		}
 		profileData, err := getProfileData(profileCreatorArgsFromFlags)
 		if err != nil {
-			return fmt.Errorf("failed to create the profile: %v", err)
+			return err
 		}
 		createProfile(*profileData)
 		return nil
