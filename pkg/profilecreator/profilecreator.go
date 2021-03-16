@@ -261,8 +261,8 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("can't obtain CPU info from GHW snapshot: %v", err)
 	}
 
-	if reservedCPUCount < 0 || reservedCPUCount >= int(cpuInfo.TotalThreads) {
-		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("invalid reserved CPU count specified, please specify it in the range [0,%d]", cpuInfo.TotalThreads-1)
+	if reservedCPUCount <= 0 || reservedCPUCount >= int(cpuInfo.TotalThreads) {
+		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("please specify the reserved CPU count in the range [1,%d]", cpuInfo.TotalThreads-1)
 	}
 	topologyInfo, err := ghwHandler.SortedTopology()
 	if err != nil {

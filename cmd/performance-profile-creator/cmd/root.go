@@ -163,7 +163,7 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	handle, err := profilecreator.NewGHWHandler(args.mustGatherDirPath, matchedNodes[0])
 	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get reserved and isolated CPUs for the nodes: %v", err)
+		return nil, fmt.Errorf("failed to compute the reserved and isolated CPUs: %v", err)
 	}
 	log.Infof("%d reserved CPUs allocated: %v ", reservedCPUs.Size(), reservedCPUs.String())
 	log.Infof("%d isolated CPUs allocated: %v", isolatedCPUs.Size(), isolatedCPUs.String())
