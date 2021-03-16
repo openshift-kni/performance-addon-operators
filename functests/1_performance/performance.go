@@ -330,8 +330,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 	})
 
 	Context("Network device queues adjusted by Tuned", func() {
-		//TODO - set test id
-		It("[test_id:XXXXX][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should be set to the profile's reserved CPUs count ", func() {
+		It("[test_id:40308][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should be set to the profile's reserved CPUs count ", func() {
 			noDeviceFound := true
 			if profile.Spec.Net != nil {
 				reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
