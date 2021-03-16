@@ -138,6 +138,8 @@ func kniExpectedCloneContent() []string {
 		"/proc/irq/default_smp_affinity",
 		"/proc/irq/*/*affinity_list",
 		"/proc/irq/*/node",
+		// softirqs counters
+		"/proc/softirqs",
 		// KNI-specific CPU infos:
 		"/sys/devices/system/cpu/smt/active",
 		// BIOS/firmware versions
