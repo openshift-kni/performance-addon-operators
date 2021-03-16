@@ -641,6 +641,57 @@ var _ = Describe("Controller", func() {
 				Expect(degradedCondition.Reason).To(Equal(conditionReasonMCPDegraded))
 				Expect(degradedCondition.Message).To(ContainSubstring(mcpMessage))
 			})
+
+			It("should update status when TunedProfile is degraded", func() {
+				tunedReason := "tunedReason"
+				tunedMessage := "Tuned message"
+
+				tuned := &tunedv1.Profile{
+					TypeMeta: metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "tuned-profile-test",
+					},
+					Spec: tunedv1.ProfileSpec{},
+
+					Status: tunedv1.ProfileStatus{
+						Conditions: []tunedv1.ProfileStatusCondition{
+							{
+								Type:    tunedv1.TunedDegraded,
+								Status:  corev1.ConditionTrue,
+								Reason:  tunedReason,
+								Message: tunedMessage,
+							},
+							{
+								Type:    tunedv1.TunedProfileApplied,
+								Status:  corev1.ConditionFalse,
+								Reason:  tunedReason,
+								Message: tunedMessage,
+							},
+						},
+					},
+				}
+
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance, tuned)
+
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				updatedProfile := &performancev2.PerformanceProfile{}
+				key := types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: metav1.NamespaceNone,
+				}
+				Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+
+				// verify performance profile status
+				Expect(len(updatedProfile.Status.Conditions)).To(Equal(4))
+
+				// verify profile conditions
+				degradedCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionDegraded)
+				Expect(degradedCondition).ToNot(BeNil())
+				Expect(degradedCondition.Status).To(Equal(corev1.ConditionTrue))
+				Expect(degradedCondition.Reason).To(Equal(conditionReasonTunedDegraded))
+				Expect(degradedCondition.Message).To(ContainSubstring(tunedMessage))
+			})
 		})
 
 	})

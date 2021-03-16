@@ -8,9 +8,9 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +26,7 @@ const (
 	conditionFailedGettingMCPStatus         = "GettingMCPStatusFailed"
 	conditionKubeletFailed                  = "KubeletConfig failure"
 	conditionFailedGettingKubeletStatus     = "GettingKubeletStatusFailed"
+	conditionReasonTunedDegraded            = "TunedProfileDegraded"
 )
 
 func (r *PerformanceProfileReconciler) updateStatus(profile *performancev2.PerformanceProfile, conditions []conditionsv1.Condition) error {
@@ -238,6 +239,49 @@ func (r *PerformanceProfileReconciler) getKubeletConditionsByProfile(profile *pe
 	}
 
 	return r.getDegradedConditions(conditionKubeletFailed, latestCondition.Message), nil
+}
+
+func (r *PerformanceProfileReconciler) getTunedConditionsByProfile(profile *performancev2.PerformanceProfile) ([]conditionsv1.Condition, error) {
+	tunedProfileList := &tunedv1.ProfileList{}
+	if err := r.List(context.TODO(), tunedProfileList); err != nil {
+		klog.Errorf("Cannot list Tuned Profiles to match with profile %q : %v", profile.Name, err)
+		return nil, err
+	}
+
+	message := bytes.Buffer{}
+	for _, tunedProfile := range tunedProfileList.Items {
+		isDegraded := false
+		isApplied := true
+		var pDegCondition *tunedv1.ProfileStatusCondition
+
+		for _, condition := range tunedProfile.Status.Conditions {
+			if (condition.Type == tunedv1.TunedDegraded) && condition.Status == corev1.ConditionTrue {
+				isDegraded = true
+				pDegCondition = &condition
+			}
+
+			if (condition.Type == tunedv1.TunedProfileApplied) && condition.Status == corev1.ConditionFalse {
+				isApplied = false
+			}
+		}
+		// We need both condition to exists,
+		// since there is a scenario where both Degraded & Applied condition are ture
+		if isDegraded == true && isApplied == false {
+			if len(pDegCondition.Reason) > 0 {
+				message.WriteString("Tuned " + tunedProfile.GetName() + " Degraded Reason: " + pDegCondition.Reason + ".\n")
+			}
+			if len(pDegCondition.Message) > 0 {
+				message.WriteString("Tuned " + tunedProfile.GetName() + " Degraded Message: " + pDegCondition.Message + ".\n")
+			}
+		}
+	}
+
+	messageString := message.String()
+	if len(messageString) == 0 {
+		return nil, nil
+	}
+
+	return r.getDegradedConditions(conditionReasonTunedDegraded, messageString), nil
 }
 
 func getLatestKubeletConfigCondition(conditions []mcov1.KubeletConfigCondition) *mcov1.KubeletConfigCondition {

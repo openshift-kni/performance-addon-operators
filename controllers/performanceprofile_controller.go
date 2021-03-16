@@ -278,6 +278,14 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		}
 	}
 
+	// get tuned profile degraded conditions
+	if conditions == nil {
+		conditions, err = r.getTunedConditionsByProfile(instance)
+		if err != nil {
+			return r.updateDegradedCondition(instance, conditionFailedGettingMCPStatus, err)
+		}
+	}
+
 	// if conditions were not added due to machine config pool status change then set as available
 	if conditions == nil {
 		conditions = r.getAvailableConditions()
