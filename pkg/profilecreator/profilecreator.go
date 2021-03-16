@@ -260,9 +260,7 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("can't obtain CPU info from GHW snapshot: %v", err)
 	}
-	if reservedCPUCount == int(cpuInfo.TotalThreads) {
-		log.Warnf("The reserved CPU count specified is equal to the total CPUs available on the node")
-	}
+
 	if reservedCPUCount < 0 || reservedCPUCount >= int(cpuInfo.TotalThreads) {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("invalid reserved CPU count specified, please specify it in the range [0,%d]", cpuInfo.TotalThreads-1)
 	}
