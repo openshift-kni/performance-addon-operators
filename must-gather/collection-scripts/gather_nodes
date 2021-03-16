@@ -51,7 +51,7 @@ do
     echo "Failed to collect perf-node-gather data from node ${line} due to pod scheduling failure." >> ${NODES_PATH}/skipped_nodes.txt
 done
 
-WORKER_NODES=()
+COLLECTABLE_NODES=()
 for line in $(oc get pod -o=custom-columns=NODE:.spec.nodeName,NAME:.metadata.name --no-headers --field-selector=status.phase=Running -n perf-node-gather)
 do
     node=$(echo $line | awk -F ' ' '{print $1}')
@@ -62,7 +62,7 @@ do
     oc exec $pod -n perf-node-gather -- lspci -nvv 2>/dev/null >> $NODE_PATH/lspci
     oc exec $pod -n perf-node-gather -- lscpu -e 2>/dev/null >> $NODE_PATH/lscpu
     oc exec $pod -n perf-node-gather -- cat /proc/cmdline 2>/dev/null >> $NODE_PATH/proc_cmdline
-    WORKER_NODES+=($node)
+    COLLECTABLE_NODES+=($node)
 
     oc exec $pod -n perf-node-gather -- gather_sysinfo --debug --root=/host --output=- > $NODE_PATH/sysinfo.tgz 2> $NODE_PATH/sysinfo.log
 done
@@ -70,7 +70,7 @@ done
 # Collect journal logs for specified units for all nodes
 NODE_UNITS=(kubelet)
 ADM_PIDS=()
-for NODE in ${WORKER_NODES[@]}; do
+for NODE in ${COLLECTABLE_NODES[@]}; do
     NODE_PATH=${NODES_PATH}/$NODE
     mkdir -p ${NODE_PATH}
     for UNIT in ${NODE_UNITS[@]}; do
