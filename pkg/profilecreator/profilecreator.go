@@ -172,13 +172,9 @@ func GetMCPList(mustGatherDirPath string) ([]*machineconfigv1.MachineConfigPool,
 	for _, mcp := range mcpFiles {
 		mcpName := strings.TrimSuffix(mcp.Name(), filepath.Ext(mcp.Name()))
 
-		// must-gather does not return the master nodes
-		if mcpName == "master" {
-			continue
-		}
-
 		mcp, err := GetMCP(mustGatherDirPath, mcpName)
-		if err != nil {
+		// master pool relevant only when pods can be scheduled on masters, e.g. SNO
+		if mcpName != "master" && err != nil {
 			return nil, fmt.Errorf("can't obtain MCP %s: %v", mcpName, err)
 		}
 		pools = append(pools, mcp)

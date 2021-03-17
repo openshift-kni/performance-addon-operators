@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
+	mustGatherDirPath    = "../../testdata/must-gather/must-gather.local.directory"
+	mustGatherSNODirPath = "../../testdata/must-gather/must-gather.local.sno"
 )
 
 var _ = Describe("PerformanceProfileCreator: MCP and Node Matching", func() {
@@ -51,6 +52,41 @@ var _ = Describe("PerformanceProfileCreator: MCP and Node Matching", func() {
 			Expect(matchedNodes).ToNot(BeNil())
 			Expect(len(matchedNodes)).To(Equal(1))
 			Expect(matchedNodes[0].GetName()).To(Equal("dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com"))
+		})
+	})
+})
+
+var _ = Describe("PerformanceProfileCreator: MCP and Node Matching in SNO", func() {
+	var nodes []*v1.Node
+	var mcps []*mcfgv1.MachineConfigPool
+
+	BeforeEach(func() {
+		var err error
+
+		nodes, err = GetNodeList(mustGatherSNODirPath)
+		Expect(err).ToNot(HaveOccurred())
+		mcps, err = GetMCPList(mustGatherSNODirPath)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	Context("Identifying Nodes targeted by MCP in SNO", func() {
+		It("should find no nodes in worker MCP", func() {
+			mcp, err := GetMCP(mustGatherSNODirPath, "worker")
+			Expect(err).ToNot(HaveOccurred())
+
+			matchedNodes, err := GetNodesForPool(mcp, mcps, nodes)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(matchedNodes)).To(Equal(0))
+		})
+		It("should find 1 machine in master MCP", func() {
+			mcp, err := GetMCP(mustGatherSNODirPath, "master")
+			Expect(err).ToNot(HaveOccurred())
+
+			matchedNodes, err := GetNodesForPool(mcp, mcps, nodes)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(matchedNodes).ToNot(BeNil())
+			Expect(len(matchedNodes)).To(Equal(1))
+			Expect(matchedNodes[0].GetName()).To(Equal("ocp47sno-master-0.demo.lab"))
 		})
 	})
 })
