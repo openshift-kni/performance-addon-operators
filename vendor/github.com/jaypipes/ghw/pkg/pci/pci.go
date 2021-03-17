@@ -10,15 +10,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/jaypipes/pcidb"
 
 	"github.com/jaypipes/ghw/pkg/context"
 	"github.com/jaypipes/ghw/pkg/marshal"
 	"github.com/jaypipes/ghw/pkg/option"
+	pciaddr "github.com/jaypipes/ghw/pkg/pci/address"
+	"github.com/jaypipes/ghw/pkg/topology"
 	"github.com/jaypipes/ghw/pkg/util"
 )
+
+// backward compatibility, to be removed in 1.0.0
+type Address pciaddr.Address
+
+// backward compatibility, to be removed in 1.0.0
+var AddressFromString = pciaddr.FromString
 
 var (
 	regexAddress *regexp.Regexp = regexp.MustCompile(
@@ -39,6 +46,9 @@ type Device struct {
 	Subclass *pcidb.Subclass `json:"subclass"`
 	// optional programming interface
 	ProgrammingInterface *pcidb.ProgrammingInterface `json:"programming_interface"`
+	// Topology node that the PCI device is affined to. Will be nil if the
+	// architecture is not NUMA.
+	Node *topology.Node `json:"node,omitempty"`
 }
 
 type devIdent struct {
@@ -116,7 +126,8 @@ func (d *Device) String() string {
 }
 
 type Info struct {
-	ctx *context.Context
+	arch topology.Architecture
+	ctx  *context.Context
 	// All PCI devices on the host system
 	Devices []*Device
 	// hash of class ID -> class information
@@ -137,43 +148,23 @@ func (i *Info) String() string {
 	return fmt.Sprintf("PCI (%d devices)", len(i.Devices))
 }
 
-type Address struct {
-	Domain   string
-	Bus      string
-	Slot     string
-	Function string
-}
-
-// Given a string address, returns a complete Address struct, filled in with
-// domain, bus, slot and function components. The address string may either
-// be in $BUS:$SLOT.$FUNCTION (BSF) format or it can be a full PCI address
-// that includes the 4-digit $DOMAIN information as well:
-// $DOMAIN:$BUS:$SLOT.$FUNCTION.
-//
-// Returns "" if the address string wasn't a valid PCI address.
-func AddressFromString(address string) *Address {
-	addrLowered := strings.ToLower(address)
-	matches := regexAddress.FindStringSubmatch(addrLowered)
-	if len(matches) == 6 {
-		dom := "0000"
-		if matches[1] != "" {
-			dom = matches[2]
-		}
-		return &Address{
-			Domain:   dom,
-			Bus:      matches[3],
-			Slot:     matches[4],
-			Function: matches[5],
-		}
-	}
-	return nil
-}
-
 // New returns a pointer to an Info struct that contains information about the
 // PCI devices on the host system
 func New(opts ...*option.Option) (*Info, error) {
 	ctx := context.New(opts...)
-	info := &Info{ctx: ctx}
+	// by default we don't report NUMA information;
+	// we will only if are sure we are running on NUMA architecture
+	arch := topology.ARCHITECTURE_SMP
+	topo, err := topology.NewWithContext(ctx)
+	if err == nil {
+		arch = topo.Architecture
+	} else {
+		ctx.Warn("error detecting system topology: %v", err)
+	}
+	info := &Info{
+		arch: arch,
+		ctx:  ctx,
+	}
 	if err := ctx.Do(info.load); err != nil {
 		return nil, err
 	}

@@ -43,19 +43,26 @@ func CloneTreeInto(scratchDir string) error {
 }
 
 // ExpectedCloneContent return a slice of glob patterns which represent the pseudofiles
-// ghw cares about. The intended usage of this function is to validate a clone tree,
-// checking that the content matches the expectations.
+// ghw cares about.
+// The intended usage of this function is to validate a clone tree, checking that the
+// content matches the expectations.
+// Beware: the content is host-specific, because the content pertaining some subsystems,
+// most notably PCI, is host-specific and unpredictable.
 func ExpectedCloneContent() []string {
+	fileSpecs := ExpectedCloneStaticContent()
+	fileSpecs = append(fileSpecs, ExpectedCloneNetContent()...)
+	fileSpecs = append(fileSpecs, ExpectedClonePCIContent()...)
+	return fileSpecs
+}
+
+// ExpectedCloneStaticContent return a slice of glob patterns which represent the pseudofiles
+// ghw cares about, and which are independent from host specific topology or configuration,
+// thus are safely represented by a static slice - e.g. they don't need to be discovered at runtime.
+func ExpectedCloneStaticContent() []string {
 	return []string{
 		"/etc/mtab",
 		"/proc/cpuinfo",
 		"/proc/meminfo",
-		"/sys/bus/pci/devices/*",
-		"/sys/devices/pci*/*/irq",
-		"/sys/devices/pci*/*/local_cpulist",
-		"/sys/devices/pci*/*/modalias",
-		"/sys/devices/pci*/*/numa_node",
-		"/sys/devices/pci*/pci_bus/*/cpulistaffinity",
 		"/sys/devices/system/cpu/cpu*/cache/index*/*",
 		"/sys/devices/system/cpu/cpu*/topology/*",
 		"/sys/devices/system/memory/block_size_bytes",
