@@ -348,6 +348,29 @@ spec:
                   type: string
                 description: MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector of resources like KubeletConfigs created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
                 type: object
+              net:
+                description: Net defines a set of network related features
+                properties:
+                  devices:
+                    description: Devices contains a list of network device representations that will be set with a netqueue count equal to CPU.Reserved . If no devices are specified then the default is all devices.
+                    items:
+                      description: 'Device defines a way to represent a network device in several options: device name, vendor ID, model ID, PCI path and MAC address'
+                      properties:
+                        device:
+                          description: Network device ID (model) represnted as a 16 bit hexmadecimal number.
+                          type: string
+                        interfaceName:
+                          description: Network device name to be matched. It uses a syntax of shell-style wildcards which are either positive or negative.
+                          type: string
+                        vendor:
+                          description: Network device vendor ID represnted as a 16 bit Hexmadecimal number.
+                          type: string
+                      type: object
+                    type: array
+                  userLevelNetworking:
+                    description: UserLevelNetworking when enabled - sets either all or specified network devices queue size to the amount of reserved CPUs. Defaults to "false".
+                    type: boolean
+                type: object
               nodeSelector:
                 additionalProperties:
                   type: string

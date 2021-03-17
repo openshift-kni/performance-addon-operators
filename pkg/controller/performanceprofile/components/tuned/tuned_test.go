@@ -3,6 +3,7 @@ package tuned
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -12,6 +13,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 
+	cpuset "k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
 )
 
@@ -157,6 +159,43 @@ var _ = Describe("Tuned", func() {
 					manifest := getTunedManifest(profile)
 					Expect(cmdlineDummy2MHugePages.MatchString(manifest)).To(BeFalse())
 					Expect(cmdlineMultipleHugePages.MatchString(manifest)).To(BeFalse())
+				})
+			})
+		})
+
+		Context("with user level networking enabled", func() {
+			Context("with default net device queues (all devices set)", func() {
+				It("should set the default netqueues count to reserved CPUs count", func() {
+					profile.Spec.Net = &performancev2.Net{
+						UserLevelNetworking: pointer.BoolPtr(true),
+					}
+					manifest := getTunedManifest(profile)
+					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
+					Expect(err).ToNot(HaveOccurred())
+					reserveCPUcount := reservedSet.Size()
+					channelsRegex := regexp.MustCompile(`\s*channels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
+				})
+				It("should set specific devices with reserved CPUs count", func() {
+					netDeviceName := "enp0s4"
+					netDeviceVendorID := "0x1af4"
+					netDeviceModelID := "0x1000"
+
+					profile.Spec.Net = &performancev2.Net{
+						UserLevelNetworking: pointer.BoolPtr(true),
+						Devices: []performancev2.Device{
+							{
+								InterfaceName: &netDeviceName,
+								VendorID:      &netDeviceVendorID,
+								DeviceID:      &netDeviceModelID,
+							},
+						}}
+					manifest := getTunedManifest(profile)
+					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
+					Expect(err).ToNot(HaveOccurred())
+					reserveCPUcount := reservedSet.Size()
+					channelsRegex := regexp.MustCompile(`\s*\[net_1\]\\ntype=net\\ndevices=` + netDeviceName + `,` + netDeviceVendorID + `,` + netDeviceModelID + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 			})
 		})

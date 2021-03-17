@@ -28,12 +28,19 @@ const (
 
 	//MachineConfigLabelKey defines the MachineConfig label key of the test profile
 	MachineConfigLabelKey = "mcKey"
-	//MachineConfigLabelValue defines the MachineConfig label vlue of the test profile
+	//MachineConfigLabelValue defines the MachineConfig label value of the test profile
 	MachineConfigLabelValue = "mcValue"
 	//MachineConfigPoolLabelKey defines the MachineConfigPool label key of the test profile
 	MachineConfigPoolLabelKey = "mcpKey"
 	//MachineConfigPoolLabelValue defines the MachineConfigPool label value of the test profile
 	MachineConfigPoolLabelValue = "mcpValue"
+
+	//NetDeviceName defines a net device name for the test profile
+	NetDeviceName = "enp0s4"
+	//NetDeviceVendorID defines a net device vendor ID for the test profile
+	NetDeviceVendorID = "0x1af4"
+	//NetDeviceModelID defines a net device model ID for the test profile
+	NetDeviceModelID = "0x1000"
 )
 
 // NewPerformanceProfile returns new performance profile object that used for tests
@@ -42,6 +49,10 @@ func NewPerformanceProfile(name string) *PerformanceProfile {
 	isolatedCPUs := IsolatedCPUs
 	reservedCPUs := ReservedCPUs
 	numaPolicy := SingleNUMAPolicy
+
+	netDeviceName := NetDeviceName
+	netDeviceVendorID := NetDeviceVendorID
+	netDeviceModelID := NetDeviceModelID
 
 	return &PerformanceProfile{
 		TypeMeta: metav1.TypeMeta{Kind: "PerformanceProfile"},
@@ -68,6 +79,16 @@ func NewPerformanceProfile(name string) *PerformanceProfile {
 			},
 			NUMA: &NUMA{
 				TopologyPolicy: &numaPolicy,
+			},
+			Net: &Net{
+				UserLevelNetworking: pointer.BoolPtr(true),
+				Devices: []Device{
+					{
+						InterfaceName: &netDeviceName,
+						VendorID:      &netDeviceVendorID,
+						DeviceID:      &netDeviceModelID,
+					},
+				},
 			},
 			MachineConfigLabel: map[string]string{
 				MachineConfigLabelKey: MachineConfigLabelValue,
@@ -258,6 +279,37 @@ var _ = Describe("PerformanceProfile", func() {
 					Expect(errors).NotTo(BeEmpty())
 					Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("the page with the size %q and without the specified NUMA node, has duplication", hugepagesSize1G)))
 				})
+			})
+		})
+	})
+
+	Describe("Net validation", func() {
+		Context("with properly populated fields", func() {
+			It("should have net fields properly populated", func() {
+				errors := profile.validateNet()
+				Expect(errors).To(BeEmpty(), "should not have validation errors with properly populated net devices fields")
+			})
+		})
+		Context("with misconfigured fields", func() {
+			It("should raise the validation syntax errors", func() {
+				invalidVendor := "123"
+				invalidDevice := "0x12345"
+				profile.Spec.Net.Devices[0].InterfaceName = pointer.StringPtr("")
+				profile.Spec.Net.Devices[0].VendorID = pointer.StringPtr(invalidVendor)
+				profile.Spec.Net.Devices[0].DeviceID = pointer.StringPtr(invalidDevice)
+				errors := profile.validateNet()
+				Expect(errors).NotTo(BeEmpty())
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device name cannot be empty")))
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device vendor ID %s has an invalid format. Vendor ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidVendor)))
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device model ID %s has an invalid format. Model ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidDevice)))
+
+			})
+			It("should raise the validation errors for missing fields", func() {
+				profile.Spec.Net.Devices[0].VendorID = nil
+				profile.Spec.Net.Devices[0].DeviceID = pointer.StringPtr("0x1")
+				errors := profile.validateNet()
+				Expect(errors).NotTo(BeEmpty())
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device ID can not be used without specifying the device vendor ID.")))
 			})
 		})
 	})
