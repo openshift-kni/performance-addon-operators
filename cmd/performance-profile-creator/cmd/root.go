@@ -48,6 +48,7 @@ type ProfileData struct {
 	topologyPoilcy             string
 	rtKernel                   bool
 	additionalKernelArgs       []string
+	userLevelNetworking        bool
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -109,10 +110,14 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 		return creatorArgs, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
 	}
 
-	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
 	rtKernelEnabled, err := strconv.ParseBool(cmd.Flag("rt-kernel").Value.String())
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse rt-kernel flag: %v", err)
+	}
+
+	userLevelNetworkingEnabled, err := strconv.ParseBool(cmd.Flag("user-level-networking").Value.String())
+	if err != nil {
+		return creatorArgs, fmt.Errorf("failed to parse user-level-networking flag: %v", err)
 	}
 	creatorArgs = profileCreatorArgs{
 		mustGatherDirPath:           mustGatherDirPath,
@@ -123,6 +128,7 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 		tmPolicy:                    tmPolicy,
 		rtKernel:                    rtKernelEnabled,
 		powerConsumptionMode:        powerConsumptionMode,
+		userLevelNetworking:         userLevelNetworkingEnabled,
 	}
 	return creatorArgs, nil
 }
@@ -200,6 +206,7 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 		topologyPoilcy:         args.tmPolicy,
 		rtKernel:               args.rtKernel,
 		additionalKernelArgs:   kernelArgs,
+		userLevelNetworking:    args.userLevelNetworking,
 	}
 	return profileData, nil
 }
@@ -281,6 +288,9 @@ func createProfile(profileData ProfileData) {
 			AdditionalKernelArgs: profileData.additionalKernelArgs,
 			NUMA: &performancev2.NUMA{
 				TopologyPolicy: &profileData.topologyPoilcy,
+			},
+			Net: &performancev2.Net{
+				UserLevelNetworking: &profileData.userLevelNetworking,
 			},
 		},
 	}
