@@ -42,6 +42,7 @@ var (
 type ProfileData struct {
 	isolatedCPUs, reservedCPUs string
 	nodeSelector               *metav1.LabelSelector
+	mcpSelector                map[string]string
 	performanceProfileName     string
 	topologyPoilcy             string
 	rtKernel                   bool
@@ -168,6 +169,11 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 		return nil, fmt.Errorf("'%s' MCP does not exist, valid values are %v", args.mcpName, mcpNames)
 	}
 
+	mcpSelector, err := profilecreator.GetMCPSelector(mcp, mcps)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute the MCP selector: %v", err)
+	}
+
 	nodes, err := profilecreator.GetNodeList(args.mustGatherDirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load the cluster nodes: %v", err)
@@ -207,6 +213,7 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 		reservedCPUs:           reservedCPUs.String(),
 		isolatedCPUs:           isolatedCPUs.String(),
 		nodeSelector:           mcp.Spec.NodeSelector,
+		mcpSelector:            mcpSelector,
 		performanceProfileName: args.profileName,
 		topologyPoilcy:         args.tmPolicy,
 		rtKernel:               args.rtKernel,
@@ -286,7 +293,8 @@ func createProfile(profileData ProfileData) {
 				Isolated: &isolated,
 				Reserved: &reserved,
 			},
-			NodeSelector: profileData.nodeSelector.MatchLabels,
+			MachineConfigPoolSelector: profileData.mcpSelector,
+			NodeSelector:              profileData.nodeSelector.MatchLabels,
 			RealTimeKernel: &performancev2.RealTimeKernel{
 				Enabled: &profileData.rtKernel,
 			},
