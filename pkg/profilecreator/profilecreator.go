@@ -67,10 +67,6 @@ var (
 	ultraLowLatencyKernelArgs  = map[string]bool{"processor.max_cstate=1": true, "intel_idle.max_cstate=0": true, "idle=poll": true}
 )
 
-func init() {
-	log.SetOutput(os.Stderr)
-}
-
 func getMustGatherFullPathsWithFilter(mustGatherPath string, suffix string, filter string) (string, error) {
 	var paths []string
 
@@ -264,11 +260,9 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("can't obtain CPU info from GHW snapshot: %v", err)
 	}
-	if reservedCPUCount == int(cpuInfo.TotalThreads) {
-		log.Warnf("The reserved CPU count specified is equal to the total CPUs available on the node")
-	}
-	if reservedCPUCount < 0 || reservedCPUCount >= int(cpuInfo.TotalThreads) {
-		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("invalid reserved CPU count specified, please specify it in the range [0,%d]", cpuInfo.TotalThreads-1)
+
+	if reservedCPUCount <= 0 || reservedCPUCount >= int(cpuInfo.TotalThreads) {
+		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("please specify the reserved CPU count in the range [1,%d]", cpuInfo.TotalThreads-1)
 	}
 	topologyInfo, err := ghwHandler.SortedTopology()
 	if err != nil {

@@ -24,6 +24,7 @@ import (
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/profilecreator"
 	"github.com/openshift-kni/performance-addon-operators/pkg/utils/csvtools"
+	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
@@ -60,7 +61,7 @@ var rootCmd = &cobra.Command{
 		}
 		profileData, err := getProfileData(profileCreatorArgsFromFlags)
 		if err != nil {
-			return fmt.Errorf("failed to create the profile: %v", err)
+			return err
 		}
 		createProfile(*profileData)
 		return nil
@@ -71,7 +72,6 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to execute root command: %v", err)
 		os.Exit(1)
 	}
 }
@@ -128,14 +128,15 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 }
 
 func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
-	mcp, err := profilecreator.GetMCP(args.mustGatherDirPath, args.mcpName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get MachineConfigPool with mcp-name %s: %v", args.mcpName, err)
+	info, err := os.Stat(args.mustGatherDirPath)
+	if os.IsNotExist(err) {
+		return nil, fmt.Errorf("the must-gather path '%s' is not valid", args.mustGatherDirPath)
 	}
-
-	nodes, err := profilecreator.GetNodeList(args.mustGatherDirPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Nodes with mcp-name %s: %v", args.mcpName, err)
+		return nil, fmt.Errorf("can't access the must-gather path: %v", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("the must-gather path '%s' is not a directory", args.mustGatherDirPath)
 	}
 
 	mcps, err := profilecreator.GetMCPList(args.mustGatherDirPath)
@@ -143,10 +144,32 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 		return nil, fmt.Errorf("failed to get the MCP list under %s: %v", args.mustGatherDirPath, err)
 	}
 
+	var mcp *machineconfigv1.MachineConfigPool
+	mcpNames := make([]string, 0)
+	for _, m := range mcps {
+		mcpNames = append(mcpNames, m.Name)
+		if m.Name == args.mcpName {
+			mcp = m
+		}
+	}
+
+	if mcp == nil {
+		return nil, fmt.Errorf("'%s' MCP does not exist, valid values are %v", args.mcpName, mcpNames)
+	}
+
+	nodes, err := profilecreator.GetNodeList(args.mustGatherDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the cluster nodes: %v", err)
+	}
+
 	matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find matching nodes for %s: %v", args.mcpName, err)
+		return nil, fmt.Errorf("failed to find MCP %s's nodes: %v", args.mcpName, err)
 	}
+	if len(matchedNodes) == 0 {
+		return nil, fmt.Errorf("no nodes are associated with '%s' MCP", args.mcpName)
+	}
+
 	var matchedNodeNames []string
 	for _, node := range matchedNodes {
 		matchedNodeNames = append(matchedNodeNames, node.GetName())
@@ -164,7 +187,7 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	handle, err := profilecreator.NewGHWHandler(args.mustGatherDirPath, matchedNodes[0])
 	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get reserved and isolated CPUs for the nodes: %v", err)
+		return nil, fmt.Errorf("failed to compute the reserved and isolated CPUs: %v", err)
 	}
 	log.Infof("%d reserved CPUs allocated: %v ", reservedCPUs.Size(), reservedCPUs.String())
 	log.Infof("%d isolated CPUs allocated: %v", isolatedCPUs.Size(), isolatedCPUs.String())
@@ -214,6 +237,9 @@ type profileCreatorArgs struct {
 func init() {
 	args := &profileCreatorArgs{}
 	log.SetOutput(os.Stderr)
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp: true,
+	})
 	rootCmd.PersistentFlags().IntVar(&args.reservedCPUCount, "reserved-cpu-count", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
 	rootCmd.PersistentFlags().BoolVar(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", false, "Split the Reserved CPUs across NUMA nodes")
