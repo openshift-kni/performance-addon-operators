@@ -62,6 +62,7 @@ var (
 	// default => no args
 	// low-latency => "nmi_watchdog=0", "audit=0",  "mce=off"
 	// ultra-low-latency: low-latency values + "processor.max_cstate=1", "intel_idle.max_cstate=0", "idle=poll"
+	// For more information on CPU "C-states" please refer to https://gist.github.com/wmealing/2dd2b543c4d3cff6cab7
 	ValidPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
 	lowLatencyKernelArgs       = map[string]bool{"nmi_watchdog=0": true, "audit=0": true, "mce=off": true}
 	ultraLowLatencyKernelArgs  = map[string]bool{"processor.max_cstate=1": true, "intel_idle.max_cstate=0": true, "idle=poll": true}
@@ -359,7 +360,7 @@ func totalCPUSetFromTopology(topologyInfoNodes []*topology.Node) cpuset.CPUSet {
 func (ghwHandler GHWHandler) isHyperthreadingEnabled() (bool, error) {
 	cpuInfo, err := ghwHandler.CPU()
 	if err != nil {
-		return false, fmt.Errorf("Error obtaining CPU Info from GHW snapshot: %v", err)
+		return false, fmt.Errorf("can't obtain CPU Info from GHW snapshot: %v", err)
 	}
 	// Since there is no way to disable flags per-processor (not system wide) we check the flags of the first available processor.
 	// A following implementation will leverage the /sys/devices/system/cpu/smt/active file which is the "standard" way to query HT.
@@ -473,6 +474,7 @@ func GetAdditionalKernelArgs(powerMode string) []string {
 			kernelArgsSlice = append(kernelArgsSlice, arg)
 		}
 	}
+	sort.Strings(kernelArgsSlice)
 	log.Infof("Additional Kernel Args based on the power consumption mode (%s):%v", powerMode, kernelArgsSlice)
 	return kernelArgsSlice
 }
