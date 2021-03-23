@@ -36,8 +36,6 @@ import (
 
 var (
 	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
-	// TODO: Explain the power-consumption-mode and associated kernel args
-	validPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation

@@ -55,7 +55,8 @@ const (
 	Nodes = "nodes"
 	// SysInfoFileName defines the name of the file where ghw snapshot is stored
 	SysInfoFileName = "sysinfo.tgz"
-	noSMTKernelArg  = "nosmt"
+	// noSMTKernelArg is the kernel arg value to disable SMT in a system
+	noSMTKernelArg = "nosmt"
 )
 
 var (
@@ -310,6 +311,18 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 		topologyInfo = ghwHandler.TopologyHTDisabled(topologyInfo)
 
 	}
+	log.Infof("NUMA cell(s): %d", len(topologyInfo.Nodes))
+	totalCPUs := 0
+	for id, node := range topologyInfo.Nodes {
+		coreList := []int{}
+		for _, core := range node.Cores {
+			coreList = append(coreList, core.LogicalProcessors...)
+		}
+		log.Infof("NUMA cell %d : %v", id, coreList)
+		totalCPUs += len(coreList)
+	}
+
+	log.Infof("CPU(s): %d", totalCPUs)
 
 	if splitReservedCPUsAcrossNUMA {
 		return ghwHandler.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, disableHTFlag, topologyInfo.Nodes)
@@ -330,7 +343,6 @@ func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnab
 	reservedCPUSet := cpuset.NewBuilder()
 	var isolatedCPUSet cpuset.CPUSet
 	numaNodeNum := len(topologyInfoNodes)
-	log.Infof("Number of NUMA cells on the node are: %d", numaNodeNum)
 
 	max := 0
 	reservedPerNuma := reservedCPUCount / numaNodeNum
