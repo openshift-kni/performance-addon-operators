@@ -57,6 +57,8 @@ const (
 	SysInfoFileName = "sysinfo.tgz"
 	// noSMTKernelArg is the kernel arg value to disable SMT in a system
 	noSMTKernelArg = "nosmt"
+	// allCores correspond to the value when all the processorCores need to be added to the generated CPUset
+	allCores = -1
 )
 
 var (
@@ -363,13 +365,7 @@ func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnab
 		if max%2 != 0 && htEnabled {
 			return reservedCPUSet.Result(), isolatedCPUSet, fmt.Errorf("can't allocate odd number of CPUs from a NUMA Node")
 		}
-		for _, processorCores := range node.Cores {
-			for _, core := range processorCores.LogicalProcessors {
-				if reservedCPUSet.Result().Size() < max {
-					reservedCPUSet.Add(core)
-				}
-			}
-		}
+		addCoresToCPUSet(reservedCPUSet, max, node.Cores)
 	}
 	totalCPUSet := totalCPUSetFromTopology(topologyInfoNodes)
 	isolatedCPUSet = totalCPUSet.Difference(reservedCPUSet.Result())
@@ -384,13 +380,7 @@ func (ghwHandler GHWHandler) getCPUsSequentially(reservedCPUCount int, htEnabled
 		return reservedCPUSet.Result(), isolatedCPUSet, fmt.Errorf("can't allocate odd number of CPUs from a NUMA Node")
 	}
 	for _, node := range topologyInfoNodes {
-		for _, processorCores := range node.Cores {
-			for _, core := range processorCores.LogicalProcessors {
-				if reservedCPUSet.Result().Size() < reservedCPUCount {
-					reservedCPUSet.Add(core)
-				}
-			}
-		}
+		addCoresToCPUSet(reservedCPUSet, reservedCPUCount, node.Cores)
 	}
 	totalCPUSet := totalCPUSetFromTopology(topologyInfoNodes)
 	isolatedCPUSet = totalCPUSet.Difference(reservedCPUSet.Result())
@@ -400,13 +390,22 @@ func (ghwHandler GHWHandler) getCPUsSequentially(reservedCPUCount int, htEnabled
 func totalCPUSetFromTopology(topologyInfoNodes []*topology.Node) cpuset.CPUSet {
 	totalCPUSet := cpuset.NewBuilder()
 	for _, node := range topologyInfoNodes {
-		for _, processorCores := range node.Cores {
-			for _, core := range processorCores.LogicalProcessors {
-				totalCPUSet.Add(core)
+		//all the cores from node.Cores need to be added, hence allCores is specified as the max value
+		addCoresToCPUSet(totalCPUSet, allCores, node.Cores)
+	}
+	return totalCPUSet.Result()
+}
+
+// addCoresToCPUSet adds logical cores from the slice of *cpu.ProcessorCore to a CPUset till the cpuset size is equal to the max value speicifed
+// In case the max is specified as allCores, all the cores from the slice of *cpu.ProcessorCore are added to the CPUset
+func addCoresToCPUSet(reservedCPUSet cpuset.Builder, max int, cores []*cpu.ProcessorCore) {
+	for _, processorCore := range cores {
+		for _, core := range processorCore.LogicalProcessors {
+			if reservedCPUSet.Result().Size() < max || max == allCores {
+				reservedCPUSet.Add(core)
 			}
 		}
 	}
-	return totalCPUSet.Result()
 }
 
 // isHyperthreadingEnabled checks if hyperthreading is enabled on the system or not
