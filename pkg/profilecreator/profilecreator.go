@@ -257,8 +257,10 @@ func (ghwHandler GHWHandler) SortedTopology() (*topology.Info, error) {
 	return topologyInfo, nil
 }
 
-// TopologyHTDisabled returns topologyinfo in case Hyperthreading needs to be disabled
-func (ghwHandler GHWHandler) TopologyHTDisabled(info *topology.Info) *topology.Info {
+// topologyHTDisabled returns topologyinfo in case Hyperthreading needs to be disabled.
+// It receives a pointer to Topology.Info and deletes logicalprocessors from individual cores.
+// The behaviour of this function depends on ghw data representation.
+func topologyHTDisabled(info *topology.Info) *topology.Info {
 	disabledHTTopology := &topology.Info{
 		Architecture: info.Architecture,
 	}
@@ -307,8 +309,9 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	}
 	//currently HT is enabled on the system and the user wants to disable HT
 	if htEnabled && disableHTFlag {
+		htEnabled = false
 		log.Infof("Currently hyperthreading is enabled and the performance profile will disable it")
-		topologyInfo = ghwHandler.TopologyHTDisabled(topologyInfo)
+		topologyInfo = topologyHTDisabled(topologyInfo)
 
 	}
 	log.Infof("NUMA cell(s): %d", len(topologyInfo.Nodes))
@@ -325,9 +328,9 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	log.Infof("CPU(s): %d", totalCPUs)
 
 	if splitReservedCPUsAcrossNUMA {
-		return ghwHandler.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, disableHTFlag, topologyInfo.Nodes)
+		return ghwHandler.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfo.Nodes)
 	}
-	return ghwHandler.getCPUsSequentially(reservedCPUCount, htEnabled, disableHTFlag, topologyInfo.Nodes)
+	return ghwHandler.getCPUsSequentially(reservedCPUCount, htEnabled, topologyInfo.Nodes)
 }
 
 // getCPUsSplitAcrossNUMA returns Reserved and Isolated CPUs split across NUMA nodes
@@ -339,7 +342,7 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 // For NUMA node 1 max = (1+1)*3 + 4-2 = 8 remainder is decremented => remainder is 1
 // For NUMA node 2 max = (2+1)*3 + 4-2 = 12 remainder is decremented => remainder is 0
 // For NUMA Node 3 remainder = 0 so max = 12 + 3 = 15.
-func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnabled bool, disableHTFlag bool, topologyInfoNodes []*topology.Node) (cpuset.CPUSet, cpuset.CPUSet, error) {
+func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnabled bool, topologyInfoNodes []*topology.Node) (cpuset.CPUSet, cpuset.CPUSet, error) {
 	reservedCPUSet := cpuset.NewBuilder()
 	var isolatedCPUSet cpuset.CPUSet
 	numaNodeNum := len(topologyInfoNodes)
@@ -357,7 +360,7 @@ func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnab
 		} else {
 			max = max + reservedPerNuma
 		}
-		if max%2 != 0 && htEnabled && !disableHTFlag {
+		if max%2 != 0 && htEnabled {
 			return reservedCPUSet.Result(), isolatedCPUSet, fmt.Errorf("can't allocate odd number of CPUs from a NUMA Node")
 		}
 		for _, processorCores := range node.Cores {
@@ -374,10 +377,10 @@ func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnab
 }
 
 // getCPUsSequentially returns Reserved and Isolated CPUs sequentially
-func (ghwHandler GHWHandler) getCPUsSequentially(reservedCPUCount int, htEnabled bool, disableHTFlag bool, topologyInfoNodes []*topology.Node) (cpuset.CPUSet, cpuset.CPUSet, error) {
+func (ghwHandler GHWHandler) getCPUsSequentially(reservedCPUCount int, htEnabled bool, topologyInfoNodes []*topology.Node) (cpuset.CPUSet, cpuset.CPUSet, error) {
 	reservedCPUSet := cpuset.NewBuilder()
 	var isolatedCPUSet cpuset.CPUSet
-	if reservedCPUCount%2 != 0 && htEnabled && !disableHTFlag {
+	if reservedCPUCount%2 != 0 && htEnabled {
 		return reservedCPUSet.Result(), isolatedCPUSet, fmt.Errorf("can't allocate odd number of CPUs from a NUMA Node")
 	}
 	for _, node := range topologyInfoNodes {
