@@ -275,7 +275,15 @@ func topologyHTDisabled(info *topology.Info) *topology.Info {
 				Index:      processorCore.Index,
 				NumThreads: 1,
 			}
+			// LogicalProcessors is a slice of ints representing the logical processor IDs assigned to
+			// a processing unit for a core. GHW API gurantees that the logicalProcessors correspond
+			// to hyperthread pairs and in the code below we select only the first hyperthread (id=0)
+			// of the available logical processors.
 			for id, logicalProcessor := range processorCore.LogicalProcessors {
+				// Please refer to https://www.kernel.org/doc/Documentation/x86/topology.txt for more information on
+				// x86 hardware topology. This document clarifies the main aspects of x86 topology modelling and
+				// representation in the linux kernel and explains why we select id=0 for obtaining the first
+				// hyperthread (logical core).
 				if id == 0 {
 					newCore.LogicalProcessors = []int{logicalProcessor}
 					cores = append(cores, &newCore)
