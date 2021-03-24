@@ -184,7 +184,7 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 	var mustGatherDirAbsolutePath string
 	var node *v1.Node
 	var handle *GHWHandler
-	var splitReservedCPUsAcrossNUMA bool
+	var splitReservedCPUsAcrossNUMA, disableHT bool
 	var reservedCPUCount int
 	var err error
 
@@ -192,26 +192,28 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 		node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
 	})
 	Context("Check if reserved and isolated CPUs are properly populated in the performance profile", func() {
-		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is disabled", func() {
+		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is disabled and disableHT is disabled", func() {
 			reservedCPUCount = 20 // random number, no special meaning
 			splitReservedCPUsAcrossNUMA = false
+			disableHT = false
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			reservedCPUSet, isolatedCPUSet, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			reservedCPUSet, isolatedCPUSet, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(reservedCPUSet.String()).To(Equal("0,2,4,6,8,10,12,14,16,18,40,42,44,46,48,50,52,54,56,58"))
 			Expect(isolatedCPUSet.String()).To(Equal("1,3,5,7,9,11,13,15,17,19-39,41,43,45,47,49,51,53,55,57,59-79"))
 		})
-		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is enabled", func() {
+		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is enabled and disableHT is disabled", func() {
 			reservedCPUCount = 20 // random number, no special meaning
 			splitReservedCPUsAcrossNUMA = true
+			disableHT = false
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			reservedCPUSet, isolatedCPUSet, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			reservedCPUSet, isolatedCPUSet, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(reservedCPUSet.String()).To(Equal("0-9,40-49"))
 			Expect(isolatedCPUSet.String()).To(Equal("10-39,50-79"))
@@ -219,42 +221,106 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 		It("Errors out in case negative reservedCPUCount is specified", func() {
 			reservedCPUCount = -2 // random negative number, no special meaning
 			splitReservedCPUsAcrossNUMA = true
+			disableHT = false
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
 			Expect(err).To(HaveOccurred())
 		})
-		It("Errors out in case specified reservedCPUCount is greater than the total CPUs present in the system", func() {
+		It("Errors out in case specified reservedCPUCount is greater than the total CPUs present in the system and disableHT is disabled", func() {
 			reservedCPUCount = 100 // random positive number greater than that total number of CPUs
 			splitReservedCPUsAcrossNUMA = true
+			disableHT = false
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
 			Expect(err).To(HaveOccurred())
 		})
-		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is enabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
+		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is enabled, disableHT is disabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
 			reservedCPUCount = 21 // random number which results in a CPU split per NUMA node (11 + 10 in this case) such that odd number of reserved CPUs (11) have to be allocated from a NUMA node
 			splitReservedCPUsAcrossNUMA = true
+			disableHT = false
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
 			Expect(err).To(HaveOccurred())
 		})
-		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is disabled and number of reserved CPUs are odd", func() {
+		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is disabled,, disableHT is disabled and number of reserved CPUs are odd", func() {
 			reservedCPUCount = 21 // random number which results in odd number (21) of CPUs to be allocated from a NUMA node
 			splitReservedCPUsAcrossNUMA = false
+			disableHT = false
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA)
+			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
 			Expect(err).To(HaveOccurred())
+		})
+		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is disabled, disableHT is enabled", func() {
+			reservedCPUCount = 20 // random number, no special meaning
+			splitReservedCPUsAcrossNUMA = false
+			disableHT = true
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			reservedCPUSet, isolatedCPUSet, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(reservedCPUSet.String()).To(Equal("0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38"))
+			Expect(isolatedCPUSet.String()).To(Equal("1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39"))
+		})
+		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is enabled and disableHT is enabled", func() {
+			reservedCPUCount = 20 // random number, no special meaning
+			splitReservedCPUsAcrossNUMA = true
+			disableHT = true
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			reservedCPUSet, isolatedCPUSet, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(reservedCPUSet.String()).To(Equal("0-19"))
+			Expect(isolatedCPUSet.String()).To(Equal("20-39"))
+		})
+		It("Do not error out in case hyperthreading is currently enabled, splitReservedCPUsAcrossNUMA is disabled, disableHT is enabled and number of reserved CPUs allocated from a NUMA node are odd", func() {
+			reservedCPUCount = 11 // random number which results in odd number (11) of CPUs to be allocated from a NUMA node
+			splitReservedCPUsAcrossNUMA = false
+			disableHT = true
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
+			Expect(err).ToNot(HaveOccurred())
+		})
+		It("Do not error out in case hyperthreading is currently enabled, splitReservedCPUsAcrossNUMA is enabled, disableHT is enabled and number of reserved CPUs allocated from a NUMA node are odd", func() {
+			reservedCPUCount = 2 // random number which results in odd number (1) of CPUs to be allocated from a NUMA node
+			splitReservedCPUsAcrossNUMA = true
+			disableHT = true
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
+			Expect(err).ToNot(HaveOccurred())
+		})
+		It("Do not error out in case of a system where hyperthreading is not enabled initially, splitReservedCPUsAcrossNUMA is disabled, disableHT is enabled and number of reserved CPUs allocated are odd", func() {
+			node = newTestNode("ocp47sno-master-0.demo.lab")
+			reservedCPUCount = 3 // random number which results in odd number (3) of CPUs to be allocated
+			splitReservedCPUsAcrossNUMA = false
+			disableHT = true
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherSNODirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			_, _, err := handle.GetReservedAndIsolatedCPUs(reservedCPUCount, splitReservedCPUsAcrossNUMA, disableHT)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 	})
@@ -295,7 +361,7 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 	var node *v1.Node
 	var handle *GHWHandler
 	var reservedCPUCount int
-	var topologyInfoNodes []*topology.Node
+	var topologyInfoNodes, htDisabledTopologyInfoNodes []*topology.Node
 	var htEnabled bool
 	var err error
 
@@ -306,7 +372,6 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 			{
 				ID: 0,
 				Cores: []*cpu.ProcessorCore{
-					{ID: 0, Index: 0, NumThreads: 2, LogicalProcessors: []int{0, 40}},
 					{ID: 0, Index: 0, NumThreads: 2, LogicalProcessors: []int{0, 40}},
 					{ID: 4, Index: 6, NumThreads: 2, LogicalProcessors: []int{2, 42}},
 					{ID: 1, Index: 17, NumThreads: 2, LogicalProcessors: []int{4, 44}},
@@ -355,6 +420,59 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 				},
 			},
 		}
+
+		htDisabledTopologyInfoNodes = []*topology.Node{
+			{
+				ID: 0,
+				Cores: []*cpu.ProcessorCore{
+					{ID: 0, Index: 0, NumThreads: 1, LogicalProcessors: []int{0}},
+					{ID: 4, Index: 6, NumThreads: 1, LogicalProcessors: []int{2}},
+					{ID: 1, Index: 17, NumThreads: 1, LogicalProcessors: []int{4}},
+					{ID: 3, Index: 18, NumThreads: 1, LogicalProcessors: []int{6}},
+					{ID: 2, Index: 19, NumThreads: 1, LogicalProcessors: []int{8}},
+					{ID: 12, Index: 1, NumThreads: 1, LogicalProcessors: []int{10}},
+					{ID: 8, Index: 2, NumThreads: 1, LogicalProcessors: []int{12}},
+					{ID: 11, Index: 3, NumThreads: 1, LogicalProcessors: []int{14}},
+					{ID: 9, Index: 4, NumThreads: 1, LogicalProcessors: []int{16}},
+					{ID: 10, Index: 5, NumThreads: 1, LogicalProcessors: []int{18}},
+					{ID: 16, Index: 7, NumThreads: 1, LogicalProcessors: []int{20}},
+					{ID: 20, Index: 8, NumThreads: 1, LogicalProcessors: []int{22}},
+					{ID: 17, Index: 9, NumThreads: 1, LogicalProcessors: []int{24}},
+					{ID: 19, Index: 10, NumThreads: 1, LogicalProcessors: []int{26}},
+					{ID: 18, Index: 11, NumThreads: 1, LogicalProcessors: []int{28}},
+					{ID: 28, Index: 12, NumThreads: 1, LogicalProcessors: []int{30}},
+					{ID: 24, Index: 13, NumThreads: 1, LogicalProcessors: []int{32}},
+					{ID: 27, Index: 14, NumThreads: 1, LogicalProcessors: []int{34}},
+					{ID: 25, Index: 15, NumThreads: 1, LogicalProcessors: []int{36}},
+					{ID: 26, Index: 16, NumThreads: 1, LogicalProcessors: []int{38}},
+				},
+			},
+			{
+				ID: 1,
+				Cores: []*cpu.ProcessorCore{
+					{ID: 0, Index: 0, NumThreads: 1, LogicalProcessors: []int{1}},
+					{ID: 4, Index: 11, NumThreads: 1, LogicalProcessors: []int{3}},
+					{ID: 1, Index: 17, NumThreads: 1, LogicalProcessors: []int{5}},
+					{ID: 3, Index: 18, NumThreads: 1, LogicalProcessors: []int{7}},
+					{ID: 2, Index: 19, NumThreads: 1, LogicalProcessors: []int{9}},
+					{ID: 12, Index: 1, NumThreads: 1, LogicalProcessors: []int{11}},
+					{ID: 8, Index: 2, NumThreads: 1, LogicalProcessors: []int{13}},
+					{ID: 11, Index: 3, NumThreads: 1, LogicalProcessors: []int{15}},
+					{ID: 9, Index: 4, NumThreads: 1, LogicalProcessors: []int{17}},
+					{ID: 10, Index: 5, NumThreads: 1, LogicalProcessors: []int{19}},
+					{ID: 16, Index: 6, NumThreads: 1, LogicalProcessors: []int{21}},
+					{ID: 20, Index: 7, NumThreads: 1, LogicalProcessors: []int{23}},
+					{ID: 17, Index: 8, NumThreads: 1, LogicalProcessors: []int{25}},
+					{ID: 19, Index: 9, NumThreads: 1, LogicalProcessors: []int{27}},
+					{ID: 18, Index: 10, NumThreads: 1, LogicalProcessors: []int{29}},
+					{ID: 28, Index: 12, NumThreads: 1, LogicalProcessors: []int{31}},
+					{ID: 24, Index: 13, NumThreads: 1, LogicalProcessors: []int{33}},
+					{ID: 27, Index: 14, NumThreads: 1, LogicalProcessors: []int{35}},
+					{ID: 25, Index: 15, NumThreads: 1, LogicalProcessors: []int{37}},
+					{ID: 26, Index: 16, NumThreads: 1, LogicalProcessors: []int{39}},
+				},
+			},
+		}
 	})
 	Context("Check if getCPUsSplitAcrossNUMA and getCPUsSequentially are working correctly and reserved and isolated CPUs are properly populated in the performance profile", func() {
 		It("Ensure reserved and isolated CPUs populated are correctly by getCPUsSplitAcrossNUMAwhen when splitReservedCPUsAcrossNUMA is enabled", func() {
@@ -369,7 +487,19 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 			Expect(reservedCPUSet.String()).To(Equal("0-9,40-49"))
 			Expect(isolatedCPUSet.String()).To(Equal("10-39,50-79"))
 		})
-		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is enabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
+		It("Ensure reserved and isolated CPUs populated are correctly by getCPUsSplitAcrossNUMAwhen when splitReservedCPUsAcrossNUMA is enabled and htEnabled is disabled ", func() {
+			reservedCPUCount = 20 // random number, no special meaning
+			htEnabled = false
+			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
+			Expect(err).ToNot(HaveOccurred())
+			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
+			Expect(err).ToNot(HaveOccurred())
+			reservedCPUSet, isolatedCPUSet, err := handle.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, htDisabledTopologyInfoNodes)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(reservedCPUSet.String()).To(Equal("0-19"))
+			Expect(isolatedCPUSet.String()).To(Equal("20-39"))
+		})
+		It("Errors out in case hyperthreading is enabled, splitReservedCPUsAcrossNUMA is enabled, htEnabled is enabled and the number of reserved CPUs per number of NUMA nodes are odd", func() {
 			reservedCPUCount = 21 // random number which results in a CPU split per NUMA node (11 + 10 in this case) such that odd number of reserved CPUs (11) have to be allocated from a NUMA node
 			htEnabled = true
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
@@ -379,8 +509,8 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 			_, _, err := handle.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfoNodes)
 			Expect(err).To(HaveOccurred())
 		})
-		It("Works without error in case hyperthreading is disabled, splitReservedCPUsAcrossNUMA is enabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
-			reservedCPUCount = 21 // random number which results in a CPU split per NUMA node (11 + 10 in this case) such that odd number of reserved CPUs (11) have to be allocated from a NUMA node
+		It("Works without error in case hyperthreading is disabled, splitReservedCPUsAcrossNUMA is enabled, htEnabled is disabled and number of reserved CPUs per number of NUMA nodes are odd", func() {
+			reservedCPUCount = 11 // random number which results in a CPU split per NUMA node (5 + 6 in this case) such that odd number of reserved CPUs (5) have to be allocated from a NUMA node
 			htEnabled = false
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
@@ -412,7 +542,7 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 			Expect(err).To(HaveOccurred())
 		})
 		It("Works without error in case hyperthreading is disabled, splitReservedCPUsAcrossNUMA is disabled and number of reserved CPUs are odd", func() {
-			reservedCPUCount = 21 // random number which results in odd number (21) of CPUs to be allocated from a NUMA node
+			reservedCPUCount = 11 // random number which results in odd number (11) of CPUs to be allocated from a NUMA node
 			htEnabled = false
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
@@ -421,6 +551,7 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 			_, _, err := handle.getCPUsSequentially(reservedCPUCount, htEnabled, topologyInfoNodes)
 			Expect(err).ToNot(HaveOccurred())
 		})
+
 	})
 })
 
@@ -538,11 +669,12 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Function ensureSameTopo
 
 var _ = Describe("PerformanceProfileCreator: Test Helper Function GetAdditionalKernelArgs", func() {
 	var powerMode string
-	// var args []string
+	var disableHT bool
 	Context("Ensure kernel args are populated correctly", func() {
 		It("Ensure kernel args are populated correctly in case of low-latency ", func() {
 			powerMode = "default"
-			kernelArgs := GetAdditionalKernelArgs(powerMode)
+			disableHT = false
+			kernelArgs := GetAdditionalKernelArgs(powerMode, disableHT)
 			Expect(kernelArgs).To(BeEquivalentTo([]string{}))
 		})
 
@@ -550,11 +682,12 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Function GetAdditionalK
 	Context("Ensure kernel args are populated correctly", func() {
 		It("Ensure kernel args are populated correctly in case of low-latency ", func() {
 			powerMode = "low-latency"
+			disableHT = false
 			args := []string{"audit=0",
 				"mce=off",
 				"nmi_watchdog=0",
 			}
-			kernelArgs := GetAdditionalKernelArgs(powerMode)
+			kernelArgs := GetAdditionalKernelArgs(powerMode, disableHT)
 			sort.Strings(kernelArgs) // sort to avoid inequality due to difference in order
 			Expect(kernelArgs).To(BeEquivalentTo(args))
 		})
@@ -563,6 +696,7 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Function GetAdditionalK
 	Context("Ensure kernel args are populated correctly", func() {
 		It("Ensure kernel args are populated correctly in case of ultra-low-latency ", func() {
 			powerMode = "ultra-low-latency"
+			disableHT = false
 			args := []string{"audit=0",
 				"idle=poll",
 				"intel_idle.max_cstate=0",
@@ -570,7 +704,25 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Function GetAdditionalK
 				"nmi_watchdog=0",
 				"processor.max_cstate=1",
 			}
-			kernelArgs := GetAdditionalKernelArgs(powerMode)
+			kernelArgs := GetAdditionalKernelArgs(powerMode, disableHT)
+			sort.Strings(kernelArgs) // sort to avoid inequality due to difference in order
+			Expect(kernelArgs).To(BeEquivalentTo(args))
+		})
+
+	})
+	Context("Ensure kernel args are populated correctly", func() {
+		It("Ensure kernel args are populated correctly in case of disableHT=true ", func() {
+			powerMode = "ultra-low-latency"
+			disableHT = true
+			args := []string{"audit=0",
+				"idle=poll",
+				"intel_idle.max_cstate=0",
+				"mce=off",
+				"nmi_watchdog=0",
+				"nosmt",
+				"processor.max_cstate=1",
+			}
+			kernelArgs := GetAdditionalKernelArgs(powerMode, disableHT)
 			sort.Strings(kernelArgs) // sort to avoid inequality due to difference in order
 			Expect(kernelArgs).To(BeEquivalentTo(args))
 		})

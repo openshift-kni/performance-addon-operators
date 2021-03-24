@@ -36,8 +36,6 @@ import (
 
 var (
 	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
-	// TODO: Explain the power-consumption-mode and associated kernel args
-	validPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
@@ -48,6 +46,8 @@ type ProfileData struct {
 	topologyPoilcy             string
 	rtKernel                   bool
 	additionalKernelArgs       []string
+	userLevelNetworking        bool
+	disableHT                  bool
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -109,10 +109,19 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 		return creatorArgs, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
 	}
 
-	//TODO: Use the validated powerConsumptionMode above to be captured in the created performance profile
 	rtKernelEnabled, err := strconv.ParseBool(cmd.Flag("rt-kernel").Value.String())
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse rt-kernel flag: %v", err)
+	}
+
+	userLevelNetworkingEnabled, err := strconv.ParseBool(cmd.Flag("user-level-networking").Value.String())
+	if err != nil {
+		return creatorArgs, fmt.Errorf("failed to parse user-level-networking flag: %v", err)
+	}
+
+	htDisabled, err := strconv.ParseBool(cmd.Flag("disable-ht").Value.String())
+	if err != nil {
+		return creatorArgs, fmt.Errorf("failed to parse disable-ht flag: %v", err)
 	}
 	creatorArgs = profileCreatorArgs{
 		mustGatherDirPath:           mustGatherDirPath,
@@ -123,6 +132,8 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 		tmPolicy:                    tmPolicy,
 		rtKernel:                    rtKernelEnabled,
 		powerConsumptionMode:        powerConsumptionMode,
+		userLevelNetworking:         userLevelNetworkingEnabled,
+		disableHT:                   htDisabled,
 	}
 	return creatorArgs, nil
 }
@@ -185,13 +196,13 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	// same from hardware topology point of view
 
 	handle, err := profilecreator.NewGHWHandler(args.mustGatherDirPath, matchedNodes[0])
-	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA)
+	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA, args.disableHT)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute the reserved and isolated CPUs: %v", err)
 	}
 	log.Infof("%d reserved CPUs allocated: %v ", reservedCPUs.Size(), reservedCPUs.String())
 	log.Infof("%d isolated CPUs allocated: %v", isolatedCPUs.Size(), isolatedCPUs.String())
-	kernelArgs := profilecreator.GetAdditionalKernelArgs(args.powerConsumptionMode)
+	kernelArgs := profilecreator.GetAdditionalKernelArgs(args.powerConsumptionMode, args.disableHT)
 	profileData := &ProfileData{
 		reservedCPUs:           reservedCPUs.String(),
 		isolatedCPUs:           isolatedCPUs.String(),
@@ -200,6 +211,7 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 		topologyPoilcy:         args.tmPolicy,
 		rtKernel:               args.rtKernel,
 		additionalKernelArgs:   kernelArgs,
+		userLevelNetworking:    args.userLevelNetworking,
 	}
 	return profileData, nil
 }
@@ -281,6 +293,9 @@ func createProfile(profileData ProfileData) {
 			AdditionalKernelArgs: profileData.additionalKernelArgs,
 			NUMA: &performancev2.NUMA{
 				TopologyPolicy: &profileData.topologyPoilcy,
+			},
+			Net: &performancev2.Net{
+				UserLevelNetworking: &profileData.userLevelNetworking,
 			},
 		},
 	}

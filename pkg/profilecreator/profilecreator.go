@@ -55,6 +55,10 @@ const (
 	Nodes = "nodes"
 	// SysInfoFileName defines the name of the file where ghw snapshot is stored
 	SysInfoFileName = "sysinfo.tgz"
+	// noSMTKernelArg is the kernel arg value to disable SMT in a system
+	noSMTKernelArg = "nosmt"
+	// allCores correspond to the value when all the processorCores need to be added to the generated CPUset
+	allCores = -1
 )
 
 var (
@@ -62,6 +66,7 @@ var (
 	// default => no args
 	// low-latency => "nmi_watchdog=0", "audit=0",  "mce=off"
 	// ultra-low-latency: low-latency values + "processor.max_cstate=1", "intel_idle.max_cstate=0", "idle=poll"
+	// For more information on CPU "C-states" please refer to https://gist.github.com/wmealing/2dd2b543c4d3cff6cab7
 	ValidPowerConsumptionModes = []string{"default", "low-latency", "ultra-low-latency"}
 	lowLatencyKernelArgs       = map[string]bool{"nmi_watchdog=0": true, "audit=0": true, "mce=off": true}
 	ultraLowLatencyKernelArgs  = map[string]bool{"processor.max_cstate=1": true, "intel_idle.max_cstate=0": true, "idle=poll": true}
@@ -254,8 +259,48 @@ func (ghwHandler GHWHandler) SortedTopology() (*topology.Info, error) {
 	return topologyInfo, nil
 }
 
+// topologyHTDisabled returns topologyinfo in case Hyperthreading needs to be disabled.
+// It receives a pointer to Topology.Info and deletes logicalprocessors from individual cores.
+// The behaviour of this function depends on ghw data representation.
+func topologyHTDisabled(info *topology.Info) *topology.Info {
+	disabledHTTopology := &topology.Info{
+		Architecture: info.Architecture,
+	}
+	newNodes := []*topology.Node{}
+	for _, node := range info.Nodes {
+		var newNode *topology.Node
+		cores := []*cpu.ProcessorCore{}
+		for _, processorCore := range node.Cores {
+			newCore := cpu.ProcessorCore{ID: processorCore.ID,
+				Index:      processorCore.Index,
+				NumThreads: 1,
+			}
+			// LogicalProcessors is a slice of ints representing the logical processor IDs assigned to
+			// a processing unit for a core. GHW API gurantees that the logicalProcessors correspond
+			// to hyperthread pairs and in the code below we select only the first hyperthread (id=0)
+			// of the available logical processors.
+			for id, logicalProcessor := range processorCore.LogicalProcessors {
+				// Please refer to https://www.kernel.org/doc/Documentation/x86/topology.txt for more information on
+				// x86 hardware topology. This document clarifies the main aspects of x86 topology modelling and
+				// representation in the linux kernel and explains why we select id=0 for obtaining the first
+				// hyperthread (logical core).
+				if id == 0 {
+					newCore.LogicalProcessors = []int{logicalProcessor}
+					cores = append(cores, &newCore)
+				}
+			}
+			newNode = &topology.Node{Cores: cores,
+				ID: node.ID,
+			}
+		}
+		newNodes = append(newNodes, newNode)
+		disabledHTTopology.Nodes = newNodes
+	}
+	return disabledHTTopology
+}
+
 // GetReservedAndIsolatedCPUs returns Reserved and Isolated CPUs
-func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, splitReservedCPUsAcrossNUMA bool) (cpuset.CPUSet, cpuset.CPUSet, error) {
+func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, splitReservedCPUsAcrossNUMA bool, disableHTFlag bool) (cpuset.CPUSet, cpuset.CPUSet, error) {
 	cpuInfo, err := ghwHandler.CPU()
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("can't obtain CPU info from GHW snapshot: %v", err)
@@ -272,6 +317,26 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("can't determine if Hyperthreading is enabled or not: %v", err)
 	}
+	//currently HT is enabled on the system and the user wants to disable HT
+	if htEnabled && disableHTFlag {
+		htEnabled = false
+		log.Infof("Currently hyperthreading is enabled and the performance profile will disable it")
+		topologyInfo = topologyHTDisabled(topologyInfo)
+
+	}
+	log.Infof("NUMA cell(s): %d", len(topologyInfo.Nodes))
+	totalCPUs := 0
+	for id, node := range topologyInfo.Nodes {
+		coreList := []int{}
+		for _, core := range node.Cores {
+			coreList = append(coreList, core.LogicalProcessors...)
+		}
+		log.Infof("NUMA cell %d : %v", id, coreList)
+		totalCPUs += len(coreList)
+	}
+
+	log.Infof("CPU(s): %d", totalCPUs)
+
 	if splitReservedCPUsAcrossNUMA {
 		return ghwHandler.getCPUsSplitAcrossNUMA(reservedCPUCount, htEnabled, topologyInfo.Nodes)
 	}
@@ -291,7 +356,6 @@ func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnab
 	reservedCPUSet := cpuset.NewBuilder()
 	var isolatedCPUSet cpuset.CPUSet
 	numaNodeNum := len(topologyInfoNodes)
-	log.Infof("Number of NUMA cells on the node are: %d", numaNodeNum)
 
 	max := 0
 	reservedPerNuma := reservedCPUCount / numaNodeNum
@@ -309,13 +373,7 @@ func (ghwHandler GHWHandler) getCPUsSplitAcrossNUMA(reservedCPUCount int, htEnab
 		if max%2 != 0 && htEnabled {
 			return reservedCPUSet.Result(), isolatedCPUSet, fmt.Errorf("can't allocate odd number of CPUs from a NUMA Node")
 		}
-		for _, processorCores := range node.Cores {
-			for _, core := range processorCores.LogicalProcessors {
-				if reservedCPUSet.Result().Size() < max {
-					reservedCPUSet.Add(core)
-				}
-			}
-		}
+		addCoresToCPUSet(reservedCPUSet, max, node.Cores)
 	}
 	totalCPUSet := totalCPUSetFromTopology(topologyInfoNodes)
 	isolatedCPUSet = totalCPUSet.Difference(reservedCPUSet.Result())
@@ -330,13 +388,7 @@ func (ghwHandler GHWHandler) getCPUsSequentially(reservedCPUCount int, htEnabled
 		return reservedCPUSet.Result(), isolatedCPUSet, fmt.Errorf("can't allocate odd number of CPUs from a NUMA Node")
 	}
 	for _, node := range topologyInfoNodes {
-		for _, processorCores := range node.Cores {
-			for _, core := range processorCores.LogicalProcessors {
-				if reservedCPUSet.Result().Size() < reservedCPUCount {
-					reservedCPUSet.Add(core)
-				}
-			}
-		}
+		addCoresToCPUSet(reservedCPUSet, reservedCPUCount, node.Cores)
 	}
 	totalCPUSet := totalCPUSetFromTopology(topologyInfoNodes)
 	isolatedCPUSet = totalCPUSet.Difference(reservedCPUSet.Result())
@@ -346,20 +398,29 @@ func (ghwHandler GHWHandler) getCPUsSequentially(reservedCPUCount int, htEnabled
 func totalCPUSetFromTopology(topologyInfoNodes []*topology.Node) cpuset.CPUSet {
 	totalCPUSet := cpuset.NewBuilder()
 	for _, node := range topologyInfoNodes {
-		for _, processorCores := range node.Cores {
-			for _, core := range processorCores.LogicalProcessors {
-				totalCPUSet.Add(core)
+		//all the cores from node.Cores need to be added, hence allCores is specified as the max value
+		addCoresToCPUSet(totalCPUSet, allCores, node.Cores)
+	}
+	return totalCPUSet.Result()
+}
+
+// addCoresToCPUSet adds logical cores from the slice of *cpu.ProcessorCore to a CPUset till the cpuset size is equal to the max value speicifed
+// In case the max is specified as allCores, all the cores from the slice of *cpu.ProcessorCore are added to the CPUset
+func addCoresToCPUSet(reservedCPUSet cpuset.Builder, max int, cores []*cpu.ProcessorCore) {
+	for _, processorCore := range cores {
+		for _, core := range processorCore.LogicalProcessors {
+			if reservedCPUSet.Result().Size() < max || max == allCores {
+				reservedCPUSet.Add(core)
 			}
 		}
 	}
-	return totalCPUSet.Result()
 }
 
 // isHyperthreadingEnabled checks if hyperthreading is enabled on the system or not
 func (ghwHandler GHWHandler) isHyperthreadingEnabled() (bool, error) {
 	cpuInfo, err := ghwHandler.CPU()
 	if err != nil {
-		return false, fmt.Errorf("Error obtaining CPU Info from GHW snapshot: %v", err)
+		return false, fmt.Errorf("can't obtain CPU Info from GHW snapshot: %v", err)
 	}
 	// Since there is no way to disable flags per-processor (not system wide) we check the flags of the first available processor.
 	// A following implementation will leverage the /sys/devices/system/cpu/smt/active file which is the "standard" way to query HT.
@@ -445,7 +506,7 @@ func ensureSameTopology(topology1, topology2 *topology.Info) error {
 }
 
 // GetAdditionalKernelArgs returns a set of kernel parameters based on the power mode
-func GetAdditionalKernelArgs(powerMode string) []string {
+func GetAdditionalKernelArgs(powerMode string, disableHT bool) []string {
 	kernelArgsSet := make(map[string]bool)
 	kernelArgsSlice := make([]string, 0, 6)
 	switch powerMode {
@@ -473,6 +534,10 @@ func GetAdditionalKernelArgs(powerMode string) []string {
 			kernelArgsSlice = append(kernelArgsSlice, arg)
 		}
 	}
+	if disableHT {
+		kernelArgsSlice = append(kernelArgsSlice, noSMTKernelArg)
+	}
+	sort.Strings(kernelArgsSlice)
 	log.Infof("Additional Kernel Args based on the power consumption mode (%s):%v", powerMode, kernelArgsSlice)
 	return kernelArgsSlice
 }
