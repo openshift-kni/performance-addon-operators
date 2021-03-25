@@ -21,13 +21,14 @@ import (
 )
 
 const (
-	conditionReasonValidationFailed         = "ValidationFailed"
-	conditionReasonComponentsCreationFailed = "ComponentCreationFailed"
-	conditionReasonMCPDegraded              = "MCPDegraded"
-	conditionFailedGettingMCPStatus         = "GettingMCPStatusFailed"
-	conditionKubeletFailed                  = "KubeletConfig failure"
-	conditionFailedGettingKubeletStatus     = "GettingKubeletStatusFailed"
-	conditionReasonTunedDegraded            = "TunedProfileDegraded"
+	conditionReasonValidationFailed          = "ValidationFailed"
+	conditionReasonComponentsCreationFailed  = "ComponentCreationFailed"
+	conditionReasonMCPDegraded               = "MCPDegraded"
+	conditionFailedGettingMCPStatus          = "GettingMCPStatusFailed"
+	conditionKubeletFailed                   = "KubeletConfig failure"
+	conditionFailedGettingKubeletStatus      = "GettingKubeletStatusFailed"
+	conditionReasonTunedDegraded             = "TunedProfileDegraded"
+	conditionFailedGettingTunedProfileStatus = "GettingTunedStatusFailed"
 )
 
 func (r *PerformanceProfileReconciler) updateStatus(profile *performancev2.PerformanceProfile, conditions []conditionsv1.Condition) error {
@@ -323,6 +324,7 @@ func removeUnMatchedTunedProfiles(nodes []corev1.Node, profiles []tunedv1.Profil
 		for _, node := range nodes {
 			if profile.Name == node.Name {
 				filteredProfiles = append(filteredProfiles, profile)
+				break
 			}
 		}
 	}

@@ -647,12 +647,9 @@ var _ = Describe("Controller", func() {
 				tunedMessage := "Tuned message"
 
 				tuned := &tunedv1.Profile{
-					TypeMeta: metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "tuned-profile-test",
 					},
-					Spec: tunedv1.ProfileSpec{},
-
 					Status: tunedv1.ProfileStatus{
 						Conditions: []tunedv1.ProfileStatusCondition{
 							{
@@ -672,8 +669,6 @@ var _ = Describe("Controller", func() {
 				}
 
 				nodes := &corev1.NodeList{
-					TypeMeta: metav1.TypeMeta{},
-					ListMeta: metav1.ListMeta{},
 					Items: []corev1.Node{
 						{
 							ObjectMeta: metav1.ObjectMeta{

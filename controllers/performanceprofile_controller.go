@@ -282,7 +282,7 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	if conditions == nil {
 		conditions, err = r.getTunedConditionsByProfile(instance)
 		if err != nil {
-			return r.updateDegradedCondition(instance, conditionFailedGettingMCPStatus, err)
+			return r.updateDegradedCondition(instance, conditionFailedGettingTunedProfileStatus, err)
 		}
 	}
 
