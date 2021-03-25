@@ -252,12 +252,12 @@ func (r *PerformanceProfileReconciler) getTunedConditionsByProfile(profile *perf
 	for _, tunedProfile := range tunedProfileList.Items {
 		isDegraded := false
 		isApplied := true
-		var pDegCondition *tunedv1.ProfileStatusCondition
+		var tunedDegradedCondition *tunedv1.ProfileStatusCondition
 
 		for _, condition := range tunedProfile.Status.Conditions {
 			if (condition.Type == tunedv1.TunedDegraded) && condition.Status == corev1.ConditionTrue {
 				isDegraded = true
-				pDegCondition = &condition
+				tunedDegradedCondition = &condition
 			}
 
 			if (condition.Type == tunedv1.TunedProfileApplied) && condition.Status == corev1.ConditionFalse {
@@ -265,13 +265,13 @@ func (r *PerformanceProfileReconciler) getTunedConditionsByProfile(profile *perf
 			}
 		}
 		// We need both condition to exists,
-		// since there is a scenario where both Degraded & Applied condition are ture
+		// since there is a scenario where both Degraded & Applied condition are true
 		if isDegraded == true && isApplied == false {
-			if len(pDegCondition.Reason) > 0 {
-				message.WriteString("Tuned " + tunedProfile.GetName() + " Degraded Reason: " + pDegCondition.Reason + ".\n")
+			if len(tunedDegradedCondition.Reason) > 0 {
+				message.WriteString("Tuned " + tunedProfile.GetName() + " Degraded Reason: " + tunedDegradedCondition.Reason + ".\n")
 			}
-			if len(pDegCondition.Message) > 0 {
-				message.WriteString("Tuned " + tunedProfile.GetName() + " Degraded Message: " + pDegCondition.Message + ".\n")
+			if len(tunedDegradedCondition.Message) > 0 {
+				message.WriteString("Tuned " + tunedProfile.GetName() + " Degraded Message: " + tunedDegradedCondition.Message + ".\n")
 			}
 		}
 	}
