@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -248,8 +249,17 @@ func (r *PerformanceProfileReconciler) getTunedConditionsByProfile(profile *perf
 		return nil, err
 	}
 
+	selector := labels.SelectorFromSet(profile.Spec.NodeSelector)
+	nodes := &corev1.NodeList{}
+	if err := r.List(context.TODO(), nodes, &client.ListOptions{LabelSelector: selector}); err != nil {
+		return nil, err
+	}
+
+	// remove Tuned profiles that are not associate with this perfomance profile
+	// Tuned profile's name and node's name should be equal
+	filtered := removeUnMatchedTunedProfiles(nodes.Items, tunedProfileList.Items)
 	message := bytes.Buffer{}
-	for _, tunedProfile := range tunedProfileList.Items {
+	for _, tunedProfile := range filtered {
 		isDegraded := false
 		isApplied := true
 		var tunedDegradedCondition *tunedv1.ProfileStatusCondition
@@ -305,4 +315,16 @@ func removeMCPDuplicateEntries(mcps []mcov1.MachineConfigPool) []mcov1.MachineCo
 	}
 
 	return filtered
+}
+
+func removeUnMatchedTunedProfiles(nodes []corev1.Node, profiles []tunedv1.Profile) []tunedv1.Profile {
+	filteredProfiles := make([]tunedv1.Profile, 0)
+	for _, profile := range profiles {
+		for _, node := range nodes {
+			if profile.Name == node.Name {
+				filteredProfiles = append(filteredProfiles, profile)
+			}
+		}
+	}
+	return filteredProfiles
 }

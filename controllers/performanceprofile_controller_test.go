@@ -671,7 +671,27 @@ var _ = Describe("Controller", func() {
 					},
 				}
 
-				r := newFakeReconciler(profile, mc, kc, tunedPerformance, tuned)
+				nodes := &corev1.NodeList{
+					TypeMeta: metav1.TypeMeta{},
+					ListMeta: metav1.ListMeta{},
+					Items: []corev1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "tuned-profile-test",
+								Labels: map[string]string{
+									"nodekey": "nodeValue",
+								},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "tuned-profile-test2",
+							},
+						},
+					},
+				}
+
+				r := newFakeReconciler(profile, mc, kc, tunedPerformance, tuned, nodes)
 
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
