@@ -22,6 +22,7 @@ require (
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
+	github.com/openshift-kni/debug-tools v0.0.0-20210315132340-1e9bf93e0a88
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20200914165052-a39511828cf0
 	github.com/openshift/custom-resource-status v0.0.0-20200602122900-c002fd1547ca

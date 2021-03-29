@@ -64,7 +64,11 @@ do
     oc exec $pod -n perf-node-gather -- cat /proc/cmdline 2>/dev/null >> $NODE_PATH/proc_cmdline
     COLLECTABLE_NODES+=($node)
 
-    oc exec $pod -n perf-node-gather -- gather_sysinfo --debug --root=/host --output=- > $NODE_PATH/sysinfo.tgz 2> $NODE_PATH/sysinfo.log
+    oc exec $pod -n perf-node-gather -- gather_sysinfo --json cpuaff --procfs=/host/proc --sysfs=/host/sys > $NODE_PATH/cpu_affinities.json
+    oc exec $pod -n perf-node-gather -- gather_sysinfo --json irqaff --procfs=/host/proc --sysfs=/host/sys > $NODE_PATH/irq_affinities.json
+    oc exec $pod -n perf-node-gather -- gather_sysinfo --json podres --socket-path=/host/podresources/kubelet.sock > $NODE_PATH/podresources.json
+
+    oc exec $pod -n perf-node-gather -- gather_sysinfo snapshot --debug --root=/host --output=- > $NODE_PATH/sysinfo.tgz 2> $NODE_PATH/sysinfo.log
 done
 
 # Collect journal logs for specified units for all nodes
