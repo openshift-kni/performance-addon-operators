@@ -54,6 +54,38 @@ var _ = Describe("PerformanceProfileCreator: MCP and Node Matching", func() {
 			Expect(matchedNodes[0].GetName()).To(Equal("dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com"))
 		})
 	})
+
+	Context("Ensure the correct MCP selector is used", func() {
+		It("should detect the cnf-worker MCP selector", func() {
+			mcp, err := GetMCP(mustGatherDirPath, "worker-cnf")
+			Expect(err).ToNot(HaveOccurred())
+
+			mcpSelector, err := GetMCPSelector(mcp, mcps)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(mcpSelector)).To(Equal(1))
+
+			for key, value := range mcpSelector {
+				Expect(key).To(Equal("machineconfiguration.openshift.io/role"))
+				Expect(value).To(Equal("worker-cnf"))
+				break
+			}
+		})
+
+		It("should detect the worker MCP selector", func() {
+			mcp, err := GetMCP(mustGatherDirPath, "worker")
+			Expect(err).ToNot(HaveOccurred())
+
+			mcpSelector, err := GetMCPSelector(mcp, mcps)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(mcpSelector)).To(Equal(1))
+
+			for key, value := range mcpSelector {
+				Expect(key).To(Equal("pools.operator.machineconfiguration.openshift.io/worker"))
+				Expect(value).To(Equal(""))
+				break
+			}
+		})
+	})
 })
 
 var _ = Describe("PerformanceProfileCreator: MCP and Node Matching in SNO", func() {
@@ -87,6 +119,37 @@ var _ = Describe("PerformanceProfileCreator: MCP and Node Matching in SNO", func
 			Expect(matchedNodes).ToNot(BeNil())
 			Expect(len(matchedNodes)).To(Equal(1))
 			Expect(matchedNodes[0].GetName()).To(Equal("ocp47sno-master-0.demo.lab"))
+		})
+	})
+
+	Context("Ensure the correct MCP selector is used in SNO", func() {
+		It("should detect the worker MCP selector", func() {
+			mcp, err := GetMCP(mustGatherSNODirPath, "worker")
+			Expect(err).ToNot(HaveOccurred())
+
+			mcpSelector, err := GetMCPSelector(mcp, mcps)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(mcpSelector)).To(Equal(1))
+
+			for key, value := range mcpSelector {
+				Expect(key).To(Equal("pools.operator.machineconfiguration.openshift.io/worker"))
+				Expect(value).To(Equal(""))
+				break
+			}
+		})
+		It("should detect the master MCP selector", func() {
+			mcp, err := GetMCP(mustGatherSNODirPath, "master")
+			Expect(err).ToNot(HaveOccurred())
+
+			mcpSelector, err := GetMCPSelector(mcp, mcps)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(mcpSelector)).To(Equal(1))
+
+			for key, value := range mcpSelector {
+				Expect(key).To(Equal("pools.operator.machineconfiguration.openshift.io/master"))
+				Expect(value).To(Equal(""))
+				break
+			}
 		})
 	})
 })
