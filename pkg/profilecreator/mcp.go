@@ -2,6 +2,7 @@ package profilecreator
 
 import (
 	"fmt"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -11,6 +12,56 @@ import (
 
 	mcfgv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 )
+
+// GetMCPSelector returns a label that is unique to the target pool, error otherwise
+func GetMCPSelector(pool *mcfgv1.MachineConfigPool, clusterPools []*mcfgv1.MachineConfigPool) (map[string]string, error) {
+	mcpSelector := make(map[string]string)
+
+	// go over all the labels to find the unique ones
+	for key, value := range pool.Labels {
+		unique := true
+		for _, mcp := range clusterPools {
+			if mcp.Name == pool.Name {
+				continue
+			}
+			if mcpValue, found := mcp.Labels[key]; found {
+				if value == mcpValue {
+					unique = false
+					break
+				}
+			}
+		}
+		if unique {
+			mcpSelector[key] = value
+		}
+	}
+
+	if len(mcpSelector) == 0 {
+		return nil, fmt.Errorf("can't find a unique label for '%s' MCP", pool.Name)
+	}
+
+	// find a label that includes the MCP name
+	if len(mcpSelector) > 1 {
+		for key, value := range mcpSelector {
+			if strings.HasSuffix(key, pool.Name) {
+				mcpSelector = make(map[string]string)
+				mcpSelector[key] = value
+				break
+			}
+		}
+	}
+
+	// pick a single unique label
+	if len(mcpSelector) > 1 {
+		for key, value := range mcpSelector {
+			mcpSelector = make(map[string]string)
+			mcpSelector[key] = value
+			break
+		}
+	}
+
+	return mcpSelector, nil
+}
 
 // GetNodesForPool returns the nodes belonging to the input mcp
 // Adapted (including dependencies) from:
