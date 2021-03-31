@@ -1,10 +1,10 @@
 FROM registry.access.redhat.com/ubi8/ubi
 
 ENV HOME=/home/ci
-ENV GOROOT /usr/local/go
-ENV GOVERSION 1.13.5
-ENV GOPATH /go
-ENV GOBIN ${GOPATH}/bin
+ENV GOROOT=/usr/local/go
+ENV GOVERSION=1.13.5
+ENV GOPATH=/go
+ENV GOBIN=${GOPATH}/bin
 ENV PATH=${PATH}:${GOROOT}/bin:${GOBIN}
 
 ARG GO_PACKAGE_PATH=github.com/openshift-kni/performance-addon-operators
