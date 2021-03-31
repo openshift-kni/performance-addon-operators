@@ -160,6 +160,7 @@ spec:
           - ""
           resources:
           - events
+          - nodes
           verbs:
           - '*'
         - apiGroups:
@@ -187,6 +188,7 @@ spec:
         - apiGroups:
           - tuned.openshift.io
           resources:
+          - profiles
           - tuneds
           verbs:
           - '*'

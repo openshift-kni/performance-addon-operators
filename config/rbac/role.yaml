@@ -10,6 +10,7 @@ rules:
   - ""
   resources:
   - events
+  - nodes
   verbs:
   - '*'
 - apiGroups:
@@ -37,6 +38,7 @@ rules:
 - apiGroups:
   - tuned.openshift.io
   resources:
+  - profiles
   - tuneds
   verbs:
   - '*'
