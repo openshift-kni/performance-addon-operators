@@ -52,6 +52,14 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 		csv := getCSV(subscription.Status.CurrentCSV, namespaces.PerformanceOperator)
 		fromImage := csv.ObjectMeta.Annotations["containerImage"]
 
+		By(fmt.Sprintf("Change subscription installPlanApproval to Automatic"))
+		Expect(testclient.Client.Patch(context.TODO(), subscription,
+			client.RawPatch(
+				types.JSONPatchType,
+				[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/installPlanApproval", "value": "%s" }]`, olmv1alpha1.ApprovalAutomatic)),
+			),
+		)).ToNot(HaveOccurred())
+
 		By(fmt.Sprintf("Switch subscription channel to %s version", toVersion))
 		Expect(testclient.Client.Patch(context.TODO(), subscription,
 			client.RawPatch(
