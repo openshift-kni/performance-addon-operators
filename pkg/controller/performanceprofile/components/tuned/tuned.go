@@ -126,18 +126,31 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 
 		for _, device := range profile.Spec.Net.Devices {
 			devices = make([]string, 0)
-			if device.InterfaceName != nil {
-				devices = append(devices, *device.InterfaceName)
+			if device.DeviceID != nil {
+				devices = append(devices, "^ID_MODEL_ID="+*device.DeviceID)
 			}
 			if device.VendorID != nil {
-				devices = append(devices, *device.VendorID)
+				devices = append(devices, "^ID_VENDOR_ID="+*device.VendorID)
 			}
-			if device.DeviceID != nil {
-				devices = append(devices, *device.DeviceID)
+			if device.InterfaceName != nil {
+				deviceNameAmendedRegex := strings.Replace(*device.InterfaceName, "*", ".*", -1)
+				if strings.HasPrefix(*device.InterfaceName, "!") {
+					devices = append(devices, "^INTERFACE_NAME="+"(?!"+deviceNameAmendedRegex+")")
+				} else {
+					devices = append(devices, "^INTERFACE_NAME="+deviceNameAmendedRegex)
+				}
 			}
-			devicesArgs := strings.Join(devices, ",")
+			// Final regex format can be one of the following formats:
+			// devicesUdevRegex = r'^INTERFACE_NAME=InterfaceName'        (InterfaceName can also hold .* representing * wildcard)
+			// devicesUdevRegex = r'^INTERFACE_NAME=(?!InterfaceName)'    (InterfaceName can starting with ?! represents ! wildcard)
+			// devicesUdevRegex = r'^ID_VENDOR_ID=VendorID'
+			// devicesUdevRegex = r'^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID'
+			// devicesUdevRegex = r'^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE_NAME=InterfaceName'
+			// devicesUdevRegex = r'^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE_NAME=(?!InterfaceName)'
+			// Important note: The order of the key must be preserved - INTERFACE_NAME, ID_MODEL_ID, ID_VENDOR_ID (in that order)
+			devicesUdevRegex := "r'" + strings.Join(devices, `[\s\S]*`) + "'"
 			netPluginSequence++
-			tunedNetDevicesOutput = append(tunedNetDevicesOutput, fmt.Sprintf("\n[net_%d]\ntype=net\ndevices=%s\nchannels=combined %d", netPluginSequence, devicesArgs, reserveCPUcount))
+			tunedNetDevicesOutput = append(tunedNetDevicesOutput, fmt.Sprintf("\n[net_%d]\ntype=net\ndevices_udev_regex=%s\nchannels=combined %d", netPluginSequence, devicesUdevRegex, reserveCPUcount))
 		}
 
 		if len(tunedNetDevicesOutput) == 0 {
@@ -148,7 +161,6 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 	}
 
 	profileData, err := getProfileData(getProfilePath(components.ProfileNamePerformance, assetsDir), templateArgs)
-
 	if err != nil {
 		return nil, err
 	}
