@@ -178,7 +178,8 @@ func validateUpdateEvent(e *event.UpdateEvent) bool {
 	return true
 }
 
-// +kubebuilder:rbac:groups="",resources=events;nodes,verbs=*
+// +kubebuilder:rbac:groups="",resources=events,verbs=*
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=performance.openshift.io,resources=performanceprofiles;performanceprofiles/status;performanceprofiles/finalizers,verbs=*
 // +kubebuilder:rbac:groups=machineconfiguration.openshift.io,resources=machineconfigs;machineconfigpools;kubeletconfigs,verbs=*
 // +kubebuilder:rbac:groups=tuned.openshift.io,resources=tuneds;profiles,verbs=*

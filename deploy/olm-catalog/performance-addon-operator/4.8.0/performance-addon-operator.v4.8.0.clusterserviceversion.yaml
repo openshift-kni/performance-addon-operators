@@ -160,9 +160,16 @@ spec:
           - ""
           resources:
           - events
-          - nodes
           verbs:
           - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - nodes
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - machineconfiguration.openshift.io
           resources:
