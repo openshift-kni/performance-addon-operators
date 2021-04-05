@@ -163,6 +163,14 @@ spec:
           verbs:
           - '*'
         - apiGroups:
+          - ""
+          resources:
+          - nodes
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
           - machineconfiguration.openshift.io
           resources:
           - kubeletconfigs
@@ -187,6 +195,7 @@ spec:
         - apiGroups:
           - tuned.openshift.io
           resources:
+          - profiles
           - tuneds
           verbs:
           - '*'
