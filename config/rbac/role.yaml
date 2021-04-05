@@ -60,15 +60,6 @@ metadata:
 rules:
 - apiGroups:
   - apps
-  resources:
-  - daemonsets
-  - deployments
-  - replicasets
-  - statefulsets
-  verbs:
-  - '*'
-- apiGroups:
-  - apps
   resourceNames:
   - performance-operator
   resources:
