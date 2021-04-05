@@ -16,7 +16,7 @@ import (
 
 const (
 	mustGatherDirPath    = "../../testdata/must-gather/must-gather.local.directory"
-	mustGatherSNODirPath = "../../testdata/must-gather/must-gather.local.sno"
+	mustGatherSNODirPath = "../../testdata/must-gather/must-gather.sno"
 )
 
 var _ = Describe("PerformanceProfileCreator: MCP and Node Matching", func() {
