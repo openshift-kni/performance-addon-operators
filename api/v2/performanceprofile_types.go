@@ -144,10 +144,10 @@ type Device struct {
 	InterfaceName *string `json:"interfaceName,omitempty"`
 	// Network device vendor ID represnted as a 16 bit Hexmadecimal number.
 	// +optional
-	VendorID *string `json:"vendor,omitempty"`
+	VendorID *string `json:"vendorID,omitempty"`
 	// Network device ID (model) represnted as a 16 bit hexmadecimal number.
 	// +optional
-	DeviceID *string `json:"device,omitempty"`
+	DeviceID *string `json:"deviceID,omitempty"`
 }
 
 // RealTimeKernel defines the set of parameters relevant for the real time kernel.
