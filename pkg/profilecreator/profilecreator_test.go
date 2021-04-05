@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	mustGatherDirPath    = "../../testdata/must-gather/must-gather.local.directory"
+	mustGatherDirPath    = "../../testdata/must-gather/must-gather.bare-metal"
 	mustGatherSNODirPath = "../../testdata/must-gather/must-gather.sno"
 )
 
@@ -420,7 +420,7 @@ var _ = Describe("PerformanceProfileCreator: Check if Hyperthreading enabled/dis
 })
 
 var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitAcrossNUMA and getCPUsSequentially", func() {
-	var mustGatherDirPath, mustGatherDirAbsolutePath string
+	var mustGatherDirAbsolutePath string
 	var node *v1.Node
 	var handle *GHWHandler
 	var reservedCPUCount int
@@ -429,7 +429,6 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 	var err error
 
 	BeforeEach(func() {
-		mustGatherDirPath = "../../testdata/must-gather/must-gather.local.directory"
 		node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
 		topologyInfoNodes = []*topology.Node{
 			{
