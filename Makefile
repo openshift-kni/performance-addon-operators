@@ -257,6 +257,11 @@ operator-upgrade-tests:
 	@echo "Running Operator Upgrade Tests"
 	hack/run-upgrade-tests.sh
 
+.PHONY: perf-profile-creator-tests
+perf-profile-creator-tests:
+	@echo "Running Performance Profile Creator Tests"
+	hack/run-perf-profile-creator-functests.sh
+
 .PHONY: unittests
 unittests:
 	hack/unittests.sh
