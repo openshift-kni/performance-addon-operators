@@ -178,8 +178,8 @@ var _ = Describe("Tuned", func() {
 				})
 				It("should set by interface name with reserved CPUs count", func() {
 					netDeviceName := "eth*"
-					//regex field should be: devices_udev_regex=r'^INTERFACE_NAME=eth.*''
-					devicesUdevRegex := "r'\\^INTERFACE_NAME=" + strings.Replace(netDeviceName, "*", "\\.\\*", -1) + "'"
+					//regex field should be: devices_udev_regex=r'^INTERFACE=eth.*''
+					devicesUdevRegex := "r'\\^INTERFACE=" + strings.Replace(netDeviceName, "*", "\\.\\*", -1) + "'"
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
@@ -197,8 +197,8 @@ var _ = Describe("Tuned", func() {
 				})
 				It("should set by negative interface name with reserved CPUs count", func() {
 					netDeviceName := "!ens5"
-					//regex field should be: devices_udev_regex=r'^INTERFACE_NAME=(?!ens5)'
-					devicesUdevRegex := "r'\\^INTERFACE_NAME=\\(\\?!" + strings.Replace(netDeviceName, "*", "\\.\\*", -1) + "\\)'"
+					//regex field should be: devices_udev_regex=r'^INTERFACE=(?!ens5)'
+					devicesUdevRegex := "r'\\^INTERFACE=\\(\\?!" + strings.Replace(netDeviceName, "*", "\\.\\*", -1) + "\\)'"
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
@@ -258,8 +258,8 @@ var _ = Describe("Tuned", func() {
 					netDeviceName := "ens5"
 					netDeviceVendorID := "0x1af4"
 					netDeviceModelID := "0x1000"
-					//regex field should be: devices_udev_regex=r'^ID_MODEL_ID=0x1000[\s\S]*^ID_VENDOR_ID=0x1af4[\s\S]*^INTERFACE_NAME=ens5'
-					devicesUdevRegex := `r'\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID + `\[\\\\s\\\\S]\*\^INTERFACE_NAME=` + netDeviceName + `'`
+					//regex field should be: devices_udev_regex=r'^ID_MODEL_ID=0x1000[\s\S]*^ID_VENDOR_ID=0x1af4[\s\S]*^INTERFACE=ens5'
+					devicesUdevRegex := `r'\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID + `\[\\\\s\\\\S]\*\^INTERFACE=` + netDeviceName + `'`
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
@@ -281,8 +281,8 @@ var _ = Describe("Tuned", func() {
 					netDeviceName := "!ens5"
 					netDeviceVendorID := "0x1af4"
 					netDeviceModelID := "0x1000"
-					//regex field should be: devices_udev_regex=r'^ID_MODEL_ID=0x1000[\\s\\S]*^ID_VENDOR_ID=0x1af4[\\s\\S]*^INTERFACE_NAME=(?!ens5)'
-					devicesUdevRegex := `r'\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID + `\[\\\\s\\\\S]\*\^INTERFACE_NAME=\(\?!` + netDeviceName + `\)'`
+					//regex field should be: devices_udev_regex=r'^ID_MODEL_ID=0x1000[\\s\\S]*^ID_VENDOR_ID=0x1af4[\\s\\S]*^INTERFACE=(?!ens5)'
+					devicesUdevRegex := `r'\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID + `\[\\\\s\\\\S]\*\^INTERFACE=\(\?!` + netDeviceName + `\)'`
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
