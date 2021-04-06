@@ -3,14 +3,7 @@ apiVersion: v1
 kind: Node
 metadata:
   annotations:
-    k8s.ovn.org/l3-gateway-config: '{"default":{"mode":"shared","interface-id":"br-ex_dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com","mac-address":"52:54:00:9b:16:94","ip-addresses":["10.19.232.239/25"],"ip-address":"10.19.232.239/25","next-hops":["10.19.232.254"],"next-hop":"10.19.232.254","node-port-enable":"true","vlan-id":"0"}}'
-    k8s.ovn.org/node-chassis-id: 043fe8cd-5072-45eb-a332-bbf8d4f94ab5
-    k8s.ovn.org/node-join-subnets: '{"default":"100.64.3.0/29"}'
-    k8s.ovn.org/node-local-nat-ip: '{"default":["169.254.5.111"]}'
-    k8s.ovn.org/node-mgmt-port-mac-address: 8e:c0:e0:0c:77:fa
-    k8s.ovn.org/node-primary-ifaddr: '{"ipv4":"10.19.232.239/25"}'
-    k8s.ovn.org/node-subnets: '{"default":"10.135.0.0/23"}'
-    machine.openshift.io/machine: openshift-machine-api/cnfd1-4mjjh-worker-0-4bbpt
+    machine.openshift.io/machine: worker2
     machineconfiguration.openshift.io/currentConfig: rendered-worker-ab646b3e1548515048010140962bf08d
     machineconfiguration.openshift.io/desiredConfig: rendered-worker-ab646b3e1548515048010140962bf08d
     machineconfiguration.openshift.io/reason: ""
@@ -24,7 +17,7 @@ metadata:
     beta.kubernetes.io/arch: amd64
     beta.kubernetes.io/os: linux
     kubernetes.io/arch: amd64
-    kubernetes.io/hostname: dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com
+    kubernetes.io/hostname: worker2
     kubernetes.io/os: linux
     node-role.kubernetes.io/worker: ""
     node.openshift.io/os_id: rhcos
@@ -202,20 +195,15 @@ metadata:
     manager: kubelet
     operation: Update
     time: "2021-02-19T00:31:54Z"
-  name: dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com
+  name: worker2
   resourceVersion: "38563046"
-  selfLink: /api/v1/nodes/dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com
+  selfLink: /api/v1/nodes/worker2
   uid: 19aa6782-98c7-44a0-a57f-acc4ac4881cd
 spec:
-  podCIDR: 10.132.3.0/24
-  podCIDRs:
-  - 10.132.3.0/24
   providerID: baremetalhost:///openshift-machine-api/cnfd1-worker-0
 status:
   addresses:
-  - address: 10.19.232.239
-    type: InternalIP
-  - address: dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com
+  - address: worker2
     type: Hostname
   allocatable:
     cpu: 23500m
@@ -394,7 +382,7 @@ status:
     sizeBytes: 424450062
   - names:
     - quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:c8f0b9a2852b15b45487c08c158e10f3b803d7a77538d6dbc1d991994f58bcee
-    - quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:<none>
+    - quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256worker2:<none>
     sizeBytes: 418066712
   - names:
     - quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:456dff747967eadbbfc6e9c53b180049bbba09e85cba7d77abe0e36bfc02817a

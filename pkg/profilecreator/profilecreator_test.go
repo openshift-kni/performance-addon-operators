@@ -41,7 +41,7 @@ var _ = Describe("PerformanceProfileCreator: MCP and Node Matching", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(matchedNodes).ToNot(BeNil())
 			Expect(len(matchedNodes)).To(Equal(1))
-			Expect(matchedNodes[0].GetName()).To(Equal("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com"))
+			Expect(matchedNodes[0].GetName()).To(Equal("worker1"))
 		})
 		It("should find 1 machine in worker MCP", func() {
 			mcp, err := GetMCP(mustGatherDirPath, "worker")
@@ -51,7 +51,7 @@ var _ = Describe("PerformanceProfileCreator: MCP and Node Matching", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(matchedNodes).ToNot(BeNil())
 			Expect(len(matchedNodes)).To(Equal(1))
-			Expect(matchedNodes[0].GetName()).To(Equal("dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com"))
+			Expect(matchedNodes[0].GetName()).To(Equal("worker2"))
 		})
 	})
 
@@ -214,7 +214,7 @@ var _ = Describe("PerformanceProfileCreator: Consuming GHW Snapshot from Must Ga
 
 	Context("Identifying Nodes Info of the nodes cluster", func() {
 		It("gets the Nodes Info successfully", func() {
-			node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
+			node = newTestNode("worker1")
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err := NewGHWHandler(mustGatherDirAbsolutePath, node)
@@ -252,7 +252,7 @@ var _ = Describe("PerformanceProfileCreator: Populating Reserved and Isolated CP
 	var err error
 
 	BeforeEach(func() {
-		node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
+		node = newTestNode("worker1")
 	})
 	Context("Check if reserved and isolated CPUs are properly populated in the performance profile", func() {
 		It("Ensure reserved CPUs populated are correctly when splitReservedCPUsAcrossNUMA is disabled and disableHT is disabled", func() {
@@ -397,7 +397,7 @@ var _ = Describe("PerformanceProfileCreator: Check if Hyperthreading enabled/dis
 
 	Context("Check if hyperthreading is enabled on the system or not", func() {
 		It("Ensure we detect correctly that hyperthreading is enabled on a system", func() {
-			node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
+			node = newTestNode("worker1")
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
@@ -407,7 +407,7 @@ var _ = Describe("PerformanceProfileCreator: Check if Hyperthreading enabled/dis
 			Expect(htEnabled).To(Equal(true))
 		})
 		It("Ensure we detect correctly that hyperthreading is disabled on a system", func() {
-			node = newTestNode("dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com")
+			node = newTestNode("worker2")
 			mustGatherDirAbsolutePath, err = filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
@@ -429,7 +429,7 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Functions getCPUsSplitA
 	var err error
 
 	BeforeEach(func() {
-		node = newTestNode("cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com")
+		node = newTestNode("worker1")
 		topologyInfoNodes = []*topology.Node{
 			{
 				ID: 0,
@@ -623,10 +623,10 @@ var _ = Describe("PerformanceProfileCreator: Ensuring Nodes hardware equality", 
 			mustGatherDirAbsolutePath, err := filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 
-			node1, err := getNode(mustGatherDirAbsolutePath, "cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			node1, err := getNode(mustGatherDirAbsolutePath, "worker1.yaml")
 			Expect(err).ToNot(HaveOccurred())
 
-			node2, err := getNode(mustGatherDirAbsolutePath, "cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			node2, err := getNode(mustGatherDirAbsolutePath, "worker1.yaml")
 			Expect(err).ToNot(HaveOccurred())
 
 			nodes := []*v1.Node{node1, node2}
@@ -640,10 +640,10 @@ var _ = Describe("PerformanceProfileCreator: Ensuring Nodes hardware equality", 
 			mustGatherDirAbsolutePath, err := filepath.Abs(mustGatherDirPath)
 			Expect(err).ToNot(HaveOccurred())
 
-			node1, err := getNode(mustGatherDirAbsolutePath, "cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			node1, err := getNode(mustGatherDirAbsolutePath, "worker1.yaml")
 			Expect(err).ToNot(HaveOccurred())
 
-			node2, err := getNode(mustGatherDirAbsolutePath, "dhcp19-232-239.fci1.kni.lab.eng.bos.redhat.com.yaml")
+			node2, err := getNode(mustGatherDirAbsolutePath, "worker2.yaml")
 			Expect(err).ToNot(HaveOccurred())
 
 			nodes := []*v1.Node{node1, node2}

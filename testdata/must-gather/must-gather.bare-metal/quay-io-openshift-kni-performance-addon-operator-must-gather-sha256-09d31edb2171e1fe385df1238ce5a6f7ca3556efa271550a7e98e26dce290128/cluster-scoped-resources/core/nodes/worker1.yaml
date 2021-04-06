@@ -2,14 +2,7 @@ apiVersion: v1
 kind: Node
 metadata:
   annotations:
-    k8s.ovn.org/l3-gateway-config: '{"default":{"mode":"shared","interface-id":"br-ex_cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com","mac-address":"98:03:9b:8e:8a:05","ip-addresses":["10.19.232.130/25"],"ip-address":"10.19.232.130/25","next-hops":["10.19.232.254"],"next-hop":"10.19.232.254","node-port-enable":"true","vlan-id":"0"}}'
-    k8s.ovn.org/node-chassis-id: a8c59d17-ec96-4a47-9a14-96be80712627
-    k8s.ovn.org/node-join-subnets: '{"default":"100.64.4.0/29"}'
-    k8s.ovn.org/node-local-nat-ip: '{"default":["169.254.7.7"]}'
-    k8s.ovn.org/node-mgmt-port-mac-address: fa:82:ac:65:d5:fb
-    k8s.ovn.org/node-primary-ifaddr: '{"ipv4":"10.19.232.130/25"}'
-    k8s.ovn.org/node-subnets: '{"default":"10.132.2.0/23"}'
-    machine.openshift.io/machine: openshift-machine-api/cnfd1-4mjjh-worker-0-g52qv
+    machine.openshift.io/machine: worker1
     machineconfiguration.openshift.io/currentConfig: rendered-worker-cnf-7c30be8313249d4d85afa8cc3f538b3a
     machineconfiguration.openshift.io/desiredConfig: rendered-worker-cnf-7c30be8313249d4d85afa8cc3f538b3a
     machineconfiguration.openshift.io/reason: ""
@@ -23,7 +16,7 @@ metadata:
     beta.kubernetes.io/arch: amd64
     beta.kubernetes.io/os: linux
     kubernetes.io/arch: amd64
-    kubernetes.io/hostname: cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com
+    kubernetes.io/hostname: worker1
     kubernetes.io/os: linux
     node-role.kubernetes.io/worker: ""
     node-role.kubernetes.io/worker-cnf: ""
@@ -227,20 +220,15 @@ metadata:
     manager: kubelet
     operation: Update
     time: "2021-02-19T00:29:17Z"
-  name: cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com
+  name: worker1
   resourceVersion: "38561991"
-  selfLink: /api/v1/nodes/cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com
+  selfLink: /api/v1/nodes/worker1
   uid: a81c784d-04ca-4674-b50a-fc34586f92b8
 spec:
-  podCIDR: 10.132.4.0/24
-  podCIDRs:
-  - 10.132.4.0/24
   providerID: baremetalhost:///openshift-machine-api/cnfd1-worker-1
 status:
   addresses:
-  - address: 10.19.232.130
-    type: InternalIP
-  - address: cnfd1-worker-0.fci1.kni.lab.eng.bos.redhat.com
+  - address: worker1
     type: Hostname
   allocatable:
     cpu: "75"
