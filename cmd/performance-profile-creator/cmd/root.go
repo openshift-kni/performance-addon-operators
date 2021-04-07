@@ -77,8 +77,8 @@ func Execute() {
 	}
 }
 
-func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
-	creatorArgs := profileCreatorArgs{}
+func getDataFromFlags(cmd *cobra.Command) (ProfileCreatorArgs, error) {
+	creatorArgs := ProfileCreatorArgs{}
 	mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
 	mcpName := cmd.Flag("mcp-name").Value.String()
 	reservedCPUCount, err := strconv.Atoi(cmd.Flag("reserved-cpu-count").Value.String())
@@ -124,49 +124,49 @@ func getDataFromFlags(cmd *cobra.Command) (profileCreatorArgs, error) {
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse disable-ht flag: %v", err)
 	}
-	creatorArgs = profileCreatorArgs{
-		mustGatherDirPath:           mustGatherDirPath,
-		profileName:                 profileName,
-		reservedCPUCount:            reservedCPUCount,
-		splitReservedCPUsAcrossNUMA: splitReservedCPUsAcrossNUMA,
-		mcpName:                     mcpName,
-		tmPolicy:                    tmPolicy,
-		rtKernel:                    rtKernelEnabled,
-		powerConsumptionMode:        powerConsumptionMode,
-		userLevelNetworking:         userLevelNetworkingEnabled,
-		disableHT:                   htDisabled,
+	creatorArgs = ProfileCreatorArgs{
+		MustGatherDirPath:           mustGatherDirPath,
+		ProfileName:                 profileName,
+		ReservedCPUCount:            reservedCPUCount,
+		SplitReservedCPUsAcrossNUMA: splitReservedCPUsAcrossNUMA,
+		MCPName:                     mcpName,
+		TMPolicy:                    tmPolicy,
+		RTKernel:                    rtKernelEnabled,
+		PowerConsumptionMode:        powerConsumptionMode,
+		UserLevelNetworking:         userLevelNetworkingEnabled,
+		DisableHT:                   htDisabled,
 	}
 	return creatorArgs, nil
 }
 
-func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
-	info, err := os.Stat(args.mustGatherDirPath)
+func getProfileData(args ProfileCreatorArgs) (*ProfileData, error) {
+	info, err := os.Stat(args.MustGatherDirPath)
 	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("the must-gather path '%s' is not valid", args.mustGatherDirPath)
+		return nil, fmt.Errorf("the must-gather path '%s' is not valid", args.MustGatherDirPath)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("can't access the must-gather path: %v", err)
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("the must-gather path '%s' is not a directory", args.mustGatherDirPath)
+		return nil, fmt.Errorf("the must-gather path '%s' is not a directory", args.MustGatherDirPath)
 	}
 
-	mcps, err := profilecreator.GetMCPList(args.mustGatherDirPath)
+	mcps, err := profilecreator.GetMCPList(args.MustGatherDirPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the MCP list under %s: %v", args.mustGatherDirPath, err)
+		return nil, fmt.Errorf("failed to get the MCP list under %s: %v", args.MustGatherDirPath, err)
 	}
 
 	var mcp *machineconfigv1.MachineConfigPool
 	mcpNames := make([]string, 0)
 	for _, m := range mcps {
 		mcpNames = append(mcpNames, m.Name)
-		if m.Name == args.mcpName {
+		if m.Name == args.MCPName {
 			mcp = m
 		}
 	}
 
 	if mcp == nil {
-		return nil, fmt.Errorf("'%s' MCP does not exist, valid values are %v", args.mcpName, mcpNames)
+		return nil, fmt.Errorf("'%s' MCP does not exist, valid values are %v", args.MCPName, mcpNames)
 	}
 
 	mcpSelector, err := profilecreator.GetMCPSelector(mcp, mcps)
@@ -174,25 +174,25 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 		return nil, fmt.Errorf("failed to compute the MCP selector: %v", err)
 	}
 
-	nodes, err := profilecreator.GetNodeList(args.mustGatherDirPath)
+	nodes, err := profilecreator.GetNodeList(args.MustGatherDirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load the cluster nodes: %v", err)
 	}
 
 	matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find MCP %s's nodes: %v", args.mcpName, err)
+		return nil, fmt.Errorf("failed to find MCP %s's nodes: %v", args.MCPName, err)
 	}
 	if len(matchedNodes) == 0 {
-		return nil, fmt.Errorf("no nodes are associated with '%s' MCP", args.mcpName)
+		return nil, fmt.Errorf("no nodes are associated with '%s' MCP", args.MCPName)
 	}
 
 	var matchedNodeNames []string
 	for _, node := range matchedNodes {
 		matchedNodeNames = append(matchedNodeNames, node.GetName())
 	}
-	log.Infof("Nodes targetted by %s MCP are: %v", args.mcpName, matchedNodeNames)
-	err = profilecreator.EnsureNodesHaveTheSameHardware(args.mustGatherDirPath, matchedNodes)
+	log.Infof("Nodes targetted by %s MCP are: %v", args.MCPName, matchedNodeNames)
+	err = profilecreator.EnsureNodesHaveTheSameHardware(args.MustGatherDirPath, matchedNodes)
 	if err != nil {
 		return nil, fmt.Errorf("targeted nodes differ: %v", err)
 	}
@@ -201,24 +201,24 @@ func getProfileData(args profileCreatorArgs) (*ProfileData, error) {
 	// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
 	// same from hardware topology point of view
 
-	handle, err := profilecreator.NewGHWHandler(args.mustGatherDirPath, matchedNodes[0])
-	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.reservedCPUCount, args.splitReservedCPUsAcrossNUMA, args.disableHT)
+	handle, err := profilecreator.NewGHWHandler(args.MustGatherDirPath, matchedNodes[0])
+	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.ReservedCPUCount, args.SplitReservedCPUsAcrossNUMA, args.DisableHT)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute the reserved and isolated CPUs: %v", err)
 	}
 	log.Infof("%d reserved CPUs allocated: %v ", reservedCPUs.Size(), reservedCPUs.String())
 	log.Infof("%d isolated CPUs allocated: %v", isolatedCPUs.Size(), isolatedCPUs.String())
-	kernelArgs := profilecreator.GetAdditionalKernelArgs(args.powerConsumptionMode, args.disableHT)
+	kernelArgs := profilecreator.GetAdditionalKernelArgs(args.PowerConsumptionMode, args.DisableHT)
 	profileData := &ProfileData{
 		reservedCPUs:           reservedCPUs.String(),
 		isolatedCPUs:           isolatedCPUs.String(),
 		nodeSelector:           mcp.Spec.NodeSelector,
 		mcpSelector:            mcpSelector,
-		performanceProfileName: args.profileName,
-		topologyPoilcy:         args.tmPolicy,
-		rtKernel:               args.rtKernel,
+		performanceProfileName: args.ProfileName,
+		topologyPoilcy:         args.TMPolicy,
+		rtKernel:               args.RTKernel,
 		additionalKernelArgs:   kernelArgs,
-		userLevelNetworking:    args.userLevelNetworking,
+		userLevelNetworking:    args.UserLevelNetworking,
 	}
 	return profileData, nil
 }
@@ -240,39 +240,40 @@ func isStringInSlice(value string, candidates []string) bool {
 	return false
 }
 
-type profileCreatorArgs struct {
-	powerConsumptionMode        string
-	mustGatherDirPath           string
-	profileName                 string
-	reservedCPUCount            int
-	splitReservedCPUsAcrossNUMA bool
-	disableHT                   bool
-	rtKernel                    bool
-	userLevelNetworking         bool
-	mcpName                     string
-	tmPolicy                    string
+// ProfileCreatorArgs represents the arguments passed to the ProfileCreator
+type ProfileCreatorArgs struct {
+	PowerConsumptionMode        string `json:"power-consumption-mode"`
+	MustGatherDirPath           string `json:"must-gather-dir-path"`
+	ProfileName                 string `json:"profile-name"`
+	ReservedCPUCount            int    `json:"reserved-cpu-count"`
+	SplitReservedCPUsAcrossNUMA bool   `json:"split-reserved-cpus-across-numa"`
+	DisableHT                   bool   `json:"disable-ht"`
+	RTKernel                    bool   `json:"rt-kernel"`
+	UserLevelNetworking         bool   `json:"user-level-networking"`
+	MCPName                     string `json:"mcp-name"`
+	TMPolicy                    string `json:"topology-manager-policy"`
 }
 
 func init() {
-	args := &profileCreatorArgs{}
+	args := &ProfileCreatorArgs{}
 	log.SetOutput(os.Stderr)
 	log.SetFormatter(&log.TextFormatter{
 		DisableTimestamp: true,
 	})
-	rootCmd.PersistentFlags().IntVar(&args.reservedCPUCount, "reserved-cpu-count", 0, "Number of reserved CPUs (required)")
+	rootCmd.PersistentFlags().IntVar(&args.ReservedCPUCount, "reserved-cpu-count", 0, "Number of reserved CPUs (required)")
 	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
-	rootCmd.PersistentFlags().BoolVar(&args.splitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", false, "Split the Reserved CPUs across NUMA nodes")
-	rootCmd.PersistentFlags().StringVar(&args.mcpName, "mcp-name", "worker-cnf", "MCP name corresponding to the target machines (required)")
+	rootCmd.PersistentFlags().BoolVar(&args.SplitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", false, "Split the Reserved CPUs across NUMA nodes")
+	rootCmd.PersistentFlags().StringVar(&args.MCPName, "mcp-name", "worker-cnf", "MCP name corresponding to the target machines (required)")
 	rootCmd.MarkPersistentFlagRequired("mcp-name")
-	rootCmd.PersistentFlags().BoolVar(&args.disableHT, "disable-ht", false, "Disable Hyperthreading")
-	rootCmd.PersistentFlags().BoolVar(&args.rtKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
+	rootCmd.PersistentFlags().BoolVar(&args.DisableHT, "disable-ht", false, "Disable Hyperthreading")
+	rootCmd.PersistentFlags().BoolVar(&args.RTKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
-	rootCmd.PersistentFlags().BoolVar(&args.userLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
-	rootCmd.PersistentFlags().StringVar(&args.powerConsumptionMode, "power-consumption-mode", profilecreator.ValidPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s, %s, %s]", profilecreator.ValidPowerConsumptionModes[0], profilecreator.ValidPowerConsumptionModes[1], profilecreator.ValidPowerConsumptionModes[2]))
-	rootCmd.PersistentFlags().StringVar(&args.mustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
+	rootCmd.PersistentFlags().BoolVar(&args.UserLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
+	rootCmd.PersistentFlags().StringVar(&args.PowerConsumptionMode, "power-consumption-mode", profilecreator.ValidPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s, %s, %s]", profilecreator.ValidPowerConsumptionModes[0], profilecreator.ValidPowerConsumptionModes[1], profilecreator.ValidPowerConsumptionModes[2]))
+	rootCmd.PersistentFlags().StringVar(&args.MustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
-	rootCmd.PersistentFlags().StringVar(&args.profileName, "profile-name", "performance", "Name of the performance profile to be created")
-	rootCmd.PersistentFlags().StringVar(&args.tmPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
+	rootCmd.PersistentFlags().StringVar(&args.ProfileName, "profile-name", "performance", "Name of the performance profile to be created")
+	rootCmd.PersistentFlags().StringVar(&args.TMPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
 }
 
 func createProfile(profileData ProfileData) {
