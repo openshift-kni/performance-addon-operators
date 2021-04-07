@@ -126,6 +126,7 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 		var devices []string
 		var tunedNetDevicesOutput []string
 		netPluginSequence := 0
+		netPluginString := ""
 
 		for _, device := range profile.Spec.Net.Devices {
 			devices = make([]string, 0)
@@ -144,16 +145,19 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 				}
 			}
 			// Final regex format can be one of the following formats:
-			// devicesUdevRegex = r'^INTERFACE=InterfaceName'        (InterfaceName can also hold .* representing * wildcard)
-			// devicesUdevRegex = r'^INTERFACE(?!InterfaceName)'    (InterfaceName can starting with ?! represents ! wildcard)
-			// devicesUdevRegex = r'^ID_VENDOR_ID=VendorID'
-			// devicesUdevRegex = r'^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID'
-			// devicesUdevRegex = r'^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE=InterfaceName'
-			// devicesUdevRegex = r'^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE=(?!InterfaceName)'
+			// devicesUdevRegex = ^INTERFACE=InterfaceName'        (InterfaceName can also hold .* representing * wildcard)
+			// devicesUdevRegex = ^INTERFACE(?!InterfaceName)'    (InterfaceName can starting with ?! represents ! wildcard)
+			// devicesUdevRegex = ^ID_VENDOR_ID=VendorID'
+			// devicesUdevRegex = ^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID'
+			// devicesUdevRegex = ^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE=InterfaceName'
+			// devicesUdevRegex = ^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE=(?!InterfaceName)'
 			// Important note: The order of the key must be preserved - INTERFACE, ID_MODEL_ID, ID_VENDOR_ID (in that order)
-			devicesUdevRegex := "r'" + strings.Join(devices, `[\s\S]*`) + "'"
+			devicesUdevRegex := strings.Join(devices, `[\s\S]*`)
+			if netPluginSequence > 0 {
+				netPluginString = "_" + strconv.Itoa(netPluginSequence)
+			}
+			tunedNetDevicesOutput = append(tunedNetDevicesOutput, fmt.Sprintf("\n[net%s]\ntype=net\ndevices_udev_regex=%s\nchannels=combined %d\n%s", netPluginString, devicesUdevRegex, reserveCPUcount, nfConntrackHashsize))
 			netPluginSequence++
-			tunedNetDevicesOutput = append(tunedNetDevicesOutput, fmt.Sprintf("\n[net_%d]\ntype=net\ndevices_udev_regex=%s\nchannels=combined %d\n%s", netPluginSequence, devicesUdevRegex, reserveCPUcount, nfConntrackHashsize))
 		}
 		//nfConntrackHashsize
 		if len(tunedNetDevicesOutput) == 0 {

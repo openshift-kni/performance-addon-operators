@@ -178,8 +178,8 @@ var _ = Describe("Tuned", func() {
 				})
 				It("should set by interface name with reserved CPUs count", func() {
 					netDeviceName := "eth*"
-					//regex field should be: devices_udev_regex=r'^INTERFACE=eth.*''
-					devicesUdevRegex := "r'\\^INTERFACE=" + strings.Replace(netDeviceName, "*", "\\.\\*", -1) + "'"
+					//regex field should be: devices_udev_regex=^INTERFACE=eth.*
+					devicesUdevRegex := "\\^INTERFACE=" + strings.Replace(netDeviceName, "*", "\\.\\*", -1)
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
@@ -192,13 +192,13 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net_1\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by negative interface name with reserved CPUs count", func() {
 					netDeviceName := "!ens5"
-					//regex field should be: devices_udev_regex=r'^INTERFACE=(?!ens5)'
-					devicesUdevRegex := "r'\\^INTERFACE=\\(\\?!" + strings.Replace(netDeviceName, "*", "\\.\\*", -1) + "\\)'"
+					//regex field should be: devices_udev_regex=^INTERFACE=(?!ens5)
+					devicesUdevRegex := "\\^INTERFACE=\\(\\?!" + strings.Replace(netDeviceName, "*", "\\.\\*", -1) + "\\)"
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
@@ -211,13 +211,13 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net_1\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by specific vendor with reserved CPUs count", func() {
 					netDeviceVendorID := "0x1af4"
-					//regex field should be: devices_udev_regex=r'^ID_VENDOR_ID=0x1af4'
-					devicesUdevRegex := "r'\\^ID_VENDOR_ID=" + netDeviceVendorID + "'"
+					//regex field should be: devices_udev_regex=^ID_VENDOR_ID=0x1af4
+					devicesUdevRegex := "\\^ID_VENDOR_ID=" + netDeviceVendorID
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
@@ -230,14 +230,14 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net_1\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by specific vendor and model with reserved CPUs count", func() {
 					netDeviceVendorID := "0x1af4"
 					netDeviceModelID := "0x1000"
-					//regex field should be: devices_udev_regex=r'^ID_MODEL_ID=0x1000[\s\S]*^ID_VENDOR_ID=0x1af4'
-					devicesUdevRegex := `r'\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID + `'`
+					//regex field should be: devices_udev_regex=^ID_MODEL_ID=0x1000[\s\S]*^ID_VENDOR_ID=0x1af4
+					devicesUdevRegex := `\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
@@ -251,15 +251,15 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net_1\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by specific vendor,model and interface name with reserved CPUs count", func() {
 					netDeviceName := "ens5"
 					netDeviceVendorID := "0x1af4"
 					netDeviceModelID := "0x1000"
-					//regex field should be: devices_udev_regex=r'^ID_MODEL_ID=0x1000[\s\S]*^ID_VENDOR_ID=0x1af4[\s\S]*^INTERFACE=ens5'
-					devicesUdevRegex := `r'\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID + `\[\\\\s\\\\S]\*\^INTERFACE=` + netDeviceName + `'`
+					//regex field should be: devices_udev_regex=^ID_MODEL_ID=0x1000[\s\S]*^ID_VENDOR_ID=0x1af4[\s\S]*^INTERFACE=ens5
+					devicesUdevRegex := `\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID + `\[\\\\s\\\\S]\*\^INTERFACE=` + netDeviceName
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
@@ -274,15 +274,15 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net_1\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by specific vendor,model and negative interface name with reserved CPUs count", func() {
 					netDeviceName := "!ens5"
 					netDeviceVendorID := "0x1af4"
 					netDeviceModelID := "0x1000"
-					//regex field should be: devices_udev_regex=r'^ID_MODEL_ID=0x1000[\\s\\S]*^ID_VENDOR_ID=0x1af4[\\s\\S]*^INTERFACE=(?!ens5)'
-					devicesUdevRegex := `r'\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID + `\[\\\\s\\\\S]\*\^INTERFACE=\(\?!` + netDeviceName + `\)'`
+					//regex field should be: devices_udev_regex=^ID_MODEL_ID=0x1000[\\s\\S]*^ID_VENDOR_ID=0x1af4[\\s\\S]*^INTERFACE=(?!ens5)
+					devicesUdevRegex := `\^ID_MODEL_ID=` + netDeviceModelID + `\[\\\\s\\\\S]\*\^ID_VENDOR_ID=` + netDeviceVendorID + `\[\\\\s\\\\S]\*\^INTERFACE=\(\?!` + netDeviceName + `\)`
 
 					profile.Spec.Net = &performancev2.Net{
 						UserLevelNetworking: pointer.BoolPtr(true),
@@ -297,7 +297,7 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net_1\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 			})
