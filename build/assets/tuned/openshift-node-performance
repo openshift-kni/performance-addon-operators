@@ -94,8 +94,6 @@ kernel.sched_migration_cost_ns=5000000        # latency-performance
 [selinux]
 avc_cache_threshold=8192                      # Custom (atomic host)
 
-[net]
-nf_conntrack_hashsize=131072                  # Custom (atomic host)
 {{if .NetDevices}}
 {{.NetDevices}} 
 {{end}}

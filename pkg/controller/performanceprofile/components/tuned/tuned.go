@@ -28,6 +28,7 @@ const (
 	templateAdditionalArgs                  = "AdditionalArgs"
 	templateGloballyDisableIrqLoadBalancing = "GloballyDisableIrqLoadBalancing"
 	templateNetDevices                      = "NetDevices"
+	nfConntrackHashsize                     = "nf_conntrack_hashsize=131072"
 )
 
 func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.TunedRecommend) *tunedv1.Tuned {
@@ -112,6 +113,8 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 		templateArgs[templateGloballyDisableIrqLoadBalancing] = strconv.FormatBool(true)
 	}
 
+	//set default [net] field first, override if needed.
+	templateArgs[templateNetDevices] = fmt.Sprintf("[net]\n%s", nfConntrackHashsize)
 	if profile.Spec.Net != nil && *profile.Spec.Net.UserLevelNetworking && profile.Spec.CPU.Reserved != nil {
 
 		reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
@@ -123,6 +126,7 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 		var devices []string
 		var tunedNetDevicesOutput []string
 		netPluginSequence := 0
+		netPluginString := ""
 
 		for _, device := range profile.Spec.Net.Devices {
 			devices = make([]string, 0)
@@ -135,26 +139,29 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 			if device.InterfaceName != nil {
 				deviceNameAmendedRegex := strings.Replace(*device.InterfaceName, "*", ".*", -1)
 				if strings.HasPrefix(*device.InterfaceName, "!") {
-					devices = append(devices, "^INTERFACE_NAME="+"(?!"+deviceNameAmendedRegex+")")
+					devices = append(devices, "^INTERFACE="+"(?!"+deviceNameAmendedRegex+")")
 				} else {
-					devices = append(devices, "^INTERFACE_NAME="+deviceNameAmendedRegex)
+					devices = append(devices, "^INTERFACE="+deviceNameAmendedRegex)
 				}
 			}
 			// Final regex format can be one of the following formats:
-			// devicesUdevRegex = r'^INTERFACE_NAME=InterfaceName'        (InterfaceName can also hold .* representing * wildcard)
-			// devicesUdevRegex = r'^INTERFACE_NAME=(?!InterfaceName)'    (InterfaceName can starting with ?! represents ! wildcard)
-			// devicesUdevRegex = r'^ID_VENDOR_ID=VendorID'
-			// devicesUdevRegex = r'^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID'
-			// devicesUdevRegex = r'^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE_NAME=InterfaceName'
-			// devicesUdevRegex = r'^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE_NAME=(?!InterfaceName)'
-			// Important note: The order of the key must be preserved - INTERFACE_NAME, ID_MODEL_ID, ID_VENDOR_ID (in that order)
-			devicesUdevRegex := "r'" + strings.Join(devices, `[\s\S]*`) + "'"
+			// devicesUdevRegex = ^INTERFACE=InterfaceName'        (InterfaceName can also hold .* representing * wildcard)
+			// devicesUdevRegex = ^INTERFACE(?!InterfaceName)'    (InterfaceName can starting with ?! represents ! wildcard)
+			// devicesUdevRegex = ^ID_VENDOR_ID=VendorID'
+			// devicesUdevRegex = ^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID'
+			// devicesUdevRegex = ^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE=InterfaceName'
+			// devicesUdevRegex = ^ID_MODEL_ID=DeviceID[\s\S]*^ID_VENDOR_ID=VendorID[\s\S]*^INTERFACE=(?!InterfaceName)'
+			// Important note: The order of the key must be preserved - INTERFACE, ID_MODEL_ID, ID_VENDOR_ID (in that order)
+			devicesUdevRegex := strings.Join(devices, `[\s\S]*`)
+			if netPluginSequence > 0 {
+				netPluginString = "_" + strconv.Itoa(netPluginSequence)
+			}
+			tunedNetDevicesOutput = append(tunedNetDevicesOutput, fmt.Sprintf("\n[net%s]\ntype=net\ndevices_udev_regex=%s\nchannels=combined %d\n%s", netPluginString, devicesUdevRegex, reserveCPUcount, nfConntrackHashsize))
 			netPluginSequence++
-			tunedNetDevicesOutput = append(tunedNetDevicesOutput, fmt.Sprintf("\n[net_%d]\ntype=net\ndevices_udev_regex=%s\nchannels=combined %d", netPluginSequence, devicesUdevRegex, reserveCPUcount))
 		}
-
+		//nfConntrackHashsize
 		if len(tunedNetDevicesOutput) == 0 {
-			templateArgs[templateNetDevices] = fmt.Sprintf("channels=combined %d", reserveCPUcount)
+			templateArgs[templateNetDevices] = fmt.Sprintf("[net]\nchannels=combined %d\n%s", reserveCPUcount, nfConntrackHashsize)
 		} else {
 			templateArgs[templateNetDevices] = strings.Join(tunedNetDevicesOutput, "")
 		}
