@@ -11,6 +11,8 @@ spec:
       name: perf-node-gather-daemonset
   template:
     metadata:
+      annotations:
+        workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
       labels:
         name: perf-node-gather-daemonset
     spec:
