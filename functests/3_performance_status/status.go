@@ -44,7 +44,7 @@ var _ = Describe("Status testing of performance profile", func() {
 
 	Context("[rfe_id:28881][performance] Performance Addons detailed status", func() {
 
-		It("[test_id:30894] Tuned status field tied to Performance Profile", func() {
+		It("[test_id:30894] Tuned status name tied to Performance Profile", func() {
 			profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 			Expect(err).ToNot(HaveOccurred())
 			key := types.NamespacedName{
@@ -103,6 +103,21 @@ var _ = Describe("Status testing of performance profile", func() {
 
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 		})
+
+		It("[test_id:40402] Tuned profile status tied to Performance Profile", func() {
+			// Creating bad Tuned object that leads to degraded state
+			badTuned := createBadTuned("openshift-cause-tuned-failure", "openshift-cluster-node-tuning-operator")
+			err = testclient.Client.Create(context.TODO(), badTuned)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Waiting for performance profile condition to be Degraded")
+			profiles.WaitForCondition(testutils.NodeSelectorLabels, v1.ConditionDegraded, corev1.ConditionTrue)
+
+			By("Deleting bad Tuned and waiting when Degraded state is removed")
+			err = testclient.Client.Delete(context.TODO(), badTuned)
+			profiles.WaitForCondition(testutils.NodeSelectorLabels, v1.ConditionAvailable, corev1.ConditionTrue)
+		})
+
 	})
 })
 
@@ -138,4 +153,36 @@ func createBadMachineConfig(name string) *machineconfigv1.MachineConfig {
 			},
 		},
 	}
+}
+
+func createBadTuned(name, ns string) *tunedv1.Tuned {
+	priority := uint64(20)
+	data := "[main]\nsummary=A Tuned daemon profile that does not exist\ninclude=profile-does-not-exist"
+
+	return &tunedv1.Tuned{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: tunedv1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+			UID:       types.UID(utilrand.String(5)),
+		},
+		Spec: tunedv1.TunedSpec{
+			Profile: []tunedv1.TunedProfile{
+				{
+					Name: &name,
+					Data: &data,
+				},
+			},
+			Recommend: []tunedv1.TunedRecommend{
+				{
+					MachineConfigLabels: map[string]string{"machineconfiguration.openshift.io/role": testutils.RoleWorkerCNF},
+					Priority:            &priority,
+					Profile:             &name,
+				},
+			},
+		},
+	}
+
 }
