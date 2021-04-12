@@ -28,8 +28,11 @@ import (
 )
 
 var _ = Describe("Status testing of performance profile", func() {
-	var workerCNFNodes []corev1.Node
-	var err error
+	var (
+		workerCNFNodes []corev1.Node
+		err            error
+		clean          func() error
+	)
 
 	BeforeEach(func() {
 		if discovery.Enabled() && testutils.ProfileNotFound {
@@ -40,6 +43,15 @@ var _ = Describe("Status testing of performance profile", func() {
 		workerCNFNodes, err = nodes.MatchingOptionalSelector(workerCNFNodes)
 		Expect(err).ToNot(HaveOccurred(), "error looking for the optional selector: %v", err)
 		Expect(workerCNFNodes).ToNot(BeEmpty())
+		// initialized clean function handler to be nil on every It execution
+		clean = nil
+	})
+
+	AfterEach(func() {
+		if clean != nil {
+			clean()
+		}
+
 	})
 
 	Context("[rfe_id:28881][performance] Performance Addons detailed status", func() {
@@ -105,8 +117,31 @@ var _ = Describe("Status testing of performance profile", func() {
 		})
 
 		It("[test_id:40402] Tuned profile status tied to Performance Profile", func() {
+			// During this test we're creating additional synthetic tuned CR by invoking the createrBadTuned function.
+			// This synthetic tuned will look for a tuned profile which doesn't exist.
+			// This tuned CR will be applied on the profiles.tuned.openshift.io CR (there is such profile per node)
+			// which is associate to the node object with the same name.
+			// The connection between the node object and the tuned object is via the MachineConfigLables, worker-cnf in our case.
+			ns := "openshift-cluster-node-tuning-operator"
+			tunedName := "openshift-cause-tuned-failure"
+
+			// Make sure to clean badTuned object even if the It threw an assertion
+			clean = func() error {
+				key := types.NamespacedName{
+					Name:      tunedName,
+					Namespace: ns,
+				}
+				runtimeClass := &tunedv1.Tuned{}
+				err := testclient.Client.Get(context.TODO(), key, runtimeClass)
+				// if err != nil probably the resource were already deleted
+				if err == nil {
+					testclient.Client.Delete(context.TODO(), runtimeClass)
+				}
+				return err
+			}
+
 			// Creating bad Tuned object that leads to degraded state
-			badTuned := createBadTuned("openshift-cause-tuned-failure", "openshift-cluster-node-tuning-operator")
+			badTuned := createBadTuned(tunedName, ns)
 			err = testclient.Client.Create(context.TODO(), badTuned)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -117,7 +152,6 @@ var _ = Describe("Status testing of performance profile", func() {
 			err = testclient.Client.Delete(context.TODO(), badTuned)
 			profiles.WaitForCondition(testutils.NodeSelectorLabels, v1.ConditionAvailable, corev1.ConditionTrue)
 		})
-
 	})
 })
 
@@ -157,6 +191,8 @@ func createBadMachineConfig(name string) *machineconfigv1.MachineConfig {
 
 func createBadTuned(name, ns string) *tunedv1.Tuned {
 	priority := uint64(20)
+	// include=profile-does-not-exist
+	// points to tuned profile which doesn't exist
 	data := "[main]\nsummary=A Tuned daemon profile that does not exist\ninclude=profile-does-not-exist"
 
 	return &tunedv1.Tuned{
