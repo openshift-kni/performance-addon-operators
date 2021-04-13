@@ -1,6 +1,6 @@
 #!/bin/bash
 
-GINKGO_SUITS=${GINKGO_SUITS:-functests}
+GINKGO_SUITS=${GINKGO_SUITS:-functests functests-performance-profile-creator2}
 LATENCY_TEST_RUN=${LATENCY_TEST_RUN:-"false"}
 
 which ginkgo
