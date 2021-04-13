@@ -32,6 +32,7 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeletconfig "k8s.io/kubelet/config/v1beta1"
+	"k8s.io/utils/pointer"
 )
 
 var (
@@ -47,7 +48,7 @@ type ProfileData struct {
 	topologyPoilcy             string
 	rtKernel                   bool
 	additionalKernelArgs       []string
-	userLevelNetworking        bool
+	userLevelNetworking        *bool
 	disableHT                  bool
 }
 
@@ -115,11 +116,6 @@ func getDataFromFlags(cmd *cobra.Command) (ProfileCreatorArgs, error) {
 		return creatorArgs, fmt.Errorf("failed to parse rt-kernel flag: %v", err)
 	}
 
-	userLevelNetworkingEnabled, err := strconv.ParseBool(cmd.Flag("user-level-networking").Value.String())
-	if err != nil {
-		return creatorArgs, fmt.Errorf("failed to parse user-level-networking flag: %v", err)
-	}
-
 	htDisabled, err := strconv.ParseBool(cmd.Flag("disable-ht").Value.String())
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse disable-ht flag: %v", err)
@@ -133,9 +129,17 @@ func getDataFromFlags(cmd *cobra.Command) (ProfileCreatorArgs, error) {
 		TMPolicy:                    tmPolicy,
 		RTKernel:                    rtKernelEnabled,
 		PowerConsumptionMode:        powerConsumptionMode,
-		UserLevelNetworking:         userLevelNetworkingEnabled,
 		DisableHT:                   htDisabled,
 	}
+
+	if cmd.Flag("user-level-networking").Changed {
+		userLevelNetworkingEnabled, err := strconv.ParseBool(cmd.Flag("user-level-networking").Value.String())
+		if err != nil {
+			return creatorArgs, fmt.Errorf("failed to parse user-level-networking flag: %v", err)
+		}
+		creatorArgs.UserLevelNetworking = &userLevelNetworkingEnabled
+	}
+
 	return creatorArgs, nil
 }
 
@@ -249,13 +253,15 @@ type ProfileCreatorArgs struct {
 	SplitReservedCPUsAcrossNUMA bool   `json:"split-reserved-cpus-across-numa"`
 	DisableHT                   bool   `json:"disable-ht"`
 	RTKernel                    bool   `json:"rt-kernel"`
-	UserLevelNetworking         bool   `json:"user-level-networking"`
+	UserLevelNetworking         *bool  `json:"user-level-networking,omitempty"`
 	MCPName                     string `json:"mcp-name"`
 	TMPolicy                    string `json:"topology-manager-policy"`
 }
 
 func init() {
-	args := &ProfileCreatorArgs{}
+	args := &ProfileCreatorArgs{
+		UserLevelNetworking: pointer.BoolPtr(false),
+	}
 	log.SetOutput(os.Stderr)
 	log.SetFormatter(&log.TextFormatter{
 		DisableTimestamp: true,
@@ -268,7 +274,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&args.DisableHT, "disable-ht", false, "Disable Hyperthreading")
 	rootCmd.PersistentFlags().BoolVar(&args.RTKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
 	rootCmd.MarkPersistentFlagRequired("rt-kernel")
-	rootCmd.PersistentFlags().BoolVar(&args.UserLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
+	rootCmd.PersistentFlags().BoolVar(args.UserLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
 	rootCmd.PersistentFlags().StringVar(&args.PowerConsumptionMode, "power-consumption-mode", profilecreator.ValidPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s, %s, %s]", profilecreator.ValidPowerConsumptionModes[0], profilecreator.ValidPowerConsumptionModes[1], profilecreator.ValidPowerConsumptionModes[2]))
 	rootCmd.PersistentFlags().StringVar(&args.MustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
@@ -303,10 +309,13 @@ func createProfile(profileData ProfileData) {
 			NUMA: &performancev2.NUMA{
 				TopologyPolicy: &profileData.topologyPoilcy,
 			},
-			Net: &performancev2.Net{
-				UserLevelNetworking: &profileData.userLevelNetworking,
-			},
 		},
+	}
+
+	if profileData.userLevelNetworking != nil {
+		profile.Spec.Net = &performancev2.Net{
+			UserLevelNetworking: profileData.userLevelNetworking,
+		}
 	}
 
 	// write CSV to out dir

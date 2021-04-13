@@ -8,8 +8,6 @@ spec:
     reserved: 0,2,40,42
   machineConfigPoolSelector:
     machineconfiguration.openshift.io/role: worker-cnf
-  net:
-    userLevelNetworking: false
   nodeSelector:
     node-role.kubernetes.io/worker-cnf: ""
   numa:
