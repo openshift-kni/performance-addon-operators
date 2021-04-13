@@ -125,7 +125,7 @@ var _ = Describe("Status testing of performance profile", func() {
 			ns := "openshift-cluster-node-tuning-operator"
 			tunedName := "openshift-cause-tuned-failure"
 
-			// Make sure to clean badTuned object even if the It threw an assertion
+			// Make sure to clean badTuned object even if the It threw an error
 			clean = func() error {
 				key := types.NamespacedName{
 					Name:      tunedName,
