@@ -184,7 +184,7 @@ func getProfileData(args ProfileCreatorArgs) (*ProfileData, error) {
 		return nil, fmt.Errorf("failed to find MCP %s's nodes: %v", args.MCPName, err)
 	}
 	if len(matchedNodes) == 0 {
-		return nil, fmt.Errorf("no nodes are associated with '%s' MCP", args.MCPName)
+		return nil, fmt.Errorf("no schedulable nodes are associated with '%s' MCP", args.MCPName)
 	}
 
 	var matchedNodeNames []string
