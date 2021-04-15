@@ -258,7 +258,7 @@ operator-upgrade-tests:
 	hack/run-upgrade-tests.sh
 
 .PHONY: perf-profile-creator-tests
-perf-profile-creator-tests:
+perf-profile-creator-tests: create-performance-profile
 	@echo "Running Performance Profile Creator Tests"
 	hack/run-perf-profile-creator-functests.sh
 
