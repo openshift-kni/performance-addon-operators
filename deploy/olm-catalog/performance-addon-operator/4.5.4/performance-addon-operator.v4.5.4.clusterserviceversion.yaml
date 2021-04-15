@@ -1,0 +1,191 @@
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "performance.openshift.io/v1alpha1",
+          "kind": "PerformanceProfile",
+          "metadata": {
+            "name": "example-performanceprofile"
+          },
+          "spec": {
+            "additionalKernelArgs": [
+              "nmi_watchdog=0",
+              "audit=0",
+              "mce=off",
+              "processor.max_cstate=1",
+              "idle=poll",
+              "intel_idle.max_cstate=0"
+            ],
+            "cpu": {
+              "isolated": "2-3",
+              "reserved": "0-1"
+            },
+            "hugepages": {
+              "defaultHugepagesSize": "1G",
+              "pages": [
+                {
+                  "count": 2,
+                  "node": 0,
+                  "size": "1G"
+                }
+              ]
+            },
+            "nodeSelector": {
+              "node-role.kubernetes.io/performance": ""
+            },
+            "realTimeKernel": {
+              "enabled": true
+            }
+          }
+        }
+      ]
+    capabilities: Basic Install
+    containerImage: REPLACE_IMAGE
+    olm.skipRange: '>=4.4.0 <4.5.4'
+  name: performance-addon-operator.v4.5.4
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: PerformanceProfile is the Schema for the performanceprofiles API.
+      displayName: Performance Profile
+      kind: PerformanceProfile
+      name: performanceprofiles.performance.openshift.io
+      version: v1alpha1
+  description: |2-
+
+    Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.
+  displayName: Performance Addon Operator
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - '*'
+        - apiGroups:
+          - performance.openshift.io
+          resources:
+          - performanceprofiles
+          - performanceprofiles/finalizers
+          - performanceprofiles/status
+          verbs:
+          - '*'
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - featuregates
+          verbs:
+          - '*'
+        - apiGroups:
+          - machineconfiguration.openshift.io
+          resources:
+          - machineconfigs
+          - machineconfigpools
+          - kubeletconfigs
+          verbs:
+          - '*'
+        - apiGroups:
+          - tuned.openshift.io
+          resources:
+          - tuneds
+          verbs:
+          - '*'
+        serviceAccountName: performance-operator
+      deployments:
+      - name: performance-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: performance-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                name: performance-operator
+            spec:
+              containers:
+              - command:
+                - performance-operator
+                env:
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: performance-operator
+                image: REPLACE_IMAGE
+                imagePullPolicy: Always
+                name: performance-operator
+                resources: {}
+              serviceAccountName: performance-operator
+      permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - services/finalizers
+          - configmaps
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resourceNames:
+          - performance-operator
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - '*'
+        serviceAccountName: performance-operator
+    strategy: deployment
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - numa
+  - realtime
+  - cpu pinning
+  - hugepages
+  links:
+  - name: Source Code
+    url: https://github.com/openshift-kni/performance-addon-operators
+  maturity: alpha
+  provider:
+    name: Red Hat
+  version: 4.5.4
