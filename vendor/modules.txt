@@ -145,7 +145,7 @@ github.com/hashicorp/golang-lru/simplelru
 github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
-# github.com/jaypipes/ghw v0.7.1-0.20210309000509-b593e32e58a7
+# github.com/jaypipes/ghw v0.7.1-0.20210419135914-b8b1e31b27f5
 ## explicit
 github.com/jaypipes/ghw
 github.com/jaypipes/ghw/pkg/baseboard
