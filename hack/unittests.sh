@@ -16,6 +16,9 @@ if [[ -n "${DRONE}" ]]; then
 
   # Uploading coverage report to coveralls.io
   go get github.com/mattn/goveralls
+
+  # we should update the vendor/modules.txt once we got a new package
+  go mod vendor
   $(go env GOPATH)/bin/goveralls -coverprofile="$COVER_FILE" -service=drone.io
 
 else
