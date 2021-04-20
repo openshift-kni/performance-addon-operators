@@ -66,7 +66,6 @@ type CPUSet string
 // CPU defines a set of CPU related features.
 type CPU struct {
 	// Reserved defines a set of CPUs that will be used for interrupts, systemd services, OS and kernel processes.
-	// It can also be used for non guraranteed workloads (burstable and best-effort workloads) such as infrastructure and general workloads.
 	Reserved *CPUSet `json:"reserved,omitempty"`
 	// Isolated defines a set of CPUs that will be used to give to application threads the most execution time possible,
 	// which means removing as many extraneous tasks off a CPU as possible.
