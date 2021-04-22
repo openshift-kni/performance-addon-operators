@@ -1,0 +1,269 @@
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "performance.openshift.io/v1",
+          "kind": "PerformanceProfile",
+          "metadata": {
+            "name": "example-performanceprofile"
+          },
+          "spec": {
+            "additionalKernelArgs": [
+              "nmi_watchdog=0",
+              "audit=0",
+              "mce=off",
+              "processor.max_cstate=1",
+              "idle=poll",
+              "intel_idle.max_cstate=0"
+            ],
+            "cpu": {
+              "isolated": "2-3",
+              "reserved": "0-1"
+            },
+            "hugepages": {
+              "defaultHugepagesSize": "1G",
+              "pages": [
+                {
+                  "count": 2,
+                  "node": 0,
+                  "size": "1G"
+                }
+              ]
+            },
+            "nodeSelector": {
+              "node-role.kubernetes.io/performance": ""
+            },
+            "realTimeKernel": {
+              "enabled": true
+            }
+          }
+        },
+        {
+          "apiVersion": "performance.openshift.io/v2",
+          "kind": "PerformanceProfile",
+          "metadata": {
+            "name": "example-performanceprofile"
+          },
+          "spec": {
+            "additionalKernelArgs": [
+              "nmi_watchdog=0",
+              "audit=0",
+              "mce=off",
+              "processor.max_cstate=1",
+              "idle=poll",
+              "intel_idle.max_cstate=0"
+            ],
+            "cpu": {
+              "isolated": "2-3",
+              "reserved": "0-1"
+            },
+            "hugepages": {
+              "defaultHugepagesSize": "1G",
+              "pages": [
+                {
+                  "count": 2,
+                  "node": 0,
+                  "size": "1G"
+                }
+              ]
+            },
+            "nodeSelector": {
+              "node-role.kubernetes.io/performance": ""
+            },
+            "realTimeKernel": {
+              "enabled": true
+            }
+          }
+        }
+      ]
+    capabilities: Basic Install
+    containerImage: REPLACE_IMAGE
+    description: Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency.
+    olm.skipRange: '>=4.6.0 <4.7.3'
+    operators.operatorframework.io/builder: operator-sdk-v1.0.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+    repository: https://github.com/openshift-kni/performance-addon-operators
+  name: performance-addon-operator.v4.7.3
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: PerformanceProfile is the Schema for the performanceprofiles API v2.
+      displayName: Performance Profile v2
+      kind: PerformanceProfile
+      name: performanceprofiles.performance.openshift.io
+      version: v2
+    - description: PerformanceProfile is the Schema for the performanceprofiles API v1.
+      displayName: Performance Profile v1
+      kind: PerformanceProfile
+      name: performanceprofiles.performance.openshift.io
+      version: v1
+    - description: PerformanceProfile is the Schema for the performanceprofiles API v1alpha1.
+      displayName: Performance Profile v1alpha1
+      kind: PerformanceProfile
+      name: performanceprofiles.performance.openshift.io
+      version: v1alpha1
+  description: |2-
+
+    Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.
+  displayName: Performance Addon Operator
+  icon:
+  - base64data: PHN2ZyBpZD0iZTY5YmZjMDktYTIzMi00YmM5LWEzOGQtZDcwM2Y5MTY4OTE2IiBkYXRhLW5hbWU9Ikljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDM2IDM2Ij4KICA8ZGVmcz4KICAgIDxzdHlsZT4KICAgICAgLmVjNTIyYmY1LTQ5YWMtNDQ4MS1iN2YwLTdkYmM3NGEyZTg1YiB7CiAgICAgICAgZmlsbDogI2UwMDsKICAgICAgfQogICAgPC9zdHlsZT4KICA8L2RlZnM+CiAgPHBhdGggY2xhc3M9ImVjNTIyYmY1LTQ5YWMtNDQ4MS1iN2YwLTdkYmM3NGEyZTg1YiIgZD0iTTE4LDkuNjJBLjYyLjYyLDAsMSwwLDE3LjM4LDksLjYxLjYxLDAsMCwwLDE4LDkuNjJaIi8+CiAgPGc+CiAgICA8cGF0aCBjbGFzcz0iZWM1MjJiZjUtNDlhYy00NDgxLWI3ZjAtN2RiYzc0YTJlODViIiBkPSJNNiwyNC42MkgzMGEuNjEuNjEsMCwwLDAsLjYyLS42MlY5QS42MS42MSwwLDAsMCwzMCw4LjM4SDIxYS42Mi42MiwwLDEsMCwwLDEuMjRoOC4zOFYyMy4zOEg2LjYyVjkuNjJIMTVhLjYyLjYyLDAsMCwwLDAtMS4yNEg2QS42MS42MSwwLDAsMCw1LjM4LDlWMjRBLjYxLjYxLDAsMCwwLDYsMjQuNjJaIi8+CiAgICA8cGF0aCBjbGFzcz0iZWM1MjJiZjUtNDlhYy00NDgxLWI3ZjAtN2RiYzc0YTJlODViIiBkPSJNMzIsMjYuMzhINGEuNjIuNjIsMCwxLDAsMCwxLjI0SDMyYS42Mi42MiwwLDEsMCwwLTEuMjRaIi8+CiAgICA8cGF0aCBjbGFzcz0iZWM1MjJiZjUtNDlhYy00NDgxLWI3ZjAtN2RiYzc0YTJlODViIiBkPSJNMTUuMTIsMTR2NC4zOEgxMy44OHYtMi41YS42My42MywwLDAsMC0xLjI2LDB2Mi41SDExLjM4VjE3LjEyYS42My42MywwLDAsMC0xLjI2LDB2MS4yNkg5LjVhLjYyLjYyLDAsMCwwLDAsMS4yNEgxN2EuNjIuNjIsMCwwLDAsMC0xLjI0aC0uNjJWMTRhLjYzLjYzLDAsMCwwLTEuMjYsMFoiLz4KICAgIDxwYXRoIGNsYXNzPSJlYzUyMmJmNS00OWFjLTQ0ODEtYjdmMC03ZGJjNzRhMmU4NWIiIGQ9Ik0yMC41LDE3LjEySDIxYTIuNDksMi40OSwwLDAsMCwuMy43M2wtLjMyLjMzYS42Mi42MiwwLDAsMCwuODguODhsLjMzLS4zMmEyLjQ5LDIuNDksMCwwLDAsLjczLjN2LjQ2YS42Mi42MiwwLDAsMCwxLjI0LDBWMTlhMi40OSwyLjQ5LDAsMCwwLC43My0uM2wuMzMuMzJhLjYyLjYyLDAsMCwwLC44OC0uODhsLS4zMi0uMzNhMi40OSwyLjQ5LDAsMCwwLC4zLS43M2guNDZhLjYyLjYyLDAsMCwwLDAtMS4yNEgyNmEyLjQ5LDIuNDksMCwwLDAtLjMtLjczbC4zMi0uMzNjLjU4LS41Ni0uMzItMS40Ni0uODgtLjg4bC0uMzMuMzJhMi40OSwyLjQ5LDAsMCwwLS43My0uM1YxMy41YS42Mi42MiwwLDAsMC0xLjI0LDBWMTRhMi40OSwyLjQ5LDAsMCwwLS43My4zbC0uMzMtLjMyYy0uNTYtLjU4LTEuNDYuMzItLjg4Ljg4bC4zMi4zM2EyLjQ5LDIuNDksMCwwLDAtLjMuNzNIMjAuNUEuNjIuNjIsMCwwLDAsMjAuNSwxNy4xMlptMy0yYTEuMzgsMS4zOCwwLDAsMSwwLDIuNzVBMS4zOCwxLjM4LDAsMCwxLDIzLjUsMTUuMTJaIi8+CiAgPC9nPgo8L3N2Zz4K
+    mediatype: image/svg+xml
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - '*'
+        - apiGroups:
+          - machineconfiguration.openshift.io
+          resources:
+          - kubeletconfigs
+          - machineconfigpools
+          - machineconfigs
+          verbs:
+          - '*'
+        - apiGroups:
+          - node.k8s.io
+          resources:
+          - runtimeclasses
+          verbs:
+          - '*'
+        - apiGroups:
+          - performance.openshift.io
+          resources:
+          - performanceprofiles
+          - performanceprofiles/finalizers
+          - performanceprofiles/status
+          verbs:
+          - '*'
+        - apiGroups:
+          - tuned.openshift.io
+          resources:
+          - tuneds
+          verbs:
+          - '*'
+        serviceAccountName: performance-operator
+      deployments:
+      - name: performance-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: performance-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                name: performance-operator
+            spec:
+              affinity:
+                nodeAffinity:
+                  requiredDuringSchedulingIgnoredDuringExecution:
+                    nodeSelectorTerms:
+                    - matchExpressions:
+                      - key: node-role.kubernetes.io/master
+                        operator: Exists
+              containers:
+              - command:
+                - performance-operator
+                env:
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: performance-operator
+                image: REPLACE_IMAGE
+                imagePullPolicy: Always
+                name: performance-operator
+                resources: {}
+              serviceAccountName: performance-operator
+              tolerations:
+              - effect: NoSchedule
+                key: node-role.kubernetes.io/master
+      permissions:
+      - rules:
+        - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          - deployments
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resourceNames:
+          - performance-operator
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - pods
+          - services
+          - services/finalizers
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - '*'
+        serviceAccountName: performance-operator
+    strategy: deployment
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - numa
+  - realtime
+  - cpu pinning
+  - hugepages
+  links:
+  - name: Source Code
+    url: https://github.com/openshift-kni/performance-addon-operators
+  maturity: alpha
+  minKubeVersion: 1.19.0
+  provider:
+    name: Red Hat
+  version: 4.7.3
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1
+    - v1alpha1
+    containerPort: 443
+    conversionCRDs:
+    - performanceprofiles.performance.openshift.io
+    deploymentName: performance-operator
+    generateName: cwb.performance.openshift.io
+    sideEffects: None
+    targetPort: 4343
+    type: ConversionWebhook
+    webhookPath: /convert
