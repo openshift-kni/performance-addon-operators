@@ -2,7 +2,7 @@
 FROM scratch
 
 ARG CHANNEL=4.7
-ARG ZVERSION=2
+ARG ZVERSION=3
 ARG OLM_SOURCE=build/_output/manifests
 
 LABEL operators.operatorframework.io.bundle.mediatype.v1=registry+v1
