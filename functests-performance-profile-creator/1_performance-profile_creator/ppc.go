@@ -107,11 +107,28 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 			fmt.Sprintf("--split-reserved-cpus-across-numa=%t", true),
 			fmt.Sprintf("--user-level-networking=%t", false),
 			fmt.Sprintf("--profile-name=%s", "Performance"),
-			//fmt.Sprintf("--topology-manager-policy=%s", "single-numa-node"),
 		}
 		_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
 		ppcErrorString := errorStringParser(err)
 		Expect(ppcErrorString).To(ContainSubstring("failed to compute the reserved and isolated CPUs: can't allocate odd number of CPUs from a NUMA Node"))
+	})
+	//TestCase6
+	It("[test_id:OCP-40941] Verify PPC script fails when reserved cpu count is more than available cpus", func() {
+		Expect(ppcPath).To(BeAnExistingFile())
+		mustGatherFullPath := path.Join(mustGatherPath, "must-gather.bare-metal")
+		Expect(mustGatherFullPath).To(BeADirectory())
+		cmdArgs := []string {
+			fmt.Sprintf("--disable-ht=%t", false),
+			fmt.Sprintf("--mcp-name=%s", "worker-cnf"),
+			fmt.Sprintf("--must-gather-dir-path=%s", mustGatherFullPath),
+			fmt.Sprintf("--reserved-cpu-count=%d", 100),
+			fmt.Sprintf("--rt-kernel=%t", true),
+			fmt.Sprintf("--user-level-networking=%t", false),
+			fmt.Sprintf("--profile-name=%s", "Performance"),
+		}
+		_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
+		ppcErrorString := errorStringParser(err)
+		Expect(ppcErrorString).To(ContainSubstring("failed to compute the reserved and isolated CPUs: please specify the reserved CPU count in the range [1,79]"))
 	})
 })
 
