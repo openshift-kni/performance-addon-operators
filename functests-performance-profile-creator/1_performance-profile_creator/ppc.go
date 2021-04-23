@@ -133,7 +133,7 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 		Expect(ppcErrorString).To(ContainSubstring("failed to obtain data from flags not appropriate to split reserved CPUs in case of topology-manager-policy: single-numa-node"))
 	})
 	//TestCase5
-	It("[test_id:OCP-40941] Verify PPC script fails when the splitting of reserved cpus and single numa-node policy is specified", func() {
+	It("[test_id:OCP-40941] Verify PPC script fails when reserved cpu count is 2 and requires to split across numa nodes", func() {
 		Expect(ppcPath).To(BeAnExistingFile())
 		mustGatherFullPath := path.Join(mustGatherPath, "must-gather.bare-metal")
 		Expect(mustGatherFullPath).To(BeADirectory())
@@ -146,11 +146,11 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 			fmt.Sprintf("--split-reserved-cpus-across-numa=%t", true),
 			fmt.Sprintf("--user-level-networking=%t", false),
 			fmt.Sprintf("--profile-name=%s", "Performance"),
-			fmt.Sprintf("--topology-manager-policy=%s", "single-numa-node"),
+			//fmt.Sprintf("--topology-manager-policy=%s", "single-numa-node"),
 		}
 		_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
 		ppcErrorString := errorStringParser(err)
-		Expect(ppcErrorString).To(ContainSubstring("failed to obtain data from flags not appropriate to split reserved CPUs in case of topology-manager-policy: single-numa-node"))
+		Expect(ppcErrorString).To(ContainSubstring("failed to compute the reserved and isolated CPUs: can't allocate odd number of CPUs from a NUMA Node"))
 	})
 >>>>>>> e7661bfd... add test case 4
 })
