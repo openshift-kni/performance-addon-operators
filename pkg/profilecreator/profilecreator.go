@@ -223,13 +223,14 @@ func NewGHWHandler(mustGatherDirPath string, node *v1.Node) (*GHWHandler, error)
 	options := ghw.WithSnapshot(ghw.SnapshotOptions{
 		Path: path.Join(nodepath, nodeName, SysInfoFileName),
 	})
-	ghwHandler := &GHWHandler{snapShotOptions: options}
+	ghwHandler := &GHWHandler{snapShotOptions: options, Node: node}
 	return ghwHandler, nil
 }
 
 // GHWHandler is a wrapper around ghw to get the API object
 type GHWHandler struct {
 	snapShotOptions *option.Option
+	Node            *v1.Node
 }
 
 // CPU returns a CPUInfo struct that contains information about the CPUs on the host system
@@ -438,35 +439,29 @@ func contains(s []string, str string) bool {
 }
 
 // EnsureNodesHaveTheSameHardware returns an error if all the input nodes do not have the same hardware configuration
-func EnsureNodesHaveTheSameHardware(mustGatherDirPath string, nodes []*v1.Node) error {
-	if len(nodes) < 1 {
+func EnsureNodesHaveTheSameHardware(nodeHandlers []*GHWHandler) error {
+	if len(nodeHandlers) < 1 {
 		return fmt.Errorf("no suitable nodes to compare")
 	}
 
-	first := nodes[0]
-	firstHandle, err := NewGHWHandler(mustGatherDirPath, first)
-	if err != nil {
-		return fmt.Errorf("can't obtain GHW snapshot handle for %s: %v", first.GetName(), err)
-	}
-
+	firstHandle := nodeHandlers[0]
 	firstTopology, err := firstHandle.SortedTopology()
 	if err != nil {
-		return fmt.Errorf("can't obtain Topology info from GHW snapshot for %s: %v", first.GetName(), err)
+		return fmt.Errorf("can't obtain Topology info from GHW snapshot for %s: %v", firstHandle.Node.GetName(), err)
 	}
 
-	for _, node := range nodes[1:] {
-		handle, err := NewGHWHandler(mustGatherDirPath, node)
+	for _, handle := range nodeHandlers[1:] {
 		if err != nil {
-			return fmt.Errorf("can't obtain GHW snapshot handle for %s: %v", node.GetName(), err)
+			return fmt.Errorf("can't obtain GHW snapshot handle for %s: %v", handle.Node.GetName(), err)
 		}
 
 		topology, err := handle.SortedTopology()
 		if err != nil {
-			return fmt.Errorf("can't obtain Topology info from GHW snapshot for %s: %v", node.GetName(), err)
+			return fmt.Errorf("can't obtain Topology info from GHW snapshot for %s: %v", handle.Node.GetName(), err)
 		}
 		err = ensureSameTopology(firstTopology, topology)
 		if err != nil {
-			return fmt.Errorf("nodes %s and %s have different topology: %v", first.GetName(), node.GetName(), err)
+			return fmt.Errorf("nodes %s and %s have different topology: %v", firstHandle.Node.GetName(), handle.Node.GetName(), err)
 		}
 	}
 
