@@ -52,16 +52,25 @@ type ProfileData struct {
 	disableHT                  bool
 }
 
+// ClusterData collects the cluster wide information, each mcp points to a list of ghw node handlers
+type ClusterData map[*machineconfigv1.MachineConfigPool][]*profilecreator.GHWHandler
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "performance-profile-creator",
 	Short: "A tool that automates creation of Performance Profiles",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
+		cluster, err := getClusterData(mustGatherDirPath)
+		if err != nil {
+			return fmt.Errorf("failed to parse the cluster data: %v", err)
+		}
+
 		profileCreatorArgsFromFlags, err := getDataFromFlags(cmd)
 		if err != nil {
 			return fmt.Errorf("failed to obtain data from flags %v", err)
 		}
-		profileData, err := getProfileData(profileCreatorArgsFromFlags)
+		profileData, err := getProfileData(profileCreatorArgsFromFlags, cluster)
 		if err != nil {
 			return err
 		}
@@ -76,6 +85,48 @@ func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func getClusterData(mustGatherDirPath string) (ClusterData, error) {
+	cluster := make(ClusterData)
+	info, err := os.Stat(mustGatherDirPath)
+	if os.IsNotExist(err) {
+		return nil, fmt.Errorf("the must-gather path '%s' is not valid", mustGatherDirPath)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("can't access the must-gather path: %v", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("the must-gather path '%s' is not a directory", mustGatherDirPath)
+	}
+
+	mcps, err := profilecreator.GetMCPList(mustGatherDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the MCP list under %s: %v", mustGatherDirPath, err)
+	}
+
+	nodes, err := profilecreator.GetNodeList(mustGatherDirPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the cluster nodes: %v", err)
+	}
+
+	for _, mcp := range mcps {
+		matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find MCP %s's nodes: %v", mcp.Name, err)
+		}
+		handlers := make([]*profilecreator.GHWHandler, len(matchedNodes))
+		for i, node := range matchedNodes {
+			handle, err := profilecreator.NewGHWHandler(mustGatherDirPath, node)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load node's %s's GHW snapshot : %v", mcp.Name, err)
+			}
+			handlers[i] = handle
+		}
+		cluster[mcp] = handlers
+	}
+
+	return cluster, nil
 }
 
 func getDataFromFlags(cmd *cobra.Command) (ProfileCreatorArgs, error) {
@@ -143,30 +194,19 @@ func getDataFromFlags(cmd *cobra.Command) (ProfileCreatorArgs, error) {
 	return creatorArgs, nil
 }
 
-func getProfileData(args ProfileCreatorArgs) (*ProfileData, error) {
-	info, err := os.Stat(args.MustGatherDirPath)
-	if os.IsNotExist(err) {
-		return nil, fmt.Errorf("the must-gather path '%s' is not valid", args.MustGatherDirPath)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("can't access the must-gather path: %v", err)
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("the must-gather path '%s' is not a directory", args.MustGatherDirPath)
-	}
-
-	mcps, err := profilecreator.GetMCPList(args.MustGatherDirPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get the MCP list under %s: %v", args.MustGatherDirPath, err)
-	}
-
+func getProfileData(args ProfileCreatorArgs, cluster ClusterData) (*ProfileData, error) {
+	mcps := make([]*machineconfigv1.MachineConfigPool, len(cluster))
+	mcpNames := make([]string, len(cluster))
 	var mcp *machineconfigv1.MachineConfigPool
-	mcpNames := make([]string, 0)
-	for _, m := range mcps {
-		mcpNames = append(mcpNames, m.Name)
+
+	i := 0
+	for m := range cluster {
+		mcps[i] = m
+		mcpNames[i] = m.Name
 		if m.Name == args.MCPName {
 			mcp = m
 		}
+		i++
 	}
 
 	if mcp == nil {
@@ -178,25 +218,16 @@ func getProfileData(args ProfileCreatorArgs) (*ProfileData, error) {
 		return nil, fmt.Errorf("failed to compute the MCP selector: %v", err)
 	}
 
-	nodes, err := profilecreator.GetNodeList(args.MustGatherDirPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load the cluster nodes: %v", err)
-	}
-
-	matchedNodes, err := profilecreator.GetNodesForPool(mcp, mcps, nodes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find MCP %s's nodes: %v", args.MCPName, err)
-	}
-	if len(matchedNodes) == 0 {
+	if len(cluster[mcp]) == 0 {
 		return nil, fmt.Errorf("no schedulable nodes are associated with '%s' MCP", args.MCPName)
 	}
 
 	var matchedNodeNames []string
-	for _, node := range matchedNodes {
-		matchedNodeNames = append(matchedNodeNames, node.GetName())
+	for _, nodeHandler := range cluster[mcp] {
+		matchedNodeNames = append(matchedNodeNames, nodeHandler.Node.GetName())
 	}
 	log.Infof("Nodes targetted by %s MCP are: %v", args.MCPName, matchedNodeNames)
-	err = profilecreator.EnsureNodesHaveTheSameHardware(args.MustGatherDirPath, matchedNodes)
+	err = profilecreator.EnsureNodesHaveTheSameHardware(cluster[mcp])
 	if err != nil {
 		return nil, fmt.Errorf("targeted nodes differ: %v", err)
 	}
@@ -205,8 +236,8 @@ func getProfileData(args ProfileCreatorArgs) (*ProfileData, error) {
 	// Assumption here is moving forward matchedNodes[0] is representative of how all the nodes are
 	// same from hardware topology point of view
 
-	handle, err := profilecreator.NewGHWHandler(args.MustGatherDirPath, matchedNodes[0])
-	reservedCPUs, isolatedCPUs, err := handle.GetReservedAndIsolatedCPUs(args.ReservedCPUCount, args.SplitReservedCPUsAcrossNUMA, args.DisableHT)
+	nodeHandle := cluster[mcp][0]
+	reservedCPUs, isolatedCPUs, err := nodeHandle.GetReservedAndIsolatedCPUs(args.ReservedCPUCount, args.SplitReservedCPUsAcrossNUMA, args.DisableHT)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute the reserved and isolated CPUs: %v", err)
 	}
