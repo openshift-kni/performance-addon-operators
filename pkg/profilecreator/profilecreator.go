@@ -314,7 +314,7 @@ func (ghwHandler GHWHandler) GetReservedAndIsolatedCPUs(reservedCPUCount int, sp
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("can't obtain Topology Info from GHW snapshot: %v", err)
 	}
-	htEnabled, err := ghwHandler.isHyperthreadingEnabled()
+	htEnabled, err := ghwHandler.IsHyperthreadingEnabled()
 	if err != nil {
 		return cpuset.CPUSet{}, cpuset.CPUSet{}, fmt.Errorf("can't determine if Hyperthreading is enabled or not: %v", err)
 	}
@@ -417,8 +417,8 @@ func addCoresToCPUSet(reservedCPUSet cpuset.Builder, max int, cores []*cpu.Proce
 	}
 }
 
-// isHyperthreadingEnabled checks if hyperthreading is enabled on the system or not
-func (ghwHandler GHWHandler) isHyperthreadingEnabled() (bool, error) {
+// IsHyperthreadingEnabled checks if hyperthreading is enabled on the system or not
+func (ghwHandler GHWHandler) IsHyperthreadingEnabled() (bool, error) {
 	cpuInfo, err := ghwHandler.CPU()
 	if err != nil {
 		return false, fmt.Errorf("can't obtain CPU Info from GHW snapshot: %v", err)
