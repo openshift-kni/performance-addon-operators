@@ -66,6 +66,15 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("failed to parse the cluster data: %v", err)
 		}
 
+		info, err := strconv.ParseBool(cmd.Flag("info").Value.String())
+		if err != nil {
+			return fmt.Errorf("failed to parse the info flag: %v", err)
+		}
+		if info {
+			showClusterData(cluster)
+			return nil
+		}
+
 		profileCreatorArgsFromFlags, err := getDataFromFlags(cmd)
 		if err != nil {
 			return fmt.Errorf("failed to obtain data from flags %v", err)
@@ -127,6 +136,36 @@ func getClusterData(mustGatherDirPath string) (ClusterData, error) {
 	}
 
 	return cluster, nil
+}
+
+func showClusterData(cluster ClusterData) {
+	log.Infof("Cluster info:")
+	for mcp, nodeHandlers := range cluster {
+		log.Infof("MCP '%s' nodes:", mcp.Name)
+		for _, handle := range nodeHandlers {
+			topology, err := handle.SortedTopology()
+			if err != nil {
+				log.Infof("%s(Toplogy discovery error: %v)", handle.Node.GetName(), err)
+			} else {
+				htEnabled, err := handle.IsHyperthreadingEnabled()
+				if err != nil {
+					log.Infof("%s(HT discovery error: %v)", handle.Node.GetName(), err)
+				}
+				log.Infof("Node: %s (NUMA cells: %d, HT: %v)", handle.Node.GetName(), len(topology.Nodes), htEnabled)
+				totalCPUs := 0
+				for id, node := range topology.Nodes {
+					var coreList []int
+					for _, core := range node.Cores {
+						coreList = append(coreList, core.LogicalProcessors...)
+					}
+					log.Infof("NUMA cell %d : %v", id, coreList)
+					totalCPUs += len(coreList)
+				}
+				log.Infof("CPU(s): %d", totalCPUs)
+			}
+		}
+		log.Infof("---")
+	}
 }
 
 func getDataFromFlags(cmd *cobra.Command) (ProfileCreatorArgs, error) {
@@ -287,6 +326,7 @@ type ProfileCreatorArgs struct {
 	UserLevelNetworking         *bool  `json:"user-level-networking,omitempty"`
 	MCPName                     string `json:"mcp-name"`
 	TMPolicy                    string `json:"topology-manager-policy"`
+	Info                        bool   `json:"info"`
 }
 
 func init() {
@@ -311,6 +351,7 @@ func init() {
 	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
 	rootCmd.PersistentFlags().StringVar(&args.ProfileName, "profile-name", "performance", "Name of the performance profile to be created")
 	rootCmd.PersistentFlags().StringVar(&args.TMPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
+	rootCmd.PersistentFlags().BoolVar(&args.Info, "info", false, "Show cluster information, disregard the other arguments")
 }
 
 func createProfile(profileData ProfileData) {
