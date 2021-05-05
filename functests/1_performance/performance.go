@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -192,11 +193,22 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		})
 
 		It("[test_id:35363][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running on the host", func() {
-			Skip("until bugs https://bugzilla.redhat.com/show_bug.cgi?id=1912118 and https://bugzilla.redhat.com/show_bug.cgi?id=1903302 fixed")
+			stalldMinimumKernelVersionPrefix := "4.18.0-240.22"
+			minKernelPrefix := strings.Split(stalldMinimumKernelVersionPrefix, ".")
+			minSubVersion, err := strconv.Atoi(minKernelPrefix[3])
+			Expect(err).ToNot(HaveOccurred())
 			for _, node := range workerRTNodes {
-				tuned := tunedForNode(&node)
-				_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+				cmd := []string{"uname", "-r"}
+				kernel, err := nodes.ExecCommandOnNode(cmd, &node)
+				Expect(err).ToNot(HaveOccurred(), "failed to execute uname")
+				currentKernelPrefix := strings.Split(kernel, ".")
+				currentSubVersion, err := strconv.Atoi(currentKernelPrefix[3])
 				Expect(err).ToNot(HaveOccurred())
+				if currentSubVersion >= minSubVersion {
+					tuned := tunedForNode(&node)
+					_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+					Expect(err).ToNot(HaveOccurred())
+				}
 			}
 		})
 	})
