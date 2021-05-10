@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -210,6 +211,31 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 					Expect(err).ToNot(HaveOccurred())
 				}
 			}
+		})
+
+		It("[test_id:41768][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is not running on the host", func() {
+			By("Running on a kernel version lower than 4.18.0-240.22.*")
+			randomWorkerNode := workerRTNodes[rand.Intn(len(workerRTNodes))]
+			tuned := tunedForNode(&randomWorkerNode)
+			customUnameCmd := []string{"sed", "-i", "$ a uname_string = 4\\.18\\.0-240\\.21\\.1\\.el8_3\\.x86_64", "/etc/tuned/tuned-main.conf"}
+			_, err := pods.ExecCommandOnPod(tuned, customUnameCmd)
+			Expect(err).ToNot(HaveOccurred())
+			// kill tuned process will cause it to spin up again and reload the profile
+			// (tuned service restart cannot be done via pod command execution)
+			killTunedCmd := []string{"pkill", "^tuned"}
+			_, err = pods.ExecCommandOnPod(tuned, killTunedCmd)
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() error {
+				_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+				return err
+			}, 5*time.Minute, 10*time.Second).Should(HaveOccurred(),
+				"stalld should not be enabled for kernel version lower than 4.18.0-240.22.1.el8_3.x86_64")
+			revertCustomUnameCmd := []string{"sed", "-i", "/uname_string = 4\\.18\\.0-240\\.21\\.1\\.el8_3\\.x86_64/d", "/etc/tuned/tuned-main.conf"}
+			_, err = pods.ExecCommandOnPod(tuned, revertCustomUnameCmd)
+			Expect(err).ToNot(HaveOccurred())
+			_, err = pods.ExecCommandOnPod(tuned, killTunedCmd)
+			Expect(err).ToNot(HaveOccurred())
+			validatTunedActiveProfile(workerRTNodes)
 		})
 	})
 
