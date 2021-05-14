@@ -68,6 +68,12 @@ func GetMCPSelector(pool *mcfgv1.MachineConfigPool, clusterPools []*mcfgv1.Machi
 // https://github.com/openshift/machine-config-operator/blob/e4aa3bc5a405c67fb112b24e24b2c372457b3358/pkg/controller/node/node_controller.go#L745
 func GetNodesForPool(pool *mcfgv1.MachineConfigPool, clusterPools []*mcfgv1.MachineConfigPool, clusterNodes []*corev1.Node) ([]*corev1.Node, error) {
 	var nodes []*corev1.Node
+
+	poolNodeSelector, err := metav1.LabelSelectorAsSelector(pool.Spec.NodeSelector)
+	if err != nil {
+		return nil, fmt.Errorf("invalid label selector: %v", err)
+	}
+
 	for _, n := range clusterNodes {
 		p, err := getPrimaryPoolForNode(n, clusterPools)
 		if err != nil {
@@ -78,6 +84,16 @@ func GetNodesForPool(pool *mcfgv1.MachineConfigPool, clusterPools []*mcfgv1.Mach
 			continue
 		}
 		if p.Name != pool.Name {
+			continue
+		}
+		var unschedulable bool
+		for _, taint := range n.Spec.Taints {
+			if taint.Effect == corev1.TaintEffectNoSchedule && poolNodeSelector.Matches(labels.Set{taint.Key: taint.Value}) {
+				unschedulable = true
+				break
+			}
+		}
+		if unschedulable {
 			continue
 		}
 		nodes = append(nodes, n)

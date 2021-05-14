@@ -42,7 +42,10 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 				fmt.Sprintf("--reserved-cpu-count=%d", args.ReservedCPUCount),
 				fmt.Sprintf("--rt-kernel=%v", args.RTKernel),
 				fmt.Sprintf("--split-reserved-cpus-across-numa=%v", args.SplitReservedCPUsAcrossNUMA),
-				fmt.Sprintf("--user-level-networking=%v", args.UserLevelNetworking),
+			}
+
+			if args.UserLevelNetworking != nil {
+				cmdArgs = append(cmdArgs, fmt.Sprintf("--user-level-networking=%v", *args.UserLevelNetworking))
 			}
 
 			// do not pass empty strings for optional args
