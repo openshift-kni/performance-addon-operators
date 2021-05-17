@@ -31,6 +31,10 @@ service.stalld=start,enable
 [vm]
 transparent_hugepages=never                   #  network-latency
 
+[scheduler]
+group.ksoftirqd=0:f:11:*:ksoftirqd.*
+group.rcuc=0:f:11:*:rcuc.*
+
 [sysctl]
 kernel.hung_task_timeout_secs = 600           # cpu-partitioning #realtime
 kernel.nmi_watchdog = 0                       # cpu-partitioning #realtime
