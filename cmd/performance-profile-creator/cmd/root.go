@@ -129,7 +129,7 @@ func NewRootCommand() *cobra.Command {
 	root.PersistentFlags().StringVar(&pcArgs.MustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	root.PersistentFlags().StringVar(&pcArgs.ProfileName, "profile-name", "performance", "Name of the performance profile to be created")
 	root.PersistentFlags().StringVar(&pcArgs.TMPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
-	root.PersistentFlags().BoolVar(&pcArgs.Info, "info", false, "Show cluster information, disregard the other arguments")
+	root.PersistentFlags().BoolVar(&pcArgs.Info, "info", false, "Show cluster information; requires --must-gather-dir-path, ignore the other arguments.")
 
 	return root
 }
