@@ -139,9 +139,9 @@ func NewRootCommand() *cobra.Command {
 
 	root.PersistentFlags().IntVar(&pcArgs.ReservedCPUCount, "reserved-cpu-count", 0, "Number of reserved CPUs (required)")
 	root.PersistentFlags().BoolVar(&pcArgs.SplitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", false, "Split the Reserved CPUs across NUMA nodes")
-	root.PersistentFlags().StringVar(&pcArgs.MCPName, "mcp-name", "worker-cnf", "MCP name corresponding to the target machines (required)")
+	root.PersistentFlags().StringVar(&pcArgs.MCPName, "mcp-name", "", "MCP name corresponding to the target machines (required)")
 	root.PersistentFlags().BoolVar(&pcArgs.DisableHT, "disable-ht", false, "Disable Hyperthreading")
-	root.PersistentFlags().BoolVar(&pcArgs.RTKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
+	root.PersistentFlags().BoolVar(&pcArgs.RTKernel, "rt-kernel", false, "Enable Real Time Kernel (required)")
 	root.PersistentFlags().BoolVar(pcArgs.UserLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
 	root.PersistentFlags().StringVar(&pcArgs.PowerConsumptionMode, "power-consumption-mode", profilecreator.ValidPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s]", strings.Join(profilecreator.ValidPowerConsumptionModes, ", ")))
 	root.PersistentFlags().StringVar(&pcArgs.MustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
