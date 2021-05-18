@@ -61,3 +61,14 @@ Depending on how must-gather directory was setup run the Performance profile Cre
    --rt-kernel=false --split-reserved-cpus-across-numa=true --topology-manager-policy=restricted \
    --power-consumption-mode=low-latency > performace-profile.yaml
    ```
+
+## Discovery mode
+
+To learn about the key details of the cluster you want to create a profile for, you may use the `discovery` (aka `info`) mode:
+```bash
+   ./hack/run-perf-profile-creator.sh -t must-gather.tar.gz -- --info=log
+
+```
+
+The `info` option requires a value which drives the output format. Please refer to the online help of the performance-profile-creator
+tool to learn about the supported formats.
