@@ -27,6 +27,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/controllers"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/version"
+	"github.com/spf13/cobra"
 
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
@@ -37,6 +38,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/openshift-kni/performance-addon-operators/pkg/cmd/render"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -83,11 +85,33 @@ func printVersion() {
 }
 
 func main() {
+	// Add klog flags
+	klog.InitFlags(nil)
+
+	command := newRootCommand()
+	if err := command.Execute(); err != nil {
+		klog.Errorf("%v", err)
+	}
+}
+
+func newRootCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "performance-addon-operator",
+		Short: "OpenShift performance addon operator",
+		Run: func(cmd *cobra.Command, args []string) {
+			// if no subcommand just run the usual
+			runPAO()
+		},
+	}
+
+	cmd.AddCommand(render.NewRenderCommand())
+	return cmd
+}
+
+func runPAO() {
 	var metricsAddr string
 	var enableLeaderElection bool
 
-	// Add klog flags
-	klog.InitFlags(nil)
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	flag.StringVar(&metricsAddr, "metrics-addr", fmt.Sprintf("%s:%d", metricsHost, metricsPort),

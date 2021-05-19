@@ -262,6 +262,11 @@ perf-profile-creator-tests: create-performance-profile
 	@echo "Running Performance Profile Creator Tests"
 	hack/run-perf-profile-creator-functests.sh
 
+.PHONY: render-command-tests
+render-command-tests:
+	@echo "Running Render Command Tests"
+	hack/run-perf-profile-creator-functests.sh
+
 .PHONY: unittests
 unittests:
 	hack/unittests.sh

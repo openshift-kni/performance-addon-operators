@@ -23,18 +23,16 @@ import (
 
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/manifestset"
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	nodev1beta1 "k8s.io/api/node/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serros "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -200,7 +198,7 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	instance := &performancev2.PerformanceProfile{}
 	err := r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8serros.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
@@ -360,52 +358,36 @@ func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.Pe
 		return nil, nil
 	}
 
-	// get mutated machine config
-	mc, err := machineconfig.New(r.AssetsDir, profile)
+	components, err := manifestset.GetNewComponents(profile, &r.AssetsDir)
 	if err != nil {
 		return nil, err
 	}
-	if err := controllerutil.SetControllerReference(profile, mc, r.Scheme); err != nil {
-		return nil, err
+	for _, componentObj := range components.ToObjects() {
+		if err := controllerutil.SetControllerReference(profile, componentObj, r.Scheme); err != nil {
+			return nil, err
+		}
 	}
-	mcMutated, err := r.getMutatedMachineConfig(mc)
+
+	// get mutated machine config
+	mcMutated, err := r.getMutatedMachineConfig(components.MachineConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// get mutated kubelet config
-	kc, err := kubeletconfig.New(profile)
-	if err != nil {
-		return nil, err
-	}
-	if err := controllerutil.SetControllerReference(profile, kc, r.Scheme); err != nil {
-		return nil, err
-	}
-	kcMutated, err := r.getMutatedKubeletConfig(kc)
+	kcMutated, err := r.getMutatedKubeletConfig(components.KubeletConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// get mutated performance tuned
-	performanceTuned, err := tuned.NewNodePerformance(r.AssetsDir, profile)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := controllerutil.SetControllerReference(profile, performanceTuned, r.Scheme); err != nil {
-		return nil, err
-	}
-	performanceTunedMutated, err := r.getMutatedTuned(performanceTuned)
+	performanceTunedMutated, err := r.getMutatedTuned(components.Tuned)
 	if err != nil {
 		return nil, err
 	}
 
 	// get mutated RuntimeClass
-	runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
-	if err := controllerutil.SetControllerReference(profile, runtimeClass, r.Scheme); err != nil {
-		return nil, err
-	}
-	runtimeClassMutated, err := r.getMutatedRuntimeClass(runtimeClass)
+	runtimeClassMutated, err := r.getMutatedRuntimeClass(components.RuntimeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -473,23 +455,23 @@ func (r *PerformanceProfileReconciler) deleteComponents(profile *performancev2.P
 
 func (r *PerformanceProfileReconciler) isComponentsExist(profile *performancev2.PerformanceProfile) bool {
 	tunedName := components.GetComponentName(profile.Name, components.ProfileNamePerformance)
-	if _, err := r.getTuned(tunedName, components.NamespaceNodeTuningOperator); !errors.IsNotFound(err) {
+	if _, err := r.getTuned(tunedName, components.NamespaceNodeTuningOperator); !k8serros.IsNotFound(err) {
 		klog.Infof("Tuned %q custom resource is still exists under the namespace %q", tunedName, components.NamespaceNodeTuningOperator)
 		return true
 	}
 
 	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
-	if _, err := r.getKubeletConfig(name); !errors.IsNotFound(err) {
+	if _, err := r.getKubeletConfig(name); !k8serros.IsNotFound(err) {
 		klog.Infof("Kubelet Config %q exists under the cluster", name)
 		return true
 	}
 
-	if _, err := r.getRuntimeClass(name); !errors.IsNotFound(err) {
+	if _, err := r.getRuntimeClass(name); !k8serros.IsNotFound(err) {
 		klog.Infof("Runtime class %q exists under the cluster", name)
 		return true
 	}
 
-	if _, err := r.getMachineConfig(machineconfig.GetMachineConfigName(profile)); !errors.IsNotFound(err) {
+	if _, err := r.getMachineConfig(machineconfig.GetMachineConfigName(profile)); !k8serros.IsNotFound(err) {
 		klog.Infof("Machine Config %q exists under the cluster", name)
 		return true
 	}
