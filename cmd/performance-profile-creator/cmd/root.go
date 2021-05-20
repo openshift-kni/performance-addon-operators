@@ -17,8 +17,10 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -35,8 +37,14 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+const (
+	infoModeJSON = "json"
+	infoModeLog  = "log"
+)
+
 var (
 	validTMPolicyValues = []string{kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy}
+	validInfoModes      = []string{infoModeLog, infoModeJSON}
 )
 
 // ProfileData collects and stores all the data needed for profile creation
@@ -80,6 +88,11 @@ func NewRootCommand() *cobra.Command {
 		Short: "A tool that automates creation of Performance Profiles",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.Flag("info").Changed {
+				infoMode := cmd.Flag("info").Value.String()
+				if err := validateFlag("info", infoMode, validInfoModes); err != nil {
+					return err
+				}
+
 				missingRequiredFlags := checkRequiredFlags(cmd, "must-gather-dir-path")
 				if len(missingRequiredFlags) > 0 {
 					return fmt.Errorf("missing required flags: %s", strings.Join(argNameToFlag(missingRequiredFlags), ", "))
@@ -91,7 +104,12 @@ func NewRootCommand() *cobra.Command {
 					return fmt.Errorf("failed to parse the cluster data: %v", err)
 				}
 
-				showClusterData(cluster)
+				clusterInfo := makeClusterInfoFromClusterData(cluster)
+				if infoMode == infoModeJSON {
+					showClusterInfoJSON(clusterInfo)
+				} else {
+					showClusterInfoLog(clusterInfo)
+				}
 				return nil
 			}
 
@@ -129,7 +147,7 @@ func NewRootCommand() *cobra.Command {
 	root.PersistentFlags().StringVar(&pcArgs.MustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
 	root.PersistentFlags().StringVar(&pcArgs.ProfileName, "profile-name", "performance", "Name of the performance profile to be created")
 	root.PersistentFlags().StringVar(&pcArgs.TMPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
-	root.PersistentFlags().BoolVar(&pcArgs.Info, "info", false, "Show cluster information; requires --must-gather-dir-path, ignore the other arguments.")
+	root.PersistentFlags().StringVar(&pcArgs.Info, "info", infoModeLog, fmt.Sprintf("Show cluster information; requires --must-gather-dir-path, ignore the other arguments. [Valid values: %s]", strings.Join(validInfoModes, ", ")))
 
 	return root
 }
@@ -194,36 +212,102 @@ func getClusterData(mustGatherDirPath string) (ClusterData, error) {
 	return cluster, nil
 }
 
-func showClusterData(cluster ClusterData) {
-	log.Infof("Cluster info:")
+// NUMACellInfo describe a NUMA cell on a node
+type NUMACellInfo struct {
+	ID       int   `json:"id"`
+	CoreList []int `json:"cores"`
+}
+
+// NodeInfo describe a Node in a MCP
+type NodeInfo struct {
+	Name      string         `json:"name"`
+	HTEnabled bool           `json:"smt_enabled"`
+	CPUsCount int            `json:"cpus_count"`
+	NUMACells []NUMACellInfo `json:"numa_cells"`
+}
+
+// MCPInfo describe a MCP in a cluster
+type MCPInfo struct {
+	Name  string     `json:"name"`
+	Nodes []NodeInfo `json:"nodes"`
+}
+
+// ClusterInfo describe a cluster
+type ClusterInfo []MCPInfo
+
+// Sort ensures all sequences in the ClusterInfo are sorted, to make comparisons easier.
+func (cInfo ClusterInfo) Sort() ClusterInfo {
+	for _, mcpInfo := range cInfo {
+		for _, nodeInfo := range mcpInfo.Nodes {
+			for _, numaCell := range nodeInfo.NUMACells {
+				sort.Ints(numaCell.CoreList)
+			}
+			sort.Slice(nodeInfo.NUMACells, func(i, j int) bool { return nodeInfo.NUMACells[i].ID < nodeInfo.NUMACells[j].ID })
+		}
+	}
+	sort.Slice(cInfo, func(i, j int) bool { return cInfo[i].Name < cInfo[j].Name })
+	return cInfo
+}
+
+func makeClusterInfoFromClusterData(cluster ClusterData) ClusterInfo {
+	var cInfo ClusterInfo
 	for mcp, nodeHandlers := range cluster {
-		log.Infof("MCP '%s' nodes:", mcp.Name)
+		mInfo := MCPInfo{
+			Name: mcp.Name,
+		}
 		for _, handle := range nodeHandlers {
 			topology, err := handle.SortedTopology()
 			if err != nil {
-				log.Infof("%s(Toplogy discovery error: %v)", handle.Node.GetName(), err)
-			} else {
-				htEnabled, err := handle.IsHyperthreadingEnabled()
-				if err != nil {
-					log.Infof("%s(HT discovery error: %v)", handle.Node.GetName(), err)
-				}
-				log.Infof("Node: %s (NUMA cells: %d, HT: %v)", handle.Node.GetName(), len(topology.Nodes), htEnabled)
-				totalCPUs := 0
-				for id, node := range topology.Nodes {
-					var coreList []int
-					for _, core := range node.Cores {
-						coreList = append(coreList, core.LogicalProcessors...)
-					}
-					log.Infof("NUMA cell %d : %v", id, coreList)
-					totalCPUs += len(coreList)
-				}
-				log.Infof("CPU(s): %d", totalCPUs)
+				log.Infof("%s(Topology discovery error: %v)", handle.Node.GetName(), err)
+				continue
 			}
+
+			htEnabled, err := handle.IsHyperthreadingEnabled()
+			if err != nil {
+				log.Infof("%s(HT discovery error: %v)", handle.Node.GetName(), err)
+			}
+
+			nInfo := NodeInfo{
+				Name:      handle.Node.GetName(),
+				HTEnabled: htEnabled,
+			}
+
+			for id, node := range topology.Nodes {
+				var coreList []int
+				for _, core := range node.Cores {
+					coreList = append(coreList, core.LogicalProcessors...)
+				}
+				nInfo.CPUsCount += len(coreList)
+				nInfo.NUMACells = append(nInfo.NUMACells, NUMACellInfo{
+					ID:       id,
+					CoreList: coreList,
+				})
+			}
+			mInfo.Nodes = append(mInfo.Nodes, nInfo)
+		}
+		cInfo = append(cInfo, mInfo)
+	}
+	return cInfo.Sort()
+}
+
+func showClusterInfoJSON(cInfo ClusterInfo) {
+	json.NewEncoder(os.Stdout).Encode(cInfo)
+}
+
+func showClusterInfoLog(cInfo ClusterInfo) {
+	log.Infof("Cluster info:")
+	for _, mcpInfo := range cInfo {
+		log.Infof("MCP '%s' nodes:", mcpInfo.Name)
+		for _, nInfo := range mcpInfo.Nodes {
+			log.Infof("Node: %s (NUMA cells: %d, HT: %v)", nInfo.Name, len(nInfo.NUMACells), nInfo.HTEnabled)
+			for _, cInfo := range nInfo.NUMACells {
+				log.Infof("NUMA cell %d : %v", cInfo.ID, cInfo.CoreList)
+			}
+			log.Infof("CPU(s): %d", nInfo.CPUsCount)
 		}
 		log.Infof("---")
 	}
 }
-
 func getDataFromFlags(cmd *cobra.Command) (ProfileCreatorArgs, error) {
 	creatorArgs := ProfileCreatorArgs{}
 	mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
@@ -241,7 +325,7 @@ func getDataFromFlags(cmd *cobra.Command) (ProfileCreatorArgs, error) {
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse topology-manager-policy flag: %v", err)
 	}
-	err = validateFlag(tmPolicy, validTMPolicyValues)
+	err = validateFlag("topology-manager-policy", tmPolicy, validTMPolicyValues)
 	if err != nil {
 		return creatorArgs, fmt.Errorf("invalid value for topology-manager-policy flag specified: %v", err)
 	}
@@ -252,7 +336,7 @@ func getDataFromFlags(cmd *cobra.Command) (ProfileCreatorArgs, error) {
 	if err != nil {
 		return creatorArgs, fmt.Errorf("failed to parse power-consumption-mode flag: %v", err)
 	}
-	err = validateFlag(powerConsumptionMode, profilecreator.ValidPowerConsumptionModes)
+	err = validateFlag("power-consumption-mode", powerConsumptionMode, profilecreator.ValidPowerConsumptionModes)
 	if err != nil {
 		return creatorArgs, fmt.Errorf("invalid value for power-consumption-mode flag specified: %v", err)
 	}
@@ -353,12 +437,12 @@ func getProfileData(args ProfileCreatorArgs, cluster ClusterData) (*ProfileData,
 	return profileData, nil
 }
 
-func validateFlag(value string, validValues []string) error {
+func validateFlag(name, value string, validValues []string) error {
 	if isStringInSlice(value, validValues) {
 		return nil
 	}
-	return fmt.Errorf("Value '%s' is invalid. Valid values "+
-		"come from the set %v", value, validValues)
+	return fmt.Errorf("flag %q: Value '%s' is invalid. Valid values "+
+		"come from the set %v", name, value, validValues)
 }
 
 func isStringInSlice(value string, candidates []string) bool {
@@ -382,7 +466,7 @@ type ProfileCreatorArgs struct {
 	UserLevelNetworking         *bool  `json:"user-level-networking,omitempty"`
 	MCPName                     string `json:"mcp-name"`
 	TMPolicy                    string `json:"topology-manager-policy"`
-	Info                        bool   `json:"info"`
+	Info                        string `json:"info"`
 }
 
 func createProfile(profileData ProfileData) {
