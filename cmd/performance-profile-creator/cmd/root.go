@@ -55,45 +55,101 @@ type ProfileData struct {
 // ClusterData collects the cluster wide information, each mcp points to a list of ghw node handlers
 type ClusterData map[*machineconfigv1.MachineConfigPool][]*profilecreator.GHWHandler
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "performance-profile-creator",
-	Short: "A tool that automates creation of Performance Profiles",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
-		cluster, err := getClusterData(mustGatherDirPath)
-		if err != nil {
-			return fmt.Errorf("failed to parse the cluster data: %v", err)
-		}
-
-		info, err := strconv.ParseBool(cmd.Flag("info").Value.String())
-		if err != nil {
-			return fmt.Errorf("failed to parse the info flag: %v", err)
-		}
-		if info {
-			showClusterData(cluster)
-			return nil
-		}
-
-		profileCreatorArgsFromFlags, err := getDataFromFlags(cmd)
-		if err != nil {
-			return fmt.Errorf("failed to obtain data from flags %v", err)
-		}
-		profileData, err := getProfileData(profileCreatorArgsFromFlags, cluster)
-		if err != nil {
-			return err
-		}
-		createProfile(*profileData)
-		return nil
-	},
+func init() {
+	log.SetOutput(os.Stderr)
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp: true,
+	})
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+// NewRootCommand returns entrypoint command to interact with all other commands
+func NewRootCommand() *cobra.Command {
+	pcArgs := &ProfileCreatorArgs{
+		UserLevelNetworking: pointer.BoolPtr(false),
 	}
+
+	var requiredFlags []string = []string{
+		"reserved-cpu-count",
+		"mcp-name",
+		"rt-kernel",
+		"must-gather-dir-path",
+	}
+
+	root := &cobra.Command{
+		Use:   "performance-profile-creator",
+		Short: "A tool that automates creation of Performance Profiles",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if cmd.Flag("info").Changed {
+				missingRequiredFlags := checkRequiredFlags(cmd, "must-gather-dir-path")
+				if len(missingRequiredFlags) > 0 {
+					return fmt.Errorf("missing required flags: %s", strings.Join(argNameToFlag(missingRequiredFlags), ", "))
+				}
+
+				mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
+				cluster, err := getClusterData(mustGatherDirPath)
+				if err != nil {
+					return fmt.Errorf("failed to parse the cluster data: %v", err)
+				}
+
+				showClusterData(cluster)
+				return nil
+			}
+
+			missingRequiredFlags := checkRequiredFlags(cmd, requiredFlags...)
+			if len(missingRequiredFlags) > 0 {
+				return fmt.Errorf("missing required flags: %s", strings.Join(argNameToFlag(missingRequiredFlags), ", "))
+			}
+
+			mustGatherDirPath := cmd.Flag("must-gather-dir-path").Value.String()
+			cluster, err := getClusterData(mustGatherDirPath)
+			if err != nil {
+				return fmt.Errorf("failed to parse the cluster data: %v", err)
+			}
+
+			profileCreatorArgsFromFlags, err := getDataFromFlags(cmd)
+			if err != nil {
+				return fmt.Errorf("failed to obtain data from flags %v", err)
+			}
+			profileData, err := getProfileData(profileCreatorArgsFromFlags, cluster)
+			if err != nil {
+				return err
+			}
+			createProfile(*profileData)
+			return nil
+		},
+	}
+
+	root.PersistentFlags().IntVar(&pcArgs.ReservedCPUCount, "reserved-cpu-count", 0, "Number of reserved CPUs (required)")
+	root.PersistentFlags().BoolVar(&pcArgs.SplitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", false, "Split the Reserved CPUs across NUMA nodes")
+	root.PersistentFlags().StringVar(&pcArgs.MCPName, "mcp-name", "worker-cnf", "MCP name corresponding to the target machines (required)")
+	root.PersistentFlags().BoolVar(&pcArgs.DisableHT, "disable-ht", false, "Disable Hyperthreading")
+	root.PersistentFlags().BoolVar(&pcArgs.RTKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
+	root.PersistentFlags().BoolVar(pcArgs.UserLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
+	root.PersistentFlags().StringVar(&pcArgs.PowerConsumptionMode, "power-consumption-mode", profilecreator.ValidPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s]", strings.Join(profilecreator.ValidPowerConsumptionModes, ", ")))
+	root.PersistentFlags().StringVar(&pcArgs.MustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
+	root.PersistentFlags().StringVar(&pcArgs.ProfileName, "profile-name", "performance", "Name of the performance profile to be created")
+	root.PersistentFlags().StringVar(&pcArgs.TMPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
+	root.PersistentFlags().BoolVar(&pcArgs.Info, "info", false, "Show cluster information, disregard the other arguments")
+
+	return root
+}
+
+func checkRequiredFlags(cmd *cobra.Command, argNames ...string) []string {
+	missing := []string{}
+	for _, argName := range argNames {
+		if !cmd.Flag(argName).Changed {
+			missing = append(missing, argName)
+		}
+	}
+	return missing
+}
+
+func argNameToFlag(argNames []string) []string {
+	var flagNames []string
+	for _, argName := range argNames {
+		flagNames = append(flagNames, fmt.Sprintf("--%s", argName))
+	}
+	return flagNames
 }
 
 func getClusterData(mustGatherDirPath string) (ClusterData, error) {
@@ -329,33 +385,7 @@ type ProfileCreatorArgs struct {
 	Info                        bool   `json:"info"`
 }
 
-func init() {
-	args := &ProfileCreatorArgs{
-		UserLevelNetworking: pointer.BoolPtr(false),
-	}
-	log.SetOutput(os.Stderr)
-	log.SetFormatter(&log.TextFormatter{
-		DisableTimestamp: true,
-	})
-	rootCmd.PersistentFlags().IntVar(&args.ReservedCPUCount, "reserved-cpu-count", 0, "Number of reserved CPUs (required)")
-	rootCmd.MarkPersistentFlagRequired("reserved-cpu-count")
-	rootCmd.PersistentFlags().BoolVar(&args.SplitReservedCPUsAcrossNUMA, "split-reserved-cpus-across-numa", false, "Split the Reserved CPUs across NUMA nodes")
-	rootCmd.PersistentFlags().StringVar(&args.MCPName, "mcp-name", "worker-cnf", "MCP name corresponding to the target machines (required)")
-	rootCmd.MarkPersistentFlagRequired("mcp-name")
-	rootCmd.PersistentFlags().BoolVar(&args.DisableHT, "disable-ht", false, "Disable Hyperthreading")
-	rootCmd.PersistentFlags().BoolVar(&args.RTKernel, "rt-kernel", true, "Enable Real Time Kernel (required)")
-	rootCmd.MarkPersistentFlagRequired("rt-kernel")
-	rootCmd.PersistentFlags().BoolVar(args.UserLevelNetworking, "user-level-networking", false, "Run with User level Networking(DPDK) enabled")
-	rootCmd.PersistentFlags().StringVar(&args.PowerConsumptionMode, "power-consumption-mode", profilecreator.ValidPowerConsumptionModes[0], fmt.Sprintf("The power consumption mode.  [Valid values: %s, %s, %s]", profilecreator.ValidPowerConsumptionModes[0], profilecreator.ValidPowerConsumptionModes[1], profilecreator.ValidPowerConsumptionModes[2]))
-	rootCmd.PersistentFlags().StringVar(&args.MustGatherDirPath, "must-gather-dir-path", "must-gather", "Must gather directory path")
-	rootCmd.MarkPersistentFlagRequired("must-gather-dir-path")
-	rootCmd.PersistentFlags().StringVar(&args.ProfileName, "profile-name", "performance", "Name of the performance profile to be created")
-	rootCmd.PersistentFlags().StringVar(&args.TMPolicy, "topology-manager-policy", kubeletconfig.RestrictedTopologyManagerPolicy, fmt.Sprintf("Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: %s, %s, %s]", kubeletconfig.SingleNumaNodeTopologyManagerPolicy, kubeletconfig.BestEffortTopologyManagerPolicy, kubeletconfig.RestrictedTopologyManagerPolicy))
-	rootCmd.PersistentFlags().BoolVar(&args.Info, "info", false, "Show cluster information, disregard the other arguments")
-}
-
 func createProfile(profileData ProfileData) {
-
 	reserved := performancev2.CPUSet(profileData.reservedCPUs)
 	isolated := performancev2.CPUSet(profileData.isolatedCPUs)
 	// TODO: Get the name from MCP if not specified in the command line arguments
