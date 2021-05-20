@@ -21,6 +21,7 @@ import (
 const (
 	mustGatherPath       = "../../testdata/must-gather"
 	expectedProfilesPath = "../../testdata/ppc-expected-profiles"
+	expectedInfoPath     = "../../testdata/ppc-expected-info"
 	ppcPath              = "../../build/_output/bin/performance-profile-creator"
 )
 
@@ -75,6 +76,39 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 			Expect(profile).To(BeEquivalentTo(expectedProfile), "regression test failed for '%s' case", expectedProfilePath)
 		}
 	})
+
+	It("should describe the cluster from must-gather data in info mode", func() {
+		Expect(ppcPath).To(BeAnExistingFile())
+
+		// directory base name => full path
+		mustGatherDirs := getMustGatherDirs(mustGatherPath)
+
+		for name, path := range mustGatherDirs {
+			cmdArgs := []string{
+				"--info=json",
+				fmt.Sprintf("--must-gather-dir-path=%s", path),
+			}
+
+			out, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
+			Expect(err).To(BeNil(), "failed to run ppc for %q: %v", path, err)
+
+			var cInfo cmd.ClusterInfo
+			err = json.Unmarshal(out, &cInfo)
+			Expect(err).To(BeNil(), "failed to unmarshal the output json for %q: %v", path, err)
+			expectedClusterInfoPath := filepath.Join(expectedInfoPath, fmt.Sprintf("%s.json", name))
+			bytes, err := ioutil.ReadFile(expectedClusterInfoPath)
+			Expect(err).To(BeNil(), "failed to read the expected json for %q: %v", expectedClusterInfoPath, err)
+
+			var expectedInfo cmd.ClusterInfo
+			err = json.Unmarshal(bytes, &expectedInfo)
+			Expect(err).To(BeNil(), "failed to unmarshal the expected json for '%s': %v", expectedClusterInfoPath, err)
+
+			expectedInfo.Sort()
+
+			Expect(cInfo).To(BeEquivalentTo(expectedInfo), "regression test failed for '%s' case", expectedClusterInfoPath)
+		}
+	})
+
 })
 
 func getMustGatherDirs(mustGatherPath string) map[string]string {
