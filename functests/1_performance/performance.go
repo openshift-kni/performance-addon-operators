@@ -204,8 +204,16 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				Expect(err).ToNot(HaveOccurred(), "failed to execute uname")
 				currentKernelPrefix := strings.Split(kernel, ".")
 				currentSubVersion, err := strconv.Atoi(currentKernelPrefix[3])
-				Expect(err).ToNot(HaveOccurred())
-				if currentSubVersion >= minSubVersion {
+				// check if current kernel is a new rt batch stream (higher than 0-240)
+				if err != nil && strings.Contains(currentKernelPrefix[3], "rt") {
+					batchVersionStr := strings.Split(currentKernelPrefix[2], "-")
+					batchVersion, err := strconv.Atoi(batchVersionStr[1])
+					Expect(err).ToNot(HaveOccurred())
+					Expect(batchVersion > 240).Should(BeTrue(), fmt.Sprintf("Current kernel version %s is incompatible to the current oc release", kernel))
+					tuned := tunedForNode(&node)
+					_, err = pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+					Expect(err).ToNot(HaveOccurred())
+				} else if currentSubVersion >= minSubVersion {
 					tuned := tunedForNode(&node)
 					_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
 					Expect(err).ToNot(HaveOccurred())
