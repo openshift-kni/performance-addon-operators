@@ -16,8 +16,15 @@
 
 package main
 
-import "github.com/openshift-kni/performance-addon-operators/cmd/performance-profile-creator/cmd"
+import (
+	"os"
+
+	"github.com/openshift-kni/performance-addon-operators/cmd/performance-profile-creator/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	root := cmd.NewRootCommand()
+	if err := root.Execute(); err != nil {
+		os.Exit(1)
+	}
 }
