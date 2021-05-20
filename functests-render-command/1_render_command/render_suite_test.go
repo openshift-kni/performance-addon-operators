@@ -1,6 +1,9 @@
-package __render_command
+package __render_command_test
 
 import (
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/junit"
+	ginkgo_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
+
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -18,7 +21,13 @@ var (
 
 func TestRenderCmd(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Render Command Suite")
+
+	rr := []Reporter{}
+	if ginkgo_reporters.Polarion.Run {
+		rr = append(rr, &ginkgo_reporters.Polarion)
+	}
+	rr = append(rr, junit.NewJUnitReporter("render_manifests"))
+	RunSpecsWithDefaultAndCustomReporters(t, "Performance Operator render tests", rr)
 }
 
 var _ = BeforeSuite(func() {

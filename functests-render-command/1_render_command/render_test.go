@@ -1,4 +1,4 @@
-package __render_command
+package __render_command_test
 
 import (
 	"bytes"
