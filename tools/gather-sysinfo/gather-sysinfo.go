@@ -142,6 +142,7 @@ func kniExpectedCloneContent() []string {
 		"/proc/softirqs",
 		// KNI-specific CPU infos:
 		"/sys/devices/system/cpu/smt/active",
+		"/proc/sys/kernel/sched_domain/cpu*/domain*/flags",
 		// BIOS/firmware versions
 		"/sys/class/dmi/id/bios*",
 		"/sys/class/dmi/id/product_family",
