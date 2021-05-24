@@ -32,6 +32,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v1.1.1
+	github.com/spf13/pflag v1.0.5
 	go.mongodb.org/mongo-driver v1.3.2 // indirect
 	go.uber.org/zap v1.14.1 // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect

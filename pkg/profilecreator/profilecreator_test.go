@@ -402,7 +402,7 @@ var _ = Describe("PerformanceProfileCreator: Check if Hyperthreading enabled/dis
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			htEnabled, err := handle.isHyperthreadingEnabled()
+			htEnabled, err := handle.IsHyperthreadingEnabled()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(htEnabled).To(Equal(true))
 		})
@@ -412,7 +412,7 @@ var _ = Describe("PerformanceProfileCreator: Check if Hyperthreading enabled/dis
 			Expect(err).ToNot(HaveOccurred())
 			handle, err = NewGHWHandler(mustGatherDirAbsolutePath, node)
 			Expect(err).ToNot(HaveOccurred())
-			htEnabled, err := handle.isHyperthreadingEnabled()
+			htEnabled, err := handle.IsHyperthreadingEnabled()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(htEnabled).To(Equal(false))
 		})
@@ -625,12 +625,16 @@ var _ = Describe("PerformanceProfileCreator: Ensuring Nodes hardware equality", 
 
 			node1, err := getNode(mustGatherDirAbsolutePath, "worker1.yaml")
 			Expect(err).ToNot(HaveOccurred())
+			node1Handle, err := NewGHWHandler(mustGatherDirAbsolutePath, node1)
+			Expect(err).ToNot(HaveOccurred())
 
 			node2, err := getNode(mustGatherDirAbsolutePath, "worker1.yaml")
 			Expect(err).ToNot(HaveOccurred())
+			node2Handle, err := NewGHWHandler(mustGatherDirAbsolutePath, node2)
+			Expect(err).ToNot(HaveOccurred())
 
-			nodes := []*v1.Node{node1, node2}
-			err = EnsureNodesHaveTheSameHardware(mustGatherDirAbsolutePath, nodes)
+			nodeHandles := []*GHWHandler{node1Handle, node2Handle}
+			err = EnsureNodesHaveTheSameHardware(nodeHandles)
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})
@@ -642,12 +646,16 @@ var _ = Describe("PerformanceProfileCreator: Ensuring Nodes hardware equality", 
 
 			node1, err := getNode(mustGatherDirAbsolutePath, "worker1.yaml")
 			Expect(err).ToNot(HaveOccurred())
+			node1Handle, err := NewGHWHandler(mustGatherDirAbsolutePath, node1)
+			Expect(err).ToNot(HaveOccurred())
 
 			node2, err := getNode(mustGatherDirAbsolutePath, "worker2.yaml")
 			Expect(err).ToNot(HaveOccurred())
+			node2Handle, err := NewGHWHandler(mustGatherDirAbsolutePath, node2)
+			Expect(err).ToNot(HaveOccurred())
 
-			nodes := []*v1.Node{node1, node2}
-			err = EnsureNodesHaveTheSameHardware(mustGatherDirAbsolutePath, nodes)
+			nodeHandles := []*GHWHandler{node1Handle, node2Handle}
+			err = EnsureNodesHaveTheSameHardware(nodeHandles)
 			Expect(err).To(HaveOccurred())
 		})
 	})
