@@ -33,6 +33,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 )
 
+var workerRTNodes []corev1.Node
 var workerRTNode *corev1.Node
 var profile *performancev2.PerformanceProfile
 
@@ -53,7 +54,8 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			Skip("Discovery mode enabled, performance profile not found")
 		}
 
-		workerRTNodes, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
+		var err error
+		workerRTNodes, err = nodes.GetByLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
 		workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error looking for the optional selector: %v", err))
@@ -215,6 +217,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	When("pod runs with the CPU load balancing runtime class", func() {
 		var testpod *corev1.Pod
 		var defaultFlags map[int][]int
+		var annotations map[string]string
 
 		getCPUsSchedulingDomainFlags := func() (map[int][]int, error) {
 			cmd := []string{"/bin/bash", "-c", "more /proc/sys/kernel/sched_domain/cpu*/domain*/flags | cat"}
@@ -266,10 +269,9 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			defaultFlags, err = getCPUsSchedulingDomainFlags()
 			Expect(err).ToNot(HaveOccurred())
 
-			annotations := map[string]string{
+			annotations = map[string]string{
 				"cpu-load-balancing.crio.io": "disable",
 			}
-			testpod = getTestPodWithAnnotations(annotations)
 		})
 
 		AfterEach(func() {
@@ -277,6 +279,8 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		})
 
 		It("[test_id:32646] should disable CPU load balancing for CPU's used by the pod", func() {
+			testpod = getTestPodWithAnnotations(1, annotations)
+
 			By("Starting the pod")
 			err := testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
@@ -331,6 +335,61 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 				}
 			}
 		})
+
+		It("should place the pod entry point in the container housekeeping CPUs", func() {
+			// WARNING: make sure the entry point of the test pod is
+			//          a single-threaded program - /bin/sleep is fine.
+
+			requiredCores := 4
+			if _, ok := enoughCoresInTheCluster(workerRTNodes, requiredCores); !ok {
+				Skip(fmt.Sprintf("no nodes found in the cluster with at least %d exclusive cores allocatable", requiredCores))
+			}
+
+			// NOTE: pod is deleted in AfterEach()
+			testpod = getTestPodWithAnnotations(requiredCores, annotations)
+
+			By("Starting the pod")
+			err := testclient.Client.Create(context.TODO(), testpod)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = pods.WaitForCondition(testpod, corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Getting the container cpuset.cpus cgroup")
+			containerID, err := pods.GetContainerIDByName(testpod, "test")
+			Expect(err).ToNot(HaveOccurred())
+
+			cmd := []string{"/bin/bash", "-c", fmt.Sprintf("find /rootfs/sys/fs/cgroup/cpuset/ -name *%s*", containerID)}
+			containerCgroup, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Checking what CPU the pod is allowed to run into")
+			cmd = []string{"/bin/bash", "-c", fmt.Sprintf("cat %s/cpuset.cpus", containerCgroup)}
+			output, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred())
+
+			cpus, err := cpuset.Parse(output)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Checking on which processor the container entry point is running")
+			// see: https://unix.stackexchange.com/questions/79520/determining-the-particular-processor-on-which-a-process-is-running
+			podCmd := []string{"/bin/bash", "-c", "/bin/cut -d' ' -f39 < /proc/1/stat"}
+			podOutput, err := pods.ExecCommandOnPod(testpod, podCmd)
+			psr, err := strconv.Atoi(strings.TrimSpace(string(podOutput)))
+			Expect(err).ToNot(HaveOccurred())
+
+			cpuIDs := cpus.ToSlice()
+			threadsCmd := []string{"/bin/cat", fmt.Sprintf("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuIDs[0])}
+			threadsOutput, err := pods.ExecCommandOnPod(testpod, threadsCmd)
+			Expect(err).ToNot(HaveOccurred())
+
+			houseKeepingCPUSet, err := cpuset.Parse(strings.TrimSpace(string(threadsOutput)))
+			Expect(err).ToNot(HaveOccurred())
+
+			houseKeepingCPUs := houseKeepingCPUSet.ToSlice() // this is to use the gomega native matcher
+			Expect(houseKeepingCPUs).To(ContainElement(psr), fmt.Sprintf("pod entry point is running on cpu %d - housekeeping cpus = %v", psr, houseKeepingCPUs))
+		})
+
 	})
 
 	Describe("Verification that IRQ load balance can be disabled per POD", func() {
@@ -363,7 +422,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 				"irq-load-balancing.crio.io": "disable",
 				"cpu-quota.crio.io":          "disable",
 			}
-			testpod = getTestPodWithAnnotations(annotations)
+			testpod = getTestPodWithAnnotations(1, annotations)
 
 			err = testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
@@ -493,12 +552,12 @@ func getStressPod(nodeName string) *corev1.Pod {
 	}
 }
 
-func getTestPodWithAnnotations(annotations map[string]string) *corev1.Pod {
+func getTestPodWithAnnotations(cpuAmount int, annotations map[string]string) *corev1.Pod {
 	testpod := pods.GetTestPod()
 	testpod.Annotations = annotations
 	testpod.Namespace = testutils.NamespaceTesting
 
-	cpus := resource.MustParse("1")
+	cpus := resource.MustParse(fmt.Sprintf("%d", cpuAmount))
 	memory := resource.MustParse("256Mi")
 
 	// change pod resource requirements, to change the pod QoS class to guaranteed
@@ -532,4 +591,20 @@ func deleteTestPod(testpod *corev1.Pod) {
 
 	err = pods.WaitForDeletion(testpod, pods.DefaultDeletionTimeout*time.Second)
 	Expect(err).ToNot(HaveOccurred())
+}
+
+func enoughCoresInTheCluster(nodes []corev1.Node, cpus int) (resource.Quantity, bool) {
+	requestCpu := resource.MustParse(fmt.Sprintf("%dm", cpus*1000))
+
+	for _, node := range nodes {
+		availCpu, ok := node.Status.Allocatable[corev1.ResourceCPU]
+		Expect(ok).To(BeTrue(), "cpu resource not in allocatable on node %q", node.Name)
+		Expect(availCpu.IsZero()).To(BeFalse(), "zero available cpu on node %q", node.Name)
+
+		if availCpu.Cmp(requestCpu) >= 1 {
+			return requestCpu, true
+		}
+	}
+
+	return requestCpu, false
 }
