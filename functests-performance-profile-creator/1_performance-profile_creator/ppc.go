@@ -77,9 +77,6 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 			Expect(profile).To(BeEquivalentTo(expectedProfile), "regression test failed for '%s' case", expectedProfilePath)
 		}
 	})
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
 
 	It("should describe the cluster from must-gather data in info mode", func() {
 		Expect(ppcPath).To(BeAnExistingFile())
@@ -113,8 +110,6 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 		}
 	})
 
-=======
->>>>>>> openshift-kni-master
 	//TestCase4
 	It("[test_id:OCP-40941] Verify PPC script fails when the splitting of reserved cpus and single numa-node policy is specified", func() {
 		Expect(ppcPath).To(BeAnExistingFile())
@@ -154,12 +149,6 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 		ppcErrorString := errorStringParser(err)
 		Expect(ppcErrorString).To(ContainSubstring("failed to compute the reserved and isolated CPUs: can't allocate odd number of CPUs from a NUMA Node"))
 	})
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> e7661bfd... add test case 4
-=======
->>>>>>> openshift-kni-master
 	//TestCase6
 	It("[test_id:OCP-40941] Verify PPC script fails when reserved cpu count is more than available cpus", func() {
 		Expect(ppcPath).To(BeAnExistingFile())
@@ -178,12 +167,6 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 		ppcErrorString := errorStringParser(err)
 		Expect(ppcErrorString).To(ContainSubstring("failed to compute the reserved and isolated CPUs: please specify the reserved CPU count in the range [1,79]"))
 	})
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> e1b6a5d4... add test case 6
-=======
->>>>>>> openshift-kni-master
 	//TestCase7
 	It("[test_id:OCP-40941] Verify PPC script fails when odd number of reserved cpus are specified", func() {
 		Expect(ppcPath).To(BeAnExistingFile())
@@ -202,10 +185,6 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 		ppcErrorString := errorStringParser(err)
 		Expect(ppcErrorString).To(ContainSubstring("failed to compute the reserved and isolated CPUs: can't allocate odd number of CPUs from a NUMA Node"))
 	})
-<<<<<<< HEAD
-=======
->>>>>>> 87311a08... add test case 7
->>>>>>> openshift-kni-master
 })
 
 func getMustGatherDirs(mustGatherPath string) map[string]string {
