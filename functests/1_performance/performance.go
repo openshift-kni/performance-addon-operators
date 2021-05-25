@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
@@ -192,13 +194,55 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		})
 
 		It("[test_id:35363][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running on the host", func() {
-			Skip("until bugs https://bugzilla.redhat.com/show_bug.cgi?id=1912118 and https://bugzilla.redhat.com/show_bug.cgi?id=1903302 fixed")
+			By("Checking minimal required cluster version")
+			clusterVersion := ""
+			cv := &v1.ClusterVersion{}
+			key := types.NamespacedName{
+				Name: "version",
+			}
+			err := testclient.Client.Get(context.TODO(), key, cv)
+			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster version object "+key.String())
+			clusterVersion = cv.Status.Desired.Version
+			splitClusterVersion := strings.Split(clusterVersion, ".")
+			Expect(len(splitClusterVersion) > 2).Should(BeTrue(), "Cluster version in X.Y.Z format cannot be found")
+			zStream, err := strconv.Atoi(splitClusterVersion[2])
+			// stalld should be enbaled for all version higher or equal to 4.7.6
+			if zStream >= 6 {
+				for _, node := range workerRTNodes {
+					tuned := tunedForNode(&node)
+					_, err = pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+					Expect(err).ToNot(HaveOccurred())
+				}
+			}
+
+			By("Checking minmal required kernel version")
+			stalldMinimumKernelVersionPrefix := "4.18.0-240.22"
+			minKernelPrefix := strings.Split(stalldMinimumKernelVersionPrefix, ".")
+			minSubVersion, err := strconv.Atoi(minKernelPrefix[3])
+			Expect(err).ToNot(HaveOccurred())
 			for _, node := range workerRTNodes {
-				tuned := tunedForNode(&node)
-				_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
-				Expect(err).ToNot(HaveOccurred())
+				cmd := []string{"uname", "-r"}
+				kernel, err := nodes.ExecCommandOnNode(cmd, &node)
+				Expect(err).ToNot(HaveOccurred(), "failed to execute uname")
+				currentKernelPrefix := strings.Split(kernel, ".")
+				currentSubVersion, err := strconv.Atoi(currentKernelPrefix[3])
+				// check if current kernel is a new rt batch stream (higher than 0-240)
+				if err != nil && strings.Contains(currentKernelPrefix[3], "rt") {
+					batchVersionStr := strings.Split(currentKernelPrefix[2], "-")
+					batchVersion, err := strconv.Atoi(batchVersionStr[1])
+					Expect(err).ToNot(HaveOccurred())
+					Expect(batchVersion > 240).Should(BeTrue(), fmt.Sprintf("Current kernel version %s is incompatible to the current oc release", kernel))
+					tuned := tunedForNode(&node)
+					_, err = pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+					Expect(err).ToNot(HaveOccurred())
+				} else if currentSubVersion >= minSubVersion {
+					tuned := tunedForNode(&node)
+					_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+					Expect(err).ToNot(HaveOccurred())
+				}
 			}
 		})
+
 	})
 
 	Context("Additional kernel arguments added from perfomance profile", func() {

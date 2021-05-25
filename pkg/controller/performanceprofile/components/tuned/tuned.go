@@ -20,12 +20,14 @@ import (
 
 const (
 	cmdlineDelimiter                        = " "
+	minimalStalldZstreamVersion             = 6
 	templateIsolatedCpus                    = "IsolatedCpus"
 	templateStaticIsolation                 = "StaticIsolation"
 	templateDefaultHugepagesSize            = "DefaultHugepagesSize"
 	templateHugepages                       = "Hugepages"
 	templateAdditionalArgs                  = "AdditionalArgs"
 	templateGloballyDisableIrqLoadBalancing = "GloballyDisableIrqLoadBalancing"
+	templateEnabledStalld                   = "EnableStalld"
 )
 
 func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.TunedRecommend) *tunedv1.Tuned {
@@ -46,7 +48,7 @@ func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.Tune
 }
 
 // NewNodePerformance returns tuned profile for performance sensitive workflows
-func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProfile) (*tunedv1.Tuned, error) {
+func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProfile, clusterVersion string) (*tunedv1.Tuned, error) {
 
 	templateArgs := make(map[string]string)
 
@@ -108,6 +110,14 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 	if profile.Spec.GloballyDisableIrqLoadBalancing != nil &&
 		*profile.Spec.GloballyDisableIrqLoadBalancing == true {
 		templateArgs[templateGloballyDisableIrqLoadBalancing] = strconv.FormatBool(true)
+	}
+
+	splitClusterVersion := strings.Split(clusterVersion, ".")
+	if len(splitClusterVersion) > 2 {
+		zStream, err := strconv.Atoi(splitClusterVersion[2])
+		if err == nil && zStream >= minimalStalldZstreamVersion {
+			templateArgs[templateEnabledStalld] = strconv.FormatBool(true)
+		}
 	}
 
 	profileData, err := getProfileData(getProfilePath(components.ProfileNamePerformance, assetsDir), templateArgs)

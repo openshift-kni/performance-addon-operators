@@ -27,7 +27,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/controllers"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/version"
-
+	configv1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
@@ -119,6 +119,10 @@ func main() {
 	}
 
 	if err := tunedv1.AddToScheme(mgr.GetScheme()); err != nil {
+		klog.Exit(err.Error())
+	}
+
+	if err := configv1.AddToScheme(mgr.GetScheme()); err != nil {
 		klog.Exit(err.Error())
 	}
 
