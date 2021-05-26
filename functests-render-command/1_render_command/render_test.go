@@ -19,7 +19,7 @@ var (
 	testDataPath string
 )
 
-var _ = Describe("render command unittest", func() {
+var _ = Describe("render command e2e test", func() {
 
 	BeforeEach(func() {
 		assetsOutDir = createTempAssetsDir()
@@ -97,6 +97,11 @@ func runAndCompare(cmd *exec.Cmd) {
 		Expect(err).ToNot(HaveOccurred())
 
 		res := bytes.Compare(data, refData)
+		if res != 0 {
+			fmt.Fprintf(GinkgoWriter, "files: %q and %q are not identical\n",
+				filepath.Join(refPath, f.Name()),
+				filepath.Join(assetsOutDir, f.Name()))
+		}
 		Expect(res).To(BeZero())
 	}
 }

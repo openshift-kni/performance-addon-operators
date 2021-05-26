@@ -263,7 +263,7 @@ perf-profile-creator-tests: create-performance-profile
 	hack/run-perf-profile-creator-functests.sh
 
 .PHONY: render-command-tests
-render-command-tests:
+render-command-tests: dist
 	@echo "Running Render Command Tests"
 	hack/run-render-command-functests.sh
 
