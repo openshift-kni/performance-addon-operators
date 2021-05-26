@@ -341,15 +341,22 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			//          a single-threaded program - /bin/sleep is fine.
 
 			requiredCores := 4
-			if _, ok := enoughCoresInTheCluster(workerRTNodes, requiredCores); !ok {
-				Skip(fmt.Sprintf("no nodes found in the cluster with at least %d exclusive cores allocatable", requiredCores))
+			enoughCores, err := cluster.HaveEnoughCores(workerRTNodes, requiredCores)
+			Expect(err).ToNot(HaveOccurred())
+			if !enoughCores {
+				reason := fmt.Sprintf("no nodes found in the cluster with at least %d exclusive cores allocatable", requiredCores)
+				if cluster.EnforceRequirements() {
+					Fail(reason)
+				} else {
+					Skip(reason)
+				}
 			}
 
 			// NOTE: pod is deleted in AfterEach()
 			testpod = getTestPodWithAnnotations(requiredCores, annotations)
 
 			By("Starting the pod")
-			err := testclient.Client.Create(context.TODO(), testpod)
+			err = testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
 			err = pods.WaitForCondition(testpod, corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
@@ -591,20 +598,4 @@ func deleteTestPod(testpod *corev1.Pod) {
 
 	err = pods.WaitForDeletion(testpod, pods.DefaultDeletionTimeout*time.Second)
 	Expect(err).ToNot(HaveOccurred())
-}
-
-func enoughCoresInTheCluster(nodes []corev1.Node, cpus int) (resource.Quantity, bool) {
-	requestCpu := resource.MustParse(fmt.Sprintf("%dm", cpus*1000))
-
-	for _, node := range nodes {
-		availCpu, ok := node.Status.Allocatable[corev1.ResourceCPU]
-		Expect(ok).To(BeTrue(), "cpu resource not in allocatable on node %q", node.Name)
-		Expect(availCpu.IsZero()).To(BeFalse(), "zero available cpu on node %q", node.Name)
-
-		if availCpu.Cmp(requestCpu) >= 1 {
-			return requestCpu, true
-		}
-	}
-
-	return requestCpu, false
 }
