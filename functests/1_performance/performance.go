@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-version"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -203,16 +204,18 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			err := testclient.Client.Get(context.TODO(), key, cv)
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster version object "+key.String())
 			clusterVersion = cv.Status.Desired.Version
-			splitClusterVersion := strings.Split(clusterVersion, ".")
-			Expect(len(splitClusterVersion) > 2).Should(BeTrue(), "Cluster version in X.Y.Z format cannot be found")
-			zStream, err := strconv.Atoi(splitClusterVersion[2])
-			// stalld should be enbaled for all version higher or equal to 4.7.6
-			if zStream >= 6 {
+			currentClusterVersion, err := version.NewVersion(clusterVersion)
+			Expect(err).ToNot(HaveOccurred())
+			requiredStalldClusterVersion, err := version.NewVersion("4.7.6")
+			Expect(err).ToNot(HaveOccurred())
+			if currentClusterVersion.GreaterThanOrEqual(requiredStalldClusterVersion) {
 				for _, node := range workerRTNodes {
 					tuned := tunedForNode(&node)
 					_, err = pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
 					Expect(err).ToNot(HaveOccurred())
 				}
+			} else {
+				klog.Warningf("Stalld is not enable, cluster version: %s", clusterVersion)
 			}
 
 			By("Checking minmal required kernel version")

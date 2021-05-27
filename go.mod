@@ -18,6 +18,7 @@ require (
 	github.com/go-openapi/swag v0.19.9 // indirect
 	github.com/go-openapi/validate v0.19.8 // indirect
 	github.com/googleapis/gnostic v0.4.0 // indirect
+	github.com/hashicorp/go-version v1.3.0
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/onsi/ginkgo v1.12.1

@@ -10,6 +10,7 @@ import (
 
 	"k8s.io/utils/pointer"
 
+	"github.com/hashicorp/go-version"
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	componentsprofile "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
@@ -20,7 +21,7 @@ import (
 
 const (
 	cmdlineDelimiter                        = " "
-	minimalStalldZstreamVersion             = 6
+	minimalStalldClusterVersion             = "4.7.6"
 	templateIsolatedCpus                    = "IsolatedCpus"
 	templateStaticIsolation                 = "StaticIsolation"
 	templateDefaultHugepagesSize            = "DefaultHugepagesSize"
@@ -112,12 +113,17 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 		templateArgs[templateGloballyDisableIrqLoadBalancing] = strconv.FormatBool(true)
 	}
 
-	splitClusterVersion := strings.Split(clusterVersion, ".")
-	if len(splitClusterVersion) > 2 {
-		zStream, err := strconv.Atoi(splitClusterVersion[2])
-		if err == nil && zStream >= minimalStalldZstreamVersion {
-			templateArgs[templateEnabledStalld] = strconv.FormatBool(true)
-		}
+	currentClusterVersion, err := version.NewVersion(clusterVersion)
+	if err != nil {
+		return nil, err
+	}
+	requiredStalldClusterVersion, err := version.NewVersion(minimalStalldClusterVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	if currentClusterVersion.GreaterThanOrEqual(requiredStalldClusterVersion) {
+		templateArgs[templateEnabledStalld] = strconv.FormatBool(true)
 	}
 
 	profileData, err := getProfileData(getProfilePath(components.ProfileNamePerformance, assetsDir), templateArgs)
