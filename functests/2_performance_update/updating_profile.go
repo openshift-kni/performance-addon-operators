@@ -102,6 +102,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 				}
 
 				for _, node := range workerRTNodes {
+					By(fmt.Sprintf("verifying worker node %q", node.Name))
+
 					bannedCPUs, err := nodes.BannedCPUs(node)
 					Expect(err).ToNot(HaveOccurred(), "failed to extract the banned CPUs from node %s", node.Name)
 
