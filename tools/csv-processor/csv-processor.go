@@ -12,13 +12,15 @@ import (
 	"strings"
 
 	"github.com/blang/semver"
-
 	"github.com/openshift-kni/performance-addon-operators/pkg/utils/csvtools"
-
 	"github.com/operator-framework/api/pkg/lib/version"
 	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 )
 
 var (
@@ -65,6 +67,38 @@ func generateUnifiedCSV(userData csvUserData) {
 	}
 
 	strategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Image = *operatorImage
+
+	// set operator resource requests
+	cpuRequest := resource.MustParse("10m")
+	memoryRequest := resource.MustParse("25Mi")
+	strategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    cpuRequest,
+			corev1.ResourceMemory: memoryRequest,
+		},
+	}
+
+	// set operator toleration
+	strategySpec.DeploymentSpecs[0].Spec.Template.Spec.Tolerations = []corev1.Toleration{
+		{
+			// Just tolerate NoSchedule taint on master node. If there are other conditions like disk-pressure etc, let's not schedule the control-plane pods onto that node.
+			Key:      "node-role.kubernetes.io/master",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+		{
+			Key:               "node.kubernetes.io/unreachable",
+			Operator:          corev1.TolerationOpExists,
+			Effect:            corev1.TaintEffectNoExecute,
+			TolerationSeconds: pointer.Int64Ptr(120), // Evict pods within 2 minutes.
+		},
+		{
+			Key:               "node.kubernetes.io/not-ready",
+			Operator:          corev1.TolerationOpExists,
+			Effect:            corev1.TaintEffectNoExecute,
+			TolerationSeconds: pointer.Int64Ptr(120), // Evict pods within 2 minutes.
+		},
+	}
 
 	// Inject display names and descriptions for our crds
 	for i, definition := range operatorCSV.Spec.CustomResourceDefinitions.Owned {
