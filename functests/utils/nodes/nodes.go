@@ -207,6 +207,11 @@ func BannedCPUs(node corev1.Node) (banned cpuset.CPUSet, err error) {
 		return cpuset.NewCPUSet(), fmt.Errorf("failed to execute %v: %v", cmd, err)
 	}
 
+	if bannedCPUs == "" {
+		klog.Infof("Banned CPUs on node %q returned empty set", node.Name)
+		return cpuset.NewCPUSet(), nil // TODO: should this be a error?
+	}
+
 	banned, err = components.CPUMaskToCPUSet(bannedCPUs)
 	if err != nil {
 		return cpuset.NewCPUSet(), fmt.Errorf("failed to parse the banned CPUs: %v", err)
