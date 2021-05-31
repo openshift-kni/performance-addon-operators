@@ -1,5 +1,6 @@
 {
     "description": "Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency.",
-    "repository": "https://github.com/openshift-kni/performance-addon-operators"
+    "repository": "https://github.com/openshift-kni/performance-addon-operators",
+    "target.workload.openshift.io/management": "{\"effect\": \"PreferredDuringScheduling\"}"
 }
 
