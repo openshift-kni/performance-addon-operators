@@ -219,6 +219,8 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				klog.Warningf("Stalld is not enable, cluster version: %s", clusterVersion)
 			}
 
+			// this test will both determine if the minimum required kernel version exists in order for stalld to work
+			// and alert in case a wrong kernel version is provided in an openshift release that is being tested.
 			By("Checking minmal required kernel version")
 			stalldMinimumKernelVersionPrefix := "4.18.0-240.22"
 			minKernelPrefix := strings.Split(stalldMinimumKernelVersionPrefix, ".")
