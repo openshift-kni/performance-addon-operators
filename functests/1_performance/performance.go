@@ -206,9 +206,10 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			clusterVersion = cv.Status.Desired.Version
 			currentClusterVersion, err := version.NewVersion(clusterVersion)
 			Expect(err).ToNot(HaveOccurred())
-			requiredStalldClusterVersion, err := version.NewVersion("4.7.6")
+			requiredStalldClusterVersion, err := version.NewVersion("4.7.7")
 			Expect(err).ToNot(HaveOccurred())
-			if currentClusterVersion.GreaterThanOrEqual(requiredStalldClusterVersion) {
+			if strings.Contains(clusterVersion, "ci") || strings.Contains(clusterVersion, "nightly") ||
+				currentClusterVersion.GreaterThanOrEqual(requiredStalldClusterVersion) {
 				for _, node := range workerRTNodes {
 					tuned := tunedForNode(&node)
 					_, err = pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})

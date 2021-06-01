@@ -21,7 +21,7 @@ import (
 
 const (
 	cmdlineDelimiter                        = " "
-	minimalStalldClusterVersion             = "4.7.6"
+	minimalStalldClusterVersion             = "4.7.7"
 	templateIsolatedCpus                    = "IsolatedCpus"
 	templateStaticIsolation                 = "StaticIsolation"
 	templateDefaultHugepagesSize            = "DefaultHugepagesSize"
@@ -122,7 +122,7 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 		return nil, err
 	}
 
-	if currentClusterVersion.GreaterThanOrEqual(requiredStalldClusterVersion) {
+	if isNonStableRelease(clusterVersion) || currentClusterVersion.GreaterThanOrEqual(requiredStalldClusterVersion) {
 		templateArgs[templateEnabledStalld] = strconv.FormatBool(true)
 	}
 
@@ -167,4 +167,11 @@ func getProfileData(profileOperatorlPath string, data interface{}) (string, erro
 		return "", err
 	}
 	return profile.String(), nil
+}
+
+func isNonStableRelease(clusterVersion string) bool {
+	if strings.Contains(clusterVersion, "ci") || strings.Contains(clusterVersion, "nightly") {
+		return true
+	}
+	return false
 }

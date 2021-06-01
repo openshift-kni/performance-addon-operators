@@ -92,15 +92,21 @@ var _ = Describe("Tuned", func() {
 		})
 
 		It("should generate yaml with stalld enabled", func() {
-			clusterVersion = "4.7.6"
+			clusterVersion = "4.7.7"
 			manifest := getTunedManifest(profile)
 			Expect(manifest).To(ContainSubstring("service.stalld=start,enable"))
 		})
 
 		It("should not generate yaml with stalld enabled", func() {
-			clusterVersion = "4.7.5"
+			clusterVersion = "4.7.6"
 			manifest := getTunedManifest(profile)
 			Expect(manifest).ToNot(ContainSubstring("service.stalld=start,enable"))
+		})
+
+		It("should generate yaml with stalld enabled for non stable release", func() {
+			clusterVersion = "4.7.0-0.ci-2021-05-27-140119"
+			manifest := getTunedManifest(profile)
+			Expect(manifest).To(ContainSubstring("service.stalld=start,enable"))
 		})
 
 		Context("with 1G default huge pages", func() {
