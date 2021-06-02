@@ -1,7 +1,6 @@
 package __render_command_test
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -96,12 +95,10 @@ func runAndCompare(cmd *exec.Cmd) {
 		data, err := ioutil.ReadFile(filepath.Join(assetsOutDir, f.Name()))
 		Expect(err).ToNot(HaveOccurred())
 
-		res := bytes.Compare(data, refData)
-		if res != 0 {
-			fmt.Fprintf(GinkgoWriter, "files: %q and %q are not identical\n",
-				filepath.Join(refPath, f.Name()),
-				filepath.Join(assetsOutDir, f.Name()))
-		}
-		Expect(res).To(BeZero())
+		diff, err := getFilesDiff(data, refData)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(diff).To(BeZero(), "rendered %s file is not identical to its reference file; diff: %v",
+			f.Name(),
+			diff)
 	}
 }
