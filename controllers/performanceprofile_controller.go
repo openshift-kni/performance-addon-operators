@@ -28,6 +28,7 @@ import (
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
+	v1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
@@ -115,6 +116,10 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 			&source.Kind{Type: &mcov1.MachineConfigPool{}},
 			&handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(r.mcpToPerformanceProfile)},
 			builder.WithPredicates(mcpPredicates)).
+		Watches(
+			&source.Kind{Type: &v1.ClusterVersion{}},
+			&handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(r.requestAllPerformanceProfiles)},
+			builder.WithPredicates(p)).
 		Complete(r)
 	if err != nil {
 		return err
@@ -157,6 +162,19 @@ func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj handler.Ma
 	return requests
 }
 
+func (r *PerformanceProfileReconciler) requestAllPerformanceProfiles(mcpObj handler.MapObject) []reconcile.Request {
+	profiles := &performancev2.PerformanceProfileList{}
+	if err := r.List(context.TODO(), profiles); err != nil {
+		klog.Error("failed to get performance profiles")
+		return nil
+	}
+	var requests []reconcile.Request
+	for i := range profiles.Items {
+		requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&profiles.Items[i])})
+	}
+	return requests
+}
+
 func validateUpdateEvent(e *event.UpdateEvent) bool {
 	if e.MetaOld == nil {
 		klog.Error("Update event has no old metadata")
@@ -181,6 +199,7 @@ func validateUpdateEvent(e *event.UpdateEvent) bool {
 // +kubebuilder:rbac:groups="",resources=events,verbs=*
 // +kubebuilder:rbac:groups=performance.openshift.io,resources=performanceprofiles;performanceprofiles/status;performanceprofiles/finalizers,verbs=*
 // +kubebuilder:rbac:groups=machineconfiguration.openshift.io,resources=machineconfigs;machineconfigpools;kubeletconfigs,verbs=*
+// +kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions,verbs=get;list;watch
 // +kubebuilder:rbac:groups=tuned.openshift.io,resources=tuneds,verbs=*
 // +kubebuilder:rbac:groups=node.k8s.io,resources=runtimeclasses,verbs=*
 // +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=core,resources=pods;services;services/finalizers;configmaps,verbs=*
@@ -383,7 +402,11 @@ func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.Pe
 	}
 
 	// get mutated performance tuned
-	performanceTuned, err := tuned.NewNodePerformance(r.AssetsDir, profile)
+	clusterVersion, err := r.getClusterVersion()
+	if err != nil {
+		return nil, err
+	}
+	performanceTuned, err := tuned.NewNodePerformance(r.AssetsDir, profile, clusterVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -530,4 +553,17 @@ func hasMatchingLabels(performanceprofile *performancev2.PerformanceProfile, mcp
 		return false
 	}
 	return true
+}
+
+func (r *PerformanceProfileReconciler) getClusterVersion() (string, error) {
+	clusterVersion := ""
+	cv := &v1.ClusterVersion{}
+	key := types.NamespacedName{
+		Name: "version",
+	}
+	if err := r.Get(context.TODO(), key, cv); err != nil {
+		return clusterVersion, err
+	}
+	clusterVersion = cv.Status.Desired.Version
+	return clusterVersion, nil
 }
