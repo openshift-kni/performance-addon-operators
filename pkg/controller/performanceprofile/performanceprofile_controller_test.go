@@ -19,6 +19,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
+	v1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
@@ -38,6 +39,7 @@ import (
 )
 
 const assetsDir = "../../../build/assets"
+const clusterVersion = "4.6.31"
 
 var _ = Describe("Controller", func() {
 	var request reconcile.Request
@@ -180,13 +182,13 @@ var _ = Describe("Controller", func() {
 
 		It("should remove outdated tuned objects", func() {
 
-			tunedOutdatedA, err := tuned.NewNodePerformance(assetsDir, profile)
+			tunedOutdatedA, err := tuned.NewNodePerformance(assetsDir, profile, clusterVersion)
 			Expect(err).ToNot(HaveOccurred())
 			tunedOutdatedA.Name = "outdated-a"
 			tunedOutdatedA.OwnerReferences = []metav1.OwnerReference{
 				{Name: profile.Name},
 			}
-			tunedOutdatedB, err := tuned.NewNodePerformance(assetsDir, profile)
+			tunedOutdatedB, err := tuned.NewNodePerformance(assetsDir, profile, clusterVersion)
 			Expect(err).ToNot(HaveOccurred())
 			tunedOutdatedB.Name = "outdated-b"
 			tunedOutdatedB.OwnerReferences = []metav1.OwnerReference{
@@ -276,7 +278,7 @@ var _ = Describe("Controller", func() {
 				kc, err = kubeletconfig.New(profile)
 				Expect(err).ToNot(HaveOccurred())
 
-				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profile)
+				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profile, clusterVersion)
 				Expect(err).ToNot(HaveOccurred())
 
 				runtimeClass = runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
@@ -599,7 +601,7 @@ var _ = Describe("Controller", func() {
 			kc, err := kubeletconfig.New(profile)
 			Expect(err).ToNot(HaveOccurred())
 
-			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profile)
+			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profile, clusterVersion)
 			Expect(err).ToNot(HaveOccurred())
 
 			runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
@@ -656,7 +658,20 @@ func reconcileTimes(reconciler *ReconcilePerformanceProfile, request reconcile.R
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client
 func newFakeReconciler(initObjects ...runtime.Object) *ReconcilePerformanceProfile {
-	fakeClient := fake.NewFakeClientWithScheme(scheme.Scheme, initObjects...)
+	cv := &v1.ClusterVersion{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "config.openshift.io/v1",
+			Kind:       "MachineConfigPool",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "version",
+		},
+		Status: v1.ClusterVersionStatus{
+			Desired: v1.Update{Version: "4.7.12"},
+		},
+	}
+	fakeObjects := append(initObjects, cv)
+	fakeClient := fake.NewFakeClientWithScheme(scheme.Scheme, fakeObjects...)
 	fakeRecorder := record.NewFakeRecorder(10)
 	return &ReconcilePerformanceProfile{
 		client:    fakeClient,

@@ -114,6 +114,10 @@ func main() {
 		klog.Exit(err.Error())
 	}
 
+	if err := configv1.AddToScheme(mgr.GetScheme()); err != nil {
+		klog.Exit(err.Error())
+	}
+
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
 		klog.Exit(err.Error())

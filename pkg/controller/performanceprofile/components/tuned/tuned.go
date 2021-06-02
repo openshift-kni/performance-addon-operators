@@ -10,6 +10,7 @@ import (
 
 	"k8s.io/utils/pointer"
 
+	"github.com/hashicorp/go-version"
 	performancev1 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v1"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	componentsprofile "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
@@ -20,11 +21,13 @@ import (
 
 const (
 	cmdlineDelimiter             = " "
+	minimalStalldClusterVersion  = "4.6.27"
 	templateIsolatedCpus         = "IsolatedCpus"
 	templateStaticIsolation      = "StaticIsolation"
 	templateDefaultHugepagesSize = "DefaultHugepagesSize"
 	templateHugepages            = "Hugepages"
 	templateAdditionalArgs       = "AdditionalArgs"
+	templateEnabledStalld        = "EnableStalld"
 )
 
 func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.TunedRecommend) *tunedv1.Tuned {
@@ -45,7 +48,7 @@ func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.Tune
 }
 
 // NewNodePerformance returns tuned profile for performance sensitive workflows
-func NewNodePerformance(assetsDir string, profile *performancev1.PerformanceProfile) (*tunedv1.Tuned, error) {
+func NewNodePerformance(assetsDir string, profile *performancev1.PerformanceProfile, clusterVersion string) (*tunedv1.Tuned, error) {
 
 	templateArgs := make(map[string]string)
 
@@ -104,6 +107,19 @@ func NewNodePerformance(assetsDir string, profile *performancev1.PerformanceProf
 		templateArgs[templateAdditionalArgs] = strings.Join(profile.Spec.AdditionalKernelArgs, cmdlineDelimiter)
 	}
 
+	currentClusterVersion, err := version.NewVersion(clusterVersion)
+	if err != nil {
+		return nil, err
+	}
+	requiredStalldClusterVersion, err := version.NewVersion(minimalStalldClusterVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	if isNonStableRelease(clusterVersion) || currentClusterVersion.GreaterThanOrEqual(requiredStalldClusterVersion) {
+		templateArgs[templateEnabledStalld] = strconv.FormatBool(true)
+	}
+
 	profileData, err := getProfileData(getProfilePath(components.ProfileNamePerformance, assetsDir), templateArgs)
 
 	if err != nil {
@@ -145,4 +161,11 @@ func getProfileData(profileOperatorlPath string, data interface{}) (string, erro
 		return "", err
 	}
 	return profile.String(), nil
+}
+
+func isNonStableRelease(clusterVersion string) bool {
+	if strings.Contains(clusterVersion, "ci") || strings.Contains(clusterVersion, "nightly") {
+		return true
+	}
+	return false
 }

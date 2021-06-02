@@ -12,6 +12,7 @@ import (
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
+	v1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
@@ -166,6 +167,11 @@ func add(mgr manager.Manager, r *ReconcilePerformanceProfile) error {
 	}
 
 	err = c.Watch(&source.Kind{Type: &mcov1.MachineConfigPool{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: (handler.ToRequestsFunc)(r.ppRequestsFromMCP)}, mcpPredicates)
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &v1.ClusterVersion{}}, &handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(r.requestAllPerformanceProfiles)}, p)
 	if err != nil {
 		return err
 	}
@@ -334,6 +340,19 @@ func (r *ReconcilePerformanceProfile) ppRequestsFromMCP(o handler.MapObject) []r
 	return requests
 }
 
+func (r *ReconcilePerformanceProfile) requestAllPerformanceProfiles(mcpObj handler.MapObject) []reconcile.Request {
+	profiles := &performancev1.PerformanceProfileList{}
+	if err := r.client.List(context.TODO(), profiles); err != nil {
+		klog.Error("failed to get performance profiles")
+		return nil
+	}
+	var requests []reconcile.Request
+	for i := range profiles.Items {
+		requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&profiles.Items[i])})
+	}
+	return requests
+}
+
 func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.PerformanceProfile) (*reconcile.Result, error) {
 
 	if profileutil.IsPaused(profile) {
@@ -368,7 +387,11 @@ func (r *ReconcilePerformanceProfile) applyComponents(profile *performancev1.Per
 	}
 
 	// get mutated performance tuned
-	performanceTuned, err := tuned.NewNodePerformance(r.assetsDir, profile)
+	clusterVersion, err := r.getClusterVersion()
+	if err != nil {
+		return nil, err
+	}
+	performanceTuned, err := tuned.NewNodePerformance(r.assetsDir, profile, clusterVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -515,4 +538,17 @@ func hasMatchingLabels(performanceprofile *performancev1.PerformanceProfile, mcp
 		return false
 	}
 	return true
+}
+
+func (r *ReconcilePerformanceProfile) getClusterVersion() (string, error) {
+	clusterVersion := ""
+	cv := &v1.ClusterVersion{}
+	key := types.NamespacedName{
+		Name: "version",
+	}
+	if err := r.client.Get(context.TODO(), key, cv); err != nil {
+		return clusterVersion, err
+	}
+	clusterVersion = cv.Status.Desired.Version
+	return clusterVersion, nil
 }
