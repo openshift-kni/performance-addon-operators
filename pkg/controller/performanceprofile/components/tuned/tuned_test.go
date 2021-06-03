@@ -22,6 +22,7 @@ const expectedMatchSelector = `
 `
 
 var (
+	clusterVersion                     = "4.6.27"
 	cmdlineCPUsPartitioning            = regexp.MustCompile(`\s*cmdline_cpu_part=\+\s*nohz=on\s+rcu_nocbs=\${isolated_cores}\s+tuned.non_isolcpus=\${not_isolated_cpumask}\s+intel_pstate=disable\s+nosoftlockup\s*`)
 	cmdlineRealtimeWithCPUBalancing    = regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=managed_irq,\${isolated_cores}\s+systemd.cpu_affinity=\${not_isolated_cores_expanded}\s*`)
 	cmdlineRealtimeWithoutCPUBalancing = regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=domain,managed_irq,\${isolated_cores}\s+systemd.cpu_affinity=\${not_isolated_cores_expanded}\s*`)
@@ -41,7 +42,7 @@ var _ = Describe("Tuned", func() {
 	})
 
 	getTunedManifest := func(profile *v1.PerformanceProfile) string {
-		tuned, err := NewNodePerformance(testAssetsDir, profile)
+		tuned, err := NewNodePerformance(testAssetsDir, profile, clusterVersion)
 		Expect(err).ToNot(HaveOccurred())
 		y, err := yaml.Marshal(tuned)
 		Expect(err).ToNot(HaveOccurred())
@@ -88,6 +89,24 @@ var _ = Describe("Tuned", func() {
 			manifest = getTunedManifest(profile)
 			Expect(strings.Count(manifest, "hugepagesz=")).Should(BeNumerically("==", 1))
 			Expect(strings.Count(manifest, "hugepages=")).Should(BeNumerically("==", 2))
+		})
+
+		It("should generate yaml with stalld enabled", func() {
+			clusterVersion = "4.6.27"
+			manifest := getTunedManifest(profile)
+			Expect(manifest).To(ContainSubstring("service.stalld=start,enable"))
+		})
+
+		It("should not generate yaml with stalld enabled", func() {
+			clusterVersion = "4.6.26"
+			manifest := getTunedManifest(profile)
+			Expect(manifest).ToNot(ContainSubstring("service.stalld=start,enable"))
+		})
+
+		It("should generate yaml with stalld enabled for non stable release", func() {
+			clusterVersion = "4.6.0-0.ci-2021-05-27-162213"
+			manifest := getTunedManifest(profile)
+			Expect(manifest).To(ContainSubstring("service.stalld=start,enable"))
 		})
 
 		Context("with 1G default huge pages", func() {

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-version"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -18,10 +20,12 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
@@ -177,11 +181,57 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		})
 
 		It("[test_id:35363][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running on the host", func() {
-			Skip("until bugs https://bugzilla.redhat.com/show_bug.cgi?id=1912118 and https://bugzilla.redhat.com/show_bug.cgi?id=1903302 fixed")
+			By("Checking minimal required cluster version")
+			clusterVersion := ""
+			cv := &v1.ClusterVersion{}
+			key := types.NamespacedName{
+				Name: "version",
+			}
+			err := testclient.Client.Get(context.TODO(), key, cv)
+			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster version object "+key.String())
+			clusterVersion = cv.Status.Desired.Version
+			currentClusterVersion, err := version.NewVersion(clusterVersion)
+			Expect(err).ToNot(HaveOccurred())
+			requiredStalldClusterVersion, err := version.NewVersion("4.6.26")
+			Expect(err).ToNot(HaveOccurred())
+			if strings.Contains(clusterVersion, "ci") || strings.Contains(clusterVersion, "nightly") ||
+				currentClusterVersion.GreaterThanOrEqual(requiredStalldClusterVersion) {
+				for _, node := range workerRTNodes {
+					tuned := tunedForNode(&node)
+					_, err = pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+					Expect(err).ToNot(HaveOccurred())
+				}
+			} else {
+				klog.Warningf("Stalld is not enable, cluster version: %s", clusterVersion)
+			}
+
+			// this test will both determine if the minimum required kernel version exists in order for stalld to work
+			// and alert in case a wrong kernel version is provided in an openshift release that is being tested.
+			By("Checking minmal required kernel version")
+			stalldMinimumKernelVersionPrefix := "4.18.0-193.49"
+			minKernelPrefix := strings.Split(stalldMinimumKernelVersionPrefix, ".")
+			minSubVersion, err := strconv.Atoi(minKernelPrefix[3])
+			Expect(err).ToNot(HaveOccurred())
 			for _, node := range workerRTNodes {
-				tuned := tunedForNode(&node)
-				_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
-				Expect(err).ToNot(HaveOccurred())
+				cmd := []string{"uname", "-r"}
+				kernel, err := nodes.ExecCommandOnNode(cmd, &node)
+				Expect(err).ToNot(HaveOccurred(), "failed to execute uname")
+				currentKernelPrefix := strings.Split(kernel, ".")
+				currentSubVersion, err := strconv.Atoi(currentKernelPrefix[3])
+				// check if current kernel is a new rt batch stream (higher than 0-193)
+				if err != nil && strings.Contains(currentKernelPrefix[3], "rt") {
+					batchVersionStr := strings.Split(currentKernelPrefix[2], "-")
+					batchVersion, err := strconv.Atoi(batchVersionStr[1])
+					Expect(err).ToNot(HaveOccurred())
+					Expect(batchVersion > 193).Should(BeTrue(), fmt.Sprintf("Current kernel version %s is incompatible to the current oc release", kernel))
+					tuned := tunedForNode(&node)
+					_, err = pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+					Expect(err).ToNot(HaveOccurred())
+				} else if currentSubVersion >= minSubVersion {
+					tuned := tunedForNode(&node)
+					_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+					Expect(err).ToNot(HaveOccurred())
+				}
 			}
 		})
 	})

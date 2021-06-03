@@ -25,8 +25,10 @@ governor=performance                          #  latency-performance
 energy_perf_bias=performance                  #  latency-performance 
 min_perf_pct=100                              #  latency-performance 
 
+{{if .EnableStalld}}
 [service]
 service.stalld=start,enable
+{{end}}
 
 [vm]
 transparent_hugepages=never                   #  network-latency

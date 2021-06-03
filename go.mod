@@ -8,6 +8,7 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f
 	github.com/coreos/ignition v0.35.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
+	github.com/hashicorp/go-version v1.2.0
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
