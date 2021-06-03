@@ -54,7 +54,7 @@ fi
 clean_package
 
 # do not generate new CRD/CSV for old versions
-if [[ ${CSV_VERSION} =~ 4.8.* ]]; then
+if [[ ${CSV_VERSION} =~ 4.9.* ]]; then
   cp -a deploy/olm-catalog build/_output
 
   # generate a temporary csv we'll use as a template
