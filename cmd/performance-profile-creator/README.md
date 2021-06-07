@@ -13,7 +13,7 @@ A tool to automate the process of creating Performance Profile using the user su
 1. It is assumed that we have a must-gather directory available where we run the tool.
     1. Option 1: Run must-gather tool like below and use its output dir when you run PPC.
        ```bash
-        oc adm must-gather --image=quay.io/openshift-kni/performance-addon-operator-must-gather:4.8-snapshot --dest-dir=<dir>
+        oc adm must-gather --image=quay.io/openshift-kni/performance-addon-operator-must-gather:4.9-snapshot --dest-dir=<dir>
        ```
     1. Option 2: Use an existing must-gather tarball decompressed to a directory.
 
@@ -33,10 +33,10 @@ Developers can build the Performance Profile Creator images from the source tree
    ```bash
    make operator-container
    ```
-Alternatively, you can pull the latest master upstream image.  In the following examples, TAG has the format major.minor-snapshot. For example, the TAG for OpenShift 4.8 will be 4.8-snapshot:
+Alternatively, you can pull the latest master upstream image.  In the following examples, TAG has the format major.minor-snapshot. For example, the TAG for OpenShift 4.9 will be 4.9-snapshot:
 
 ```bash
-podman pull quay.io/openshift-kni/performance-addon-operator:4.8-snapshot
+podman pull quay.io/openshift-kni/performance-addon-operator:4.9-snapshot
 ```
 
 ## Running Performance Profile Creator
@@ -45,12 +45,12 @@ Depending on how must-gather directory was setup run the Performance profile Cre
 1. Option 1: Using must-gather output dir (obtained after running must gather manually)
    ```bash
    podman run --entrypoint performance-profile-creator -v /path/to/must-gather-output:/must-gather:z\
-   quay.io/openshift-kni/performance-addon-operator:4.8-snapshot --must-gather-dir-path /must-gather > performance-profile.yaml
+   quay.io/openshift-kni/performance-addon-operator:4.9-snapshot --must-gather-dir-path /must-gather > performance-profile.yaml
    ```
 1. Option 2: Using an existing must-gather tarball which is decompressed to a directory.
    ```bash
    podman run --entrypoint performance-profile-creator -v /path/to/decompressed-tarball:/must-gather:z \
-   quay.io/openshift-kni/performance-addon-operator:4.8-snapshot --must-gather-dir-path /must-gather > performance-profile.yaml
+   quay.io/openshift-kni/performance-addon-operator:4.9-snapshot --must-gather-dir-path /must-gather > performance-profile.yaml
     ```
 
 ## Running Performance Profile Creator using Wrapper script
