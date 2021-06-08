@@ -83,11 +83,11 @@ metadata:
     capabilities: Basic Install
     containerImage: quay.io/openshift-kni/performance-addon-operator:4.7-snapshot
     description: Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency.
-    olm.skipRange: '>=4.6.0 <4.7.0'
+    olm.skipRange: '>=4.6.0 <4.7.4'
     operators.operatorframework.io/builder: operator-sdk-v1.0.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/openshift-kni/performance-addon-operators
-  name: performance-addon-operator.v4.7.0
+  name: performance-addon-operator.v4.7.4
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -112,6 +112,9 @@ spec:
 
     Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.
   displayName: Performance Addon Operator
+  icon:
+  - base64data: PHN2ZyBpZD0iZTY5YmZjMDktYTIzMi00YmM5LWEzOGQtZDcwM2Y5MTY4OTE2IiBkYXRhLW5hbWU9Ikljb24iIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDM2IDM2Ij4KICA8ZGVmcz4KICAgIDxzdHlsZT4KICAgICAgLmVjNTIyYmY1LTQ5YWMtNDQ4MS1iN2YwLTdkYmM3NGEyZTg1YiB7CiAgICAgICAgZmlsbDogI2UwMDsKICAgICAgfQogICAgPC9zdHlsZT4KICA8L2RlZnM+CiAgPHBhdGggY2xhc3M9ImVjNTIyYmY1LTQ5YWMtNDQ4MS1iN2YwLTdkYmM3NGEyZTg1YiIgZD0iTTE4LDkuNjJBLjYyLjYyLDAsMSwwLDE3LjM4LDksLjYxLjYxLDAsMCwwLDE4LDkuNjJaIi8+CiAgPGc+CiAgICA8cGF0aCBjbGFzcz0iZWM1MjJiZjUtNDlhYy00NDgxLWI3ZjAtN2RiYzc0YTJlODViIiBkPSJNNiwyNC42MkgzMGEuNjEuNjEsMCwwLDAsLjYyLS42MlY5QS42MS42MSwwLDAsMCwzMCw4LjM4SDIxYS42Mi42MiwwLDEsMCwwLDEuMjRoOC4zOFYyMy4zOEg2LjYyVjkuNjJIMTVhLjYyLjYyLDAsMCwwLDAtMS4yNEg2QS42MS42MSwwLDAsMCw1LjM4LDlWMjRBLjYxLjYxLDAsMCwwLDYsMjQuNjJaIi8+CiAgICA8cGF0aCBjbGFzcz0iZWM1MjJiZjUtNDlhYy00NDgxLWI3ZjAtN2RiYzc0YTJlODViIiBkPSJNMzIsMjYuMzhINGEuNjIuNjIsMCwxLDAsMCwxLjI0SDMyYS42Mi42MiwwLDEsMCwwLTEuMjRaIi8+CiAgICA8cGF0aCBjbGFzcz0iZWM1MjJiZjUtNDlhYy00NDgxLWI3ZjAtN2RiYzc0YTJlODViIiBkPSJNMTUuMTIsMTR2NC4zOEgxMy44OHYtMi41YS42My42MywwLDAsMC0xLjI2LDB2Mi41SDExLjM4VjE3LjEyYS42My42MywwLDAsMC0xLjI2LDB2MS4yNkg5LjVhLjYyLjYyLDAsMCwwLDAsMS4yNEgxN2EuNjIuNjIsMCwwLDAsMC0xLjI0aC0uNjJWMTRhLjYzLjYzLDAsMCwwLTEuMjYsMFoiLz4KICAgIDxwYXRoIGNsYXNzPSJlYzUyMmJmNS00OWFjLTQ0ODEtYjdmMC03ZGJjNzRhMmU4NWIiIGQ9Ik0yMC41LDE3LjEySDIxYTIuNDksMi40OSwwLDAsMCwuMy43M2wtLjMyLjMzYS42Mi42MiwwLDAsMCwuODguODhsLjMzLS4zMmEyLjQ5LDIuNDksMCwwLDAsLjczLjN2LjQ2YS42Mi42MiwwLDAsMCwxLjI0LDBWMTlhMi40OSwyLjQ5LDAsMCwwLC43My0uM2wuMzMuMzJhLjYyLjYyLDAsMCwwLC44OC0uODhsLS4zMi0uMzNhMi40OSwyLjQ5LDAsMCwwLC4zLS43M2guNDZhLjYyLjYyLDAsMCwwLDAtMS4yNEgyNmEyLjQ5LDIuNDksMCwwLDAtLjMtLjczbC4zMi0uMzNjLjU4LS41Ni0uMzItMS40Ni0uODgtLjg4bC0uMzMuMzJhMi40OSwyLjQ5LDAsMCwwLS43My0uM1YxMy41YS42Mi42MiwwLDAsMC0xLjI0LDBWMTRhMi40OSwyLjQ5LDAsMCwwLS43My4zbC0uMzMtLjMyYy0uNTYtLjU4LTEuNDYuMzItLjg4Ljg4bC4zMi4zM2EyLjQ5LDIuNDksMCwwLDAtLjMuNzNIMjAuNUEuNjIuNjIsMCwwLDAsMjAuNSwxNy4xMlptMy0yYTEuMzgsMS4zOCwwLDAsMSwwLDIuNzVBMS4zOCwxLjM4LDAsMCwxLDIzLjUsMTUuMTJaIi8+CiAgPC9nPgo8L3N2Zz4K
+    mediatype: image/svg+xml
   install:
     spec:
       clusterPermissions:
@@ -122,6 +125,14 @@ spec:
           - events
           verbs:
           - '*'
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - clusterversions
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - machineconfiguration.openshift.io
           resources:
@@ -161,8 +172,6 @@ spec:
           strategy: {}
           template:
             metadata:
-              annotations:
-                target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
               labels:
                 name: performance-operator
             spec:
@@ -252,7 +261,7 @@ spec:
   minKubeVersion: 1.19.0
   provider:
     name: Red Hat
-  version: 4.7.0
+  version: 4.7.4
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
