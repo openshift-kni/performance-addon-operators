@@ -2,6 +2,7 @@
 FROM scratch
 
 ARG CHANNEL=4.6
+ARG ZVERSION=4
 ARG OLM_SOURCE=build/_output/manifests
 
 LABEL operators.operatorframework.io.bundle.mediatype.v1=registry+v1
@@ -11,4 +12,4 @@ LABEL operators.operatorframework.io.bundle.package.v1=performance-addon-operato
 LABEL operators.operatorframework.io.bundle.channels.v1=4.6.0
 LABEL operators.operatorframework.io.bundle.channel.default.v1=4.6.0
 
-COPY ${OLM_SOURCE}/performance-addon-operator/${CHANNEL}.1/ /
+COPY ${OLM_SOURCE}/performance-addon-operator/${CHANNEL}.${ZVERSION}/ /
