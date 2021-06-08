@@ -2,8 +2,10 @@ package nodes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -20,6 +22,17 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// NumaNodes defines cpus in each numa node
+type NumaNodes struct {
+	Cpus []NodeCPU `json:"cpus"`
+}
+
+// NodeCPU Structure
+type NodeCPU struct {
+	CPU  string `json:"cpu"`
+	Node string `json:"node"`
+}
 
 // GetByRole returns all nodes with the specified role
 func GetByRole(role string) ([]corev1.Node, error) {
@@ -220,4 +233,30 @@ func GetOnlineCPUsSet(node *corev1.Node) (cpuset.CPUSet, error) {
 		return cpuset.NewCPUSet(), err
 	}
 	return cpuset.Parse(onlineCPUs)
+}
+
+// GetNumaNodes returns the number of numa nodes and the associated cpus as list on the node
+func GetNumaNodes(node *corev1.Node) (map[int][]int, error) {
+	lscpuCmd := []string{"lscpu", "-e=cpu,node", "-J"}
+	cmdout, err := ExecCommandOnNode(lscpuCmd, node)
+	var numaNode, cpu int
+	if err != nil {
+		return nil, err
+	}
+	numaCpus := make(map[int][]int)
+	var result NumaNodes
+	err = json.Unmarshal([]byte(cmdout), &result)
+	if err != nil {
+		return nil, err
+	}
+	for _, value := range result.Cpus {
+		if numaNode, err = strconv.Atoi(value.Node); err != nil {
+			break
+		}
+		if cpu, err = strconv.Atoi(value.CPU); err != nil {
+			break
+		}
+		numaCpus[numaNode] = append(numaCpus[numaNode], cpu)
+	}
+	return numaCpus, err
 }
