@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
 
@@ -27,6 +28,7 @@ import (
 
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
@@ -42,6 +44,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
+	componentprofile "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 )
 
 const (
@@ -52,7 +55,6 @@ const (
 var RunningOnSingleNode bool
 
 var _ = Describe("[rfe_id:27368][performance]", func() {
-
 	var workerRTNodes []corev1.Node
 	var profile *performancev2.PerformanceProfile
 
@@ -446,20 +448,23 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 	})
 
 	Context("Create second performance profiles on a cluster", func() {
-		It("[test_id:32364] Verifies that cluster can have multiple profiles", func() {
-			newRole := "worker-new"
+		var secondMCP *mcov1.MachineConfigPool
+		var secondProfile *performancev2.PerformanceProfile
+		var newRole = "worker-new"
+
+		BeforeEach(func() {
 			newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
 
 			reserved := performancev2.CPUSet("0")
 			isolated := performancev2.CPUSet("1-3")
 
-			secondProfile := &performancev2.PerformanceProfile{
+			secondProfile = &performancev2.PerformanceProfile{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "PerformanceProfile",
 					APIVersion: performancev2.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "profile2",
+					Name: "second-profile",
 				},
 				Spec: performancev2.PerformanceProfileSpec{
 					CPU: &performancev2.CPU{
@@ -478,6 +483,45 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 					},
 				},
 			}
+
+			machineConfigSelector := componentprofile.GetMachineConfigLabel(secondProfile)
+			secondMCP = &mcov1.MachineConfigPool{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "second-mcp",
+					Labels: map[string]string{
+						machineconfigv1.MachineConfigRoleLabelKey: newRole,
+					},
+				},
+				Spec: mcov1.MachineConfigPoolSpec{
+					MachineConfigSelector: &metav1.LabelSelector{
+						MatchLabels: machineConfigSelector,
+					},
+					NodeSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							newLabel: "",
+						},
+					},
+				},
+			}
+
+			Expect(testclient.Client.Create(context.TODO(), secondMCP)).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			if secondProfile != nil {
+				if err := profiles.Delete(secondProfile.Name); err != nil {
+					klog.Warningf("failed to delete the performance profile %q: %v", secondProfile.Name, err)
+				}
+			}
+
+			if secondMCP != nil {
+				if err := mcps.Delete(secondMCP.Name); err != nil {
+					klog.Warningf("failed to delete the machine config pool %q: %v", secondMCP.Name, err)
+				}
+			}
+		})
+
+		It("[test_id:32364] Verifies that cluster can have multiple profiles", func() {
 			Expect(testclient.Client.Create(context.TODO(), secondProfile)).ToNot(HaveOccurred())
 
 			By("Checking that new KubeletConfig, MachineConfig and RuntimeClass created")
