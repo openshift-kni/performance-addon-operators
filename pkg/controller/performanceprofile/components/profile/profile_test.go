@@ -30,7 +30,7 @@ var _ = Describe("PerformanceProfile", func() {
 		})
 
 		It("should return given MachineConfigPoolSelector", func() {
-			labels := GetMachineConfigPoolSelector(profile)
+			labels := GetMachineConfigPoolSelector(profile, nil)
 			k, v := components.GetFirstKeyAndValue(labels)
 			Expect(k).To(Equal(testutils.MachineConfigPoolLabelKey))
 			Expect(v).To(Equal(testutils.MachineConfigPoolLabelValue))
@@ -51,7 +51,7 @@ var _ = Describe("PerformanceProfile", func() {
 			profile.Spec.MachineConfigPoolSelector = nil
 			setValidNodeSelector(profile)
 
-			labels := GetMachineConfigPoolSelector(profile)
+			labels := GetMachineConfigPoolSelector(profile, nil)
 			k, v := components.GetFirstKeyAndValue(labels)
 			Expect(k).To(Equal(components.MachineConfigRoleLabelKey))
 			Expect(v).To(Equal(NodeSelectorRole))

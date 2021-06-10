@@ -717,6 +717,60 @@ var _ = Describe("Controller", func() {
 			})
 		})
 
+		When("the provided machine config labels are different from one specified under the machine config pool", func() {
+			It("should move the performance profile to the degraded state", func() {
+				profileMCP.Spec.MachineConfigSelector = &metav1.LabelSelector{
+					MatchLabels: map[string]string{"wrongKey": "bad"},
+				}
+				r := newFakeReconciler(profile, profileMCP)
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				updatedProfile := &performancev2.PerformanceProfile{}
+				key := types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: metav1.NamespaceNone,
+				}
+				Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+
+				// verify performance profile status
+				Expect(len(updatedProfile.Status.Conditions)).To(Equal(4))
+
+				// verify profile conditions
+				degradedCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionDegraded)
+				Expect(degradedCondition).ToNot(BeNil())
+				Expect(degradedCondition.Status).To(Equal(corev1.ConditionTrue))
+				Expect(degradedCondition.Reason).To(Equal(conditionBadMachineConfigLabels))
+				Expect(degradedCondition.Message).To(ContainSubstring("provided via profile.spec.machineConfigLabel do not match the MachineConfigPool"))
+			})
+		})
+
+		When("the generated machine config labels are different from one specified under the machine config pool", func() {
+			It("should move the performance profile to the degraded state", func() {
+				profileMCP.Spec.MachineConfigSelector = &metav1.LabelSelector{
+					MatchLabels: map[string]string{"wrongKey": "bad"},
+				}
+				profile.Spec.MachineConfigLabel = nil
+				r := newFakeReconciler(profile, profileMCP)
+				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
+
+				updatedProfile := &performancev2.PerformanceProfile{}
+				key := types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: metav1.NamespaceNone,
+				}
+				Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+
+				// verify performance profile status
+				Expect(len(updatedProfile.Status.Conditions)).To(Equal(4))
+
+				// verify profile conditions
+				degradedCondition := conditionsv1.FindStatusCondition(updatedProfile.Status.Conditions, conditionsv1.ConditionDegraded)
+				Expect(degradedCondition).ToNot(BeNil())
+				Expect(degradedCondition.Status).To(Equal(corev1.ConditionTrue))
+				Expect(degradedCondition.Reason).To(Equal(conditionBadMachineConfigLabels))
+				Expect(degradedCondition.Message).To(ContainSubstring("generated from the profile.spec.nodeSelector"))
+			})
+		})
 	})
 
 	Context("with profile with deletion timestamp", func() {
