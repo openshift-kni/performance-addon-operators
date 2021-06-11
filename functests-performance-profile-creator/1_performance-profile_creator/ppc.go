@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -129,8 +128,8 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 				"--split-reserved-cpus-across-numa=true",
 			}
 			cmdArgs := append(defaultArgs, ppcArgs...)
-			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
-			ppcErrorString := errorStringParser(err)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
 			Expect(ppcErrorString).To(ContainSubstring("can't allocate odd number of CPUs from a NUMA Node"))
 		})
 
@@ -143,8 +142,8 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 				fmt.Sprintf("--topology-manager-policy=%s", "single-numa-node"),
 			}
 			cmdArgs := append(defaultArgs, ppcArgs...)
-			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
-			ppcErrorString := errorStringParser(err)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
 			Expect(ppcErrorString).To(ContainSubstring("not appropriate to split reserved CPUs in case of topology-manager-policy: single-numa-node"))
 		})
 
@@ -155,8 +154,8 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 				fmt.Sprintf("--reserved-cpu-count=%d", 100),
 			}
 			cmdArgs := append(defaultArgs, ppcArgs...)
-			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
-			ppcErrorString := errorStringParser(err)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
 			Expect(ppcErrorString).To(ContainSubstring("please specify the reserved CPU count in the range"))
 		})
 
@@ -167,8 +166,8 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 				fmt.Sprintf("--reserved-cpu-count=%d", 5),
 			}
 			cmdArgs := append(defaultArgs, ppcArgs...)
-			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
-			ppcErrorString := errorStringParser(err)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
 			Expect(ppcErrorString).To(ContainSubstring("can't allocate odd number of CPUs from a NUMA Node"))
 		})
 	})
@@ -182,8 +181,8 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 				fmt.Sprintf("--topology-manager-policy=%s", "single-numa-node"),
 			}
 			cmdArgs := append(defaultArgs, ppcArgs...)
-			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
-			ppcErrorString := errorStringParser(err)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
 			Expect(ppcErrorString).To(ContainSubstring("not appropriate to split reserved CPUs in case of topology-manager-policy: single-numa-node"))
 		})
 	})
@@ -241,7 +240,6 @@ func getExpectedProfiles(expectedProfilesPath string, mustGatherDirs map[string]
 		if filepath.Ext(file.Name()) != ".yaml" {
 			continue
 		}
-
 		profileKey := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 		ppcArgs, ok := ppcParams[profileKey]
 		Expect(ok).To(BeTrue(), "can't find ppc params for the expected profile: '%s'", file.Name())
@@ -253,16 +251,13 @@ func getExpectedProfiles(expectedProfilesPath string, mustGatherDirs map[string]
 	return expectedProfiles
 }
 
-// PPC Script stderr parser
-func errorStringParser(err error) string {
-	var errorString string
-	exitError := err.(*exec.ExitError)
-	stdError := string(exitError.Stderr)
+// PPC stderr parser
+func errorStringParser(errData []byte) string {
+	stdError := string(errData)
 	for _, line := range strings.Split(stdError, "\n") {
 		if strings.Contains(line, "Error: ") {
-			errorString = line
-			break
+			return line
 		}
 	}
-	return errorString
+	return ""
 }
