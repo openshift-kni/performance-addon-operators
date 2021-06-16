@@ -40,17 +40,42 @@ podman pull quay.io/openshift-kni/performance-addon-operator:4.9-snapshot
 ```
 
 ## Running Performance Profile Creator
-Depending on how must-gather directory was setup run the Performance profile Creator tool:
+Depending on how the must-gather directory was set up the operator can now run the Performance Profile Creator tool with the required parameters.
 
-1. Option 1: Using must-gather output dir (obtained after running must gather manually)
+PPC Tool help output:
+```bash
+$ podman run --entrypoint performance-profile-creator quay.io/openshift-kni/performance-addon-operator:4.9-snapshot -h
+A tool that automates creation of Performance Profiles
+
+Usage:
+  performance-profile-creator [flags]
+
+Flags:
+      --disable-ht                        Disable Hyperthreading
+  -h, --help                              help for performance-profile-creator
+      --info string                       Show cluster information; requires --must-gather-dir-path, ignore the other arguments. [Valid values: log, json] (default "log")
+      --mcp-name string                   MCP name corresponding to the target machines (required)
+      --must-gather-dir-path string       Must gather directory path (default "must-gather")
+      --power-consumption-mode string     The power consumption mode.  [Valid values: default, low-latency, ultra-low-latency] (default "default")
+      --profile-name string               Name of the performance profile to be created (default "performance")
+      --reserved-cpu-count int            Number of reserved CPUs (required)
+      --rt-kernel                         Enable Real Time Kernel (required)
+      --split-reserved-cpus-across-numa   Split the Reserved CPUs across NUMA nodes
+      --topology-manager-policy string    Kubelet Topology Manager Policy of the performance profile to be created. [Valid values: single-numa-node, best-effort, restricted] (default "restricted")
+      --user-level-networking             Run with User level Networking(DPDK) enabled
+```
+
+1. Option 1: Example of using must-gather output dir (obtained after running must gather manually) along with required arguments
    ```bash
-   podman run --entrypoint performance-profile-creator -v /path/to/must-gather-output:/must-gather:z\
-   quay.io/openshift-kni/performance-addon-operator:4.9-snapshot --must-gather-dir-path /must-gather > performance-profile.yaml
+   podman run --entrypoint performance-profile-creator -v /path/to/must-gather-output:/must-gather:z \
+   quay.io/openshift-kni/performance-addon-operator:4.9-snapshot --must-gather-dir-path /must-gather \
+   --reserved-cpu-count 20 --mcp-name worker-cnf --rt-kernel false > performance-profile.yaml
    ```
-1. Option 2: Using an existing must-gather tarball which is decompressed to a directory.
+1. Option 2: Example of using an existing must-gather tarball which is decompressed to a directory along with required arguments
    ```bash
    podman run --entrypoint performance-profile-creator -v /path/to/decompressed-tarball:/must-gather:z \
-   quay.io/openshift-kni/performance-addon-operator:4.9-snapshot --must-gather-dir-path /must-gather > performance-profile.yaml
+   quay.io/openshift-kni/performance-addon-operator:4.9-snapshot --must-gather-dir-path /must-gather \
+   --reserved-cpu-count 20 --mcp-name worker-cnf --rt-kernel false > performance-profile.yaml
     ```
 
 ## Running Performance Profile Creator using Wrapper script
