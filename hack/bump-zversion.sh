@@ -35,13 +35,6 @@ sed "s/ZVERSION=${ZVERSION_NOW}/ZVERSION=${ZVERSION_NEXT}/" \
 && \
 mv "${BUNDLE_CI_TMP}" "${BASEDIR}/../openshift-ci/Dockerfile.bundle.ci"
 
-BUNDLE_UPSTREAM_DEV_TMP=$(mktemp)
-sed "s/ZVERSION=${ZVERSION_NOW}/ZVERSION=${ZVERSION_NEXT}/" \
-	< "${BASEDIR}/../openshift-ci/Dockerfile.bundle.upstream.dev" \
-	> "${BUNDLE_UPSTREAM_DEV_TMP}" \
-&& \
-mv "${BUNDLE_UPSTREAM_DEV_TMP}" "${BASEDIR}/../openshift-ci/Dockerfile.bundle.upstream.dev"
-
 # leave this for last
 COMMON_TMP=$(mktemp)
 sed "s/${CSV_VERSION}/${CSV_VERSION_NEXT}/" \
