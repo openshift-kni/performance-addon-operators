@@ -130,7 +130,7 @@ var _ = Describe("[performance] Latency Test", func() {
 		})
 
 		It("should succeed", func() {
-			oslatArgs := []string {
+			oslatArgs := []string{
 				fmt.Sprintf("-runtime=%s", latencyTestRuntime),
 			}
 			latencyTestPod = getLatencyTestPod(profile, workerRTNode, testName, oslatArgs)
@@ -167,6 +167,78 @@ var _ = Describe("[performance] Latency Test", func() {
 			}
 		})
 	})
+
+	Context("with the cyclictest image", func() {
+		BeforeEach(func() {
+			testName = "cyclictest"
+			initMaximumLatencyValue(testName)
+
+			if profile.Spec.CPU.Isolated == nil {
+				Skip(fmt.Sprintf("Skip the cyclictest test, the profile %q does not have isolated CPUs", profile.Name))
+			}
+		})
+
+		It("should succeed", func() {
+			latencyTestPod = getLatencyTestPod(profile, workerRTNode, testName, []string{})
+			createLatencyTestPod(latencyTestPod)
+
+			// verify the maximum latency only when it requested, because this value can be very different
+			// on different systems
+			if maximumLatency == -1 {
+				return
+			}
+
+			latencies := extractLatencyValues("cyclictest", `# Max Latencies:\t*\s*(.*)\s*\t*`, workerRTNode)
+			for _, lat := range strings.Split(latencies, " ") {
+				if lat == "" {
+					continue
+				}
+
+				curr, err := strconv.Atoi(lat)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(curr < maximumLatency).To(BeTrue(), "The current latency %d is bigger than the expected one %d", curr, maximumLatency)
+			}
+		})
+	})
+
+	Context("with the hwlatdetect image", func() {
+		BeforeEach(func() {
+			testName = "hwlatdetect"
+			initMaximumLatencyValue(testName)
+		})
+
+		It("should succeed", func() {
+			// This value should be > than max latency,
+			// in order to prevent the hwlatdetect return with error 1 in case latency value is bigger than expected.
+			// in case latency value is bigger than expected, it will be handled on different flow.
+			hardlimit := 1000
+			hwlatdetectArgs := []string{
+				fmt.Sprintf("-hardlimit=%d", hardlimit),
+			}
+
+			latencyTestPod = getLatencyTestPod(profile, workerRTNode, testName, hwlatdetectArgs)
+			createLatencyTestPod(latencyTestPod)
+
+			// verify the maximum latency only when it requested, because this value can be very different
+			// on different systems
+			if maximumLatency == -1 {
+				return
+			}
+
+			latencies := extractLatencyValues(testName, `Max Latency:\t*\s*(.*)\s*\t*us`, workerRTNode)
+			for _, lat := range strings.Split(latencies, " ") {
+				if lat == "" {
+					continue
+				}
+
+				curr, err := strconv.Atoi(lat)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(curr < maximumLatency).To(BeTrue(), "The current latency %d is bigger than the expected one %d", curr, maximumLatency)
+			}
+		})
+	})
 })
 
 func getLatencyTestPod(profile *performancev2.PerformanceProfile, node *corev1.Node, testName string, testSpecificArgs []string) *corev1.Pod {
@@ -182,7 +254,7 @@ func getLatencyTestPod(profile *performancev2.PerformanceProfile, node *corev1.N
 		fmt.Sprintf("-log_file=/host/%s.log", testName),
 	}
 
-	latencyTestRunnerArgs = append (latencyTestRunnerArgs, testSpecificArgs...)
+	latencyTestRunnerArgs = append(latencyTestRunnerArgs, testSpecificArgs...)
 
 	if latencyTestDelay > 0 {
 		latencyTestRunnerArgs = append(latencyTestRunnerArgs, fmt.Sprintf("-%s-start-delay=%d", testName, latencyTestDelay))
