@@ -39,6 +39,12 @@ var (
 	maximumLatency     = -1
 )
 
+const (
+	oslatTestName       = "oslat"
+	cyclictestTestName  = "cyclictest"
+	hwlatdetectTestName = "hwlatdetect"
+)
+
 // LATENCY_TEST_DELAY delay the run of the oslat binary, can be useful to give time to the CPU manager reconcile loop
 // to update the default CPU pool
 // LATENCY_TEST_RUN: indicates if the latency test should run
@@ -69,7 +75,6 @@ var _ = Describe("[performance] Latency Test", func() {
 	var workerRTNode *corev1.Node
 	var profile *performancev2.PerformanceProfile
 	var latencyTestPod *corev1.Pod
-	var testName string
 
 	BeforeEach(func() {
 		if !latencyTestRun {
@@ -110,9 +115,11 @@ var _ = Describe("[performance] Latency Test", func() {
 	})
 
 	Context("with the oslat image", func() {
+		testName := oslatTestName
+
 		BeforeEach(func() {
-			testName = "oslat"
-			initMaximumLatencyValue(testName)
+			err := checkMaximumEnvironLatencyValue(testName)
+			Expect(err).ToNot(HaveOccurred())
 
 			if profile.Spec.CPU.Isolated == nil {
 				Skip(fmt.Sprintf("Skip the oslat test, the profile %q does not have isolated CPUs", profile.Name))
@@ -139,7 +146,7 @@ var _ = Describe("[performance] Latency Test", func() {
 			// verify the maximum latency only when it requested, because this value can be very different
 			// on different systems
 			if maximumLatency == -1 {
-				return
+				Skip("no maximum latency value provided, skip buckets latency check")
 			}
 
 			latencies := extractLatencyValues("oslat", `Maximum:\t*\s*(.*)\s*\(us\)`, workerRTNode)
@@ -169,9 +176,11 @@ var _ = Describe("[performance] Latency Test", func() {
 	})
 
 	Context("with the cyclictest image", func() {
+		testName := cyclictestTestName
+
 		BeforeEach(func() {
-			testName = "cyclictest"
-			initMaximumLatencyValue(testName)
+			err := checkMaximumEnvironLatencyValue(testName)
+			Expect(err).ToNot(HaveOccurred())
 
 			if profile.Spec.CPU.Isolated == nil {
 				Skip(fmt.Sprintf("Skip the cyclictest test, the profile %q does not have isolated CPUs", profile.Name))
@@ -185,7 +194,7 @@ var _ = Describe("[performance] Latency Test", func() {
 			// verify the maximum latency only when it requested, because this value can be very different
 			// on different systems
 			if maximumLatency == -1 {
-				return
+				Skip("no maximum latency value provided, skip buckets latency check")
 			}
 
 			latencies := extractLatencyValues("cyclictest", `# Max Latencies:\t*\s*(.*)\s*\t*`, workerRTNode)
@@ -203,40 +212,30 @@ var _ = Describe("[performance] Latency Test", func() {
 	})
 
 	Context("with the hwlatdetect image", func() {
+		testName := hwlatdetectTestName
+
 		BeforeEach(func() {
-			testName = "hwlatdetect"
-			initMaximumLatencyValue(testName)
+			err := checkMaximumEnvironLatencyValue(testName)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should succeed", func() {
-			// This value should be > than max latency,
-			// in order to prevent the hwlatdetect return with error 1 in case latency value is bigger than expected.
-			// in case latency value is bigger than expected, it will be handled on different flow.
-			hardlimit := 1000
+			hardLimit := maximumLatency
+			if hardLimit == -1 {
+				// This value should be > than max latency,
+				// in order to prevent the hwlatdetect return with error 1 in case latency value is bigger than expected.
+				// in case latency value is bigger than expected, it will be handled on different flow.
+				hardLimit = 1000
+			}
+
 			hwlatdetectArgs := []string{
-				fmt.Sprintf("-hardlimit=%d", hardlimit),
+				fmt.Sprintf("-hardlimit=%d", hardLimit),
 			}
 
 			latencyTestPod = getLatencyTestPod(profile, workerRTNode, testName, hwlatdetectArgs)
 			createLatencyTestPod(latencyTestPod)
-
-			// verify the maximum latency only when it requested, because this value can be very different
-			// on different systems
-			if maximumLatency == -1 {
-				return
-			}
-
-			latencies := extractLatencyValues(testName, `Max Latency:\t*\s*(.*)\s*\t*us`, workerRTNode)
-			for _, lat := range strings.Split(latencies, " ") {
-				if lat == "" {
-					continue
-				}
-
-				curr, err := strconv.Atoi(lat)
-				Expect(err).ToNot(HaveOccurred())
-
-				Expect(curr < maximumLatency).To(BeTrue(), "The current latency %d is bigger than the expected one %d", curr, maximumLatency)
-			}
+			// here we don't need to parse the latency values.
+			// hwlatdetect will do that for us and exit with error if needed.
 		})
 	})
 })
@@ -349,17 +348,22 @@ func extractLatencyValues(testName string, exp string, node *corev1.Node) string
 	return latencies
 }
 
-// initMaximumLatencyValue should look for one of the following environment variables:
+// checkMaximumEnvironLatencyValue should look for one of the following environment variables:
 // OSLAT_MAXIMUM_LATENCY: the expected maximum latency for all buckets in us
 // CYCLICTEST_MAXIMUM_LATENCY: the expected maximum latency for all buckets in us
 // HWLATDETECT_MAXIMUM_LATENCY: the expected maximum latency for all buckets in us
-func initMaximumLatencyValue(testName string) {
+func checkMaximumEnvironLatencyValue(testName string) error {
+	if testName != strings.ToUpper(oslatTestName) &&
+		testName != strings.ToUpper(cyclictestTestName) &&
+		testName != strings.ToUpper(hwlatdetectTestName) {
+		return fmt.Errorf("testName variable has incorrect value %q", testName)
+	}
+
 	envVariableName := fmt.Sprintf("%s_MAXIMUM_LATENCY", strings.ToUpper(testName))
 	maximumLatencyEnv := os.Getenv(envVariableName)
 	if maximumLatencyEnv != "" {
-		var err error
-		if maximumLatency, err = strconv.Atoi(maximumLatencyEnv); err != nil {
-			klog.Fatalf("the environment variable %q has incorrect value %q", envVariableName, maximumLatencyEnv)
-		}
+		_, err := strconv.Atoi(maximumLatencyEnv)
+		return fmt.Errorf("err: %v the environment variable %q has incorrect value %q", err, envVariableName, maximumLatencyEnv)
 	}
+	return nil
 }
