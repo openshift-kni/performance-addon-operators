@@ -106,6 +106,26 @@ CLUSTER=manual make cluster-wait-for-mcp
 
 > Note: in CI this step is skipped, because the test code will wait for the MCP being up to date.
 
+# Render mode
+
+The operator can render manifests for all the components it supposes to create, based on Given a `PerformanceProfile`  
+
+You need to provide the following environment variables
+```
+export PERFORMANCE_PROFILE_INPUT_FILES=<your PerformanceProfile directory path>
+export ASSET_OUTPUT_DIR=<output path for the rendered manifests>
+```
+
+Build and invoke the binary
+```
+build/_output/bin/performance-addon-operators render
+```
+
+Or provide the variables via command line arguments
+```
+build/_output/bin/performance-addon-operators render --performance-profile-input-files <path> --asset-output-dir<path>
+```
+
 # Troubleshooting
 
 When the deployment fails, or the performance tuning does not work as expected, follow the [Troubleshooting Guide](docs/troubleshooting.md)
