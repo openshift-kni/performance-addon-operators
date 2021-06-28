@@ -293,6 +293,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			cmd := []string{"/bin/bash", "-c", fmt.Sprintf("find /rootfs/sys/fs/cgroup/cpuset/ -name *%s*", containerID)}
 			containerCgroup, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(containerCgroup).ToNot(BeEmpty())
 
 			By("Checking what CPU the pod is using")
 			cmd = []string{"/bin/bash", "-c", fmt.Sprintf("cat %s/cpuset.cpus", containerCgroup)}
@@ -390,6 +391,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 				getActiveIrq := []string{"/bin/bash", "-c", "for n in $(find /proc/irq/ -name smp_affinity_list); do echo $(cat $n); done"}
 				activeIrq, err := nodes.ExecCommandOnNode(getActiveIrq, workerRTNode)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(activeIrq).ToNot(BeEmpty())
 				for _, irq := range strings.Split(activeIrq, "\n") {
 					irqAffinity, err := cpuset.Parse(irq)
 					Expect(err).ToNot(HaveOccurred())
@@ -433,10 +435,12 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			cmd := []string{"/bin/bash", "-c", fmt.Sprintf("find /rootfs/sys/fs/cgroup/cpuset/ -name *%s*", podUID)}
 			podCgroup, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(podCgroup).ToNot(BeEmpty())
 
 			cmd = []string{"/bin/bash", "-c", fmt.Sprintf("find %s -name crio-*", podCgroup)}
 			containersCgroups, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(containersCgroups).ToNot(BeEmpty())
 
 			containerID, err := pods.GetContainerIDByName(testpod, "test")
 			Expect(err).ToNot(HaveOccurred())
