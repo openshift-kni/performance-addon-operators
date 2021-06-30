@@ -221,6 +221,18 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				Expect(err).ToNot(HaveOccurred())
 			}
 		})
+		It("[test_id:42400][crit:medium][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running as sched_fifo", func() {
+			for _, node := range workerRTNodes {
+				pid, err := nodes.ExecCommandOnNode([]string{"pgrep", "-f", "stalld"}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(pid).ToNot(BeEmpty())
+				sched_tasks, err := nodes.ExecCommandOnNode([]string{"chrt", "-ap", pid}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(sched_tasks).To(ContainSubstring("scheduling policy: SCHED_FIFO"))
+				Expect(sched_tasks).To(ContainSubstring("scheduling priority: 10"))
+			}
+		})
+
 	})
 
 	Context("Additional kernel arguments added from perfomance profile", func() {
