@@ -118,7 +118,7 @@ var _ = Describe("[performance] Latency Test", func() {
 		testName := oslatTestName
 
 		BeforeEach(func() {
-			err := checkMaximumEnvironLatencyValue(testName)
+			err := setMaximumLatencyValue(testName)
 			Expect(err).ToNot(HaveOccurred())
 
 			if profile.Spec.CPU.Isolated == nil {
@@ -179,7 +179,7 @@ var _ = Describe("[performance] Latency Test", func() {
 		testName := cyclictestTestName
 
 		BeforeEach(func() {
-			err := checkMaximumEnvironLatencyValue(testName)
+			err := setMaximumLatencyValue(testName)
 			Expect(err).ToNot(HaveOccurred())
 
 			if profile.Spec.CPU.Isolated == nil {
@@ -215,7 +215,7 @@ var _ = Describe("[performance] Latency Test", func() {
 		testName := hwlatdetectTestName
 
 		BeforeEach(func() {
-			err := checkMaximumEnvironLatencyValue(testName)
+			err := setMaximumLatencyValue(testName)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -230,6 +230,11 @@ var _ = Describe("[performance] Latency Test", func() {
 
 			hwlatdetectArgs := []string{
 				fmt.Sprintf("-hardlimit=%d", hardLimit),
+			}
+
+			// set the maximum latency for the test if needed
+			if maximumLatency != -1 {
+				hwlatdetectArgs = append(hwlatdetectArgs, fmt.Sprintf("-threshold=%d", maximumLatency))
 			}
 
 			latencyTestPod = getLatencyTestPod(profile, workerRTNode, testName, hwlatdetectArgs)
@@ -348,22 +353,34 @@ func extractLatencyValues(testName string, exp string, node *corev1.Node) string
 	return latencies
 }
 
-// checkMaximumEnvironLatencyValue should look for one of the following environment variables:
+// setMaximumLatencyValue should look for one of the following environment variables:
 // OSLAT_MAXIMUM_LATENCY: the expected maximum latency for all buckets in us
 // CYCLICTEST_MAXIMUM_LATENCY: the expected maximum latency for all buckets in us
 // HWLATDETECT_MAXIMUM_LATENCY: the expected maximum latency for all buckets in us
-func checkMaximumEnvironLatencyValue(testName string) error {
+// MAXIMUM_LATENCY: unified expected maximum latency for all tests
+func setMaximumLatencyValue(testName string) error {
 	if testName != strings.ToUpper(oslatTestName) &&
 		testName != strings.ToUpper(cyclictestTestName) &&
 		testName != strings.ToUpper(hwlatdetectTestName) {
 		return fmt.Errorf("testName variable has incorrect value %q", testName)
 	}
 
+	var err error
+	unifiedMaxLatencyEnv := os.Getenv("MAXIMUM_LATENCY")
+	if unifiedMaxLatencyEnv != "" {
+		if maximumLatency, err = strconv.Atoi(unifiedMaxLatencyEnv); err != nil {
+			return fmt.Errorf("err: %v the environment variable MAXIMUM_LATENCY has incorrect value %q", err, unifiedMaxLatencyEnv)
+		}
+	}
+
+	// specific values will have precedence over the general one
 	envVariableName := fmt.Sprintf("%s_MAXIMUM_LATENCY", strings.ToUpper(testName))
 	maximumLatencyEnv := os.Getenv(envVariableName)
 	if maximumLatencyEnv != "" {
-		_, err := strconv.Atoi(maximumLatencyEnv)
-		return fmt.Errorf("err: %v the environment variable %q has incorrect value %q", err, envVariableName, maximumLatencyEnv)
+		if maximumLatency, err = strconv.Atoi(maximumLatencyEnv); err != nil {
+			return fmt.Errorf("err: %v the environment variable %q has incorrect value %q", err, envVariableName, maximumLatencyEnv)
+		}
 	}
+
 	return nil
 }
