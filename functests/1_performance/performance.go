@@ -81,7 +81,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 	// self-tests; these are only vaguely related to performance becase these are enablement conditions, not actual settings.
 	// For example, running on control plane means we leave more resources for the workload.
 	Context("Performance Operator", func() {
-		It("Should run on the control plane nodes", func() {
+		It("[test_id:38109] Should run on the control plane nodes", func() {
 			pod, err := pods.GetPerformanceOperatorPod()
 			Expect(err).ToNot(HaveOccurred(), "Failed to find the Performance Addon Operator pod")
 
