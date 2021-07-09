@@ -151,7 +151,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 		})
 
-		It("Should set CPU isolcpu's kernel argument managed_irq flag", func() {
+		It("[test_id:32702] Should set CPU isolcpu's kernel argument managed_irq flag", func() {
 			for _, node := range workerRTNodes {
 				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/proc/cmdline"})
 				Expect(err).ToNot(HaveOccurred())
