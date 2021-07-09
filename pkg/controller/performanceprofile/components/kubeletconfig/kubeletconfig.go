@@ -17,13 +17,14 @@ import (
 )
 
 const (
-	cpuManagerPolicyStatic       = "static"
-	memoryManagerPolicyStatic    = "Static"
-	defaultKubeReservedCPU       = "1000m"
-	defaultKubeReservedMemory    = "500Mi"
-	defaultSystemReservedCPU     = "1000m"
-	defaultSystemReservedMemory  = "500Mi"
-	defaultHardEvictionThreshold = "100Mi"
+	cpuManagerPolicyStatic              = "static"
+	cpuManagerPolicyOptionFullPCPUsOnly = "full-pcpus-only"
+	memoryManagerPolicyStatic           = "Static"
+	defaultKubeReservedCPU              = "1000m"
+	defaultKubeReservedMemory           = "500Mi"
+	defaultSystemReservedCPU            = "1000m"
+	defaultSystemReservedMemory         = "500Mi"
+	defaultHardEvictionThreshold        = "100Mi"
 )
 
 // New returns new KubeletConfig object for performance sensetive workflows
@@ -52,6 +53,13 @@ func New(profile *performancev2.PerformanceProfile, profileMCPLabels map[string]
 
 	if profile.Spec.CPU != nil && profile.Spec.CPU.Reserved != nil {
 		kubeletConfig.ReservedSystemCPUs = string(*profile.Spec.CPU.Reserved)
+	}
+
+	if isPCPUIsolationEnabled(profile) {
+		if kubeletConfig.CPUManagerPolicyOptions == nil {
+			kubeletConfig.CPUManagerPolicyOptions = make(map[string]string)
+		}
+		kubeletConfig.CPUManagerPolicyOptions[cpuManagerPolicyOptionFullPCPUsOnly] = "true"
 	}
 
 	if profile.Spec.NUMA != nil {
@@ -122,4 +130,16 @@ func addStringToQuantity(q *resource.Quantity, value string) error {
 	q.Add(v)
 
 	return nil
+}
+
+func isPCPUIsolationEnabled(profile *performancev2.PerformanceProfile) bool {
+	if profile.Spec.CPU == nil || profile.Spec.CPU.DisablePCPUIsolation == nil {
+		// default if not specified
+		return true
+	}
+	if *profile.Spec.CPU.DisablePCPUIsolation {
+		// explicitely disabled per user request
+		return false
+	}
+	return true
 }

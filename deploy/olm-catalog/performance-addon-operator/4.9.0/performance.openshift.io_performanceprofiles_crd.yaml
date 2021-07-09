@@ -475,6 +475,9 @@ spec:
                       for guaranteed workloads, but it offloads the complexity of
                       cpu load balancing to the application. Defaults to "true"
                     type: boolean
+                  disablePCPUIsolation:
+                    description: DisablePCPUIsolation is a temporary name to toggle all noisy-neighbours prevention enhancements. Defaults to "false"
+                    type: boolean
                   isolated:
                     description: 'Isolated defines a set of CPUs that will be used
                       to give to application threads the most execution time possible,
