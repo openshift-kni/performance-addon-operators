@@ -200,7 +200,6 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		})
 
 		It("[test_id:32375][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] initramfs should not have injected configuration", func() {
-			Skip("Skipping test until BZ#1858347 is resolved")
 			for _, node := range workerRTNodes {
 				rhcosId, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"awk", "-F", "/", "{printf $3}", "/rootfs/proc/cmdline"})
 				Expect(err).ToNot(HaveOccurred())
