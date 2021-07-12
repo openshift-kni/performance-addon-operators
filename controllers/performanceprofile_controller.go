@@ -72,8 +72,8 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 				return false
 			}
 
-			return e.MetaNew.GetGeneration() != e.MetaOld.GetGeneration() ||
-				!apiequality.Semantic.DeepEqual(e.MetaNew.GetLabels(), e.MetaOld.GetLabels())
+			return e.ObjectNew.GetGeneration() != e.ObjectOld.GetGeneration() ||
+				!apiequality.Semantic.DeepEqual(e.ObjectNew.GetLabels(), e.ObjectOld.GetLabels())
 		},
 	}
 
@@ -111,7 +111,7 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Owns(&nodev1beta1.RuntimeClass{}, builder.WithPredicates(p)).
 		Watches(
 			&source.Kind{Type: &mcov1.MachineConfigPool{}},
-			&handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(r.mcpToPerformanceProfile)},
+			handler.EnqueueRequestsFromMapFunc(r.mcpToPerformanceProfile),
 			builder.WithPredicates(mcpPredicates)).
 		Complete(r)
 	if err != nil {
@@ -120,12 +120,12 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	return nil
 }
 
-func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj handler.MapObject) []reconcile.Request {
+func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj client.Object) []reconcile.Request {
 	mcp := &mcov1.MachineConfigPool{}
 
 	key := types.NamespacedName{
-		Namespace: mcpObj.Meta.GetNamespace(),
-		Name:      mcpObj.Meta.GetName(),
+		Namespace: mcpObj.GetNamespace(),
+		Name:      mcpObj.GetName(),
 	}
 	if err := r.Get(context.TODO(), key, mcp); err != nil {
 		klog.Errorf("failed to get the machine config pool %+v", key)
@@ -156,14 +156,6 @@ func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj handler.Ma
 }
 
 func validateUpdateEvent(e *event.UpdateEvent) bool {
-	if e.MetaOld == nil {
-		klog.Error("Update event has no old metadata")
-		return false
-	}
-	if e.MetaNew == nil {
-		klog.Error("Update event has no new metadata")
-		return false
-	}
 	if e.ObjectOld == nil {
 		klog.Error("Update event has no old runtime object to update")
 		return false
@@ -183,6 +175,7 @@ func validateUpdateEvent(e *event.UpdateEvent) bool {
 // +kubebuilder:rbac:groups=tuned.openshift.io,resources=tuneds;profiles,verbs=*
 // +kubebuilder:rbac:groups=node.k8s.io,resources=runtimeclasses,verbs=*
 // +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=core,resources=pods;services;services/finalizers;configmaps,verbs=*
+// +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=coordination.k8s.io,resources=leases,verbs=create;get;list;update
 // +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=apps,resourceNames=performance-operator,resources=deployments/finalizers,verbs=update
 // +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=monitoring.coreos.com,resources=servicemonitors,verbs=*
 
@@ -191,12 +184,12 @@ func validateUpdateEvent(e *event.UpdateEvent) bool {
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *PerformanceProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.Info("Reconciling PerformanceProfile")
 
 	// Fetch the PerformanceProfile instance
 	instance := &performancev2.PerformanceProfile{}
-	err := r.Get(context.TODO(), req.NamespacedName, instance)
+	err := r.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if k8serros.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -224,7 +217,7 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 		// remove finalizer
 		if hasFinalizer(instance, finalizer) {
 			removeFinalizer(instance, finalizer)
-			if err := r.Update(context.TODO(), instance); err != nil {
+			if err := r.Update(ctx, instance); err != nil {
 				return reconcile.Result{}, err
 			}
 
@@ -236,7 +229,7 @@ func (r *PerformanceProfileReconciler) Reconcile(req ctrl.Request) (ctrl.Result,
 	if !hasFinalizer(instance, finalizer) {
 		instance.Finalizers = append(instance.Finalizers, finalizer)
 		instance.Status.Conditions = r.getProgressingConditions("DeploymentStarting", "Deployment is starting")
-		if err := r.Update(context.TODO(), instance); err != nil {
+		if err := r.Update(ctx, instance); err != nil {
 			return reconcile.Result{}, err
 		}
 
@@ -319,36 +312,6 @@ func (r *PerformanceProfileReconciler) updateDegradedCondition(instance *perform
 		return reconcile.Result{}, err
 	}
 	return reconcile.Result{}, conditionError
-}
-
-func (r *PerformanceProfileReconciler) ppRequestsFromMCP(o handler.MapObject) []reconcile.Request {
-	mcp := &mcov1.MachineConfigPool{}
-
-	if err := r.Get(context.TODO(),
-		types.NamespacedName{
-			Namespace: o.Meta.GetNamespace(),
-			Name:      o.Meta.GetName(),
-		},
-		mcp,
-	); err != nil {
-		klog.Errorf("Unable to retrieve mcp %q from store: %v", namespacedName(o.Meta).String(), err)
-		return nil
-	}
-
-	ppList := &performancev2.PerformanceProfileList{}
-	if err := r.List(context.TODO(), ppList); err != nil {
-		klog.Errorf("Unable to list performance profiles: %v", err)
-		return nil
-	}
-
-	var requests []reconcile.Request
-	for k := range ppList.Items {
-		if hasMatchingLabels(&ppList.Items[k], mcp) {
-			requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&ppList.Items[k])})
-		}
-	}
-
-	return requests
 }
 
 func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.PerformanceProfile) (*reconcile.Result, error) {
@@ -504,21 +467,4 @@ func namespacedName(obj metav1.Object) types.NamespacedName {
 		Namespace: obj.GetNamespace(),
 		Name:      obj.GetName(),
 	}
-}
-
-func hasMatchingLabels(performanceprofile *performancev2.PerformanceProfile, mcp *mcov1.MachineConfigPool) bool {
-
-	selector, err := metav1.LabelSelectorAsSelector(mcp.Spec.MachineConfigSelector)
-	if err != nil {
-		return false
-	}
-	// If a deployment with a nil or empty selector creeps in, it should match nothing, not everything.
-	if selector.Empty() {
-		return false
-	}
-
-	if !selector.Matches(labels.Set(profileutil.GetMachineConfigPoolSelector(performanceprofile))) {
-		return false
-	}
-	return true
 }

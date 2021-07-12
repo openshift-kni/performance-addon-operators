@@ -119,7 +119,8 @@ metadata:
       ]
     capabilities: Basic Install
     containerImage: REPLACE_IMAGE
-    description: Operator to optimize OpenShift clusters for applications sensitive to CPU and network latency.
+    description: Operator to optimize OpenShift clusters for applications sensitive
+      to CPU and network latency.
     olm.skipRange: '>=4.8.0 <4.9.0'
     operators.operatorframework.io/builder: operator-sdk-v1.0.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
@@ -131,17 +132,20 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: PerformanceProfile is the Schema for the performanceprofiles API v2.
+    - description: PerformanceProfile is the Schema for the performanceprofiles API
+        v2.
       displayName: Performance Profile v2
       kind: PerformanceProfile
       name: performanceprofiles.performance.openshift.io
       version: v2
-    - description: PerformanceProfile is the Schema for the performanceprofiles API v1.
+    - description: PerformanceProfile is the Schema for the performanceprofiles API
+        v1.
       displayName: Performance Profile v1
       kind: PerformanceProfile
       name: performanceprofiles.performance.openshift.io
       version: v1
-    - description: PerformanceProfile is the Schema for the performanceprofiles API v1alpha1.
+    - description: PerformanceProfile is the Schema for the performanceprofiles API
+        v1alpha1.
       displayName: Performance Profile v1alpha1
       kind: PerformanceProfile
       name: performanceprofiles.performance.openshift.io
@@ -266,6 +270,15 @@ spec:
           resources:
           - deployments/finalizers
           verbs:
+          - update
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - create
+          - get
+          - list
           - update
         - apiGroups:
           - ""

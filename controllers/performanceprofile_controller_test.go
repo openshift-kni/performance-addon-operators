@@ -34,7 +34,6 @@ import (
 	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -273,7 +272,7 @@ var _ = Describe("Controller", func() {
 			err = r.Get(context.TODO(), keyB, tb)
 			Expect(err).ToNot(HaveOccurred())
 
-			result, err := r.Reconcile(request)
+			result, err := r.Reconcile(context.TODO(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(reconcile.Result{}))
 
@@ -733,7 +732,7 @@ var _ = Describe("Controller", func() {
 			runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
 
 			r := newFakeReconciler(profile, mc, kc, tunedPerformance, runtimeClass)
-			result, err := r.Reconcile(request)
+			result, err := r.Reconcile(context.TODO(), request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(reconcile.Result{}))
 
@@ -762,12 +761,12 @@ var _ = Describe("Controller", func() {
 			err = r.Get(context.TODO(), key, tunedPerformance)
 			Expect(errors.IsNotFound(err)).To(Equal(true))
 
-			// verify finalizer deletion
+			// verify profile deletion
 			key.Name = profile.Name
 			key.Namespace = metav1.NamespaceNone
 			updatedProfile := &performancev2.PerformanceProfile{}
-			Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
-			Expect(hasFinalizer(updatedProfile, finalizer)).To(Equal(false))
+			err = r.Get(context.TODO(), key, updatedProfile)
+			Expect(errors.IsNotFound(err)).To(Equal(true))
 		})
 	})
 
@@ -793,7 +792,7 @@ var _ = Describe("Controller", func() {
 			},
 		}
 		r := newFakeReconciler(profile, mcp)
-		requests := r.mcpToPerformanceProfile(handler.MapObject{Meta: &metav1.ObjectMeta{Name: "mcp-test"}})
+		requests := r.mcpToPerformanceProfile(mcp)
 		Expect(requests).NotTo(BeEmpty())
 		Expect(requests[0].Name).To(Equal(profile.Name))
 	})
@@ -803,7 +802,7 @@ func reconcileTimes(reconciler *PerformanceProfileReconciler, request reconcile.
 	var result reconcile.Result
 	var err error
 	for i := 0; i < times; i++ {
-		result, err = reconciler.Reconcile(request)
+		result, err = reconciler.Reconcile(context.TODO(), request)
 		Expect(err).ToNot(HaveOccurred())
 	}
 	return result
@@ -811,7 +810,7 @@ func reconcileTimes(reconciler *PerformanceProfileReconciler, request reconcile.
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client
 func newFakeReconciler(initObjects ...runtime.Object) *PerformanceProfileReconciler {
-	fakeClient := fake.NewFakeClientWithScheme(scheme.Scheme, initObjects...)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(initObjects...).Build()
 	fakeRecorder := record.NewFakeRecorder(10)
 	return &PerformanceProfileReconciler{
 		Client:    fakeClient,

@@ -37,24 +37,16 @@ type ControllerConfigSpec struct {
 	// cloudProviderConfig is the configuration for the given cloud provider
 	CloudProviderConfig string `json:"cloudProviderConfig"`
 
-	// TODO: Use PlatformType instead of string
+	// platform is deprecated, use Infra.Status.PlatformStatus.Type instead
+	Platform string `json:"platform,omitempty"`
 
-	// The openshift platform, e.g. "libvirt", "openstack", "gcp", "baremetal", "aws", or "none"
-	Platform string `json:"platform"`
-
-	// etcdDiscoveryDomain specifies the etcd discovery domain
-	EtcdDiscoveryDomain string `json:"etcdDiscoveryDomain"`
+	// etcdDiscoveryDomain is deprecated, use Infra.Status.EtcdDiscoveryDomain instead
+	EtcdDiscoveryDomain string `json:"etcdDiscoveryDomain,omitempty"`
 
 	// TODO: Use string for CA data
 
 	// kubeAPIServerServingCAData managed Kubelet to API Server Cert... Rotated automatically
 	KubeAPIServerServingCAData []byte `json:"kubeAPIServerServingCAData"`
-
-	// etcdCAData specifies the etcd CA data
-	EtcdCAData []byte `json:"etcdCAData"`
-
-	// etcdMetricData specifies the etcd metric CA data
-	EtcdMetricCAData []byte `json:"etcdMetricCAData"`
 
 	// rootCAData specifies the root CA data
 	RootCAData []byte `json:"rootCAData"`
@@ -81,18 +73,40 @@ type ControllerConfigSpec struct {
 	// Its value is taken from the data.osImageURL field on the machine-config-osimageurl ConfigMap.
 	OSImageURL string `json:"osImageURL"`
 
+	// releaseImage is the image used when installing the cluster
+	ReleaseImage string `json:"releaseImage"`
+
 	// proxy holds the current proxy configuration for the nodes
 	// +nullable
 	Proxy *configv1.ProxyStatus `json:"proxy"`
 
 	// infra holds the infrastructure details
-	// TODO this makes platform redundant as everything is contained inside Infra.Status
 	// +nullable
 	Infra *configv1.Infrastructure `json:"infra"`
 
-	// kubeletIPv6 is true to force a single-stack IPv6 kubelet config
-	KubeletIPv6 bool `json:"kubeletIPv6,omitempty"`
+	// dns holds the cluster dns details
+	// +nullable
+	DNS *configv1.DNS `json:"dns"`
+
+	// ipFamilies indicates the IP families in use by the cluster network
+	IPFamilies IPFamiliesType `json:"ipFamilies"`
+
+	// networkType holds the type of network the cluster is using
+	// XXX: this is temporary and will be dropped as soon as possible in favor of a better support
+	// to start network related services the proper way.
+	// Nobody is also changing this once the cluster is up and running the first time, so, disallow
+	// regeneration if this changes.
+	NetworkType string `json:"networkType,omitempty"`
 }
+
+// IPFamiliesType indicates whether the cluster network is IPv4-only, IPv6-only, or dual-stack
+type IPFamiliesType string
+
+const (
+	IPFamiliesIPv4      IPFamiliesType = "IPv4"
+	IPFamiliesIPv6      IPFamiliesType = "IPv6"
+	IPFamiliesDualStack IPFamiliesType = "DualStack"
+)
 
 // ControllerConfigStatus is the status for ControllerConfig
 type ControllerConfigStatus struct {
@@ -172,6 +186,7 @@ type MachineConfigSpec struct {
 
 	// +nullable
 	KernelArguments []string `json:"kernelArguments"`
+	Extensions      []string `json:"extensions"`
 
 	FIPS       bool   `json:"fips"`
 	KernelType string `json:"kernelType"`
@@ -336,8 +351,16 @@ type KubeletConfig struct {
 
 // KubeletConfigSpec defines the desired state of KubeletConfig
 type KubeletConfigSpec struct {
+	AutoSizingReserved        *bool                 `json:"autoSizingReserved,omitempty"`
+	LogLevel                  *int32                `json:"logLevel,omitempty"`
 	MachineConfigPoolSelector *metav1.LabelSelector `json:"machineConfigPoolSelector,omitempty"`
 	KubeletConfig             *runtime.RawExtension `json:"kubeletConfig,omitempty"`
+
+	// If unset, the default is based on the apiservers.config.openshift.io/cluster resource.
+	// Note that only Old and Intermediate profiles are currently supported, and
+	// the maximum available MinTLSVersions is VersionTLS12.
+	// +optional
+	TLSSecurityProfile *configv1.TLSSecurityProfile `json:"tlsSecurityProfile,omitempty"`
 }
 
 // KubeletConfigStatus defines the observed state of a KubeletConfig
@@ -416,7 +439,7 @@ type ContainerRuntimeConfigSpec struct {
 // ContainerRuntimeConfiguration defines the tuneables of the container runtime
 type ContainerRuntimeConfiguration struct {
 	// pidsLimit specifies the maximum number of processes allowed in a container
-	PidsLimit int64 `json:"pidsLimit,omitempty"`
+	PidsLimit *int64 `json:"pidsLimit,omitempty"`
 
 	// logLevel specifies the verbosity of the logs based on the level it is set to.
 	// Options are fatal, panic, error, warn, info, and debug.
@@ -425,11 +448,11 @@ type ContainerRuntimeConfiguration struct {
 	// logSizeMax specifies the Maximum size allowed for the container log file.
 	// Negative numbers indicate that no size limit is imposed.
 	// If it is positive, it must be >= 8192 to match/exceed conmon's read buffer.
-	LogSizeMax resource.Quantity `json:"logSizeMax"`
+	LogSizeMax resource.Quantity `json:"logSizeMax,omitempty"`
 
 	// overlaySize specifies the maximum size of a container image.
 	// This flag can be used to set quota on the size of container images. (default: 10GB)
-	OverlaySize resource.Quantity `json:"overlaySize"`
+	OverlaySize resource.Quantity `json:"overlaySize,omitempty"`
 }
 
 // ContainerRuntimeConfigStatus defines the observed state of a ContainerRuntimeConfig
