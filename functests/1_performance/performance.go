@@ -19,7 +19,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
@@ -654,7 +653,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 		})
 
-		validateObject := func(obj runtime.Object, message string) {
+		validateObject := func(obj client.Object, message string) {
 			err := testclient.Client.Create(context.TODO(), obj)
 			Expect(err).To(HaveOccurred(), "expected the validation error")
 			Expect(err.Error()).To(ContainSubstring(message))
