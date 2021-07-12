@@ -220,13 +220,45 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		})
 		It("[test_id:42400][crit:medium][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running as sched_fifo", func() {
 			for _, node := range workerRTNodes {
-				pid, err := nodes.ExecCommandOnNode([]string{"pgrep", "-f", "stalld"}, &node)
+				pid, err := nodes.ExecCommandOnNode([]string{"pidof", "stalld"}, &node)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(pid).ToNot(BeEmpty())
 				sched_tasks, err := nodes.ExecCommandOnNode([]string{"chrt", "-ap", pid}, &node)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(sched_tasks).To(ContainSubstring("scheduling policy: SCHED_FIFO"))
 				Expect(sched_tasks).To(ContainSubstring("scheduling priority: 10"))
+			}
+		})
+		It("[test_id:42696][crit:medium][vendor:cnf-qe@redhat.com][level:acceptance] Stalld runs in higher priority than ksoftirq and rcu{c,b}", func() {
+			for _, node := range workerRTNodes {
+				stalld_pid, err := nodes.ExecCommandOnNode([]string{"pidof", "stalld"}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(stalld_pid).ToNot(BeEmpty())
+				sched_tasks, err := nodes.ExecCommandOnNode([]string{"chrt", "-ap", stalld_pid}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				re := regexp.MustCompile("scheduling priority: ([0-9]+)")
+				match := re.FindStringSubmatch(sched_tasks)
+				stalld_prio, _ := strconv.Atoi(match[1])
+
+				ksoftirq_pid, err := nodes.ExecCommandOnNode([]string{"pgrep", "-f", "ksoftirqd", "-n"}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ksoftirq_pid).ToNot(BeEmpty())
+				sched_tasks, err = nodes.ExecCommandOnNode([]string{"chrt", "-ap", ksoftirq_pid}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				match = re.FindStringSubmatch(sched_tasks)
+				ksoftirq_prio, _ := strconv.Atoi(match[1])
+
+				rcuc_pid, err := nodes.ExecCommandOnNode([]string{"pgrep", "-f", "rcuc", "-n"}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(rcuc_pid).ToNot(BeEmpty())
+				sched_tasks, err = nodes.ExecCommandOnNode([]string{"chrt", "-ap", rcuc_pid}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				match = re.FindStringSubmatch(sched_tasks)
+				rcuc_prio, _ := strconv.Atoi(match[1])
+
+				//fmt.Println("stalld , ksoft ,rcuc" , stalld_prio,ksoftirq_prio ,rcuc_prio)
+				Expect(stalld_prio).To(BeNumerically("<", ksoftirq_prio))
+				Expect(stalld_prio).To(BeNumerically("<", rcuc_prio))
 			}
 		})
 
