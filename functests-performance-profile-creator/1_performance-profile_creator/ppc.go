@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,17 @@ const (
 	expectedInfoPath     = "../../testdata/ppc-expected-info"
 	ppcPath              = "../../build/_output/bin/performance-profile-creator"
 )
+
+var mustGatherFullPath = path.Join(mustGatherPath, "must-gather.bare-metal")
+
+var defaultArgs = []string{
+	"--disable-ht=false",
+	"--mcp-name=worker-cnf",
+	"--rt-kernel=true",
+	"--user-level-networking=false",
+	"--profile-name=Performance",
+	fmt.Sprintf("--must-gather-dir-path=%s", mustGatherFullPath),
+}
 
 var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 	It("[test_id:OCP-40940] performance profile creator regression tests", func() {
@@ -108,7 +120,73 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 			Expect(cInfo).To(BeEquivalentTo(expectedInfo), "regression test failed for '%s' case", expectedClusterInfoPath)
 		}
 	})
+	Context("Systems with Hyperthreading enabled", func() {
+		It("[test_id:41419] Verify PPC script fails when reserved cpu count is 2 and requires to split across numa nodes", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				"--reserved-cpu-count=2",
+				"--split-reserved-cpus-across-numa=true",
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(err)
+			Expect(ppcErrorString).To(ContainSubstring("can't allocate odd number of CPUs from a NUMA Node"))
+		})
 
+		It("[test_id:41405] Verify PPC fails when splitting of reserved cpus and single numa-node policy is specified", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				fmt.Sprintf("--reserved-cpu-count=%d", 2),
+				fmt.Sprintf("--split-reserved-cpus-across-numa=%t", true),
+				fmt.Sprintf("--topology-manager-policy=%s", "single-numa-node"),
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(err)
+			Expect(ppcErrorString).To(ContainSubstring("not appropriate to split reserved CPUs in case of topology-manager-policy: single-numa-node"))
+		})
+
+		It("[test_id:41420] Verify PPC fails when reserved cpu count is more than available cpus", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				fmt.Sprintf("--reserved-cpu-count=%d", 100),
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(err)
+			Expect(ppcErrorString).To(ContainSubstring("please specify the reserved CPU count in the range"))
+		})
+
+		It("[test_id:41421] Verify PPC fails when odd number of reserved cpus are specified", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				fmt.Sprintf("--reserved-cpu-count=%d", 5),
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(err)
+			Expect(ppcErrorString).To(ContainSubstring("can't allocate odd number of CPUs from a NUMA Node"))
+		})
+	})
+	Context("Systems with Hyperthreading disabled", func() {
+		It("[test_id:42035] verify PPC fails when splitting of reserved cpus and single numa-node policy is specified", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				fmt.Sprintf("--reserved-cpu-count=%d", 2),
+				fmt.Sprintf("--split-reserved-cpus-across-numa=%t", true),
+				fmt.Sprintf("--topology-manager-policy=%s", "single-numa-node"),
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(err)
+			Expect(ppcErrorString).To(ContainSubstring("not appropriate to split reserved CPUs in case of topology-manager-policy: single-numa-node"))
+		})
+	})
 })
 
 func getMustGatherDirs(mustGatherPath string) map[string]string {
@@ -173,4 +251,18 @@ func getExpectedProfiles(expectedProfilesPath string, mustGatherDirs map[string]
 	}
 
 	return expectedProfiles
+}
+
+// PPC Script stderr parser
+func errorStringParser(err error) string {
+	var errorString string
+	exitError := err.(*exec.ExitError)
+	stdError := string(exitError.Stderr)
+	for _, line := range strings.Split(stdError, "\n") {
+		if strings.Contains(line, "Error: ") {
+			errorString = line
+			break
+		}
+	}
+	return errorString
 }
