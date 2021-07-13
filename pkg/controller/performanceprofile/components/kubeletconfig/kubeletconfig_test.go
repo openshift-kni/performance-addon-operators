@@ -9,7 +9,14 @@ import (
 
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
+	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
+	"k8s.io/utils/pointer"
 )
+
+const testReservedMemory = `reservedMemory:
+    - limits:
+        memory: 1100Mi
+      numaNode: 0`
 
 var _ = Describe("Kubelet Config", func() {
 	It("should generate yaml with expected parameters", func() {
@@ -27,5 +34,39 @@ var _ = Describe("Kubelet Config", func() {
 		Expect(manifest).To(ContainSubstring("reservedSystemCPUs: 0-3"))
 		Expect(manifest).To(ContainSubstring("topologyManagerPolicy: single-numa-node"))
 		Expect(manifest).To(ContainSubstring("cpuManagerPolicy: static"))
+		Expect(manifest).To(ContainSubstring("memoryManagerPolicy: Static"))
+		Expect(manifest).To(ContainSubstring(testReservedMemory))
+	})
+
+	Context("with topology manager restricted policy", func() {
+		It("should have the memory manager related parameters", func() {
+			profile := testutils.NewPerformanceProfile("test")
+			profile.Spec.NUMA.TopologyPolicy = pointer.String(kubeletconfigv1beta1.RestrictedTopologyManagerPolicy)
+			kc, err := New(profile)
+			Expect(err).ToNot(HaveOccurred())
+
+			y, err := yaml.Marshal(kc)
+			Expect(err).ToNot(HaveOccurred())
+
+			manifest := string(y)
+			Expect(manifest).To(ContainSubstring("memoryManagerPolicy: Static"))
+			Expect(manifest).To(ContainSubstring(testReservedMemory))
+		})
+	})
+
+	Context("with topology manager best-effort policy", func() {
+		It("should not have the memory manager related parameters", func() {
+			profile := testutils.NewPerformanceProfile("test")
+			profile.Spec.NUMA.TopologyPolicy = pointer.String(kubeletconfigv1beta1.BestEffortTopologyManagerPolicy)
+			kc, err := New(profile)
+			Expect(err).ToNot(HaveOccurred())
+
+			y, err := yaml.Marshal(kc)
+			Expect(err).ToNot(HaveOccurred())
+
+			manifest := string(y)
+			Expect(manifest).ToNot(ContainSubstring("memoryManagerPolicy: Static"))
+			Expect(manifest).ToNot(ContainSubstring(testReservedMemory))
+		})
 	})
 })
