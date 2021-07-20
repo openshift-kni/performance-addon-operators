@@ -12,6 +12,7 @@ fi
 
 cat >"${METADATA_DIR}/${CSV_VERSION}/annotations.yaml" <<EOF
 annotations:
+  com.redhat.openshift.versions: "v${CSV_CHANNEL}"
   operators.operatorframework.io.bundle.mediatype.v1: "registry+v1"
   operators.operatorframework.io.bundle.manifests.v1: "manifests/"
   operators.operatorframework.io.bundle.metadata.v1: "metadata/"
