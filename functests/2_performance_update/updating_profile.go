@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,7 +32,7 @@ type checkFunction func(*corev1.Node) (string, error)
 
 var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance profile", func() {
 	var workerRTNodes []corev1.Node
-	var profile, initialProfile *performancev2.PerformanceProfile
+	var profile, initialProfile *pinfo.PerformanceProfileInfo
 	var performanceMCP string
 	var err error
 
@@ -137,7 +138,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Modifying profile")
-			initialProfile = profile.DeepCopy()
+			initialProfile.PerformanceProfile = *profile.PerformanceProfile.DeepCopy()
 
 			irqLoadBalancingDisabled = !irqLoadBalancingDisabled
 			profile.Spec.GloballyDisableIrqLoadBalancing = &irqLoadBalancingDisabled
@@ -172,7 +173,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		// Modify profile and verify that MCO successfully updated the node
 		testutils.BeforeAll(func() {
 			By("Modifying profile")
-			initialProfile = profile.DeepCopy()
+			initialProfile.PerformanceProfile = *profile.PerformanceProfile.DeepCopy()
 
 			profile.Spec.HugePages = &performancev2.HugePages{
 				DefaultHugePagesSize: &hpSize2M,
@@ -416,7 +417,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 				),
 			)).ToNot(HaveOccurred())
 
-			updatedProfile := &performancev2.PerformanceProfile{}
+			updatedProfile := &pinfo.PerformanceProfileInfo{}
 			Eventually(func() string {
 				key := types.NamespacedName{
 					Name:      profile.Name,

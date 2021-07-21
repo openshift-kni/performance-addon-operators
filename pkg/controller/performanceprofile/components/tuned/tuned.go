@@ -13,6 +13,7 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	componentsprofile "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +50,7 @@ func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.Tune
 }
 
 // NewNodePerformance returns tuned profile for performance sensitive workflows
-func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProfile) (*tunedv1.Tuned, error) {
+func NewNodePerformance(assetsDir string, profile *pinfo.PerformanceProfileInfo) (*tunedv1.Tuned, error) {
 
 	templateArgs := make(map[string]string)
 

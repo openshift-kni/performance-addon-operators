@@ -2,6 +2,7 @@ package testing
 
 import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -73,5 +74,13 @@ func NewPerformanceProfile(name string) *performancev2.PerformanceProfile {
 				"nodekey": "nodeValue",
 			},
 		},
+	}
+}
+
+// NewPerformanceProfileInfo returns new performance profile info object that used for tests
+func NewPerformanceProfileInfo(name string) *pinfo.PerformanceProfileInfo {
+	profile := NewPerformanceProfile(name)
+	return &pinfo.PerformanceProfileInfo{
+		PerformanceProfile: *profile,
 	}
 }

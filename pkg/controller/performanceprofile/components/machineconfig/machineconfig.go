@@ -14,6 +14,7 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	profile2 "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,11 +43,14 @@ const (
 	// OCIHooksConfigDir is the default directory for the OCI hooks
 	OCIHooksConfigDir = "/etc/containers/oci/hooks.d"
 	// OCIHooksConfig file contains the low latency hooks configuration
-	OCIHooksConfig     = "99-low-latency-hooks"
-	ociTemplateRPSMask = "RPSMask"
-	udevRulesDir       = "/etc/udev/rules.d"
-	udevRpsRule        = "99-netdev-rps"
-	setRPSMask         = "set-rps-mask"
+	OCIHooksConfig           = "99-low-latency-hooks"
+	ociTemplateRPSMask       = "RPSMask"
+	udevRulesDir             = "/etc/udev/rules.d"
+	udevRpsRule              = "99-netdev-rps"
+	setRPSMask               = "set-rps-mask"
+	crioWorkloadMngConfig    = "01-workload-partitioning.conf"
+	workloadPinningConfigDir = "/etc/kubernetes"
+	workloadPinningConfig    = "openshift-workload-pinning"
 )
 
 const (
@@ -80,7 +84,7 @@ const (
 )
 
 // New returns new machine configuration object for performance sensitive workloads
-func New(assetsDir string, profile *performancev2.PerformanceProfile) (*machineconfigv1.MachineConfig, error) {
+func New(assetsDir string, profile *pinfo.PerformanceProfileInfo) (*machineconfigv1.MachineConfig, error) {
 	name := GetMachineConfigName(profile)
 	mc := &machineconfigv1.MachineConfig{
 		TypeMeta: metav1.TypeMeta{
@@ -119,12 +123,12 @@ func New(assetsDir string, profile *performancev2.PerformanceProfile) (*machinec
 }
 
 // GetMachineConfigName generates machine config name from the performance profile
-func GetMachineConfigName(profile *performancev2.PerformanceProfile) string {
+func GetMachineConfigName(profile *pinfo.PerformanceProfileInfo) string {
 	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	return fmt.Sprintf("50-%s", name)
 }
 
-func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfile) (*igntypes.Config, error) {
+func getIgnitionConfig(assetsDir string, profile *pinfo.PerformanceProfileInfo) (*igntypes.Config, error) {
 	ignitionConfig := &igntypes.Config{
 		Ignition: igntypes.Ignition{
 			Version: defaultIgnitionVersion,
@@ -157,6 +161,39 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 		&crioConfdRuntimesMode,
 	); err != nil {
 		return nil, err
+	}
+
+	// add crio config snippet under the node /etc/crio/crio.conf.d/ directory and workload partition file under /etc/kubernetes
+	if profile.WorkloadPartitionEnabled && profile.Spec.CPU.Reserved != nil {
+		crioConfWorkloadMngPartitionMode := 0644
+		crioConfWorkloadMngPartitionContent, err := addCrioConfigSnippet(profile, filepath.Join(assetsDir, "configs", crioWorkloadMngConfig))
+		if err != nil {
+			return nil, err
+		}
+
+		if err := addContent(
+			ignitionConfig,
+			crioConfWorkloadMngPartitionContent,
+			filepath.Join(crioConfd, crioWorkloadMngConfig),
+			&crioConfWorkloadMngPartitionMode,
+		); err != nil {
+			return nil, err
+		}
+
+		workloadPinningMode := 0644
+		config := fmt.Sprintf("%s.json", workloadPinningConfig)
+		workloadPinningContent, err := addCrioConfigSnippet(profile, filepath.Join(assetsDir, "configs", config))
+		if err != nil {
+			return nil, err
+		}
+		if err := addContent(
+			ignitionConfig,
+			workloadPinningContent,
+			filepath.Join(workloadPinningConfigDir, config),
+			&workloadPinningMode,
+		); err != nil {
+			return nil, err
+		}
 	}
 
 	// add crio hooks config  under the node cri-o hook directory
@@ -259,7 +296,7 @@ func getSystemdContent(options []*unit.UnitOption) (string, error) {
 }
 
 // GetOCIHooksConfigContent reads and returns the content of the OCI hook file
-func GetOCIHooksConfigContent(configFile string, profile *performancev2.PerformanceProfile) ([]byte, error) {
+func GetOCIHooksConfigContent(configFile string, profile *pinfo.PerformanceProfileInfo) ([]byte, error) {
 	content, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return nil, err
@@ -349,7 +386,7 @@ func addContent(ignitionConfig *igntypes.Config, content []byte, dst string, mod
 	return nil
 }
 
-func addCrioConfigSnippet(profile *performancev2.PerformanceProfile, src string) ([]byte, error) {
+func addCrioConfigSnippet(profile *pinfo.PerformanceProfileInfo, src string) ([]byte, error) {
 	templateArgs := make(map[string]string)
 	if profile.Spec.CPU.Reserved != nil {
 		templateArgs[templateReservedCpus] = string(*profile.Spec.CPU.Reserved)

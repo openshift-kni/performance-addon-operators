@@ -4,19 +4,18 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	corev1 "k8s.io/api/core/v1"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 )
 
 var _ = Describe("[rfe_id:27350][performance]Topology Manager", func() {
 	var workerRTNodes []corev1.Node
-	var profile *performancev2.PerformanceProfile
+	var profile *pinfo.PerformanceProfileInfo
 
 	BeforeEach(func() {
 		if discovery.Enabled() && testutils.ProfileNotFound {

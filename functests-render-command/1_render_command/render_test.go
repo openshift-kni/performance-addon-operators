@@ -36,6 +36,7 @@ var _ = Describe("render command e2e test", func() {
 				"--performance-profile-input-files", ppInFiles,
 				"--asset-input-dir", assetsInDir,
 				"--asset-output-dir", assetsOutDir,
+				"--enable-workload-partitioning",
 			}
 			fmt.Fprintf(GinkgoWriter, "running: %v\n", cmdline)
 
@@ -56,6 +57,7 @@ var _ = Describe("render command e2e test", func() {
 				fmt.Sprintf("PERFORMANCE_PROFILE_INPUT_FILES=%s", ppInFiles),
 				fmt.Sprintf("ASSET_INPUT_DIR=%s", assetsInDir),
 				fmt.Sprintf("ASSET_OUTPUT_DIR=%s", assetsOutDir),
+				fmt.Sprintf("ENABLE_WORKLOAD_PARTITIONING=true"),
 			)
 			runAndCompare(cmd)
 		})

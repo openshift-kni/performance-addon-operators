@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	"regexp"
 	"time"
 
@@ -41,10 +42,12 @@ const assetsDir = "../build/assets"
 
 var _ = Describe("Controller", func() {
 	var request reconcile.Request
+	var profileInfo *pinfo.PerformanceProfileInfo
 	var profile *performancev2.PerformanceProfile
 
 	BeforeEach(func() {
-		profile = testutils.NewPerformanceProfile("test")
+		profileInfo = testutils.NewPerformanceProfileInfo("test")
+		profile = &profileInfo.PerformanceProfile
 		request = reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Namespace: metav1.NamespaceNone,
@@ -58,12 +61,12 @@ var _ = Describe("Controller", func() {
 
 		Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
-		updatedProfile := &performancev2.PerformanceProfile{}
+		updatedProfile := &pinfo.PerformanceProfileInfo{}
 		key := types.NamespacedName{
 			Name:      profile.Name,
 			Namespace: metav1.NamespaceNone,
 		}
-		Expect(r.Get(context.TODO(), key, updatedProfile)).ToNot(HaveOccurred())
+		Expect(r.Get(context.TODO(), key, &updatedProfile.PerformanceProfile)).ToNot(HaveOccurred())
 		Expect(hasFinalizer(updatedProfile, finalizer)).To(Equal(true))
 	})
 
@@ -78,7 +81,7 @@ var _ = Describe("Controller", func() {
 			Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 			key := types.NamespacedName{
-				Name:      machineconfig.GetMachineConfigName(profile),
+				Name:      machineconfig.GetMachineConfigName(profileInfo),
 				Namespace: metav1.NamespaceNone,
 			}
 
@@ -242,13 +245,13 @@ var _ = Describe("Controller", func() {
 
 		It("should remove outdated tuned objects", func() {
 
-			tunedOutdatedA, err := tuned.NewNodePerformance(assetsDir, profile)
+			tunedOutdatedA, err := tuned.NewNodePerformance(assetsDir, profileInfo)
 			Expect(err).ToNot(HaveOccurred())
 			tunedOutdatedA.Name = "outdated-a"
 			tunedOutdatedA.OwnerReferences = []metav1.OwnerReference{
 				{Name: profile.Name},
 			}
-			tunedOutdatedB, err := tuned.NewNodePerformance(assetsDir, profile)
+			tunedOutdatedB, err := tuned.NewNodePerformance(assetsDir, profileInfo)
 			Expect(err).ToNot(HaveOccurred())
 			tunedOutdatedB.Name = "outdated-b"
 			tunedOutdatedB.OwnerReferences = []metav1.OwnerReference{
@@ -332,16 +335,16 @@ var _ = Describe("Controller", func() {
 
 			BeforeEach(func() {
 				var err error
-				mc, err = machineconfig.New(assetsDir, profile)
+				mc, err = machineconfig.New(assetsDir, profileInfo)
 				Expect(err).ToNot(HaveOccurred())
 
-				kc, err = kubeletconfig.New(profile)
+				kc, err = kubeletconfig.New(profileInfo)
 				Expect(err).ToNot(HaveOccurred())
 
-				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profile)
+				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profileInfo)
 				Expect(err).ToNot(HaveOccurred())
 
-				runtimeClass = runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
+				runtimeClass = runtimeclass.New(profileInfo, machineconfig.HighPerformanceRuntime)
 			})
 
 			It("should not record new create event", func() {
@@ -367,7 +370,7 @@ var _ = Describe("Controller", func() {
 				Expect(reconcileTimes(r, request, 1)).To(Equal(reconcile.Result{}))
 
 				key := types.NamespacedName{
-					Name:      machineconfig.GetMachineConfigName(profile),
+					Name:      machineconfig.GetMachineConfigName(profileInfo),
 					Namespace: metav1.NamespaceNone,
 				}
 
@@ -519,7 +522,7 @@ var _ = Describe("Controller", func() {
 
 				By("Verifying MC update")
 				key = types.NamespacedName{
-					Name:      machineconfig.GetMachineConfigName(profile),
+					Name:      machineconfig.GetMachineConfigName(profileInfo),
 					Namespace: metav1.NamespaceNone,
 				}
 				mc := &mcov1.MachineConfig{}
@@ -720,16 +723,16 @@ var _ = Describe("Controller", func() {
 
 		It("should remove all components and remove the finalizer on first reconcile loop", func() {
 
-			mc, err := machineconfig.New(assetsDir, profile)
+			mc, err := machineconfig.New(assetsDir, profileInfo)
 			Expect(err).ToNot(HaveOccurred())
 
-			kc, err := kubeletconfig.New(profile)
+			kc, err := kubeletconfig.New(profileInfo)
 			Expect(err).ToNot(HaveOccurred())
 
-			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profile)
+			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profileInfo)
 			Expect(err).ToNot(HaveOccurred())
 
-			runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
+			runtimeClass := runtimeclass.New(profileInfo, machineconfig.HighPerformanceRuntime)
 
 			r := newFakeReconciler(profile, mc, kc, tunedPerformance, runtimeClass)
 			result, err := r.Reconcile(context.TODO(), request)

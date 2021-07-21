@@ -38,7 +38,7 @@ var _ = Describe("Machine Config", func() {
 
 	Context("machine config creation ", func() {
 		It("should create machine config with valid assests", func() {
-			profile := testutils.NewPerformanceProfile("test")
+			profile := testutils.NewPerformanceProfileInfo("test")
 			profile.Spec.HugePages.Pages[0].Node = pointer.Int32Ptr(0)
 			_, err := New(testAssetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
@@ -51,7 +51,7 @@ var _ = Describe("Machine Config", func() {
 		var manifest string
 
 		BeforeEach(func() {
-			profile := testutils.NewPerformanceProfile("test")
+			profile := testutils.NewPerformanceProfileInfo("test")
 			profile.Spec.HugePages.Pages[0].Node = pointer.Int32Ptr(0)
 
 			mc, err := New(testAssetsDir, profile)

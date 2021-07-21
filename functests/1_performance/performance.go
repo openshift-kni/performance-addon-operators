@@ -42,6 +42,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 )
 
 const (
@@ -54,7 +55,7 @@ var RunningOnSingleNode bool
 var _ = Describe("[rfe_id:27368][performance]", func() {
 
 	var workerRTNodes []corev1.Node
-	var profile *performancev2.PerformanceProfile
+	var profile *pinfo.PerformanceProfileInfo
 
 	testutils.BeforeAll(func() {
 		isSNO, err := cluster.IsSingleNode()
@@ -453,32 +454,34 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			reserved := performancev2.CPUSet("0")
 			isolated := performancev2.CPUSet("1-3")
 
-			secondProfile := &performancev2.PerformanceProfile{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "PerformanceProfile",
-					APIVersion: performancev2.GroupVersion.String(),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "profile2",
-				},
-				Spec: performancev2.PerformanceProfileSpec{
-					CPU: &performancev2.CPU{
-						Reserved: &reserved,
-						Isolated: &isolated,
+			secondProfile := &pinfo.PerformanceProfileInfo{
+				PerformanceProfile: performancev2.PerformanceProfile{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "PerformanceProfile",
+						APIVersion: performancev2.GroupVersion.String(),
 					},
-					NodeSelector: map[string]string{newLabel: ""},
-					RealTimeKernel: &performancev2.RealTimeKernel{
-						Enabled: pointer.BoolPtr(true),
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "profile2",
 					},
-					AdditionalKernelArgs: []string{
-						"NEW_ARGUMENT",
-					},
-					NUMA: &performancev2.NUMA{
-						TopologyPolicy: pointer.StringPtr("restricted"),
+					Spec: performancev2.PerformanceProfileSpec{
+						CPU: &performancev2.CPU{
+							Reserved: &reserved,
+							Isolated: &isolated,
+						},
+						NodeSelector: map[string]string{newLabel: ""},
+						RealTimeKernel: &performancev2.RealTimeKernel{
+							Enabled: pointer.BoolPtr(true),
+						},
+						AdditionalKernelArgs: []string{
+							"NEW_ARGUMENT",
+						},
+						NUMA: &performancev2.NUMA{
+							TopologyPolicy: pointer.StringPtr("restricted"),
+						},
 					},
 				},
 			}
-			Expect(testclient.Client.Create(context.TODO(), secondProfile)).ToNot(HaveOccurred())
+			Expect(testclient.Client.Create(context.TODO(), &secondProfile.PerformanceProfile)).ToNot(HaveOccurred())
 
 			By("Checking that new KubeletConfig, MachineConfig and RuntimeClass created")
 			configKey := types.NamespacedName{
@@ -567,7 +570,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 			err := testclient.Client.Get(context.TODO(), key, v1Profile)
 			Expect(err).ToNot(HaveOccurred(), "Failed getting v1Profile")
-			Expect(verifyV2Conversion(profile, v1Profile)).ToNot(HaveOccurred())
+			Expect(verifyV2Conversion(&profile.PerformanceProfile, v1Profile)).ToNot(HaveOccurred())
 
 			By("Checking v1 -> v2 conversion")
 			v1Profile.Name = "v1"

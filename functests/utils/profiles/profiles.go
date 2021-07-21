@@ -16,11 +16,12 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	v1 "github.com/openshift/custom-resource-status/conditions/v1"
 )
 
 // GetByNodeLabels gets the performance profile that must have node selector equals to passed node labels
-func GetByNodeLabels(nodeLabels map[string]string) (*performancev2.PerformanceProfile, error) {
+func GetByNodeLabels(nodeLabels map[string]string) (*pinfo.PerformanceProfileInfo, error) {
 	profiles, err := All()
 	if err != nil {
 		return nil, err
@@ -40,7 +41,8 @@ func GetByNodeLabels(nodeLabels map[string]string) (*performancev2.PerformancePr
 		return nil, fmt.Errorf("failed to find performance profile with specified node selector %v", nodeLabels)
 	}
 
-	return result, nil
+	profileInfo := &pinfo.PerformanceProfileInfo{PerformanceProfile: *result}
+	return profileInfo, nil
 }
 
 // WaitForDeletion waits until the pod will be removed from the cluster
@@ -96,7 +98,7 @@ func All() (*performancev2.PerformanceProfileList, error) {
 	return profiles, nil
 }
 
-func UpdateWithRetry(profile *performancev2.PerformanceProfile) {
+func UpdateWithRetry(profile *pinfo.PerformanceProfileInfo) {
 	EventuallyWithOffset(1, func() error {
 		if err := testclient.Client.Update(context.TODO(), profile); err != nil {
 			if !errors.IsConflict(err) {

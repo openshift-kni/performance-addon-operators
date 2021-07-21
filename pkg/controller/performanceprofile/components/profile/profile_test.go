@@ -3,9 +3,9 @@ package profile
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 )
 
@@ -14,10 +14,10 @@ const (
 )
 
 var _ = Describe("PerformanceProfile", func() {
-	var profile *performancev2.PerformanceProfile
+	var profile *pinfo.PerformanceProfileInfo
 
 	BeforeEach(func() {
-		profile = testutils.NewPerformanceProfile("test")
+		profile = testutils.NewPerformanceProfileInfo("test")
 	})
 
 	Describe("Defaulting", func() {
@@ -60,7 +60,7 @@ var _ = Describe("PerformanceProfile", func() {
 	})
 })
 
-func setValidNodeSelector(profile *performancev2.PerformanceProfile) {
+func setValidNodeSelector(profile *pinfo.PerformanceProfileInfo) {
 	selector := make(map[string]string)
 	selector["fooDomain/"+NodeSelectorRole] = ""
 	profile.Spec.NodeSelector = selector

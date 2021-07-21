@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 
 	cpuset "k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
@@ -36,13 +37,13 @@ var (
 var additionalArgs = []string{"test1=val1", "test2=val2"}
 
 var _ = Describe("Tuned", func() {
-	var profile *performancev2.PerformanceProfile
+	var profile *pinfo.PerformanceProfileInfo
 
 	BeforeEach(func() {
-		profile = testutils.NewPerformanceProfile("test")
+		profile = testutils.NewPerformanceProfileInfo("test")
 	})
 
-	getTunedManifest := func(profile *performancev2.PerformanceProfile) string {
+	getTunedManifest := func(profile *pinfo.PerformanceProfileInfo) string {
 		tuned, err := NewNodePerformance(testAssetsDir, profile)
 		Expect(err).ToNot(HaveOccurred())
 		y, err := yaml.Marshal(tuned)

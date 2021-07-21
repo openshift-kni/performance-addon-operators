@@ -32,6 +32,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 )
 
 var RunningOnSingleNode bool
@@ -113,7 +114,7 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 
 })
 
-func externalPerformanceProfile(performanceManifest string) (*performancev2.PerformanceProfile, error) {
+func externalPerformanceProfile(performanceManifest string) (*pinfo.PerformanceProfileInfo, error) {
 	performanceScheme := runtime.NewScheme()
 	performancev2.AddToScheme(performanceScheme)
 
@@ -130,10 +131,11 @@ func externalPerformanceProfile(performanceManifest string) (*performancev2.Perf
 	if !ok {
 		return nil, fmt.Errorf("Failed to convert manifest file to profile")
 	}
-	return profile, nil
+	profileInfo := &pinfo.PerformanceProfileInfo{PerformanceProfile: *profile}
+	return profileInfo, nil
 }
 
-func testProfile() *performancev2.PerformanceProfile {
+func testProfile() *pinfo.PerformanceProfileInfo {
 	reserved := performancev2.CPUSet("0")
 	isolated := performancev2.CPUSet("1-3")
 	hugePagesSize := performancev2.HugePageSize("1G")
@@ -193,5 +195,6 @@ func testProfile() *performancev2.PerformanceProfile {
 			"pools.operator.machineconfiguration.openshift.io/master": "",
 		}
 	}
-	return profile
+	profileInfo := &pinfo.PerformanceProfileInfo{PerformanceProfile: *profile}
+	return profileInfo
 }

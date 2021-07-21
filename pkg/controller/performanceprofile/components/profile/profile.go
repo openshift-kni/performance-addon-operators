@@ -3,10 +3,11 @@ package profile
 import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 )
 
 // GetMachineConfigPoolSelector returns the MachineConfigPoolSelector from the CR or a default value calculated based on NodeSelector
-func GetMachineConfigPoolSelector(profile *performancev2.PerformanceProfile) map[string]string {
+func GetMachineConfigPoolSelector(profile *pinfo.PerformanceProfileInfo) map[string]string {
 	if profile.Spec.MachineConfigPoolSelector != nil {
 		return profile.Spec.MachineConfigPoolSelector
 	}
@@ -15,7 +16,7 @@ func GetMachineConfigPoolSelector(profile *performancev2.PerformanceProfile) map
 }
 
 // GetMachineConfigLabel returns the MachineConfigLabels from the CR or a default value calculated based on NodeSelector
-func GetMachineConfigLabel(profile *performancev2.PerformanceProfile) map[string]string {
+func GetMachineConfigLabel(profile *pinfo.PerformanceProfileInfo) map[string]string {
 	if profile.Spec.MachineConfigLabel != nil {
 		return profile.Spec.MachineConfigLabel
 	}
@@ -23,7 +24,7 @@ func GetMachineConfigLabel(profile *performancev2.PerformanceProfile) map[string
 	return getDefaultLabel(profile)
 }
 
-func getDefaultLabel(profile *performancev2.PerformanceProfile) map[string]string {
+func getDefaultLabel(profile *pinfo.PerformanceProfileInfo) map[string]string {
 	nodeSelectorKey, _ := components.GetFirstKeyAndValue(profile.Spec.NodeSelector)
 	// no error handling needed, it's validated already
 	_, nodeRole, _ := components.SplitLabelKey(nodeSelectorKey)
@@ -35,7 +36,7 @@ func getDefaultLabel(profile *performancev2.PerformanceProfile) map[string]strin
 }
 
 // IsPaused returns whether or not a performance profile's reconcile loop is paused
-func IsPaused(profile *performancev2.PerformanceProfile) bool {
+func IsPaused(profile *pinfo.PerformanceProfileInfo) bool {
 	if profile.Annotations == nil {
 		return false
 	}
