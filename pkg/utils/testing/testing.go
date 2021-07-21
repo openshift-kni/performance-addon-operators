@@ -2,6 +2,7 @@ package testing
 
 import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -71,6 +72,28 @@ func NewPerformanceProfile(name string) *performancev2.PerformanceProfile {
 			},
 			NodeSelector: map[string]string{
 				"nodekey": "nodeValue",
+			},
+		},
+	}
+}
+
+// NewProfileMCP returns new MCP used for testing
+func NewProfileMCP() *mcov1.MachineConfigPool {
+	return &mcov1.MachineConfigPool{
+		TypeMeta: metav1.TypeMeta{Kind: "MachineConfigPool"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+			UID:  "11111111-1111-1111-1111-1111111111111",
+			Labels: map[string]string{
+				MachineConfigPoolLabelKey: MachineConfigPoolLabelValue,
+			},
+		},
+		Spec: mcov1.MachineConfigPoolSpec{
+			NodeSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"nodekey": "nodeValue"},
+			},
+			MachineConfigSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{MachineConfigLabelKey: MachineConfigLabelValue},
 			},
 		},
 	}

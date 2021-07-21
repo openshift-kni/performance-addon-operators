@@ -8,15 +8,14 @@ import (
 	"strings"
 	"text/template"
 
-	"k8s.io/utils/pointer"
-
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	componentsprofile "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	profilecomponent "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	cpuset "k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -185,7 +184,7 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 		{
 			Profile:             &name,
 			Priority:            &priority,
-			MachineConfigLabels: componentsprofile.GetMachineConfigLabel(profile),
+			MachineConfigLabels: profilecomponent.GetMachineConfigLabel(profile),
 		},
 	}
 	return new(name, profiles, recommends), nil
