@@ -93,6 +93,10 @@ type CPU struct {
 	// Defaults to "true"
 	// +optional
 	BalanceIsolated *bool `json:"balanceIsolated,omitempty"`
+	// DisablePCPUIsolation is a temporary name to toggle all noisy-neighbours prevention enhancements.
+	// Defaults to "false"
+	// +optional
+	DisablePCPUIsolation *bool `json:"disablePCPUIsolation,omitempty"`
 }
 
 // HugePageSize defines size of huge pages, can be 2M or 1G.

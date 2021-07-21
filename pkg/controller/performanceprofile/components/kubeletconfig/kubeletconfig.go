@@ -12,10 +12,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
+	kubefeatures "k8s.io/kubernetes/pkg/features"
 )
 
 const (
-	cpuManagerPolicyStatic      = "static"
+	cpuManagerPolicyStatic              = "static"
+	cpuManagerPolicyOptionFullPCPUsOnly = "full-pcpus-only"
+
 	defaultKubeReservedCPU      = "1000m"
 	defaultKubeReservedMemory   = "500Mi"
 	defaultSystemReservedCPU    = "1000m"
@@ -41,10 +44,19 @@ func New(profile *performancev2.PerformanceProfile) (*machineconfigv1.KubeletCon
 			"cpu":    defaultSystemReservedCPU,
 			"memory": defaultSystemReservedMemory,
 		},
+		FeatureGates: map[string]bool{
+			kubefeatures.CPUManagerPolicyOptions: true,
+		},
 	}
 
 	if profile.Spec.CPU != nil && profile.Spec.CPU.Reserved != nil {
 		kubeletConfig.ReservedSystemCPUs = string(*profile.Spec.CPU.Reserved)
+	}
+
+	if isPCPUIsolationEnabled(profile) {
+		kubeletConfig.CPUManagerPolicyOptions = map[string]string{
+			cpuManagerPolicyOptionFullPCPUsOnly: "true",
+		}
 	}
 
 	if profile.Spec.NUMA != nil {
@@ -75,4 +87,16 @@ func New(profile *performancev2.PerformanceProfile) (*machineconfigv1.KubeletCon
 			},
 		},
 	}, nil
+}
+
+func isPCPUIsolationEnabled(profile *performancev2.PerformanceProfile) bool {
+	if profile.Spec.CPU == nil || profile.Spec.CPU.DisablePCPUIsolation == nil {
+		// default if not specified
+		return true
+	}
+	if *profile.Spec.CPU.DisablePCPUIsolation {
+		// explicitely disabled per user request
+		return false
+	}
+	return true
 }
