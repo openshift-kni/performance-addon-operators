@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -140,14 +141,14 @@ func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj client.Obj
 
 	var requests []reconcile.Request
 	for i, profile := range profiles.Items {
-		machineConfigPoolSelector := labels.Set(profileutil.GetMachineConfigPoolSelector(&profile))
-		selector, err := metav1.LabelSelectorAsSelector(mcp.Spec.MachineConfigSelector)
+		profileNodeSelector := labels.Set(profile.Spec.NodeSelector)
+		mcpNodeSelector, err := metav1.LabelSelectorAsSelector(mcp.Spec.NodeSelector)
 		if err != nil {
-			klog.Errorf("failed to parse the selector %v", mcp.Spec.MachineConfigSelector)
+			klog.Errorf("failed to parse the selector %v", mcp.Spec.NodeSelector)
 			return nil
 		}
 
-		if selector.Matches(machineConfigPoolSelector) {
+		if mcpNodeSelector.Matches(profileNodeSelector) {
 			requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&profiles.Items[i])})
 		}
 	}
@@ -237,13 +238,34 @@ func (r *PerformanceProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return reconcile.Result{}, nil
 	}
 
+	profileMCP, err := r.getMachineConfigPoolByProfile(instance)
+	if err != nil {
+		conditions := r.getDegradedConditions(conditionFailedToFindMachineConfigPool, err.Error())
+		if err := r.updateStatus(instance, conditions); err != nil {
+			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	}
+
+	if err := validateProfileMachineConfigPool(instance, profileMCP); err != nil {
+		conditions := r.getDegradedConditions(conditionBadMachineConfigLabels, err.Error())
+		if err := r.updateStatus(instance, conditions); err != nil {
+			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	}
+
 	// remove components with the old name after the upgrade
 	if err := r.deleteDeprecatedComponents(instance); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// apply components
-	result, err := r.applyComponents(instance)
+	result, err := r.applyComponents(instance, profileMCP)
 	if err != nil {
 		klog.Errorf("failed to deploy performance profile %q components: %v", instance.Name, err)
 		r.Recorder.Eventf(instance, corev1.EventTypeWarning, "Creation failed", "Failed to create all components: %v", err)
@@ -263,7 +285,7 @@ func (r *PerformanceProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	// get MCP degraded conditions
 	if conditions == nil {
-		conditions, err = r.getMCPConditionsByProfile(instance)
+		conditions, err = r.getMCPDegradedCondition(profileMCP)
 		if err != nil {
 			return r.updateDegradedCondition(instance, conditionFailedGettingMCPStatus, err)
 		}
@@ -314,14 +336,13 @@ func (r *PerformanceProfileReconciler) updateDegradedCondition(instance *perform
 	return reconcile.Result{}, conditionError
 }
 
-func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.PerformanceProfile) (*reconcile.Result, error) {
-
+func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.PerformanceProfile, profileMCP *mcov1.MachineConfigPool) (*reconcile.Result, error) {
 	if profileutil.IsPaused(profile) {
 		klog.Infof("Ignoring reconcile loop for pause performance profile %s", profile.Name)
 		return nil, nil
 	}
 
-	components, err := manifestset.GetNewComponents(profile, &r.AssetsDir)
+	components, err := manifestset.GetNewComponents(profile, profileMCP, &r.AssetsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -467,4 +488,84 @@ func namespacedName(obj metav1.Object) types.NamespacedName {
 		Namespace: obj.GetNamespace(),
 		Name:      obj.GetName(),
 	}
+}
+
+func (r *PerformanceProfileReconciler) getMachineConfigPoolByProfile(profile *performancev2.PerformanceProfile) (*mcov1.MachineConfigPool, error) {
+	nodeSelector := labels.Set(profile.Spec.NodeSelector)
+
+	mcpList := &mcov1.MachineConfigPoolList{}
+	if err := r.Client.List(context.TODO(), mcpList); err != nil {
+		return nil, err
+	}
+
+	filteredMCPList := filterMCPDuplications(mcpList.Items)
+
+	var profileMCPs []*mcov1.MachineConfigPool
+	for i := range filteredMCPList {
+		mcp := &mcpList.Items[i]
+
+		if mcp.Spec.NodeSelector == nil {
+			continue
+		}
+
+		mcpNodeSelector, err := metav1.LabelSelectorAsSelector(mcp.Spec.NodeSelector)
+		if err != nil {
+			return nil, err
+		}
+
+		if mcpNodeSelector.Matches(nodeSelector) {
+			profileMCPs = append(profileMCPs, mcp)
+		}
+	}
+
+	if len(profileMCPs) == 0 {
+		return nil, fmt.Errorf("failed to find MCP with the node selector that matches labels %q", nodeSelector.String())
+	}
+
+	if len(profileMCPs) > 1 {
+		return nil, fmt.Errorf("more than one MCP found that matches performance profile node selector %q", nodeSelector.String())
+	}
+
+	return profileMCPs[0], nil
+}
+
+func filterMCPDuplications(mcps []mcov1.MachineConfigPool) []mcov1.MachineConfigPool {
+	var filtered []mcov1.MachineConfigPool
+	items := map[string]mcov1.MachineConfigPool{}
+	for _, mcp := range mcps {
+		if _, exists := items[mcp.Name]; !exists {
+			items[mcp.Name] = mcp
+			filtered = append(filtered, mcp)
+		}
+	}
+
+	return filtered
+}
+
+func validateProfileMachineConfigPool(profile *performancev2.PerformanceProfile, profileMCP *mcov1.MachineConfigPool) error {
+	if profileMCP.Spec.MachineConfigSelector.Size() == 0 {
+		return fmt.Errorf("the MachineConfigPool %q machineConfigSelector is nil", profileMCP.Name)
+	}
+
+	if len(profileMCP.Labels) == 0 {
+		return fmt.Errorf("the MachineConfigPool %q does not have any labels that can be used to bind it together with KubeletConfing", profileMCP.Name)
+	}
+
+	// we can not guarantee that our generated label for the machine config selector will be the right one
+	// but at least we can validate that the MCP will consume our machine config
+	machineConfigLabels := profileutil.GetMachineConfigLabel(profile)
+	mcpMachineConfigSelector, err := metav1.LabelSelectorAsSelector(profileMCP.Spec.MachineConfigSelector)
+	if err != nil {
+		return err
+	}
+
+	if !mcpMachineConfigSelector.Matches(labels.Set(machineConfigLabels)) {
+		if len(profile.Spec.MachineConfigLabel) > 0 {
+			return fmt.Errorf("the machine config labels %v provided via profile.spec.machineConfigLabel do not match the MachineConfigPool %q machineConfigSelector %q", machineConfigLabels, profileMCP.Name, mcpMachineConfigSelector.String())
+		}
+
+		return fmt.Errorf("the machine config labels %v generated from the profile.spec.nodeSelector %v do not match the MachineConfigPool %q machineConfigSelector %q", machineConfigLabels, profile.Spec.NodeSelector, profileMCP.Name, mcpMachineConfigSelector.String())
+	}
+
+	return nil
 }

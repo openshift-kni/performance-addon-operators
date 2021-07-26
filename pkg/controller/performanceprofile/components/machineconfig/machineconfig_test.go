@@ -40,6 +40,7 @@ var _ = Describe("Machine Config", func() {
 		It("should create machine config with valid assests", func() {
 			profile := testutils.NewPerformanceProfile("test")
 			profile.Spec.HugePages.Pages[0].Node = pointer.Int32Ptr(0)
+
 			_, err := New(testAssetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
 			_, err = New("../../../../../build/invalid/assets", profile)
@@ -54,6 +55,7 @@ var _ = Describe("Machine Config", func() {
 			profile := testutils.NewPerformanceProfile("test")
 			profile.Spec.HugePages.Pages[0].Node = pointer.Int32Ptr(0)
 
+			labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
 			mc, err := New(testAssetsDir, profile)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(mc.Spec.KernelType).To(Equal(MCKernelRT))
@@ -62,7 +64,6 @@ var _ = Describe("Machine Config", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			manifest = string(y)
-			labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
 			Expect(manifest).To(ContainSubstring(fmt.Sprintf("%s: %s", labelKey, labelValue)))
 		})
 
