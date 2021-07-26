@@ -133,7 +133,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		It("[test_id:37127] Node should point to right tuned profile", func() {
 			for _, node := range workerRTNodes {
 				tuned := tunedForNode(&node)
-				activeProfile, err := pods.ExecCommandOnPod(tuned, []string{"cat", "/etc/tuned/active_profile"})
+				activeProfile, err := pods.ExecCommandOnPod(testclient.K8sClient, tuned, []string{"cat", "/etc/tuned/active_profile"})
 				Expect(err).ToNot(HaveOccurred(), "Error getting the tuned active profile")
 				activeProfileName := string(activeProfile)
 				Expect(strings.TrimSpace(activeProfileName)).To(Equal(tunedExpectedName), "active profile name mismatch got %q expected %q", activeProfileName, tunedExpectedName)
@@ -217,7 +217,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		It("[test_id:35363][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running on the host", func() {
 			for _, node := range workerRTNodes {
 				tuned := tunedForNode(&node)
-				_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+				_, err := pods.ExecCommandOnPod(testclient.K8sClient, tuned, []string{"pidof", "stalld"})
 				Expect(err).ToNot(HaveOccurred())
 			}
 		})
@@ -363,7 +363,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 				for _, pod := range nodePods.Items {
 					cmd := []string{"find", "/sys/devices", "-type", "f", "-name", "rps_cpus", "-exec", "cat", "{}", ";"}
-					devsRPS, err := pods.ExecCommandOnPod(&pod, cmd)
+					devsRPS, err := pods.ExecCommandOnPod(testclient.K8sClient, &pod, cmd)
 					for _, devRPS := range strings.Split(strings.Trim(string(devsRPS), "\n"), "\n") {
 						rpsCPUs, err = components.CPUMaskToCPUSet(devRPS)
 						Expect(err).ToNot(HaveOccurred())
@@ -410,7 +410,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 						cmdGetPhysicalDevices := []string{"find", "/sys/class/net", "-type", "l", "-not", "-lname", "*virtual*", "-printf", "%f "}
 						By(fmt.Sprintf("getting a list of physical network devices: %v", cmdGetPhysicalDevices))
 						tuned := tunedForNode(&node)
-						phyDevs, err := pods.ExecCommandOnPod(tuned, cmdGetPhysicalDevices)
+						phyDevs, err := pods.ExecCommandOnPod(testclient.K8sClient, tuned, cmdGetPhysicalDevices)
 						Expect(err).ToNot(HaveOccurred())
 
 						for _, d := range strings.Split(string(phyDevs), " ") {
@@ -418,13 +418,13 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 								continue
 							}
 							// See if the device 'd' supports querying the channels.
-							_, err := pods.ExecCommandOnPod(tuned, []string{"ethtool", "-l", d})
+							_, err := pods.ExecCommandOnPod(testclient.K8sClient, tuned, []string{"ethtool", "-l", d})
 							if err == nil {
 								cmdCombinedChannelsCurrent := []string{"bash", "-c",
 									fmt.Sprintf("ethtool -l %s | sed -n '/Current hardware settings:/,/Combined:/{s/^Combined:\\s*//p}'", d)}
 
 								By(fmt.Sprintf("using physical network device %s for testing", d))
-								out, err := pods.ExecCommandOnPod(tuned, cmdCombinedChannelsCurrent)
+								out, err := pods.ExecCommandOnPod(testclient.K8sClient, tuned, cmdCombinedChannelsCurrent)
 								Expect(err).NotTo(HaveOccurred())
 								channelCurrentCombined, err := strconv.Atoi(strings.TrimSpace(string(out)))
 								if err != nil {
@@ -1220,7 +1220,7 @@ func validateTunedActiveProfile(nodes []corev1.Node) {
 		tunedName := tuned.ObjectMeta.Name
 		By(fmt.Sprintf("executing the command cat /etc/tuned/active_profile inside the pod %s", tunedName))
 		Eventually(func() string {
-			out, err = pods.ExecCommandOnPod(tuned, []string{"cat", "/etc/tuned/active_profile"})
+			out, err = pods.ExecCommandOnPod(testclient.K8sClient, tuned, []string{"cat", "/etc/tuned/active_profile"})
 			return strings.TrimSpace(string(out))
 		}, cluster.ComputeTestTimeout(testTimeout*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(Equal(activeProfileName),
 			fmt.Sprintf("active_profile is not set to %s. %v", activeProfileName, err))
