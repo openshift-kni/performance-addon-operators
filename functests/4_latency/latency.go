@@ -200,7 +200,8 @@ func getOslatPod(profile *performancev2.PerformanceProfile, node *corev1.Node) *
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "oslat-",
 			Annotations: map[string]string{
-				"cpu-load-balancing.crio.io": "true",
+				"irq-load-balancing.crio.io": "disable",
+				"cpu-load-balancing.crio.io": "disable",
 			},
 			Namespace: testutils.NamespaceTesting,
 		},
