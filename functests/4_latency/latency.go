@@ -149,14 +149,14 @@ var _ = Describe("[performance] Latency Test", func() {
 				Skip("no maximum latency value provided, skip buckets latency check")
 			}
 
-			latencies := extractLatencyValues("oslat", `Maximum:\t*\s*(.*)\s*\(us\)`, workerRTNode)
+			latencies := extractLatencyValues("oslat", `Maximum:\t*([\s\d]*)\(us\)`, workerRTNode)
 
 			// under the output of the oslat very often we have one anomaly high value, for example
 			// Maximum:    16543 15 15 14 13 12 12 13 12 12 12 12 12 12 12 12 12 (us)
 			// it still unclear if it oslat bug or the kernel one, but we definitely do not want to
 			// fail our test on it
 			var anomaly bool
-			for _, lat := range strings.Split(string(latencies[1]), " ") {
+			for _, lat := range strings.Split(latencies, " ") {
 				if lat == "" {
 					continue
 				}
@@ -347,10 +347,10 @@ func extractLatencyValues(testName string, exp string, node *corev1.Node) string
 	maximumRegex, err := regexp.Compile(exp)
 	Expect(err).ToNot(HaveOccurred())
 
-	latencies := maximumRegex.FindStringSubmatch(out)[1]
-	Expect(maximumLatency).ToNot(BeNil())
+	latencies := maximumRegex.FindStringSubmatch(out)
+	Expect(len(latencies)).To(Equal(2))
 
-	return latencies
+	return latencies[1]
 }
 
 // setMaximumLatencyValue should look for one of the following environment variables:
