@@ -64,7 +64,7 @@ spec:
 ## Debugging
 Here are the steps to ensure the system is configured correctly for IRQ dynamic load balancing
 
-Consider a node with 6 CPUs targeted by a 'v2' [Performance Profile](docs/performance_profile.md):
+Consider a node with 6 CPUs targeted by a 'v2' [Performance Profile](performance_profile.md):
 Let's assume the node name is ```cnf-worker.demo.lab```.
 
 A profile reserving 2 CPUs for housekeeping can look like this:
