@@ -37,6 +37,7 @@ var (
 	latencyTestRun     = false
 	latencyTestRuntime = "300"
 	maximumLatency     = -1
+	latencyTestCpus    = -1
 )
 
 const (
@@ -45,10 +46,11 @@ const (
 	hwlatdetectTestName = "hwlatdetect"
 )
 
-// LATENCY_TEST_DELAY delay the run of the oslat binary, can be useful to give time to the CPU manager reconcile loop
+// LATENCY_TEST_DELAY delay the run of the binary, can be useful to give time to the CPU manager reconcile loop
 // to update the default CPU pool
 // LATENCY_TEST_RUN: indicates if the latency test should run
 // LATENCY_TEST_RUNTIME: the amount of time in seconds that the latency test should run
+// LATENCY_TEST_CPUS: the amount of CPUs the pod which run the latency test should request
 func init() {
 	latencyTestRunEnv := os.Getenv("LATENCY_TEST_RUN")
 	if latencyTestRunEnv != "" {
@@ -67,6 +69,14 @@ func init() {
 		var err error
 		if latencyTestDelay, err = strconv.Atoi(latencyTestDelayEnv); err != nil {
 			klog.Fatalf("the environment variable LATENCY_TEST_DELAY has incorrect value %q", latencyTestDelayEnv)
+		}
+	}
+
+	latencyTestCpusEnv := os.Getenv("LATENCY_TEST_CPUS")
+	if latencyTestCpusEnv != "" {
+		var err error
+		if latencyTestCpus, err = strconv.Atoi(latencyTestCpusEnv); err != nil {
+			klog.Fatalf("the environment variable LATENCY_TEST_CPUS has incorrect value %q", latencyTestCpusEnv)
 		}
 	}
 }
@@ -246,11 +256,18 @@ var _ = Describe("[performance] Latency Test", func() {
 })
 
 func getLatencyTestPod(profile *performancev2.PerformanceProfile, node *corev1.Node, testName string, testSpecificArgs []string) *corev1.Pod {
-	cpus := cpuset.MustParse(string(*profile.Spec.CPU.Isolated))
 	runtimeClass := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	testNamePrefix := fmt.Sprintf("%s-", testName)
 	runnerName := fmt.Sprintf("%srunner", testNamePrefix)
 	runnerPath := path.Join("usr", "bin", runnerName)
+
+	if latencyTestCpus == -1 {
+		// we can not use all isolated CPUs, because if reserved and isolated include all node CPUs, and reserved CPUs
+		// do not calculated into the Allocated, at least part of time of one of isolated CPUs will be used to run
+		// other node containers
+		cpus := cpuset.MustParse(string(*profile.Spec.CPU.Isolated))
+		latencyTestCpus = cpus.Size() - 1
+	}
 
 	latencyTestRunnerArgs := []string{
 		"-logtostderr=false",
@@ -287,10 +304,7 @@ func getLatencyTestPod(profile *performancev2.PerformanceProfile, node *corev1.N
 					Args: latencyTestRunnerArgs,
 					Resources: corev1.ResourceRequirements{
 						Limits: corev1.ResourceList{
-							// we can not use all isolated CPUs, because if reserved and isolated include all node CPUs, and reserved CPUs
-							// do not calculated into the Allocated, at least part of time of one of isolated CPUs will be used to run
-							// other node containers
-							corev1.ResourceCPU:    resource.MustParse(strconv.Itoa(cpus.Size() - 1)),
+							corev1.ResourceCPU:    resource.MustParse(strconv.Itoa(latencyTestCpus)),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
 						},
 					},
