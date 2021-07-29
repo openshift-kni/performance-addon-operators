@@ -11,6 +11,7 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
@@ -114,66 +115,66 @@ var _ = Describe("[performance] Latency Test", func() {
 		maximumLatency = -1
 	})
 
-	Context("with the oslat image", func() {
+	DescribeTable("with the oslat image", func(expectToPass bool) {
+
 		testName := oslatTestName
 
-		BeforeEach(func() {
-			err := setMaximumLatencyValue(testName)
+		err := setMaximumLatencyValue(testName)
+		Expect(err).ToNot(HaveOccurred())
+
+		if profile.Spec.CPU.Isolated == nil {
+			Skip(fmt.Sprintf("Skip the oslat test, the profile %q does not have isolated CPUs", profile.Name))
+		}
+
+		isolatedCpus := cpuset.MustParse(string(*profile.Spec.CPU.Isolated))
+		// we require at least two CPUs to run oslat test, because one CPU should be used to run the main oslat thread
+		// we can not use all isolated CPUs, because if reserved and isolated include all node CPUs, and reserved CPUs
+		// do not calculated into the Allocated, at least part of time of one of isolated CPUs will be used to run
+		// other node containers
+		// at least two isolated CPUs to run oslat + one isolated CPU used by other containers on the node = at least 3 isolated CPUs
+		if isolatedCpus.Size() < 3 {
+			Skip(fmt.Sprintf("Skip the oslat test, the profile %q has less than two isolated CPUs", profile.Name))
+		}
+
+		oslatArgs := []string{
+			fmt.Sprintf("-runtime=%s", latencyTestRuntime),
+		}
+		latencyTestPod = getLatencyTestPod(profile, workerRTNode, testName, oslatArgs)
+		createLatencyTestPod(latencyTestPod)
+
+		// verify the maximum latency only when it requested, because this value can be very different
+		// on different systems
+		if maximumLatency == -1 {
+			Skip("no maximum latency value provided, skip buckets latency check")
+		}
+
+		latencies := extractLatencyValues("oslat", `Maximum:\t*([\s\d]*)\(us\)`, workerRTNode)
+
+		// under the output of the oslat very often we have one anomaly high value, for example
+		// Maximum:    16543 15 15 14 13 12 12 13 12 12 12 12 12 12 12 12 12 (us)
+		// it still unclear if it oslat bug or the kernel one, but we definitely do not want to
+		// fail our test on it
+		var anomaly bool
+		for _, lat := range strings.Split(latencies, " ") {
+			if lat == "" {
+				continue
+			}
+
+			curr, err := strconv.Atoi(lat)
 			Expect(err).ToNot(HaveOccurred())
 
-			if profile.Spec.CPU.Isolated == nil {
-				Skip(fmt.Sprintf("Skip the oslat test, the profile %q does not have isolated CPUs", profile.Name))
+			// skip the anomaly value
+			if curr > maximumLatency && !anomaly {
+				anomaly = true
+				continue
 			}
 
-			isolatedCpus := cpuset.MustParse(string(*profile.Spec.CPU.Isolated))
-			// we require at least two CPUs to run oslat test, because one CPU should be used to run the main oslat thread
-			// we can not use all isolated CPUs, because if reserved and isolated include all node CPUs, and reserved CPUs
-			// do not calculated into the Allocated, at least part of time of one of isolated CPUs will be used to run
-			// other node containers
-			// at least two isolated CPUs to run oslat + one isolated CPU used by other containers on the node = at least 3 isolated CPUs
-			if isolatedCpus.Size() < 3 {
-				Skip(fmt.Sprintf("Skip the oslat test, the profile %q has less than two isolated CPUs", profile.Name))
-			}
-		})
-
-		It("should succeed", func() {
-			oslatArgs := []string{
-				fmt.Sprintf("-runtime=%s", latencyTestRuntime),
-			}
-			latencyTestPod = getLatencyTestPod(profile, workerRTNode, testName, oslatArgs)
-			createLatencyTestPod(latencyTestPod)
-
-			// verify the maximum latency only when it requested, because this value can be very different
-			// on different systems
-			if maximumLatency == -1 {
-				Skip("no maximum latency value provided, skip buckets latency check")
-			}
-
-			latencies := extractLatencyValues("oslat", `Maximum:\t*([\s\d]*)\(us\)`, workerRTNode)
-
-			// under the output of the oslat very often we have one anomaly high value, for example
-			// Maximum:    16543 15 15 14 13 12 12 13 12 12 12 12 12 12 12 12 12 (us)
-			// it still unclear if it oslat bug or the kernel one, but we definitely do not want to
-			// fail our test on it
-			var anomaly bool
-			for _, lat := range strings.Split(latencies, " ") {
-				if lat == "" {
-					continue
-				}
-
-				curr, err := strconv.Atoi(lat)
-				Expect(err).ToNot(HaveOccurred())
-
-				// skip the anomaly value
-				if curr > maximumLatency && !anomaly {
-					anomaly = true
-					continue
-				}
-
-				Expect(curr < maximumLatency).To(BeTrue(), "The current latency %d is bigger than the expected one %d", curr, maximumLatency)
-			}
-		})
-	})
+			Expect(curr < maximumLatency).To(BeTrue(), "The current latency %d is bigger than the expected one %d", curr, maximumLatency)
+		}
+	},
+		Entry("Valid test case #1", 0, true, 10, 10, true),
+		Entry("Valid test case #2", 0, false, 10, 10, true),
+	)
 
 	Context("with the cyclictest image", func() {
 		testName := cyclictestTestName
@@ -244,6 +245,18 @@ var _ = Describe("[performance] Latency Test", func() {
 		})
 	})
 })
+
+/*
+DescribeTable("Test different scenarios",func(lat_test_delay int, lat_test_run bool, runtime string, max_latency int){
+		os.Setenv("LATENCY_TEST_DELAY",lat_test_delay)
+		os.Setenv("LATENCY_TEST_RUN",lat_test_run)
+		os.Setenv("LATENCY_TEST_RUNTIME",runtime)
+		os.Setenv("MAXIMUM_LATENCY",max_latency)
+		init()
+		fmt.Println(mainLatencyTest)
+	},
+	table.Entry("test #1",0,true,"10", "10"),
+)*/
 
 func getLatencyTestPod(profile *performancev2.PerformanceProfile, node *corev1.Node, testName string, testSpecificArgs []string) *corev1.Pod {
 	cpus := cpuset.MustParse(string(*profile.Spec.CPU.Isolated))
