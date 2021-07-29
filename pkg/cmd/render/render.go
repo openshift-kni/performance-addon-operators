@@ -21,12 +21,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/ghodss/yaml"
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/manifestset"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +39,7 @@ type renderOpts struct {
 	performanceProfileInputFiles performanceProfileFiles
 	assetsInDir                  string
 	assetsOutDir                 string
+	workloadPartitioningEnabled  bool
 }
 
 type performanceProfileFiles []string
@@ -89,13 +92,16 @@ func (r *renderOpts) AddFlags(fs *pflag.FlagSet) {
 	fs.Var(&r.performanceProfileInputFiles, "performance-profile-input-files", "A comma-separated list of performance-profile manifests.")
 	fs.StringVar(&r.assetsInDir, "asset-input-dir", components.AssetsDir, "Input path for the assets directory.")
 	fs.StringVar(&r.assetsOutDir, "asset-output-dir", r.assetsOutDir, "Output path for the rendered manifests.")
+	fs.BoolVar(&r.workloadPartitioningEnabled, "enable-workload-partitioning", false, "Generates the necessary configuration for the management partition to work properly.")
 	// environment variables has precedence over standard input
 	r.readFlagsFromEnv()
 }
 
 func (r *renderOpts) readFlagsFromEnv() {
 	if ppInFiles := os.Getenv("PERFORMANCE_PROFILE_INPUT_FILES"); len(ppInFiles) > 0 {
-		r.performanceProfileInputFiles.Set(ppInFiles)
+		if err := r.performanceProfileInputFiles.Set(ppInFiles); err != nil {
+			klog.Fatal(err)
+		}
 	}
 
 	if assetInDir := os.Getenv("ASSET_INPUT_DIR"); len(assetInDir) > 0 {
@@ -104,6 +110,14 @@ func (r *renderOpts) readFlagsFromEnv() {
 
 	if assetsOutDir := os.Getenv("ASSET_OUTPUT_DIR"); len(assetsOutDir) > 0 {
 		r.assetsOutDir = assetsOutDir
+	}
+
+	if workloadPartitioningEnabled := os.Getenv("ENABLE_WORKLOAD_PARTITIONING"); len(workloadPartitioningEnabled) > 0 {
+		v, err := strconv.ParseBool(workloadPartitioningEnabled)
+		if err != nil {
+			klog.Fatal(fmt.Errorf("err:%v; ENABLE_WORKLOAD_PARTITIONING should be either true or false", err))
+		}
+		r.workloadPartitioningEnabled = v
 	}
 }
 
@@ -132,7 +146,12 @@ func (r *renderOpts) Run() error {
 			return err
 		}
 
-		components, err := manifestset.GetNewComponents(profile, nil, &r.assetsInDir)
+		profileInfo := &pinfo.PerformanceProfileInfo{
+			PerformanceProfile:       *profile,
+			WorkloadPartitionEnabled: r.workloadPartitioningEnabled,
+		}
+
+		newComp, err := manifestset.GetNewComponents(profileInfo, nil, &r.assetsInDir)
 		if err != nil {
 			return err
 		}
@@ -143,11 +162,11 @@ func (r *renderOpts) Run() error {
 			},
 		}
 
-		for _, componentObj := range components.ToObjects() {
+		for _, componentObj := range newComp.ToObjects() {
 			componentObj.SetOwnerReferences(or)
 		}
 
-		for kind, manifest := range components.ToManifestTable() {
+		for kind, manifest := range newComp.ToManifestTable() {
 			b, err := yaml.Marshal(manifest)
 			if err != nil {
 				return err

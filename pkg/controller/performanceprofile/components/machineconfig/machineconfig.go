@@ -43,11 +43,14 @@ const (
 	// OCIHooksConfigDir is the default directory for the OCI hooks
 	OCIHooksConfigDir = "/etc/containers/oci/hooks.d"
 	// OCIHooksConfig file contains the low latency hooks configuration
-	OCIHooksConfig     = "99-low-latency-hooks"
-	ociTemplateRPSMask = "RPSMask"
-	udevRulesDir       = "/etc/udev/rules.d"
-	udevRpsRule        = "99-netdev-rps"
-	setRPSMask         = "set-rps-mask"
+	OCIHooksConfig           = "99-low-latency-hooks"
+	ociTemplateRPSMask       = "RPSMask"
+	udevRulesDir             = "/etc/udev/rules.d"
+	udevRpsRule              = "99-netdev-rps"
+	setRPSMask               = "set-rps-mask"
+	crioWorkloadMngConfig    = "01-workload-partitioning.conf"
+	workloadPinningConfigDir = "/etc/kubernetes"
+	workloadPinningConfig    = "openshift-workload-pinning"
 )
 
 const (
@@ -158,6 +161,39 @@ func getIgnitionConfig(assetsDir string, profile *pinfo.PerformanceProfileInfo) 
 		&crioConfdRuntimesMode,
 	); err != nil {
 		return nil, err
+	}
+
+	// add crio config snippet under the node /etc/crio/crio.conf.d/ directory and workload partition file under /etc/kubernetes
+	if profile.WorkloadPartitionEnabled && profile.Spec.CPU.Reserved != nil {
+		crioConfWorkloadMngPartitionMode := 0644
+		crioConfWorkloadMngPartitionContent, err := addCrioConfigSnippet(&profile.PerformanceProfile, filepath.Join(assetsDir, "configs", crioWorkloadMngConfig))
+		if err != nil {
+			return nil, err
+		}
+
+		if err := addContent(
+			ignitionConfig,
+			crioConfWorkloadMngPartitionContent,
+			filepath.Join(crioConfd, crioWorkloadMngConfig),
+			&crioConfWorkloadMngPartitionMode,
+		); err != nil {
+			return nil, err
+		}
+
+		workloadPinningMode := 0644
+		config := fmt.Sprintf("%s.json", workloadPinningConfig)
+		workloadPinningContent, err := addCrioConfigSnippet(&profile.PerformanceProfile, filepath.Join(assetsDir, "configs", config))
+		if err != nil {
+			return nil, err
+		}
+		if err := addContent(
+			ignitionConfig,
+			workloadPinningContent,
+			filepath.Join(workloadPinningConfigDir, config),
+			&workloadPinningMode,
+		); err != nil {
+			return nil, err
+		}
 	}
 
 	// add crio hooks config  under the node cri-o hook directory
