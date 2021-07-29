@@ -14,6 +14,7 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	profilecomponent "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,8 +81,8 @@ const (
 )
 
 // New returns new machine configuration object for performance sensitive workloads
-func New(assetsDir string, profile *performancev2.PerformanceProfile) (*machineconfigv1.MachineConfig, error) {
-	name := GetMachineConfigName(profile)
+func New(assetsDir string, profileInfo *pinfo.PerformanceProfileInfo) (*machineconfigv1.MachineConfig, error) {
+	name := GetMachineConfigName(&profileInfo.PerformanceProfile)
 	mc := &machineconfigv1.MachineConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: machineconfigv1.GroupVersion.String(),
@@ -89,12 +90,12 @@ func New(assetsDir string, profile *performancev2.PerformanceProfile) (*machinec
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: profilecomponent.GetMachineConfigLabel(profile),
+			Labels: profilecomponent.GetMachineConfigLabel(&profileInfo.PerformanceProfile),
 		},
 		Spec: machineconfigv1.MachineConfigSpec{},
 	}
 
-	ignitionConfig, err := getIgnitionConfig(assetsDir, profile)
+	ignitionConfig, err := getIgnitionConfig(assetsDir, profileInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -105,9 +106,9 @@ func New(assetsDir string, profile *performancev2.PerformanceProfile) (*machinec
 	}
 	mc.Spec.Config = runtime.RawExtension{Raw: rawIgnition}
 
-	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
-		profile.Spec.RealTimeKernel.Enabled != nil &&
-		*profile.Spec.RealTimeKernel.Enabled
+	enableRTKernel := profileInfo.Spec.RealTimeKernel != nil &&
+		profileInfo.Spec.RealTimeKernel.Enabled != nil &&
+		*profileInfo.Spec.RealTimeKernel.Enabled
 
 	if enableRTKernel {
 		mc.Spec.KernelType = MCKernelRT
@@ -124,7 +125,7 @@ func GetMachineConfigName(profile *performancev2.PerformanceProfile) string {
 	return fmt.Sprintf("50-%s", name)
 }
 
-func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfile) (*igntypes.Config, error) {
+func getIgnitionConfig(assetsDir string, profile *pinfo.PerformanceProfileInfo) (*igntypes.Config, error) {
 	ignitionConfig := &igntypes.Config{
 		Ignition: igntypes.Ignition{
 			Version: defaultIgnitionVersion,
@@ -145,7 +146,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 
 	// add crio config snippet under the node /etc/crio/crio.conf.d/ directory
 	crioConfdRuntimesMode := 0644
-	crioConfigSnippetContent, err := addCrioConfigSnippet(profile, filepath.Join(assetsDir, "configs", crioRuntimesConfig))
+	crioConfigSnippetContent, err := addCrioConfigSnippet(&profile.PerformanceProfile, filepath.Join(assetsDir, "configs", crioRuntimesConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +163,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 	// add crio hooks config  under the node cri-o hook directory
 	crioHooksConfigsMode := 0644
 	config := fmt.Sprintf("%s.json", OCIHooksConfig)
-	ociHooksConfigContent, err := GetOCIHooksConfigContent(filepath.Join(assetsDir, "configs", config), profile)
+	ociHooksConfigContent, err := GetOCIHooksConfigContent(filepath.Join(assetsDir, "configs", config), &profile.PerformanceProfile)
 	if err != nil {
 		return nil, err
 	}

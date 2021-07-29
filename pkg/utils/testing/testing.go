@@ -2,6 +2,7 @@ package testing
 
 import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,4 +98,12 @@ func NewProfileMCP() *mcov1.MachineConfigPool {
 			},
 		},
 	}
+}
+
+// NewPerformanceProfileInfo returns new PerformanceProfileInfo used for testing
+func NewPerformanceProfileInfo(name string) *pinfo.PerformanceProfileInfo {
+	return &pinfo.PerformanceProfileInfo{
+		PerformanceProfile: *NewPerformanceProfile(name),
+	}
+
 }

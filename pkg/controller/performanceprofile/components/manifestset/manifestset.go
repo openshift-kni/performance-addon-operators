@@ -1,10 +1,10 @@
 package manifestset
 
 import (
-	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
 	profilecomponent "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
@@ -49,25 +49,25 @@ func (ms *ManifestResultSet) ToManifestTable() ManifestTable {
 }
 
 // GetNewComponents return a list of all component's instances that should be created according to profile
-func GetNewComponents(profile *performancev2.PerformanceProfile, profileMCP *mcov1.MachineConfigPool, assetDir *string) (*ManifestResultSet, error) {
-	machineConfigPoolSelector := profilecomponent.GetMachineConfigPoolSelector(profile, profileMCP)
+func GetNewComponents(profileInfo *pinfo.PerformanceProfileInfo, profileMCP *mcov1.MachineConfigPool, assetDir *string) (*ManifestResultSet, error) {
+	machineConfigPoolSelector := profilecomponent.GetMachineConfigPoolSelector(&profileInfo.PerformanceProfile, profileMCP)
 
-	mc, err := machineconfig.New(*assetDir, profile)
+	mc, err := machineconfig.New(*assetDir, profileInfo)
 	if err != nil {
 		return nil, err
 	}
 
-	kc, err := kubeletconfig.New(profile, machineConfigPoolSelector)
+	kc, err := kubeletconfig.New(&profileInfo.PerformanceProfile, machineConfigPoolSelector)
 	if err != nil {
 		return nil, err
 	}
 
-	performanceTuned, err := tuned.NewNodePerformance(*assetDir, profile)
+	performanceTuned, err := tuned.NewNodePerformance(*assetDir, &profileInfo.PerformanceProfile)
 	if err != nil {
 		return nil, err
 	}
 
-	runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
+	runtimeClass := runtimeclass.New(&profileInfo.PerformanceProfile, machineconfig.HighPerformanceRuntime)
 
 	manifestResultSet := ManifestResultSet{
 		MachineConfig: mc,

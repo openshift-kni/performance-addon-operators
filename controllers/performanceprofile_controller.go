@@ -27,6 +27,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/manifestset"
 	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
@@ -342,36 +343,41 @@ func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.Pe
 		return nil, nil
 	}
 
-	components, err := manifestset.GetNewComponents(profile, profileMCP, &r.AssetsDir)
+	profileInfo := &pinfo.PerformanceProfileInfo{
+		PerformanceProfile:       *profile,
+		WorkloadPartitionEnabled: false,
+	}
+
+	newComp, err := manifestset.GetNewComponents(profileInfo, profileMCP, &r.AssetsDir)
 	if err != nil {
 		return nil, err
 	}
-	for _, componentObj := range components.ToObjects() {
+	for _, componentObj := range newComp.ToObjects() {
 		if err := controllerutil.SetControllerReference(profile, componentObj, r.Scheme); err != nil {
 			return nil, err
 		}
 	}
 
 	// get mutated machine config
-	mcMutated, err := r.getMutatedMachineConfig(components.MachineConfig)
+	mcMutated, err := r.getMutatedMachineConfig(newComp.MachineConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// get mutated kubelet config
-	kcMutated, err := r.getMutatedKubeletConfig(components.KubeletConfig)
+	kcMutated, err := r.getMutatedKubeletConfig(newComp.KubeletConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// get mutated performance tuned
-	performanceTunedMutated, err := r.getMutatedTuned(components.Tuned)
+	performanceTunedMutated, err := r.getMutatedTuned(newComp.Tuned)
 	if err != nil {
 		return nil, err
 	}
 
 	// get mutated RuntimeClass
-	runtimeClassMutated, err := r.getMutatedRuntimeClass(components.RuntimeClass)
+	runtimeClassMutated, err := r.getMutatedRuntimeClass(newComp.RuntimeClass)
 	if err != nil {
 		return nil, err
 	}

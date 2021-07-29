@@ -16,6 +16,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
+	pinfo "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profileinfo"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/runtimeclass"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/tuned"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
@@ -333,8 +334,9 @@ var _ = Describe("Controller", func() {
 
 			BeforeEach(func() {
 				var err error
-
-				mc, err = machineconfig.New(assetsDir, profile)
+				profileInfo := &pinfo.PerformanceProfileInfo{}
+				profileInfo.PerformanceProfile = *profile
+				mc, err = machineconfig.New(assetsDir, profileInfo)
 				Expect(err).ToNot(HaveOccurred())
 
 				mcpSelectorKey, mcpSelectorValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
@@ -782,7 +784,9 @@ var _ = Describe("Controller", func() {
 		})
 
 		It("should remove all components and remove the finalizer on first reconcile loop", func() {
-			mc, err := machineconfig.New(assetsDir, profile)
+			profileInfo := &pinfo.PerformanceProfileInfo{}
+			profileInfo.PerformanceProfile = *profile
+			mc, err := machineconfig.New(assetsDir, profileInfo)
 			Expect(err).ToNot(HaveOccurred())
 
 			mcpSelectorKey, mcpSelectorValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
