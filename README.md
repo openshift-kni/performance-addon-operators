@@ -127,10 +127,10 @@ deployed Performance Operator and configured MCP and nodes. It will create its o
 The latency-test container image gives the possibility to run the latency 
 test without need to install go, ginkgo or other go related modules.
 
-The test himself is running the `oslat` binary and verifies if the maximal latency returned by the `oslat`
+The test itself is running the `oslat` binary and verifies if the maximal latency returned by the `oslat`
 less than specified value under the `OSLAT_MAXIMUM_LATENCY`.
 
-To run the latency test inside of the container:
+To run the latency test inside the container:
 
 ```
 docker run --rm -v /kubeconfig:/kubeconfig -e KUBECONFIG=/kubeconfig -e LATENCY_TEST_RUN=true -e LATENCY_TEST_RUNTIME=60 -e OSLAT_MAXIMUM_LATENCY=700 alukiano/latency-test:4.6-snapshot /usr/bin/run-tests.sh
@@ -144,6 +144,7 @@ You can run the container with different ENV variables, but the bare minimum is 
 - `LATENCY_TEST_RUN` indicates if the latency test should run.
 - `LATENCY_TEST_RUNTIME` the amount of time in seconds that the latency test should run.
 - `LATENCY_TEST_IMAGE` the image that used under the latency test.
+- `LATECNY_TEST_CPUS` the amount of CPUs the pod which run the latency test should request
 - `OSLAT_MAXIMUM_LATENCY` the expected maximum latency for all buckets in us.
 
 # Contributing
