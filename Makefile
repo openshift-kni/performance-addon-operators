@@ -107,6 +107,10 @@ dist-docs-generator: build-output-dir
 dist-functests:
 	./hack/build-test-bin.sh
 
+.PHONY: dist-latency-tests
+dist-latency-tests:
+	./hack/build-latency-test-bin.sh
+
 .PHONY: new-zversion
 new-zversion: bump-zversion generate
 
