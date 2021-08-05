@@ -40,6 +40,7 @@ const (
 	defaultTestRuntime  = "300"
 	defaultMaxLatency   = -1
 	defaultTestCpus     = -1
+	MAX_INT =2147483647
 )
 
 var (
@@ -75,7 +76,8 @@ var _ = Describe("[performance] Latency Test", func() {
 		latencyTestCpus, err = getLatencyTestCpus()
 		Expect(err).ToNot(HaveOccurred())
 
-		latencyTestRuntime = getLatencyTestRuntime()
+		latencyTestRuntime, err = getLatencyTestRuntime()
+		Expect(err).ToNot(HaveOccurred())
 
 		if !latencyTestRun {
 			Skip("Skip the latency test, the LATENCY_TEST_RUN set to false")
@@ -249,22 +251,36 @@ var _ = Describe("[performance] Latency Test", func() {
 
 func getLatencyTestRun() (bool, error) {
 	if latencyTestRunEnv, ok := os.LookupEnv("LATENCY_TEST_RUN"); ok {
-		return strconv.ParseBool(latencyTestRunEnv)
+		if val, err := strconv.ParseBool(latencyTestRunEnv); err != nil {
+			return val, fmt.Errorf("the environment variable LATENCY_TEST_RUN has incorrect value %q: %w", latencyTestRunEnv, err)
+		} else {
+			return val, nil
+		}
 	}
 	return defaultTestRun, nil
 }
 
-func getLatencyTestRuntime() string {
+func getLatencyTestRuntime() (string, error) {
 	if latencyTestRuntimeEnv, ok := os.LookupEnv("LATENCY_TEST_RUNTIME"); ok {
-		return latencyTestRuntimeEnv
+		if val, err := strconv.Atoi(latencyTestRuntimeEnv); err != nil || val < 1 {
+			if err == nil {
+				return "", fmt.Errorf("the environment variable LATENCY_TEST_RUNTIME has a nonpositive value %q, it must be a positive integer with maximum value of %d",latencyTestRuntimeEnv,MAX_INT)
+			}
+			return latencyTestRuntimeEnv, fmt.Errorf("the environment variable LATENCY_TEST_RUNTIME has incorrect value %q, it must be a positive integer with maximum value of %d", latencyTestRuntimeEnv, MAX_INT)
+		} else {
+			return latencyTestRuntimeEnv, nil
+		}
 	}
-	return defaultTestRuntime
+	return defaultTestRuntime, nil
 }
 
 func getLatencyTestDelay() (int, error) {
 	if latencyTestDelayEnv, ok := os.LookupEnv("LATENCY_TEST_DELAY"); ok {
-		if val, err := strconv.Atoi(latencyTestDelayEnv); err != nil {
-			return val, fmt.Errorf("the environment variable LATENCY_TEST_DELAY has incorrect value %q: %w", latencyTestDelayEnv, err)
+		if val, err := strconv.Atoi(latencyTestDelayEnv); err != nil || val < 0 {
+			if err == nil {
+				return val, fmt.Errorf("the environment variable LATENCY_TEST_DELAY has a negative value %q, it must be a non-negative integer with maximum value of %d",latencyTestDelayEnv,MAX_INT )
+			}
+			return val, fmt.Errorf("the environment variable LATENCY_TEST_DELAY has incorrect value %q, it must be a non-negative integer with maximum value of %d: %w", latencyTestDelayEnv, MAX_INT, err)
 		} else {
 			return val, nil
 		}
@@ -274,8 +290,11 @@ func getLatencyTestDelay() (int, error) {
 
 func getLatencyTestCpus() (int, error) {
 	if latencyTestCpusEnv, ok := os.LookupEnv("LATENCY_TEST_CPUS"); ok {
-		if val, err := strconv.Atoi(latencyTestCpusEnv); err != nil {
-			return val, fmt.Errorf("the environment variable LATENCY_TEST_CPUS has incorrect value %q: %w", latencyTestCpusEnv, err)
+		if val, err := strconv.Atoi(latencyTestCpusEnv); err != nil || val < 1 {
+			if err == nil {
+				return val, fmt.Errorf("the environment variable LATENCY_TEST_CPUS has a nonpositive value %q, it must be a positive integer with maximum value of %d",latencyTestCpusEnv, MAX_INT)
+			}
+			return val, fmt.Errorf("the environment variable LATENCY_TEST_CPUS has incorrect value %q, it must be a positive integer with maximum value of %d: %w", latencyTestCpusEnv,MAX_INT, err)
 		} else {
 			return val, nil
 		}
@@ -292,17 +311,22 @@ func getMaximumLatency(testName string) (int, error) {
 	var err error
 	val := defaultMaxLatency
 	if unifiedMaxLatencyEnv, ok := os.LookupEnv("MAXIMUM_LATENCY"); ok {
-		if val, err = strconv.Atoi(unifiedMaxLatencyEnv); err != nil {
-			err = fmt.Errorf("the environment variable MAXIMUM_LATENCY has incorrect value %q: %w", unifiedMaxLatencyEnv, err)
-			return val, err
+		if val, err = strconv.Atoi(unifiedMaxLatencyEnv); err != nil || val < 0 {
+			if err == nil {
+				return val, fmt.Errorf("the environment variable MAXIMUM_LATENCY has a negative value %q, it must be a non-negative integer with maximum value of %d",unifiedMaxLatencyEnv, MAX_INT)
+			}
+			return val, fmt.Errorf("the environment variable MAXIMUM_LATENCY has incorrect value %q, it must be a non-negative integer with maximum value of %d: %w", unifiedMaxLatencyEnv, MAX_INT,err)
 		}
 	}
 
 	// specific values will have precedence over the general one
 	envVariableName := fmt.Sprintf("%s_MAXIMUM_LATENCY", strings.ToUpper(testName))
 	if maximumLatencyEnv, ok := os.LookupEnv(envVariableName); ok {
-		if val, err = strconv.Atoi(maximumLatencyEnv); err != nil {
-			err = fmt.Errorf("the environment variable %q has incorrect value %q: %w", envVariableName, maximumLatencyEnv, err)
+		if val, err = strconv.Atoi(maximumLatencyEnv); err != nil || val < 0 {
+			if err == nil {
+				err = fmt.Errorf("the environment variable %q has a negative value %q, it must be a non-negative integer with maximum value of %d",envVariableName,maximumLatencyEnv,MAX_INT)
+			}
+			err = fmt.Errorf("the environment variable %q has incorrect value %q, it must be a non-negative integer with maximum value of %d: %w", envVariableName, maximumLatencyEnv,MAX_INT, err)
 		}
 	}
 	return val, err
