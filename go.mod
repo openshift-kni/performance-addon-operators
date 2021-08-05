@@ -30,7 +30,7 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
-	go.mongodb.org/mongo-driver v1.3.2 // indirect
+	go.mongodb.org/mongo-driver v1.5.1 // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	k8s.io/api v0.21.2
 	k8s.io/apiextensions-apiserver v0.21.2
