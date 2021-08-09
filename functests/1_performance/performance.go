@@ -132,7 +132,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		It("[test_id:37127] Node should point to right tuned profile", func() {
 			for _, node := range workerRTNodes {
 				tuned := nodes.TunedForNode(&node, RunningOnSingleNode)
-				activeProfile, err := pods.ExecCommandOnPod(testclient.K8sClient, tuned, []string{"cat", "/etc/tuned/active_profile"})
+				activeProfile, err := pods.WaitForPodOutput(testclient.K8sClient, tuned, []string{"cat", "/etc/tuned/active_profile"})
 				Expect(err).ToNot(HaveOccurred(), "Error getting the tuned active profile")
 				activeProfileName := string(activeProfile)
 				Expect(strings.TrimSpace(activeProfileName)).To(Equal(tunedExpectedName), "active profile name mismatch got %q expected %q", activeProfileName, tunedExpectedName)
@@ -216,7 +216,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		It("[test_id:35363][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running on the host", func() {
 			for _, node := range workerRTNodes {
 				tuned := nodes.TunedForNode(&node, RunningOnSingleNode)
-				_, err := pods.ExecCommandOnPod(testclient.K8sClient, tuned, []string{"pidof", "stalld"})
+				_, err := pods.WaitForPodOutput(testclient.K8sClient, tuned, []string{"pidof", "stalld"})
 				Expect(err).ToNot(HaveOccurred())
 			}
 		})
@@ -362,7 +362,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 				for _, pod := range nodePods.Items {
 					cmd := []string{"find", "/sys/devices", "-type", "f", "-name", "rps_cpus", "-exec", "cat", "{}", ";"}
-					devsRPS, err := pods.ExecCommandOnPod(testclient.K8sClient, &pod, cmd)
+					devsRPS, err := pods.WaitForPodOutput(testclient.K8sClient, &pod, cmd)
 					for _, devRPS := range strings.Split(strings.Trim(string(devsRPS), "\n"), "\n") {
 						rpsCPUs, err = components.CPUMaskToCPUSet(devRPS)
 						Expect(err).ToNot(HaveOccurred())
@@ -1168,7 +1168,7 @@ func validateTunedActiveProfile(wrknodes []corev1.Node) {
 		tunedName := tuned.ObjectMeta.Name
 		By(fmt.Sprintf("executing the command cat /etc/tuned/active_profile inside the pod %s", tunedName))
 		Eventually(func() string {
-			out, err = pods.ExecCommandOnPod(testclient.K8sClient, tuned, []string{"cat", "/etc/tuned/active_profile"})
+			out, err = pods.WaitForPodOutput(testclient.K8sClient, tuned, []string{"cat", "/etc/tuned/active_profile"})
 			return strings.TrimSpace(string(out))
 		}, cluster.ComputeTestTimeout(testTimeout*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(Equal(activeProfileName),
 			fmt.Sprintf("active_profile is not set to %s. %v", activeProfileName, err))
