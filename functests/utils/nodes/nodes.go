@@ -111,7 +111,7 @@ func ExecCommandOnMachineConfigDaemon(node *corev1.Node, command []string) ([]by
 	}
 	testlog.Infof("found mcd %s for node %s", mcd.Name, node.Name)
 
-	return testpods.ExecCommandOnPod(testclient.K8sClient, mcd, command)
+	return testpods.WaitForPodOutput(testclient.K8sClient, mcd, command)
 }
 
 // ExecCommandOnNode executes given command on given node and returns the result

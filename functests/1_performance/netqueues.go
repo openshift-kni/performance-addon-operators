@@ -108,7 +108,7 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			tunedCmd := []string{"tuned-adm", "profile_info", "openshift-node-performance-performance"}
 			for _, node := range workerRTNodes {
 				tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
-				_, err := pods.ExecCommandOnPod(testclient.K8sClient, tunedPod, tunedCmd)
+				_, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
 				Expect(err).ToNot(HaveOccurred())
 			}
 			for _, sizes := range devices {
@@ -157,7 +157,7 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 
 			for _, node := range workerRTNodes {
 				tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
-				out, err := pods.ExecCommandOnPod(testclient.K8sClient, tunedPod, tunedCmd)
+				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
 				deviceExists := strings.ContainsAny(string(out), device)
 				Expect(deviceExists).To(BeTrue())
 				Expect(err).ToNot(HaveOccurred())
@@ -208,7 +208,7 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 
 			for _, node := range workerRTNodes {
 				tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
-				out, err := pods.ExecCommandOnPod(testclient.K8sClient, tunedPod, tunedCmd)
+				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
 				deviceExists := strings.ContainsAny(string(out), device)
 				Expect(deviceExists).To(BeTrue())
 				Expect(err).ToNot(HaveOccurred())
@@ -264,7 +264,7 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 				fmt.Sprintf("cat /etc/tuned/openshift-node-performance-performance/tuned.conf | grep devices_udev_regex")}
 			for _, node := range workerRTNodes {
 				tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
-				out, err := pods.ExecCommandOnPod(testclient.K8sClient, tunedPod, tunedCmd)
+				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
 				deviceExists := strings.ContainsAny(string(out), device)
 				Expect(deviceExists).To(BeTrue())
 				Expect(err).ToNot(HaveOccurred())
@@ -290,17 +290,17 @@ func checkDeviceSupport(workernodes []corev1.Node, devices map[string][]int) err
 	var err error
 	for _, node := range workernodes {
 		tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
-		phyDevs, err := pods.ExecCommandOnPod(testclient.K8sClient, tunedPod, cmdGetPhysicalDevices)
+		phyDevs, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, cmdGetPhysicalDevices)
 		Expect(err).ToNot(HaveOccurred())
 		for _, d := range strings.Split(string(phyDevs), " ") {
 			if d == "" {
 				continue
 			}
-			_, err := pods.ExecCommandOnPod(testclient.K8sClient, tunedPod, []string{"ethtool", "-l", d})
+			_, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, []string{"ethtool", "-l", d})
 			if err == nil {
 				cmdCombinedChannelsCurrent := []string{"bash", "-c",
 					fmt.Sprintf("ethtool -l %s | sed -n '/Current hardware settings:/,/Combined:/{s/^Combined:\\s*//p}'", d)}
-				out, err := pods.ExecCommandOnPod(testclient.K8sClient, tunedPod, cmdCombinedChannelsCurrent)
+				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, cmdCombinedChannelsCurrent)
 				if strings.Contains(string(out), "n/a") {
 					fmt.Printf("Device %s doesn't support multiple queues\n", d)
 				} else {
