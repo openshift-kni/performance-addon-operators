@@ -183,7 +183,10 @@ var _ = Describe("[performance] Latency Test", func() {
 		})
 
 		It("should succeed", func() {
-			latencyTestPod = getLatencyTestPod(profile, workerRTNode, testName, []string{})
+			cyclictestArgs := []string{
+				fmt.Sprintf("-duration=%s", latencyTestRuntime),
+			}
+			latencyTestPod = getLatencyTestPod(profile, workerRTNode, testName, cyclictestArgs)
 			createLatencyTestPod(latencyTestPod)
 
 			// verify the maximum latency only when it requested, because this value can be very different
@@ -225,6 +228,7 @@ var _ = Describe("[performance] Latency Test", func() {
 
 			hwlatdetectArgs := []string{
 				fmt.Sprintf("-hardlimit=%d", hardLimit),
+				fmt.Sprintf("-duration=%s", latencyTestRuntime),
 			}
 
 			// set the maximum latency for the test if needed
