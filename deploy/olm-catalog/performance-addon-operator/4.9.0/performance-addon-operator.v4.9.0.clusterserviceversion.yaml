@@ -109,7 +109,7 @@ metadata:
               ]
             },
             "nodeSelector": {
-              "node-role.kubernetes.io/performance": ""
+              "node-role.kubernetes.io/performance": "test"
             },
             "realTimeKernel": {
               "enabled": true
