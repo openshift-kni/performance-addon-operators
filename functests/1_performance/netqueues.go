@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/ginkgo"
@@ -28,31 +29,31 @@ import (
 
 var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 	var workerRTNodes []corev1.Node
-	var err error
-	var net bool = true
 	var profile, initialProfile *performancev2.PerformanceProfile
-	workerRTNodes, err = nodes.GetByLabels(testutils.NodeSelectorLabels)
-	Expect(err).ToNot(HaveOccurred())
-	workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
-	Expect(err).ToNot(HaveOccurred())
-	nodeLabel := testutils.NodeSelectorLabels
-	profile, err = profiles.GetByNodeLabels(nodeLabel)
-	Expect(err).ToNot(HaveOccurred())
+
 	testutils.BeforeAll(func() {
 		isSNO, err := cluster.IsSingleNode()
 		Expect(err).ToNot(HaveOccurred())
 		RunningOnSingleNode = isSNO
+
+		workerRTNodes, err = nodes.GetByLabels(testutils.NodeSelectorLabels)
+		Expect(err).ToNot(HaveOccurred())
+
+		workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
+		Expect(err).ToNot(HaveOccurred())
+
+		profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
+		Expect(err).ToNot(HaveOccurred())
+
 		By("Backing up the profile")
 		initialProfile = profile.DeepCopy()
 	})
 
 	BeforeEach(func() {
-		profile, err = profiles.GetByNodeLabels(nodeLabel)
-		Expect(err).ToNot(HaveOccurred())
 		if profile.Spec.Net == nil {
 			By("Enable UserLevelNetworking in Profile")
 			profile.Spec.Net = &performancev2.Net{
-				UserLevelNetworking: &net,
+				UserLevelNetworking: pointer.Bool(true),
 			}
 			By("Updating the performance profile")
 			profiles.UpdateWithRetry(profile)
@@ -135,7 +136,7 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
 				By("Enable UserLevelNetworking and add Devices in Profile")
 				profile.Spec.Net = &performancev2.Net{
-					UserLevelNetworking: &net,
+					UserLevelNetworking: pointer.Bool(true),
 					Devices: []performancev2.Device{
 						{
 							InterfaceName: &device,
@@ -188,7 +189,7 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
 				By("Enable UserLevelNetworking and add Devices in Profile")
 				profile.Spec.Net = &performancev2.Net{
-					UserLevelNetworking: &net,
+					UserLevelNetworking: pointer.Bool(true),
 					Devices: []performancev2.Device{
 						{
 							InterfaceName: &devicePattern,
@@ -241,7 +242,7 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
 				By("Enable UserLevelNetworking and add DeviceID, VendorID and Interface in Profile")
 				profile.Spec.Net = &performancev2.Net{
-					UserLevelNetworking: &net,
+					UserLevelNetworking: pointer.Bool(true),
 					Devices: []performancev2.Device{
 						{
 							InterfaceName: &device,
