@@ -18,7 +18,6 @@ import (
 	"k8s.io/api/node/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
@@ -131,7 +130,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 		It("[test_id:37127] Node should point to right tuned profile", func() {
 			for _, node := range workerRTNodes {
-				tuned := tunedForNode(&node)
+				tuned := nodes.TunedForNode(&node, RunningOnSingleNode)
 				activeProfile, err := pods.ExecCommandOnPod(tuned, []string{"cat", "/etc/tuned/active_profile"})
 				Expect(err).ToNot(HaveOccurred(), "Error getting the tuned active profile")
 				activeProfileName := string(activeProfile)
@@ -203,7 +202,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 		It("[test_id:35363][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running on the host", func() {
 			for _, node := range workerRTNodes {
-				tuned := tunedForNode(&node)
+				tuned := nodes.TunedForNode(&node, RunningOnSingleNode)
 				_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
 				Expect(err).ToNot(HaveOccurred())
 			}
@@ -380,57 +379,6 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object "+components.ProfileNamePerformance)
 			validateTunedActiveProfile(workerRTNodes)
 			execSysctlOnWorkers(workerRTNodes, sysctlMap)
-		})
-	})
-
-	Context("Network device queues adjusted by Tuned", func() {
-		It("[test_id:40308][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should be set to the profile's reserved CPUs count ", func() {
-			noDeviceFound := true
-			if profile.Spec.Net != nil {
-				reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
-				Expect(err).ToNot(HaveOccurred())
-				reserveCPUsCount := reservedSet.Size()
-				if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
-					By("To all non virtual network devices when no devices are specified under profile.Spec.Net.Devices")
-					for _, node := range workerRTNodes {
-
-						cmdGetPhysicalDevices := []string{"find", "/sys/class/net", "-type", "l", "-not", "-lname", "*virtual*", "-printf", "%f "}
-						By(fmt.Sprintf("getting a list of physical network devices: %v", cmdGetPhysicalDevices))
-						tuned := tunedForNode(&node)
-						phyDevs, err := pods.ExecCommandOnPod(tuned, cmdGetPhysicalDevices)
-						Expect(err).ToNot(HaveOccurred())
-
-						for _, d := range strings.Split(string(phyDevs), " ") {
-							if d == "" {
-								continue
-							}
-							// See if the device 'd' supports querying the channels.
-							_, err := pods.ExecCommandOnPod(tuned, []string{"ethtool", "-l", d})
-							if err == nil {
-								cmdCombinedChannelsCurrent := []string{"bash", "-c",
-									fmt.Sprintf("ethtool -l %s | sed -n '/Current hardware settings:/,/Combined:/{s/^Combined:\\s*//p}'", d)}
-
-								By(fmt.Sprintf("using physical network device %s for testing", d))
-								out, err := pods.ExecCommandOnPod(tuned, cmdCombinedChannelsCurrent)
-								Expect(err).NotTo(HaveOccurred())
-								channelCurrentCombined, err := strconv.Atoi(strings.TrimSpace(string(out)))
-								if err != nil {
-									testlog.Warningf(fmt.Sprintf("unable to retrieve current multi-purpose channels hardware settings for device %s on %s; skipping test: %v",
-										d, node.Name, err))
-								} else {
-									Expect(err).ToNot(HaveOccurred())
-									Expect(channelCurrentCombined).To(Equal(reserveCPUsCount), " Channel current combine count does not match the count of reserverd CPUs")
-								}
-								noDeviceFound = false
-							}
-						}
-
-						if noDeviceFound {
-							Skip(fmt.Sprintf("no network devices supporting querying channels found on node %s; skipping test", node.Name))
-						}
-					}
-				}
-			}
 		})
 	})
 
@@ -1141,7 +1089,7 @@ func execSysctlOnWorkers(workerNodes []corev1.Node, sysctlMap map[string]string)
 }
 
 // execute sysctl command inside container in a tuned pod
-func validateTunedActiveProfile(nodes []corev1.Node) {
+func validateTunedActiveProfile(wrknodes []corev1.Node) {
 	var err error
 	var out []byte
 	activeProfileName := components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance)
@@ -1160,8 +1108,8 @@ func validateTunedActiveProfile(nodes []corev1.Node) {
 		}
 	}
 
-	for _, node := range nodes {
-		tuned := tunedForNode(&node)
+	for _, node := range wrknodes {
+		tuned := nodes.TunedForNode(&node, RunningOnSingleNode)
 		tunedName := tuned.ObjectMeta.Name
 		By(fmt.Sprintf("executing the command cat /etc/tuned/active_profile inside the pod %s", tunedName))
 		Eventually(func() string {
@@ -1170,34 +1118,4 @@ func validateTunedActiveProfile(nodes []corev1.Node) {
 		}, cluster.ComputeTestTimeout(testTimeout*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(Equal(activeProfileName),
 			fmt.Sprintf("active_profile is not set to %s. %v", activeProfileName, err))
 	}
-}
-
-// find tuned pod for appropriate node
-func tunedForNode(node *corev1.Node) *corev1.Pod {
-	listOptions := &client.ListOptions{
-		Namespace:     components.NamespaceNodeTuningOperator,
-		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}),
-		LabelSelector: labels.SelectorFromSet(labels.Set{"openshift-app": "tuned"}),
-	}
-
-	tunedList := &corev1.PodList{}
-	Eventually(func() bool {
-		if err := testclient.Client.List(context.TODO(), tunedList, listOptions); err != nil {
-			return false
-		}
-
-		if len(tunedList.Items) == 0 {
-			return false
-		}
-		for _, s := range tunedList.Items[0].Status.ContainerStatuses {
-			if s.Ready == false {
-				return false
-			}
-		}
-		return true
-
-	}, cluster.ComputeTestTimeout(testTimeout*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(BeTrue(),
-		"there should be one tuned daemon per node")
-
-	return &tunedList.Items[0]
 }
