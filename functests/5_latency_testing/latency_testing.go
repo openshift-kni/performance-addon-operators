@@ -3,12 +3,14 @@ package __latency_testing
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
 )
 
 const (
@@ -28,26 +30,27 @@ const (
 	//invalid values error messages
 	unexpectedError = "Unexpected error"
 	//incorrect values error messages
-	incorrectMsgPart1              = "the environment variable "
-	incorrectMsgPart2              = " has incorrect value"
-	maxInt                         = "2147483647"
-	mustBePositiveInt              = ".*it must be a positive integer with maximum value of " + maxInt
-	mustBeNonNegativeInt           = ".*it must be a non-negative integer with maximum value of " + maxInt
-	incorrectCpuNumber             = incorrectMsgPart1 + latencyTestCpus + incorrectMsgPart2 + mustBePositiveInt
-	nonpositiveCpuNumber           = incorrectMsgPart1 + latencyTestCpus + " has a nonpositive value" + mustBePositiveInt
-	incorrectDelay                 = incorrectMsgPart1 + latencyTestDelay + incorrectMsgPart2 + mustBeNonNegativeInt
-	negativeDelay                  = incorrectMsgPart1 + latencyTestDelay + " has a negative value" + mustBeNonNegativeInt
-	incorrectMaxLatency            = incorrectMsgPart1 + maximumLatency + incorrectMsgPart2 + mustBeNonNegativeInt
-	negativeMaxLatency             = incorrectMsgPart1 + maximumLatency + " has a negative value" + mustBeNonNegativeInt
-	incorrectOslatMaxLatency       = incorrectMsgPart1 + "\"" + oslatMaxLatency + "\"" + incorrectMsgPart2 + mustBeNonNegativeInt
-	negativeOslatMaxLatency        = incorrectMsgPart1 + "\"" + oslatMaxLatency + "\" has a negative value" + mustBeNonNegativeInt
-	incorrectCyclictestMaxLatency  = incorrectMsgPart1 + "\"" + cyclictestMaxLatency + "\"" + incorrectMsgPart2 + mustBeNonNegativeInt
-	negativeCyclictestMaxLatency   = incorrectMsgPart1 + "\"" + cyclictestMaxLatency + "\" has a negative value" + mustBeNonNegativeInt
-	incorrectHwlatdetectMaxLatency = incorrectMsgPart1 + "\"" + hwlatdetecMaxLatency + "\"" + incorrectMsgPart2 + mustBeNonNegativeInt
-	negativeHwlatdetectMaxLatency  = incorrectMsgPart1 + "\"" + hwlatdetecMaxLatency + "\" has a negative value" + mustBeNonNegativeInt
-	incorrectTestRun               = incorrectMsgPart1 + latencyTestRun + incorrectMsgPart2
-	incorrectRuntime               = incorrectMsgPart1 + latencyTestRuntime + incorrectMsgPart2 + mustBePositiveInt
-	nonpositiveRuntime             = incorrectMsgPart1 + latencyTestRuntime + " has a nonpositive value" + mustBePositiveInt
+	incorrectMsgPart1                  = "the environment variable "
+	incorrectMsgPart2                  = " has incorrect value"
+	invalidNumber                      = " has an invalid number"
+	maxInt                             = "2147483647"
+	mustBePositiveInt                  = ".*it must be a positive integer with maximum value of " + maxInt
+	mustBeNonNegativeInt               = ".*it must be a non-negative integer with maximum value of " + maxInt
+	incorrectCpuNumber                 = incorrectMsgPart1 + latencyTestCpus + incorrectMsgPart2 + mustBePositiveInt
+	invalidCpuNumber                   = incorrectMsgPart1 + latencyTestCpus + invalidNumber + mustBePositiveInt
+	incorrectDelay                     = incorrectMsgPart1 + latencyTestDelay + incorrectMsgPart2 + mustBeNonNegativeInt
+	invalidNumberDelay                 = incorrectMsgPart1 + latencyTestDelay + invalidNumber + mustBeNonNegativeInt
+	incorrectMaxLatency                = incorrectMsgPart1 + maximumLatency + incorrectMsgPart2 + mustBeNonNegativeInt
+	invalidNumberMaxLatency            = incorrectMsgPart1 + maximumLatency + invalidNumber + mustBeNonNegativeInt
+	incorrectOslatMaxLatency           = incorrectMsgPart1 + "\"" + oslatMaxLatency + "\"" + incorrectMsgPart2 + mustBeNonNegativeInt
+	invalidNumberOslatMaxLatency       = incorrectMsgPart1 + "\"" + oslatMaxLatency + "\"" + invalidNumber + mustBeNonNegativeInt
+	incorrectCyclictestMaxLatency      = incorrectMsgPart1 + "\"" + cyclictestMaxLatency + "\"" + incorrectMsgPart2 + mustBeNonNegativeInt
+	invalidNumberCyclictestMaxLatency  = incorrectMsgPart1 + "\"" + cyclictestMaxLatency + "\"" + invalidNumber + mustBeNonNegativeInt
+	incorrectHwlatdetectMaxLatency     = incorrectMsgPart1 + "\"" + hwlatdetecMaxLatency + "\"" + incorrectMsgPart2 + mustBeNonNegativeInt
+	invalidNumberHwlatdetectMaxLatency = incorrectMsgPart1 + "\"" + hwlatdetecMaxLatency + "\"" + invalidNumber + mustBeNonNegativeInt
+	incorrectTestRun                   = incorrectMsgPart1 + latencyTestRun + incorrectMsgPart2
+	incorrectRuntime                   = incorrectMsgPart1 + latencyTestRuntime + incorrectMsgPart2 + mustBePositiveInt
+	invalidNumberRuntime               = incorrectMsgPart1 + latencyTestRuntime + invalidNumber + mustBePositiveInt
 	//success messages regex
 	success = `SUCCESS.*1 Passed.*0 Failed.*2 Skipped`
 	//failure messages regex
@@ -56,7 +59,7 @@ const (
 	//hwlatdetect fail message regex
 	hwlatdetectFail = `Samples exceeding threshold: [^0]`
 	//skip messages regex
-	skipTestRun    = `Skip the latency test, the latencyTestRun set to false`
+	skipTestRun    = `Skip the latency test, the LATENCY_TEST_RUN set to false`
 	skipMaxLatency = `no maximum latency value provided, skip buckets latency check`
 	skip           = `SUCCESS.*0 Passed.*0 Failed.*3 Skipped`
 
@@ -90,18 +93,22 @@ var _ = table.DescribeTable("Test latency measurement tools tests", func(testGro
 		}
 		output, err := exec.Command("../../build/_output/bin/latency-e2e.test", "-ginkgo.focus", test.toolToTest).Output()
 		if err != nil {
-			fmt.Println(err.Error())
+			//we don't fail the test here because the test might be a negative check
+			testlog.Info(err.Error())
 		}
-		//in any case we should not see "unexpected error" message in the output , if the test expected to fail it must do that gracefully
+
 		if isPositiveTest {
+			if err != nil {
+				testlog.Error(err.Error())
+			}
 			Expect(string(output)).NotTo(MatchRegexp(unexpectedError), "Unexpected error was detected in a positve test")
 		}
 		for _, msg := range test.outputMsgs {
-			Expect(output).To(MatchRegexp(msg), "The output of the executed tool is not as expected")
+			Expect(string(output)).To(MatchRegexp(msg), "The output of the executed tool is not as expected")
 		}
 	}
 },
-	table.Entry("[test_id:42851] Latency tools shouldn't run with default environment variables values", []latencyTest{{"", "", "", "", "", "", "", "", []string{skip, skipTestRun}, ""}}, positiveTesting),
+	table.Entry("[test_id:42851] Latency tools shouldn't run with default environment variables values", []latencyTest{{outputMsgs: []string{skip, skipTestRun}}}, positiveTesting),
 	table.Entry("[test_id:42850] Oslat - Verify that the tool is working properly with valid environment variables values", getValidValuesTests(oslat), positiveTesting),
 	table.Entry("[test_id:42853] Oslat - Verify that the latency tool test should print an expected error message when passing invalid environment variables values", getNegativeTests(oslat), negativeTesting),
 	table.Entry("[test_id:42115] Cyclictest - Verify that the tool is working properly with valid environment variables values", getValidValuesTests(cyclictest), positiveTesting),
@@ -170,7 +177,9 @@ func getValidValuesTests(toolToTest string) []latencyTest {
 	var testSet []latencyTest
 	testSet = append(testSet, latencyTest{testDelay: "0", testRun: "true", testRuntime: "5", testMaxLatency: guaranteedLatency, testCpus: "3", outputMsgs: []string{success}, toolToTest: toolToTest})
 	testSet = append(testSet, latencyTest{testDelay: "0", testRun: "true", testRuntime: "1", testMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", outputMsgs: []string{skip, skipMaxLatency}, toolToTest: toolToTest})
+	if toolToTest != hwlatdetect {
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", outputMsgs: []string{skip, skipMaxLatency}, toolToTest: toolToTest})
+	}
 	if toolToTest == oslat {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", testMaxLatency: "1", oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
@@ -183,7 +192,7 @@ func getValidValuesTests(toolToTest string) []latencyTest {
 	if toolToTest == hwlatdetect {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", testMaxLatency: "1", hwlatdetectMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", hwlatdetectMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", outputMsgs: []string{success}, toolToTest: toolToTest})
 	}
 	return testSet
 }
@@ -197,25 +206,32 @@ func getNegativeTests(toolToTest string) []latencyTest {
 
 	testSet = append(testSet, latencyTest{testDelay: "0", testRun: "true", testRuntime: "5", testMaxLatency: "1", outputMsgs: []string{latencyFailureMsg, fail}, toolToTest: toolToTest})
 	testSet = append(testSet, latencyTest{testRun: "yes", testRuntime: "5", testMaxLatency: "1", outputMsgs: []string{incorrectTestRun, fail}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "-1", testMaxLatency: "1", outputMsgs: []string{nonpositiveRuntime, fail}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", testMaxLatency: "-2", outputMsgs: []string{negativeMaxLatency, fail}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: fmt.Sprint(math.MaxInt32 + 1), outputMsgs: []string{invalidNumberRuntime, fail}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "-1", testMaxLatency: "1", outputMsgs: []string{invalidNumberRuntime, fail}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", testMaxLatency: "-2", outputMsgs: []string{invalidNumberMaxLatency, fail}, toolToTest: toolToTest})
 	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "1H", outputMsgs: []string{incorrectRuntime, fail}, toolToTest: toolToTest})
 	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testMaxLatency: "&", outputMsgs: []string{incorrectMaxLatency, fail}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testMaxLatency: fmt.Sprint(math.MaxInt32 + 1), outputMsgs: []string{invalidNumberMaxLatency, fail}, toolToTest: toolToTest})
 	testSet = append(testSet, latencyTest{testDelay: "J", testRun: "true", outputMsgs: []string{incorrectDelay, fail}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testDelay: "-5", testRun: "true", outputMsgs: []string{negativeDelay, fail}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testDelay: fmt.Sprint(math.MaxInt32 + 1), testRun: "true", outputMsgs: []string{invalidNumberDelay, fail}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testDelay: "-5", testRun: "true", outputMsgs: []string{invalidNumberDelay, fail}, toolToTest: toolToTest})
 	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testMaxLatency: "1", testCpus: "p", outputMsgs: []string{incorrectCpuNumber, fail}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testCpus: "-1", outputMsgs: []string{nonpositiveCpuNumber, fail}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testMaxLatency: "1", testCpus: fmt.Sprint(math.MaxInt32 + 1), outputMsgs: []string{invalidCpuNumber, fail}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testCpus: "-1", outputMsgs: []string{invalidCpuNumber, fail}, toolToTest: toolToTest})
 	if toolToTest == oslat {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", oslatMaxLatency: "&", outputMsgs: []string{incorrectOslatMaxLatency, fail}, toolToTest: toolToTest})
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", oslatMaxLatency: "-3", outputMsgs: []string{negativeOslatMaxLatency, fail}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", oslatMaxLatency: fmt.Sprint(math.MaxInt32 + 1), outputMsgs: []string{invalidNumberOslatMaxLatency, fail}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", oslatMaxLatency: "-3", outputMsgs: []string{invalidNumberOslatMaxLatency, fail}, toolToTest: toolToTest})
 	}
 	if toolToTest == cyclictest {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", cyclictestMaxLatency: "&", outputMsgs: []string{incorrectCyclictestMaxLatency, fail}, toolToTest: toolToTest})
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", cyclictestMaxLatency: "-3", outputMsgs: []string{negativeCyclictestMaxLatency, fail}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", cyclictestMaxLatency: fmt.Sprint(math.MaxInt32 + 1), outputMsgs: []string{invalidNumberCyclictestMaxLatency, fail}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", cyclictestMaxLatency: "-3", outputMsgs: []string{invalidNumberCyclictestMaxLatency, fail}, toolToTest: toolToTest})
 	}
 	if toolToTest == hwlatdetect {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", hwlatdetectMaxLatency: "&", outputMsgs: []string{incorrectHwlatdetectMaxLatency, fail}, toolToTest: toolToTest})
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", hwlatdetectMaxLatency: "-3", outputMsgs: []string{negativeHwlatdetectMaxLatency, fail}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", hwlatdetectMaxLatency: fmt.Sprint(math.MaxInt32 + 1), outputMsgs: []string{invalidNumberHwlatdetectMaxLatency, fail}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", hwlatdetectMaxLatency: "-3", outputMsgs: []string{invalidNumberHwlatdetectMaxLatency, fail}, toolToTest: toolToTest})
 	}
 	return testSet
 }

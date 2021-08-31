@@ -266,8 +266,8 @@ func getLatencyTestRuntime() (string, error) {
 		if err != nil {
 			return latencyTestRuntimeEnv, fmt.Errorf("the environment variable LATENCY_TEST_RUNTIME has incorrect value %q, it must be a positive integer with maximum value of %d", latencyTestRuntimeEnv, math.MaxInt32)
 		}
-		if val < 1 {
-			return "", fmt.Errorf("the environment variable LATENCY_TEST_RUNTIME has a nonpositive value %q, it must be a positive integer with maximum value of %d", latencyTestRuntimeEnv, math.MaxInt32)
+		if val < 1 || val > math.MaxInt32 {
+			return "", fmt.Errorf("the environment variable LATENCY_TEST_RUNTIME has an invalid number %q, it must be a positive integer with maximum value of %d", latencyTestRuntimeEnv, math.MaxInt32)
 		}
 		return latencyTestRuntimeEnv, nil
 	}
@@ -280,8 +280,8 @@ func getLatencyTestDelay() (int, error) {
 		if err != nil {
 			return val, fmt.Errorf("the environment variable LATENCY_TEST_DELAY has incorrect value %q, it must be a non-negative integer with maximum value of %d: %w", latencyTestDelayEnv, math.MaxInt32, err)
 		}
-		if val < 0 {
-			return val, fmt.Errorf("the environment variable LATENCY_TEST_DELAY has a negative value %q, it must be a non-negative integer with maximum value of %d", latencyTestDelayEnv, math.MaxInt32)
+		if val < 0 || val > math.MaxInt32 {
+			return val, fmt.Errorf("the environment variable LATENCY_TEST_DELAY has an invalid number %q, it must be a non-negative integer with maximum value of %d", latencyTestDelayEnv, math.MaxInt32)
 		}
 		return val, nil
 	}
@@ -294,8 +294,8 @@ func getLatencyTestCpus() (int, error) {
 		if err != nil {
 			return val, fmt.Errorf("the environment variable LATENCY_TEST_CPUS has incorrect value %q, it must be a positive integer with maximum value of %d: %w", latencyTestCpusEnv, math.MaxInt32, err)
 		}
-		if val < 0 {
-			return val, fmt.Errorf("the environment variable LATENCY_TEST_CPUS has a nonpositive value %q, it must be a positive integer with maximum value of %d", latencyTestCpusEnv, math.MaxInt32)
+		if val < 0 || val > math.MaxInt32 {
+			return val, fmt.Errorf("the environment variable LATENCY_TEST_CPUS has an invalid number %q, it must be a positive integer with maximum value of %d", latencyTestCpusEnv, math.MaxInt32)
 		}
 		return val, nil
 	}
@@ -315,8 +315,8 @@ func getMaximumLatency(testName string) (int, error) {
 		if err != nil {
 			return val, fmt.Errorf("the environment variable MAXIMUM_LATENCY has incorrect value %q, it must be a non-negative integer with maximum value of %d: %w", unifiedMaxLatencyEnv, math.MaxInt32, err)
 		}
-		if val < 0 {
-			return val, fmt.Errorf("the environment variable MAXIMUM_LATENCY has a negative value %q, it must be a non-negative integer with maximum value of %d", unifiedMaxLatencyEnv, math.MaxInt32)
+		if val < 0 || val > math.MaxInt32 {
+			return val, fmt.Errorf("the environment variable MAXIMUM_LATENCY has an invalid number %q, it must be a non-negative integer with maximum value of %d", unifiedMaxLatencyEnv, math.MaxInt32)
 		}
 	}
 
@@ -327,8 +327,8 @@ func getMaximumLatency(testName string) (int, error) {
 		if err != nil {
 			err = fmt.Errorf("the environment variable %q has incorrect value %q, it must be a non-negative integer with maximum value of %d: %w", envVariableName, maximumLatencyEnv, math.MaxInt32, err)
 		}
-		if val < 0 {
-			err = fmt.Errorf("the environment variable %q has a negative value %q, it must be a non-negative integer with maximum value of %d", envVariableName, maximumLatencyEnv, math.MaxInt32)
+		if val < 0 || val > math.MaxInt32 {
+			err = fmt.Errorf("the environment variable %q has an invalid number %q, it must be a non-negative integer with maximum value of %d", envVariableName, maximumLatencyEnv, math.MaxInt32)
 		}
 	}
 	return val, err
