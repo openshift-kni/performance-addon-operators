@@ -22,4 +22,5 @@ spec:
   realTimeKernel:
     enabled: true
   nodeSelector:
-    node-role.kubernetes.io/performance: ""
+    # we can not leave an empty string "" because it interpreted as null value
+    node-role.kubernetes.io/performance: "test"

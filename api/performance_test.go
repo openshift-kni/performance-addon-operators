@@ -1,13 +1,14 @@
 package performance
 
 import (
+	"io/ioutil"
+	"strings"
+
 	"github.com/RHsyseng/operator-utils/pkg/validation"
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
-	"io/ioutil"
-	"strings"
 )
 
 const (
@@ -56,7 +57,7 @@ func getSchema(crdPath string) (validation.Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	schema, err := validation.NewVersioned(bytes, "v1")
+	schema, err := validation.NewVersioned(bytes, "v2")
 	if err != nil {
 		return nil, err
 	}
