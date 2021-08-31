@@ -256,6 +256,10 @@ functests-only:
 functests-latency: cluster-label-worker-cnf
 	GINKGO_SUITS="functests/0_config functests/4_latency" LATENCY_TEST_RUN="true" hack/run-functests.sh
 
+.PHONY: functests-latency-testing
+functests-latency-testing: dist-latency-tests
+	GINKGO_SUITS="functests/5_latency_testing" hack/run-latency-testing.sh
+
 .PHONY: operator-upgrade-tests
 operator-upgrade-tests:
 	@echo "Running Operator Upgrade Tests"
