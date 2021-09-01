@@ -16,7 +16,10 @@ spec:
     singular: performanceprofile
   scope: Cluster
   versions:
-  - name: v1
+  - deprecated: true
+    deprecationWarning: v1 is deprecated and should be removed in next three releases,
+      use v2 instead
+    name: v1
     schema:
       openAPIV3Schema:
         description: PerformanceProfile is the Schema for the performanceprofiles
@@ -65,14 +68,24 @@ spec:
                       that your workload will run on the isolated CPU:   1. The union
                       of reserved CPUs and isolated CPUs should include all online
                       CPUs   2. The isolated CPUs field should be the complementary
-                      to reserved CPUs field Also note that non guaranteed workloads
-                      can run on Isolated CPU if it is not used by a guaranteed workload.'
+                      to reserved CPUs field'
                     type: string
                   reserved:
-                    description: Reserved defines a set of CPUs that will be used
-                      for interrupts, systemd services, OS and kernel processes.
+                    description: Reserved defines a set of CPUs that will not be used
+                      for any container workloads initiated by kubelet.
                     type: string
+                required:
+                - isolated
                 type: object
+              globallyDisableIrqLoadBalancing:
+                description: GloballyDisableIrqLoadBalancing toggles whether IRQ load
+                  balancing will be disabled for the Isolated CPU set. When the option
+                  is set to "true" it disables IRQs load balancing for the Isolated
+                  CPU set. Setting the option to "false" allows the IRQs to be balanced
+                  across all CPUs, however the IRQs load balancing can be disabled
+                  per pod CPUs when using irq-load-balancing.crio.io/cpu-quota.crio.io
+                  annotations. Defaults to "false"
+                type: boolean
               hugepages:
                 description: HugePages defines a set of huge pages related parameters.
                   It is possible to set huge pages with multiple size values at the
@@ -128,13 +141,50 @@ spec:
                   KubeletConfigs created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same
                   role as in NodeSelector label key>"
                 type: object
+              net:
+                description: Net defines a set of network related features
+                properties:
+                  devices:
+                    description: Devices contains a list of network device representations
+                      that will be set with a netqueue count equal to CPU.Reserved
+                      . If no devices are specified then the default is all devices.
+                    items:
+                      description: 'Device defines a way to represent a network device
+                        in several options: device name, vendor ID, model ID, PCI
+                        path and MAC address'
+                      properties:
+                        deviceID:
+                          description: Network device ID (model) represnted as a 16
+                            bit hexmadecimal number.
+                          type: string
+                        interfaceName:
+                          description: Network device name to be matched. It uses
+                            a syntax of shell-style wildcards which are either positive
+                            or negative.
+                          type: string
+                        vendorID:
+                          description: Network device vendor ID represnted as a 16
+                            bit Hexmadecimal number.
+                          type: string
+                      type: object
+                    type: array
+                  userLevelNetworking:
+                    description: UserLevelNetworking when enabled - sets either all
+                      or specified network devices queue size to the amount of reserved
+                      CPUs. Defaults to "false".
+                    type: boolean
+                type: object
               nodeSelector:
                 additionalProperties:
                   type: string
-                description: NodeSelector defines the Node label to use in the NodeSelectors
+                description: 'NodeSelector defines the Node label to use in the NodeSelectors
                   of resources like Tuned created by the operator. It most likely
                   should, but does not have to match the node label in the NodeSelector
                   of the MachineConfigPool which targets this performance profile.
+                  In the case when machineConfigLabels or machineConfigPoolSelector
+                  are not set, we are expecting a certain NodeSelector format <domain>/<role>:
+                  "" in order to be able to calculate the default values for the former
+                  mentioned fields.'
                 type: object
               numa:
                 description: NUMA defines options related to topology aware affinities
@@ -153,6 +203,9 @@ spec:
                       should be installed. Defaults to "false"
                     type: boolean
                 type: object
+            required:
+            - cpu
+            - nodeSelector
             type: object
           status:
             description: PerformanceProfileStatus defines the observed state of PerformanceProfile.
@@ -199,7 +252,10 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1alpha1
+  - deprecated: true
+    deprecationWarning: v1alpha1 is deprecated and should be removed in the next release,
+      use v2 instead
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: PerformanceProfile is the Schema for the performanceprofiles

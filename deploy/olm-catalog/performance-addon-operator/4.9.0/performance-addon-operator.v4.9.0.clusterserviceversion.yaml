@@ -122,7 +122,7 @@ metadata:
     description: Operator to optimize OpenShift clusters for applications sensitive
       to CPU and network latency.
     olm.skipRange: '>=4.8.0 <4.9.0'
-    operators.operatorframework.io/builder: operator-sdk-v1.0.0
+    operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/openshift-kni/performance-addon-operators
     target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
@@ -132,12 +132,6 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: PerformanceProfile is the Schema for the performanceprofiles API
-        v2.
-      displayName: Performance Profile v2
-      kind: PerformanceProfile
-      name: performanceprofiles.performance.openshift.io
-      version: v2
     - description: PerformanceProfile is the Schema for the performanceprofiles API
         v1.
       displayName: Performance Profile v1
@@ -150,6 +144,12 @@ spec:
       kind: PerformanceProfile
       name: performanceprofiles.performance.openshift.io
       version: v1alpha1
+    - description: PerformanceProfile is the Schema for the performanceprofiles API
+        v2.
+      displayName: Performance Profile v2
+      kind: PerformanceProfile
+      name: performanceprofiles.performance.openshift.io
+      version: v2
   description: |2-
 
     Performance Addon Operator provides the ability to enable advanced node performance tunings on a set of nodes.
