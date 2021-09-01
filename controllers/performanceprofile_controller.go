@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
@@ -114,11 +115,37 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 			&source.Kind{Type: &mcov1.MachineConfigPool{}},
 			handler.EnqueueRequestsFromMapFunc(r.mcpToPerformanceProfile),
 			builder.WithPredicates(mcpPredicates)).
+		Watches(
+			&source.Kind{Type: &v1alpha1.KubeletSnippet{}},
+			handler.EnqueueRequestsFromMapFunc(r.kubeletSnippetToPerformanceProfile),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
 		Complete(r)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (r *PerformanceProfileReconciler) kubeletSnippetToPerformanceProfile(object client.Object) []reconcile.Request {
+	kubeletSnippet := object.(*v1alpha1.KubeletSnippet)
+
+	profiles := &performancev2.PerformanceProfileList{}
+	if err := r.List(context.TODO(), profiles); err != nil {
+		klog.Error("failed to get performance profiles")
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for i, profile := range profiles.Items {
+		if profile.Name != kubeletSnippet.Spec.PerformanceProfileName {
+			continue
+		}
+
+		requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&profiles.Items[i])})
+	}
+
+	return requests
 }
 
 func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj client.Object) []reconcile.Request {
@@ -172,6 +199,7 @@ func validateUpdateEvent(e *event.UpdateEvent) bool {
 // +kubebuilder:rbac:groups="",resources=events,verbs=*
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=performance.openshift.io,resources=performanceprofiles;performanceprofiles/status;performanceprofiles/finalizers,verbs=*
+// +kubebuilder:rbac:groups=performance.openshift.io,resources=kubeletsnippets;kubeletsnippets/status;kubeletsnippets/finalizers,verbs=*
 // +kubebuilder:rbac:groups=machineconfiguration.openshift.io,resources=machineconfigs;machineconfigpools;kubeletconfigs,verbs=*
 // +kubebuilder:rbac:groups=tuned.openshift.io,resources=tuneds;profiles,verbs=*
 // +kubebuilder:rbac:groups=node.k8s.io,resources=runtimeclasses,verbs=*
@@ -249,6 +277,17 @@ func (r *PerformanceProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return reconcile.Result{}, nil
 	}
 
+	kubeletSnippet, err := r.getKubeletSnippetByProfile(instance)
+	if err != nil {
+		conditions := r.getDegradedConditions(conditionFailedToGetKubeletSnippet, err.Error())
+		if err := r.updateStatus(instance, conditions); err != nil {
+			klog.Errorf("failed to update performance profile %q status: %v", instance.Name, err)
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	}
+
 	if err := validateProfileMachineConfigPool(instance, profileMCP); err != nil {
 		conditions := r.getDegradedConditions(conditionBadMachineConfigLabels, err.Error())
 		if err := r.updateStatus(instance, conditions); err != nil {
@@ -265,7 +304,7 @@ func (r *PerformanceProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// apply components
-	result, err := r.applyComponents(instance, profileMCP)
+	result, err := r.applyComponents(instance, profileMCP, kubeletSnippet)
 	if err != nil {
 		klog.Errorf("failed to deploy performance profile %q components: %v", instance.Name, err)
 		r.Recorder.Eventf(instance, corev1.EventTypeWarning, "Creation failed", "Failed to create all components: %v", err)
@@ -336,13 +375,13 @@ func (r *PerformanceProfileReconciler) updateDegradedCondition(instance *perform
 	return reconcile.Result{}, conditionError
 }
 
-func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.PerformanceProfile, profileMCP *mcov1.MachineConfigPool) (*reconcile.Result, error) {
+func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.PerformanceProfile, profileMCP *mcov1.MachineConfigPool, kubeletSnippet *v1alpha1.KubeletSnippet) (*reconcile.Result, error) {
 	if profileutil.IsPaused(profile) {
 		klog.Infof("Ignoring reconcile loop for pause performance profile %s", profile.Name)
 		return nil, nil
 	}
 
-	components, err := manifestset.GetNewComponents(profile, profileMCP, &r.AssetsDir)
+	components, err := manifestset.GetNewComponents(profile, profileMCP, kubeletSnippet, &r.AssetsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -488,6 +527,35 @@ func namespacedName(obj metav1.Object) types.NamespacedName {
 		Namespace: obj.GetNamespace(),
 		Name:      obj.GetName(),
 	}
+}
+
+func (r *PerformanceProfileReconciler) getKubeletSnippetByProfile(profile *performancev2.PerformanceProfile) (*v1alpha1.KubeletSnippet, error) {
+	kubeletSnippets := &v1alpha1.KubeletSnippetList{}
+	if err := r.Client.List(context.TODO(), kubeletSnippets); err != nil {
+		return nil, err
+	}
+
+	var profileKubeletSnippets []*v1alpha1.KubeletSnippet
+	for i := range kubeletSnippets.Items {
+		kubeletSnippet := &kubeletSnippets.Items[i]
+
+		if kubeletSnippet.Spec.PerformanceProfileName != profile.Name {
+			continue
+		}
+
+		profileKubeletSnippets = append(profileKubeletSnippets, kubeletSnippet)
+	}
+
+	if len(profileKubeletSnippets) > 1 {
+		return nil, fmt.Errorf("more than one KubeletSnippet found that matches performance profile %q", profile.Name)
+	}
+
+	// it expected situation when the performance profile will not have any KubeletSnippets
+	if len(profileKubeletSnippets) == 0 {
+		return nil, nil
+	}
+
+	return profileKubeletSnippets[0], nil
 }
 
 func (r *PerformanceProfileReconciler) getMachineConfigPoolByProfile(profile *performancev2.PerformanceProfile) (*mcov1.MachineConfigPool, error) {

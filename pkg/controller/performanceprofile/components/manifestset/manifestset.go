@@ -1,6 +1,7 @@
 package manifestset
 
 import (
+	"github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
@@ -49,7 +50,7 @@ func (ms *ManifestResultSet) ToManifestTable() ManifestTable {
 }
 
 // GetNewComponents return a list of all component's instances that should be created according to profile
-func GetNewComponents(profile *performancev2.PerformanceProfile, profileMCP *mcov1.MachineConfigPool, assetDir *string) (*ManifestResultSet, error) {
+func GetNewComponents(profile *performancev2.PerformanceProfile, profileMCP *mcov1.MachineConfigPool, kubeletSnippet *v1alpha1.KubeletSnippet, assetDir *string) (*ManifestResultSet, error) {
 	machineConfigPoolSelector := profilecomponent.GetMachineConfigPoolSelector(profile, profileMCP)
 
 	mc, err := machineconfig.New(*assetDir, profile)
@@ -57,7 +58,7 @@ func GetNewComponents(profile *performancev2.PerformanceProfile, profileMCP *mco
 		return nil, err
 	}
 
-	kc, err := kubeletconfig.New(profile, machineConfigPoolSelector)
+	kc, err := kubeletconfig.New(profile, machineConfigPoolSelector, kubeletSnippet)
 	if err != nil {
 		return nil, err
 	}

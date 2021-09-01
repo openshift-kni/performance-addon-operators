@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	conditionFailedToGetKubeletSnippet       = "GettingKubeletSnippetFailed"
 	conditionFailedToFindMachineConfigPool   = "GettingMachineConfigPoolFailed"
 	conditionBadMachineConfigLabels          = "BadMachineConfigLabels"
 	conditionReasonComponentsCreationFailed  = "ComponentCreationFailed"

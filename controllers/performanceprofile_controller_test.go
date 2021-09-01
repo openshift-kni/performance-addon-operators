@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 
 	igntypes "github.com/coreos/ignition/config/v2_2/types"
+	v1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1" // we need this import to add v1alpha1 to test scheme
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/kubeletconfig"
@@ -338,7 +339,7 @@ var _ = Describe("Controller", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				mcpSelectorKey, mcpSelectorValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
-				kc, err = kubeletconfig.New(profile, map[string]string{mcpSelectorKey: mcpSelectorValue})
+				kc, err = kubeletconfig.New(profile, map[string]string{mcpSelectorKey: mcpSelectorValue}, nil)
 				Expect(err).ToNot(HaveOccurred())
 
 				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profile)
@@ -786,7 +787,7 @@ var _ = Describe("Controller", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			mcpSelectorKey, mcpSelectorValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
-			kc, err := kubeletconfig.New(profile, map[string]string{mcpSelectorKey: mcpSelectorValue})
+			kc, err := kubeletconfig.New(profile, map[string]string{mcpSelectorKey: mcpSelectorValue}, nil)
 			Expect(err).ToNot(HaveOccurred())
 
 			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profile)
@@ -876,6 +877,7 @@ func reconcileTimes(reconciler *PerformanceProfileReconciler, request reconcile.
 
 // newFakeReconciler returns a new reconcile.Reconciler with a fake client
 func newFakeReconciler(initObjects ...runtime.Object) *PerformanceProfileReconciler {
+	_ = v1alpha1.AddToScheme(scheme.Scheme)
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(initObjects...).Build()
 	fakeRecorder := record.NewFakeRecorder(10)
 	return &PerformanceProfileReconciler{
