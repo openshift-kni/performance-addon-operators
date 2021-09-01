@@ -132,6 +132,9 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - kind: KubeletSnippet
+      name: kubeletsnippets.performance.openshift.io
+      version: v1alpha1
     - description: PerformanceProfile is the Schema for the performanceprofiles API
         v2.
       displayName: Performance Profile v2
@@ -187,6 +190,14 @@ spec:
           - node.k8s.io
           resources:
           - runtimeclasses
+          verbs:
+          - '*'
+        - apiGroups:
+          - performance.openshift.io
+          resources:
+          - kubeletsnippets
+          - kubeletsnippets/finalizers
+          - kubeletsnippets/status
           verbs:
           - '*'
         - apiGroups:

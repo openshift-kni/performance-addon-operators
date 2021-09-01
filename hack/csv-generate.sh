@@ -75,6 +75,9 @@ if [[ ${CSV_VERSION} =~ 4.9.* ]]; then
   cp "${OUT_DIR}/${CSV_VERSION}/performance.openshift.io_performanceprofiles.yaml" \
     "${CSV_DIR}/performance.openshift.io_performanceprofiles_crd.yaml"
 
+  cp "${OUT_DIR}/${CSV_VERSION}/performance.openshift.io_kubeletsnippets.yaml" \
+      "${CSV_DIR}/performance.openshift.io_kubeletsnippets_crd.yaml"
+
   # using the generated CSV, create the real CSV by injecting all the right data into it
   build/_output/bin/csv-processor \
     --csv-version "${CSV_VERSION}" \
@@ -91,6 +94,9 @@ if [[ ${CSV_VERSION} =~ 4.9.* ]]; then
   # restore the deleted CRD
   cp "${CSV_DIR}/performance.openshift.io_performanceprofiles_crd.yaml" \
     "${OUT_CSV_DIR}/performance.openshift.io_performanceprofiles_crd.yaml"
+
+  cp "${CSV_DIR}/performance.openshift.io_kubeletsnippets_crd.yaml" \
+      "${OUT_CSV_DIR}/performance.openshift.io_kubeletsnippets_crd.yaml"
 
   if [[ "$IS_DEV" == true ]]; then
     # copy generated CSV and CRD back to the repository dir
