@@ -576,15 +576,17 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			v1Profile.Spec.NodeSelector = map[string]string{"v1/v1": "v1"}
 			Expect(testclient.Client.Create(context.TODO(), v1Profile)).ToNot(HaveOccurred())
 
-			key = types.NamespacedName{
-				Name:      v1Profile.Name,
-				Namespace: v1Profile.Namespace,
-			}
-
 			defer func() {
 				Expect(testclient.Client.Delete(context.TODO(), v1Profile)).ToNot(HaveOccurred())
 				Expect(profiles.WaitForDeletion(key, 60*time.Second)).ToNot(HaveOccurred())
 			}()
+
+			key = types.NamespacedName{
+				Name:      v1Profile.Name,
+				Namespace: v1Profile.Namespace,
+			}
+			err = testclient.Client.Get(context.TODO(), key, v1Profile)
+			Expect(err).ToNot(HaveOccurred(), "Failed getting v1Profile")
 
 			v2Profile := &performancev2.PerformanceProfile{}
 			err = testclient.GetWithRetry(context.TODO(), key, v2Profile)
@@ -635,6 +637,68 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed getting v1profile")
 			Expect(verifyV1alpha1Conversion(v1alpha1Profile, v1Profile)).ToNot(HaveOccurred())
 		}
+
+		// empty context to use the same JustBeforeEach and AfterEach
+		Context("", func() {
+			var testProfileName string
+			var globallyDisableIrqLoadBalancing bool
+
+			JustBeforeEach(func() {
+				key := types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: profile.Namespace,
+				}
+				err := testclient.Client.Get(context.TODO(), key, profile)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get profile")
+
+				profile.Name = testProfileName
+				profile.ResourceVersion = ""
+				profile.Spec.NodeSelector = map[string]string{"test/test": "test"}
+				profile.Spec.GloballyDisableIrqLoadBalancing = pointer.BoolPtr(globallyDisableIrqLoadBalancing)
+
+				err = testclient.Client.Create(context.TODO(), profile)
+				Expect(err).ToNot(HaveOccurred(), "Failed to create profile")
+
+				// we need to get updated profile object after the name and spec changes
+				key = types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: profile.Namespace,
+				}
+				err = testclient.Client.Get(context.TODO(), key, profile)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get profile")
+			})
+
+			When("the GloballyDisableIrqLoadBalancing field set to false", func() {
+				BeforeEach(func() {
+					testProfileName = "gdilb-false"
+					globallyDisableIrqLoadBalancing = false
+				})
+
+				It("should preserve the value during the v1 <-> v2 conversion", func() {
+					verifyV2V1()
+				})
+			})
+
+			When("the GloballyDisableIrqLoadBalancing field set to true", func() {
+				BeforeEach(func() {
+					testProfileName = "gdilb-true"
+					globallyDisableIrqLoadBalancing = true
+				})
+
+				It("should preserve the value during the v1 <-> v2 conversion", func() {
+					verifyV2V1()
+				})
+			})
+
+			AfterEach(func() {
+				Expect(testclient.Client.Delete(context.TODO(), profile)).ToNot(HaveOccurred())
+				Expect(profiles.WaitForDeletion(types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: profile.Namespace,
+				}, 60*time.Second)).ToNot(HaveOccurred())
+			})
+
+		})
 
 		When("the performance profile does not contain NUMA field", func() {
 			BeforeEach(func() {
@@ -1130,7 +1194,7 @@ func verifyV2Conversion(v2Profile *performancev2.PerformanceProfile, v1Profile *
 	for _, f := range v2Profile.GetObjectMeta().GetManagedFields() {
 		if f.APIVersion == performancev1alpha1.GroupVersion.String() ||
 			f.APIVersion == performancev1.GroupVersion.String() {
-			if v2Profile.Spec.GloballyDisableIrqLoadBalancing == nil || !*v2Profile.Spec.GloballyDisableIrqLoadBalancing {
+			if v2Profile.Spec.GloballyDisableIrqLoadBalancing == nil {
 				return fmt.Errorf("globallyDisableIrqLoadBalancing field must be set to true")
 			}
 		}
