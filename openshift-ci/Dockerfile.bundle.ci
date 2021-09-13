@@ -4,7 +4,7 @@ FROM scratch
 # the channel name we settled for is "${MAJOR}.${MINOR}"
 # 1. trivial to crosscheck with OCP version we target
 # 2. Z-stream friendly
-ARG CHANNEL=4.9
+ARG CHANNEL=4.10
 ARG ZVERSION=0
 
 LABEL operators.operatorframework.io.bundle.mediatype.v1=registry+v1

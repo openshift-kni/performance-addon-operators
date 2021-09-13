@@ -5,7 +5,7 @@ set -e
 # shellcheck source=common.sh
 source "$(dirname "$0")/common.sh"
 
-BUNDLES=${BUNDLES:-"quay.io/openshift-kni/performance-addon-operator-bundle:4.9-snapshot"}
+BUNDLES=${BUNDLES:-"quay.io/openshift-kni/performance-addon-operator-bundle:4.10-snapshot"}
 OPM_BUILDER_TAG="v1.14.3"
 
 stop_containers() {

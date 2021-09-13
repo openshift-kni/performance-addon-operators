@@ -118,15 +118,15 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    containerImage: quay.io/openshift-kni/performance-addon-operator:4.9-snapshot
+    containerImage: REPLACE_IMAGE
     description: Operator to optimize OpenShift clusters for applications sensitive
       to CPU and network latency.
-    olm.skipRange: '>=4.8.0 <4.9.0'
+    olm.skipRange: '>=4.9.0 <4.10.0'
     operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/openshift-kni/performance-addon-operators
     target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
-  name: performance-addon-operator.v4.9.0
+  name: performance-addon-operator.v4.10.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -241,7 +241,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: performance-operator
-                image: quay.io/openshift-kni/performance-addon-operator:4.9-snapshot
+                image: REPLACE_IMAGE
                 imagePullPolicy: Always
                 name: performance-operator
                 resources:
@@ -318,7 +318,7 @@ spec:
   minKubeVersion: 1.20.0
   provider:
     name: Red Hat
-  version: 4.9.0
+  version: 4.10.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
