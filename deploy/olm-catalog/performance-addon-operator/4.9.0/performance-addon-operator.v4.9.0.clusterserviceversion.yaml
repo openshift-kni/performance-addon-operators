@@ -118,7 +118,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    containerImage: REPLACE_IMAGE
+    containerImage: quay.io/openshift-kni/performance-addon-operator:4.9-snapshot
     description: Operator to optimize OpenShift clusters for applications sensitive
       to CPU and network latency.
     olm.skipRange: '>=4.8.0 <4.9.0'
@@ -241,7 +241,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: performance-operator
-                image: REPLACE_IMAGE
+                image: quay.io/openshift-kni/performance-addon-operator:4.9-snapshot
                 imagePullPolicy: Always
                 name: performance-operator
                 resources:
