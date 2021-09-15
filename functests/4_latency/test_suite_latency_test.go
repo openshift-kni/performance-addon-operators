@@ -5,11 +5,9 @@ package __latency_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/junit"
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
@@ -32,9 +30,9 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	err := testclient.Client.Delete(context.TODO(), namespaces.TestingNamespace)
-	Expect(err).ToNot(HaveOccurred())
-	err = namespaces.WaitForDeletion(testutils.NamespaceTesting, 5*time.Minute)
+	// err := testclient.Client.Delete(context.TODO(), namespaces.TestingNamespace)
+	// Expect(err).ToNot(HaveOccurred())
+	// err = namespaces.WaitForDeletion(testutils.NamespaceTesting, 5*time.Minute)
 })
 
 func TestLatency(t *testing.T) {

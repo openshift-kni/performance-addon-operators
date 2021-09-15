@@ -103,7 +103,7 @@ var _ = Describe("[performance] Latency Test", func() {
 
 	AfterEach(func() {
 		removeLogfile(workerRTNode, logName)
-		err = testclient.Client.Delete(context.TODO(), latencyTestPod)
+		/*err = testclient.Client.Delete(context.TODO(), latencyTestPod)
 		if err != nil {
 			testlog.Error(err)
 		}
@@ -113,7 +113,7 @@ var _ = Describe("[performance] Latency Test", func() {
 			testlog.Error(err)
 		}
 
-		maximumLatency = -1
+		maximumLatency = -1*/
 	})
 
 	Context("with the oslat image", func() {
@@ -428,10 +428,14 @@ func createLatencyTestPod(testPod *corev1.Pod, node *corev1.Node, logName string
 
 	timeout, err := strconv.Atoi(latencyTestRuntime)
 	Expect(err).ToNot(HaveOccurred())
-
 	By("Waiting two minutes to download the latencyTest image")
 	err = pods.WaitForPhase(testPod, corev1.PodRunning, 2*time.Minute)
-	Expect(err).ToNot(HaveOccurred())
+	Eventually(func() corev1.PodPhase {
+		fmt.Printf("Pod's message: %s, Pod's phase : %s, pod's conditions: %s, reason : %s \n", testPod.Status.Message, testPod.Status.Phase, testPod.Status.Conditions, testPod.Status.Reason)
+		return testPod.Status.Phase
+	}, 4*time.Minute+10, time.Minute).ShouldNot(Equal(corev1.PodPending))
+	fmt.Printf("Pod's message: %s, Pod's phase : %s, pod's conditions: %s, reason : %s \n", testPod.Status.Message, testPod.Status.Phase, testPod.Status.Conditions, testPod.Status.Reason)
+	//Expect(err).ToNot(HaveOccurred())
 
 	if runtime, _ := strconv.Atoi(latencyTestRuntime); runtime > 1 {
 		By("Checking actual CPUs number for the running pod")
@@ -445,6 +449,7 @@ func createLatencyTestPod(testPod *corev1.Pod, node *corev1.Node, logName string
 	By("Waiting another two minutes to give enough time for the cluster to move the pod to Succeeded phase")
 	podTimeout := time.Duration(timeout + 120)
 	err = pods.WaitForPhase(testPod, corev1.PodSucceeded, podTimeout*time.Second)
+	fmt.Printf("Pod's message: %s, Pod's phase : %s, pod's conditions: %s, reason : %s \n", testPod.Status.Message, testPod.Status.Phase, testPod.Status.Conditions, testPod.Status.Reason)
 	Expect(err).ToNot(HaveOccurred(), getLogFile(node, logName))
 }
 

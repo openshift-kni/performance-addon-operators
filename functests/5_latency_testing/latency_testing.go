@@ -99,7 +99,7 @@ var _ = table.DescribeTable("Test latency measurement tools tests", func(testGro
 			//we don't fail the test here because the test might be a negative check
 			testlog.Info(err.Error())
 		}
-
+		fmt.Println(string(output))
 		if isPositiveTest {
 			if err != nil {
 				testlog.Error(err.Error())
