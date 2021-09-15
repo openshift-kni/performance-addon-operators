@@ -250,7 +250,7 @@ functests: cluster-label-worker-cnf functests-only
 
 .PHONY: functests-only
 functests-only: dist-latency-tests
-	hack/run-functests.sh
+	GINKGO_SUITS="functests/0_config functests/5_latency_testing" hack/run-latency-testing.sh
 
 .PHONY: functests-latency
 functests-latency: cluster-label-worker-cnf
