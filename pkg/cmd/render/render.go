@@ -121,7 +121,7 @@ func (r *renderOpts) Validate() error {
 
 func (r *renderOpts) Run() error {
 	for _, pp := range r.performanceProfileInputFiles {
-		b, err := ioutil.ReadFile(pp)
+		b, err := ioutil.ReadFile(filepath.Clean(pp))
 		if err != nil {
 			return err
 		}

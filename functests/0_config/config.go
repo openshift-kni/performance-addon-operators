@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -118,7 +119,7 @@ func externalPerformanceProfile(performanceManifest string) (*performancev2.Perf
 	performancev2.AddToScheme(performanceScheme)
 
 	decode := serializer.NewCodecFactory(performanceScheme).UniversalDeserializer().Decode
-	manifest, err := ioutil.ReadFile(performanceManifest)
+	manifest, err := ioutil.ReadFile(filepath.Clean(performanceManifest))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read %s file", performanceManifest)
 	}

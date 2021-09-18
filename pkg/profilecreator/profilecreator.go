@@ -112,7 +112,7 @@ func getNode(mustGatherDirPath, nodeName string) (*v1.Node, error) {
 		return nil, fmt.Errorf("failed to get MachineConfigPool for %s: %v", nodeName, err)
 	}
 
-	src, err := os.Open(path)
+	src, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %q: %v", path, err)
 	}
@@ -196,7 +196,7 @@ func GetMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPo
 		return nil, fmt.Errorf("failed to obtain MachineConfigPool, mcp:%s does not exist: %v", mcpName, err)
 	}
 
-	src, err := os.Open(mcpPath)
+	src, err := os.Open(filepath.Clean(mcpPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %q: %v", mcpPath, err)
 	}

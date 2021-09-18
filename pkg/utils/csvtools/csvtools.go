@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 
 	yaml "github.com/ghodss/yaml"
@@ -40,7 +41,7 @@ type CSVStrategySpec struct {
 
 // UnmarshalCSV decodes a YAML file, by path, and returns a CSV
 func UnmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
-	bytes, err := ioutil.ReadFile(filePath)
+	bytes, err := ioutil.ReadFile(filepath.Clean(filePath))
 	if err != nil {
 		panic(err)
 	}

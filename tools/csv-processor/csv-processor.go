@@ -256,7 +256,7 @@ Performance Addon Operator provides the ability to enable advanced node performa
 }
 
 func readFileOrPanic(filename string) []byte {
-	data, err := ioutil.ReadFile(filename)
+	data, err := ioutil.ReadFile(filepath.Clean(filename))
 	if err != nil {
 		panic(err)
 	}

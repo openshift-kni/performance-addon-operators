@@ -77,7 +77,7 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 			err = yaml.Unmarshal(out, profile)
 			Expect(err).To(BeNil(), "failed to unmarshal the output yaml for '%s': %v", expectedProfilePath, err)
 
-			bytes, err := ioutil.ReadFile(expectedProfilePath)
+			bytes, err := ioutil.ReadFile(filepath.Clean(expectedProfilePath))
 			Expect(err).To(BeNil(), "failed to read the expected yaml for '%s': %v", expectedProfilePath, err)
 
 			expectedProfile := &performancev2.PerformanceProfile{}
@@ -107,7 +107,7 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 			err = json.Unmarshal(out, &cInfo)
 			Expect(err).To(BeNil(), "failed to unmarshal the output json for %q: %v", path, err)
 			expectedClusterInfoPath := filepath.Join(expectedInfoPath, fmt.Sprintf("%s.json", name))
-			bytes, err := ioutil.ReadFile(expectedClusterInfoPath)
+			bytes, err := ioutil.ReadFile(filepath.Clean(expectedClusterInfoPath))
 			Expect(err).To(BeNil(), "failed to read the expected json for %q: %v", expectedClusterInfoPath, err)
 
 			var expectedInfo cmd.ClusterInfo
@@ -219,7 +219,7 @@ func getExpectedProfiles(expectedProfilesPath string, mustGatherDirs map[string]
 		}
 
 		fullFilePath := filepath.Join(expectedProfilesPath, file.Name())
-		bytes, err := ioutil.ReadFile(fullFilePath)
+		bytes, err := ioutil.ReadFile(filepath.Clean(fullFilePath))
 		Expect(err).To(BeNil(), "failed to read the ppc params file for '%s': %v", fullFilePath, err)
 
 		var ppcArgs cmd.ProfileCreatorArgs
