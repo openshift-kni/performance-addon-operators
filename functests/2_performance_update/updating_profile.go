@@ -101,7 +101,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 					expectedBannedCPUs = cpuset.NewCPUSet()
 				}
 
-				for _, node := range workerRTNodes {
+				for i, node := range workerRTNodes {
 					By(fmt.Sprintf("verifying worker node %q", node.Name))
 
 					bannedCPUs, err := nodes.BannedCPUs(node)
@@ -112,10 +112,10 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 							bannedCPUs, expectedBannedCPUs, node.Name)
 					}
 
-					smpAffinitySet, err := nodes.GetDefaultSmpAffinitySet(&node)
+					smpAffinitySet, err := nodes.GetDefaultSmpAffinitySet(&workerRTNodes[i])
 					Expect(err).ToNot(HaveOccurred(), "failed to get default smp affinity")
 
-					onlineCPUsSet, err := nodes.GetOnlineCPUsSet(&node)
+					onlineCPUsSet, err := nodes.GetOnlineCPUsSet(&workerRTNodes[i])
 					Expect(err).ToNot(HaveOccurred(), "failed to get Online CPUs list")
 
 					if irqLoadBalancingDisabled {
@@ -219,9 +219,9 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		})
 
 		table.DescribeTable("Verify that profile parameters were updated", func(cmdFn checkFunction, parameter []string, shouldContain bool, useRegex bool) {
-			for _, node := range workerRTNodes {
+			for i := range workerRTNodes {
 				for _, param := range parameter {
-					result, err := cmdFn(&node)
+					result, err := cmdFn(&workerRTNodes[i])
 					Expect(err).ToNot(HaveOccurred())
 					matcher := ContainSubstring(param)
 					if useRegex {
@@ -249,15 +249,15 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		)
 
 		It("[test_id:27738] should succeed to disable the RT kernel", func() {
-			for _, node := range workerRTNodes {
-				err := nodes.HasPreemptRTKernel(&node)
+			for i := range workerRTNodes {
+				err := nodes.HasPreemptRTKernel(&workerRTNodes[i])
 				Expect(err).To(HaveOccurred())
 			}
 		})
 
 		It("[test_id:28612]Verify that Kernel arguments can me updated (added, removed) thru performance profile", func() {
-			for _, node := range workerRTNodes {
-				cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, &node)
+			for i := range workerRTNodes {
+				cmdline, err := nodes.ExecCommandOnNode(chkCmdLine, &workerRTNodes[i])
 				Expect(err).ToNot(HaveOccurred(), "failed to execute %s", chkCmdLine)
 
 				// Verifying that new argument was added
@@ -287,8 +287,8 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 				return mcps.GetConditionStatus(performanceMCP, conditionUpdating)
 			}, 30, 5).Should(Equal(corev1.ConditionFalse))
 
-			for _, node := range workerRTNodes {
-				err := nodes.HasPreemptRTKernel(&node)
+			for i := range workerRTNodes {
+				err := nodes.HasPreemptRTKernel(&workerRTNodes[i])
 				Expect(err).To(HaveOccurred())
 			}
 		})

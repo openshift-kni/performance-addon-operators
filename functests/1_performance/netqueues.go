@@ -164,8 +164,8 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			tunedCmd := []string{"bash", "-c",
 				fmt.Sprintf("cat /etc/tuned/openshift-node-performance-%s/tuned.conf | grep devices_udev_regex", performanceProfileName)}
 
-			for _, node := range workerRTNodes {
-				tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
+			for i := range workerRTNodes {
+				tunedPod := nodes.TunedForNode(&workerRTNodes[i], RunningOnSingleNode)
 				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
 				deviceExists := strings.ContainsAny(string(out), device)
 				Expect(deviceExists).To(BeTrue())
@@ -214,8 +214,8 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			tunedCmd := []string{"bash", "-c",
 				fmt.Sprintf("cat /etc/tuned/openshift-node-performance-%s/tuned.conf | grep devices_udev_regex", performanceProfileName)}
 
-			for _, node := range workerRTNodes {
-				tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
+			for i := range workerRTNodes {
+				tunedPod := nodes.TunedForNode(&workerRTNodes[i], RunningOnSingleNode)
 				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
 				deviceExists := strings.ContainsAny(string(out), device)
 				Expect(deviceExists).To(BeTrue())
@@ -269,9 +269,15 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			}
 			//Verify the tuned profile is created on the worker-cnf nodes:
 			tunedCmd := []string{"bash", "-c",
+<<<<<<< HEAD
 				fmt.Sprintf("cat /etc/tuned/openshift-node-performance-%s/tuned.conf | grep devices_udev_regex", performanceProfileName)}
 			for _, node := range workerRTNodes {
 				tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
+=======
+				fmt.Sprintf("cat /etc/tuned/openshift-node-performance-performance/tuned.conf | grep devices_udev_regex")}
+			for i := range workerRTNodes {
+				tunedPod := nodes.TunedForNode(&workerRTNodes[i], RunningOnSingleNode)
+>>>>>>> e00c45ec (fix all CWE-118 issues)
 				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
 				deviceExists := strings.ContainsAny(string(out), device)
 				Expect(deviceExists).To(BeTrue())
@@ -296,8 +302,8 @@ func checkDeviceSupport(workernodes []corev1.Node, devices map[string][]int) err
 	cmdGetPhysicalDevices := []string{"find", "/sys/class/net", "-type", "l", "-not", "-lname", "*virtual*", "-printf", "%f "}
 	var channelCurrentCombined int
 	var err error
-	for _, node := range workernodes {
-		tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
+	for i, node := range workernodes {
+		tunedPod := nodes.TunedForNode(&workernodes[i], RunningOnSingleNode)
 		phyDevs, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, cmdGetPhysicalDevices)
 		Expect(err).ToNot(HaveOccurred())
 		for _, d := range strings.Split(string(phyDevs), " ") {
