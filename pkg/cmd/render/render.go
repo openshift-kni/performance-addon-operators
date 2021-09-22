@@ -154,7 +154,7 @@ func (r *renderOpts) Run() error {
 			}
 
 			fileName := fmt.Sprintf("%s_%s.yaml", profile.Name, strings.ToLower(kind))
-			err = ioutil.WriteFile(filepath.Join(r.assetsOutDir, fileName), b, 0644)
+			err = ioutil.WriteFile(filepath.Join(r.assetsOutDir, fileName), b, 0600)
 			if err != nil {
 				return err
 			}

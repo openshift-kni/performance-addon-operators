@@ -247,7 +247,7 @@ Performance Addon Operator provides the ability to enable advanced node performa
 	writer := strings.Builder{}
 	csvtools.MarshallObject(operatorCSV, &writer)
 	outputFilename := filepath.Join(*outputDir, finalizedCsvFilename())
-	err := ioutil.WriteFile(outputFilename, []byte(writer.String()), 0644)
+	err := ioutil.WriteFile(outputFilename, []byte(writer.String()), 0600)
 	if err != nil {
 		panic(err)
 	}
