@@ -29,7 +29,9 @@ func processCSV(operatorImage, csvInput string, dst io.Writer) {
 
 	operatorCSV.Annotations["containerImage"] = operatorImage
 
-	csvtools.MarshallObject(operatorCSV, dst)
+	if err := csvtools.MarshallObject(operatorCSV, dst); err != nil {
+		panic(fmt.Errorf("could not marshall CSV, err: %s", err))
+	}
 }
 
 func main() {

@@ -291,7 +291,9 @@ func makeClusterInfoFromClusterData(cluster ClusterData) ClusterInfo {
 }
 
 func showClusterInfoJSON(cInfo ClusterInfo) {
-	json.NewEncoder(os.Stdout).Encode(cInfo)
+	if err := json.NewEncoder(os.Stdout).Encode(cInfo); err != nil {
+		panic(fmt.Errorf("Could not create JSON, err: %s", err))
+	}
 }
 
 func showClusterInfoLog(cInfo ClusterInfo) {
@@ -506,7 +508,9 @@ func createProfile(profileData ProfileData) {
 
 	// write CSV to out dir
 	writer := strings.Builder{}
-	csvtools.MarshallObject(&profile, &writer)
+	if err := csvtools.MarshallObject(&profile, &writer); err != nil {
+		panic(fmt.Errorf("Could not marshal profile, err: %s", err))
+	}
 
 	fmt.Printf("%s", writer.String())
 }

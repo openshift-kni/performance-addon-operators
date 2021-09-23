@@ -49,9 +49,9 @@ var _ = Describe("Status testing of performance profile", func() {
 
 	AfterEach(func() {
 		if clean != nil {
-			clean()
+			err := clean()
+			Expect(err).ToNot(HaveOccurred(), "Failed to clean, err: %s", err)
 		}
-
 	})
 
 	Context("[rfe_id:28881][performance] Performance Addons detailed status", func() {
@@ -135,7 +135,7 @@ var _ = Describe("Status testing of performance profile", func() {
 				err := testclient.Client.Get(context.TODO(), key, runtimeClass)
 				// if err != nil probably the resource were already deleted
 				if err == nil {
-					testclient.Client.Delete(context.TODO(), runtimeClass)
+					err = testclient.Client.Delete(context.TODO(), runtimeClass)
 				}
 				return err
 			}

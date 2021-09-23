@@ -187,7 +187,9 @@ func setEnvAndGetDescription(tst latencyTest) string {
 }
 
 func setEnvWriteDescription(envVar string, val string, sb *bytes.Buffer, flag *bool) {
-	os.Setenv(envVar, val)
+	if err := os.Setenv(envVar, val); err != nil {
+		panic(err)
+	}
 	fmt.Fprintf(sb, "%s = %s \n", envVar, val)
 	*flag = true
 }

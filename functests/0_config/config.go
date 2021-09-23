@@ -116,7 +116,9 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 
 func externalPerformanceProfile(performanceManifest string) (*performancev2.PerformanceProfile, error) {
 	performanceScheme := runtime.NewScheme()
-	performancev2.AddToScheme(performanceScheme)
+	if err := performancev2.AddToScheme(performanceScheme); err != nil {
+		return nil, fmt.Errorf("Failed to add to scheme, err: %s", err)
+	}
 
 	decode := serializer.NewCodecFactory(performanceScheme).UniversalDeserializer().Decode
 	manifest, err := ioutil.ReadFile(filepath.Clean(performanceManifest))

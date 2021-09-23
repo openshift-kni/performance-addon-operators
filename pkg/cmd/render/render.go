@@ -95,7 +95,9 @@ func (r *renderOpts) AddFlags(fs *pflag.FlagSet) {
 
 func (r *renderOpts) readFlagsFromEnv() {
 	if ppInFiles := os.Getenv("PERFORMANCE_PROFILE_INPUT_FILES"); len(ppInFiles) > 0 {
-		r.performanceProfileInputFiles.Set(ppInFiles)
+		if err := r.performanceProfileInputFiles.Set(ppInFiles); err != nil {
+			panic(err)
+		}
 	}
 
 	if assetInDir := os.Getenv("ASSET_INPUT_DIR"); len(assetInDir) > 0 {
