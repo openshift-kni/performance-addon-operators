@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 check_node_gather_pods_ready() {
     line=$(oc get ds perf-node-gather-daemonset -o=custom-columns=DESIRED:.status.desiredNumberScheduled,READY:.status.numberReady --no-headers -n perf-node-gather)
 
