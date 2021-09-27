@@ -1,7 +1,6 @@
 package __render_command_test
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -19,7 +18,7 @@ var (
 	testDataPath string
 )
 
-var _ = Describe("render command unittest", func() {
+var _ = Describe("render command e2e test", func() {
 
 	BeforeEach(func() {
 		assetsOutDir = createTempAssetsDir()
@@ -96,7 +95,10 @@ func runAndCompare(cmd *exec.Cmd) {
 		data, err := ioutil.ReadFile(filepath.Join(assetsOutDir, f.Name()))
 		Expect(err).ToNot(HaveOccurred())
 
-		res := bytes.Compare(data, refData)
-		Expect(res).To(BeZero())
+		diff, err := getFilesDiff(data, refData)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(diff).To(BeZero(), "rendered %s file is not identical to its reference file; diff: %v",
+			f.Name(),
+			diff)
 	}
 }

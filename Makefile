@@ -1,7 +1,7 @@
 IMAGE_BUILD_CMD ?= "docker"
 IMAGE_REGISTRY ?= "quay.io"
 REGISTRY_NAMESPACE ?= "openshift-kni"
-IMAGE_TAG ?= "4.8-snapshot"
+IMAGE_TAG ?= "4.10-snapshot"
 
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
@@ -10,9 +10,9 @@ CACHE_DIR="_cache"
 TOOLS_DIR="$(CACHE_DIR)/tools"
 TOOLS_BIN_DIR="build/_output/bin"
 
-OPERATOR_SDK_VERSION="v1.0.0"
-OPERATOR_SDK_PLATFORM ?= "x86_64-linux-gnu"
-OPERATOR_SDK_BIN="operator-sdk-$(OPERATOR_SDK_VERSION)-$(OPERATOR_SDK_PLATFORM)"
+OPERATOR_SDK_VERSION="v1.11.0"
+OPERATOR_SDK_PLATFORM ?= "linux_amd64"
+OPERATOR_SDK_BIN="operator-sdk_$(OPERATOR_SDK_PLATFORM)"
 OPERATOR_SDK="$(TOOLS_DIR)/$(OPERATOR_SDK_BIN)"
 
 OPERATOR_IMAGE_NAME="performance-addon-operator"
@@ -106,6 +106,10 @@ dist-docs-generator: build-output-dir
 .PHONY: dist-functests
 dist-functests:
 	./hack/build-test-bin.sh
+
+.PHONY: dist-latency-tests
+dist-latency-tests:
+	./hack/build-latency-test-bin.sh
 
 .PHONY: new-zversion
 new-zversion: bump-zversion generate
@@ -252,6 +256,10 @@ functests-only:
 functests-latency: cluster-label-worker-cnf
 	GINKGO_SUITS="functests/0_config functests/4_latency" LATENCY_TEST_RUN="true" hack/run-functests.sh
 
+.PHONY: functests-latency-testing
+functests-latency-testing: dist-latency-tests
+	GINKGO_SUITS="functests/5_latency_testing" hack/run-latency-testing.sh
+
 .PHONY: operator-upgrade-tests
 operator-upgrade-tests:
 	@echo "Running Operator Upgrade Tests"
@@ -263,7 +271,7 @@ perf-profile-creator-tests: create-performance-profile
 	hack/run-perf-profile-creator-functests.sh
 
 .PHONY: render-command-tests
-render-command-tests:
+render-command-tests: dist
 	@echo "Running Render Command Tests"
 	hack/run-render-command-functests.sh
 

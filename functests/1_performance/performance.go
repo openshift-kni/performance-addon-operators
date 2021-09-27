@@ -18,9 +18,8 @@ import (
 	"k8s.io/api/node/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
 
@@ -28,12 +27,14 @@ import (
 
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/cluster"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
@@ -42,6 +43,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/machineconfig"
+	componentprofile "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 )
 
 const (
@@ -49,10 +51,17 @@ const (
 	testPollInterval = 2
 )
 
-var _ = Describe("[rfe_id:27368][performance]", func() {
+var RunningOnSingleNode bool
 
+var _ = Describe("[rfe_id:27368][performance]", func() {
 	var workerRTNodes []corev1.Node
 	var profile *performancev2.PerformanceProfile
+
+	testutils.BeforeAll(func() {
+		isSNO, err := cluster.IsSingleNode()
+		Expect(err).ToNot(HaveOccurred())
+		RunningOnSingleNode = isSNO
+	})
 
 	BeforeEach(func() {
 		if discovery.Enabled() && testutils.ProfileNotFound {
@@ -72,7 +81,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 	// self-tests; these are only vaguely related to performance becase these are enablement conditions, not actual settings.
 	// For example, running on control plane means we leave more resources for the workload.
 	Context("Performance Operator", func() {
-		It("Should run on the control plane nodes", func() {
+		It("[test_id:38109] Should run on the control plane nodes", func() {
 			pod, err := pods.GetPerformanceOperatorPod()
 			Expect(err).ToNot(HaveOccurred(), "Failed to find the Performance Addon Operator pod")
 
@@ -134,14 +143,14 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 					}
 				}
 				return true
-			}, 120*time.Second, testPollInterval*time.Second).Should(BeTrue(),
+			}, cluster.ComputeTestTimeout(120*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(BeTrue(),
 				"tuned CR name owned by a performance profile CR should only be %q", tunedExpectedName)
 		})
 
 		It("[test_id:37127] Node should point to right tuned profile", func() {
 			for _, node := range workerRTNodes {
-				tuned := tunedForNode(&node)
-				activeProfile, err := pods.ExecCommandOnPod(tuned, []string{"cat", "/etc/tuned/active_profile"})
+				tuned := nodes.TunedForNode(&node, RunningOnSingleNode)
+				activeProfile, err := pods.WaitForPodOutput(testclient.K8sClient, tuned, []string{"cat", "/etc/tuned/active_profile"})
 				Expect(err).ToNot(HaveOccurred(), "Error getting the tuned active profile")
 				activeProfileName := string(activeProfile)
 				Expect(strings.TrimSpace(activeProfileName)).To(Equal(tunedExpectedName), "active profile name mismatch got %q expected %q", activeProfileName, tunedExpectedName)
@@ -160,7 +169,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 		})
 
-		It("Should set CPU isolcpu's kernel argument managed_irq flag", func() {
+		It("[test_id:32702] Should set CPU isolcpu's kernel argument managed_irq flag", func() {
 			for _, node := range workerRTNodes {
 				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/proc/cmdline"})
 				Expect(err).ToNot(HaveOccurred())
@@ -174,50 +183,116 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 		It("[test_id:27081][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should set workqueue CPU mask", func() {
 			for _, node := range workerRTNodes {
-				By("Getting tuned.non_isolcpus kernel argument")
+				By(fmt.Sprintf("Getting tuned.non_isolcpus kernel argument on %q", node.Name))
 				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/proc/cmdline"})
+				Expect(err).ToNot(HaveOccurred())
 				re := regexp.MustCompile(`tuned.non_isolcpus=\S+`)
 				nonIsolcpusFullArgument := re.FindString(string(cmdline))
-				Expect(nonIsolcpusFullArgument).To(ContainSubstring("tuned.non_isolcpus="))
+				Expect(nonIsolcpusFullArgument).To(ContainSubstring("tuned.non_isolcpus="), "tuned.non_isolcpus parameter not found in %q", cmdline)
 				nonIsolcpusMask := strings.Split(string(nonIsolcpusFullArgument), "=")[1]
 				nonIsolcpusMaskNoDelimiters := strings.Replace(nonIsolcpusMask, ",", "", -1)
+
+				getTrimmedMaskFromData := func(maskType string, data []byte) string {
+					trimmed := strings.TrimSpace(string(data))
+					testlog.Infof("workqueue %s mask for %q: %q", maskType, node.Name, trimmed)
+					return strings.Replace(trimmed, ",", "", -1)
+				}
+
+				expectMasksEqual := func(expected, got string) {
+					expectedTrimmed := strings.TrimLeft(expected, "0")
+					gotTrimmed := strings.TrimLeft(got, "0")
+					ExpectWithOffset(1, expectedTrimmed).Should(Equal(gotTrimmed), "wrong workqueue mask on %q - got %q (from %q) expected %q (from %q)", node.Name, expectedTrimmed, expected, got, gotTrimmed)
+				}
+
+				By(fmt.Sprintf("Getting the virtual workqueue mask (/sys/devices/virtual/workqueue/cpumask) on %q", node.Name))
+				workqueueMaskData, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/sys/devices/virtual/workqueue/cpumask"})
 				Expect(err).ToNot(HaveOccurred())
-				By("executing the command \"cat /sys/devices/virtual/workqueue/cpumask\"")
-				workqueueMask, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/sys/devices/virtual/workqueue/cpumask"})
+				workqueueMask := getTrimmedMaskFromData("virtual", workqueueMaskData)
+				expectMasksEqual(nonIsolcpusMaskNoDelimiters, workqueueMask)
+
+				By(fmt.Sprintf("Getting the writeback workqueue mask (/sys/bus/workqueue/devices/writeback/cpumask) on %q", node.Name))
+				workqueueWritebackMaskData, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/sys/bus/workqueue/devices/writeback/cpumask"})
 				Expect(err).ToNot(HaveOccurred())
-				workqueueMaskTrimmed := strings.TrimSpace(string(workqueueMask))
-				workqueueMaskTrimmedNoDelimiters := strings.Replace(workqueueMaskTrimmed, ",", "", -1)
-				Expect(strings.TrimLeft(nonIsolcpusMaskNoDelimiters, "0")).Should(Equal(strings.TrimLeft(workqueueMaskTrimmedNoDelimiters, "0")), "workqueueMask is not set to "+workqueueMaskTrimmed)
-				By("executing the command \"cat /sys/bus/workqueue/devices/writeback/cpumask\"")
-				workqueueWritebackMask, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"cat", "/sys/bus/workqueue/devices/writeback/cpumask"})
-				Expect(err).ToNot(HaveOccurred())
-				workqueueWritebackMaskTrimmed := strings.TrimSpace(string(workqueueWritebackMask))
-				workqueueWritebackMaskTrimmedNoDelimiters := strings.Replace(workqueueWritebackMaskTrimmed, ",", "", -1)
-				Expect(strings.TrimLeft(nonIsolcpusMaskNoDelimiters, "0")).Should(Equal(strings.TrimLeft(workqueueWritebackMaskTrimmedNoDelimiters, "0")), "workqueueMask is not set to "+workqueueWritebackMaskTrimmed)
+				workqueueWritebackMask := getTrimmedMaskFromData("workqueue", workqueueWritebackMaskData)
+				expectMasksEqual(nonIsolcpusMaskNoDelimiters, workqueueWritebackMask)
 			}
 		})
 
 		It("[test_id:32375][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] initramfs should not have injected configuration", func() {
-			Skip("Skipping test until BZ#1858347 is resolved")
 			for _, node := range workerRTNodes {
 				rhcosId, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"awk", "-F", "/", "{printf $3}", "/rootfs/proc/cmdline"})
 				Expect(err).ToNot(HaveOccurred())
 				initramfsImagesPath, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"find", filepath.Join("/rootfs/boot/ostree", string(rhcosId)), "-name", "*.img"})
 				Expect(err).ToNot(HaveOccurred())
-				initrd, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"lsinitrd", strings.TrimSpace(string(initramfsImagesPath))})
+				modifiedImagePath := strings.TrimPrefix(strings.TrimSpace(string(initramfsImagesPath)), "/rootfs")
+				initrd, err := nodes.ExecCommandOnMachineConfigDaemon(&node, []string{"chroot", "/rootfs", "lsinitrd", modifiedImagePath})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(initrd)).ShouldNot(ContainSubstring("'/etc/systemd/system.conf /etc/systemd/system.conf.d/setAffinity.conf'"))
 			}
 		})
 
 		It("[test_id:35363][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running on the host", func() {
-			Skip("until bugs https://bugzilla.redhat.com/show_bug.cgi?id=1912118 and https://bugzilla.redhat.com/show_bug.cgi?id=1903302 fixed")
 			for _, node := range workerRTNodes {
-				tuned := tunedForNode(&node)
-				_, err := pods.ExecCommandOnPod(tuned, []string{"pidof", "stalld"})
+				tuned := nodes.TunedForNode(&node, RunningOnSingleNode)
+				_, err := pods.WaitForPodOutput(testclient.K8sClient, tuned, []string{"pidof", "stalld"})
 				Expect(err).ToNot(HaveOccurred())
 			}
 		})
+		It("[test_id:42400][crit:medium][vendor:cnf-qe@redhat.com][level:acceptance] stalld daemon is running as sched_fifo", func() {
+			for _, node := range workerRTNodes {
+				pid, err := nodes.ExecCommandOnNode([]string{"pidof", "stalld"}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(pid).ToNot(BeEmpty())
+				sched_tasks, err := nodes.ExecCommandOnNode([]string{"chrt", "-ap", pid}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(sched_tasks).To(ContainSubstring("scheduling policy: SCHED_FIFO"))
+				Expect(sched_tasks).To(ContainSubstring("scheduling priority: 10"))
+			}
+		})
+		It("[test_id:42696][crit:medium][vendor:cnf-qe@redhat.com][level:acceptance] Stalld runs in higher priority than ksoftirq and rcu{c,b}", func() {
+			for _, node := range workerRTNodes {
+				stalld_pid, err := nodes.ExecCommandOnNode([]string{"pidof", "stalld"}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(stalld_pid).ToNot(BeEmpty())
+				sched_tasks, err := nodes.ExecCommandOnNode([]string{"chrt", "-ap", stalld_pid}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				re := regexp.MustCompile("scheduling priority: ([0-9]+)")
+				match := re.FindStringSubmatch(sched_tasks)
+				stalld_prio, err := strconv.Atoi(match[1])
+				Expect(err).ToNot(HaveOccurred())
+
+				ksoftirq_pid, err := nodes.ExecCommandOnNode([]string{"pgrep", "-f", "ksoftirqd", "-n"}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ksoftirq_pid).ToNot(BeEmpty())
+				sched_tasks, err = nodes.ExecCommandOnNode([]string{"chrt", "-ap", ksoftirq_pid}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				match = re.FindStringSubmatch(sched_tasks)
+				ksoftirq_prio, err := strconv.Atoi(match[1])
+				Expect(err).ToNot(HaveOccurred())
+
+				if profile.Spec.RealTimeKernel == nil ||
+					profile.Spec.RealTimeKernel.Enabled == nil ||
+					*profile.Spec.RealTimeKernel.Enabled != true {
+					Expect(stalld_prio).To(BeNumerically("<", ksoftirq_prio))
+					testlog.Warning("Skip checking rcu since RT kernel is disabled")
+					return
+				}
+				//rcuc/n : kthreads that are pinned to CPUs & are responsible to execute the callbacks of rcu threads .
+				//rcub/n : are boosting kthreads ,responsible to monitor per-cpu arrays of lists of tasks that were blocked while in an rcu read-side critical sections.
+				rcu_pid, err := nodes.ExecCommandOnNode([]string{"pgrep", "-f", "rcu[c,b]", "-n"}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(rcu_pid).ToNot(BeEmpty())
+				sched_tasks, err = nodes.ExecCommandOnNode([]string{"chrt", "-ap", rcu_pid}, &node)
+				Expect(err).ToNot(HaveOccurred())
+				match = re.FindStringSubmatch(sched_tasks)
+				rcu_prio, err := strconv.Atoi(match[1])
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(stalld_prio).To(BeNumerically("<", rcu_prio))
+				Expect(stalld_prio).To(BeNumerically("<", ksoftirq_prio))
+			}
+		})
+
 	})
 
 	Context("Additional kernel arguments added from perfomance profile", func() {
@@ -314,7 +389,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 				for _, pod := range nodePods.Items {
 					cmd := []string{"find", "/sys/devices", "-type", "f", "-name", "rps_cpus", "-exec", "cat", "{}", ";"}
-					devsRPS, err := pods.ExecCommandOnPod(&pod, cmd)
+					devsRPS, err := pods.WaitForPodOutput(testclient.K8sClient, &pod, cmd)
 					for _, devRPS := range strings.Split(strings.Trim(string(devsRPS), "\n"), "\n") {
 						rpsCPUs, err = components.CPUMaskToCPUSet(devRPS)
 						Expect(err).ToNot(HaveOccurred())
@@ -347,72 +422,24 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 		})
 	})
 
-	Context("Network device queues adjusted by Tuned", func() {
-		It("[test_id:40308][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Should be set to the profile's reserved CPUs count ", func() {
-			noDeviceFound := true
-			if profile.Spec.Net != nil {
-				reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
-				Expect(err).ToNot(HaveOccurred())
-				reserveCPUsCount := reservedSet.Size()
-				if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
-					By("To all non virtual network devices when no devices are specified under profile.Spec.Net.Devices")
-					for _, node := range workerRTNodes {
-
-						cmdGetPhysicalDevices := []string{"find", "/sys/class/net", "-type", "l", "-not", "-lname", "*virtual*", "-printf", "%f "}
-						By(fmt.Sprintf("getting a list of physical network devices: %v", cmdGetPhysicalDevices))
-						tuned := tunedForNode(&node)
-						phyDevs, err := pods.ExecCommandOnPod(tuned, cmdGetPhysicalDevices)
-						Expect(err).ToNot(HaveOccurred())
-
-						for _, d := range strings.Split(string(phyDevs), " ") {
-							if d == "" {
-								continue
-							}
-							// See if the device 'd' supports querying the channels.
-							_, err := pods.ExecCommandOnPod(tuned, []string{"ethtool", "-l", d})
-							if err == nil {
-								cmdCombinedChannelsCurrent := []string{"bash", "-c",
-									fmt.Sprintf("ethtool -l %s | sed -n '/Current hardware settings:/,/Combined:/{s/^Combined:\\s*//p}'", d)}
-
-								By(fmt.Sprintf("using physical network device %s for testing", d))
-								out, err := pods.ExecCommandOnPod(tuned, cmdCombinedChannelsCurrent)
-								Expect(err).NotTo(HaveOccurred())
-								channelCurrentCombined, err := strconv.Atoi(strings.TrimSpace(string(out)))
-								if err != nil {
-									testlog.Warningf(fmt.Sprintf("unable to retrieve current multi-purpose channels hardware settings for device %s on %s; skipping test: %v",
-										d, node.Name, err))
-								} else {
-									Expect(err).ToNot(HaveOccurred())
-									Expect(channelCurrentCombined).To(Equal(reserveCPUsCount), " Channel current combine count does not match the count of reserverd CPUs")
-								}
-								noDeviceFound = false
-							}
-						}
-
-						if noDeviceFound {
-							Skip(fmt.Sprintf("no network devices supporting querying channels found on node %s; skipping test", node.Name))
-						}
-					}
-				}
-			}
-		})
-	})
-
 	Context("Create second performance profiles on a cluster", func() {
-		It("[test_id:32364] Verifies that cluster can have multiple profiles", func() {
-			newRole := "worker-new"
+		var secondMCP *mcov1.MachineConfigPool
+		var secondProfile *performancev2.PerformanceProfile
+		var newRole = "worker-new"
+
+		BeforeEach(func() {
 			newLabel := fmt.Sprintf("%s/%s", testutils.LabelRole, newRole)
 
 			reserved := performancev2.CPUSet("0")
 			isolated := performancev2.CPUSet("1-3")
 
-			secondProfile := &performancev2.PerformanceProfile{
+			secondProfile = &performancev2.PerformanceProfile{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "PerformanceProfile",
 					APIVersion: performancev2.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "profile2",
+					Name: "second-profile",
 				},
 				Spec: performancev2.PerformanceProfileSpec{
 					CPU: &performancev2.CPU{
@@ -431,6 +458,45 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 					},
 				},
 			}
+
+			machineConfigSelector := componentprofile.GetMachineConfigLabel(secondProfile)
+			secondMCP = &mcov1.MachineConfigPool{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "second-mcp",
+					Labels: map[string]string{
+						machineconfigv1.MachineConfigRoleLabelKey: newRole,
+					},
+				},
+				Spec: mcov1.MachineConfigPoolSpec{
+					MachineConfigSelector: &metav1.LabelSelector{
+						MatchLabels: machineConfigSelector,
+					},
+					NodeSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							newLabel: "",
+						},
+					},
+				},
+			}
+
+			Expect(testclient.Client.Create(context.TODO(), secondMCP)).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			if secondProfile != nil {
+				if err := profiles.Delete(secondProfile.Name); err != nil {
+					klog.Warningf("failed to delete the performance profile %q: %v", secondProfile.Name, err)
+				}
+			}
+
+			if secondMCP != nil {
+				if err := mcps.Delete(secondMCP.Name); err != nil {
+					klog.Warningf("failed to delete the machine config pool %q: %v", secondMCP.Name, err)
+				}
+			}
+		})
+
+		It("[test_id:32364] Verifies that cluster can have multiple profiles", func() {
 			Expect(testclient.Client.Create(context.TODO(), secondProfile)).ToNot(HaveOccurred())
 
 			By("Checking that new KubeletConfig, MachineConfig and RuntimeClass created")
@@ -528,15 +594,17 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			v1Profile.Spec.NodeSelector = map[string]string{"v1/v1": "v1"}
 			Expect(testclient.Client.Create(context.TODO(), v1Profile)).ToNot(HaveOccurred())
 
-			key = types.NamespacedName{
-				Name:      v1Profile.Name,
-				Namespace: v1Profile.Namespace,
-			}
-
 			defer func() {
 				Expect(testclient.Client.Delete(context.TODO(), v1Profile)).ToNot(HaveOccurred())
 				Expect(profiles.WaitForDeletion(key, 60*time.Second)).ToNot(HaveOccurred())
 			}()
+
+			key = types.NamespacedName{
+				Name:      v1Profile.Name,
+				Namespace: v1Profile.Namespace,
+			}
+			err = testclient.Client.Get(context.TODO(), key, v1Profile)
+			Expect(err).ToNot(HaveOccurred(), "Failed getting v1Profile")
 
 			v2Profile := &performancev2.PerformanceProfile{}
 			err = testclient.GetWithRetry(context.TODO(), key, v2Profile)
@@ -587,6 +655,68 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed getting v1profile")
 			Expect(verifyV1alpha1Conversion(v1alpha1Profile, v1Profile)).ToNot(HaveOccurred())
 		}
+
+		// empty context to use the same JustBeforeEach and AfterEach
+		Context("", func() {
+			var testProfileName string
+			var globallyDisableIrqLoadBalancing bool
+
+			JustBeforeEach(func() {
+				key := types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: profile.Namespace,
+				}
+				err := testclient.Client.Get(context.TODO(), key, profile)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get profile")
+
+				profile.Name = testProfileName
+				profile.ResourceVersion = ""
+				profile.Spec.NodeSelector = map[string]string{"test/test": "test"}
+				profile.Spec.GloballyDisableIrqLoadBalancing = pointer.BoolPtr(globallyDisableIrqLoadBalancing)
+
+				err = testclient.Client.Create(context.TODO(), profile)
+				Expect(err).ToNot(HaveOccurred(), "Failed to create profile")
+
+				// we need to get updated profile object after the name and spec changes
+				key = types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: profile.Namespace,
+				}
+				err = testclient.Client.Get(context.TODO(), key, profile)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get profile")
+			})
+
+			When("the GloballyDisableIrqLoadBalancing field set to false", func() {
+				BeforeEach(func() {
+					testProfileName = "gdilb-false"
+					globallyDisableIrqLoadBalancing = false
+				})
+
+				It("should preserve the value during the v1 <-> v2 conversion", func() {
+					verifyV2V1()
+				})
+			})
+
+			When("the GloballyDisableIrqLoadBalancing field set to true", func() {
+				BeforeEach(func() {
+					testProfileName = "gdilb-true"
+					globallyDisableIrqLoadBalancing = true
+				})
+
+				It("should preserve the value during the v1 <-> v2 conversion", func() {
+					verifyV2V1()
+				})
+			})
+
+			AfterEach(func() {
+				Expect(testclient.Client.Delete(context.TODO(), profile)).ToNot(HaveOccurred())
+				Expect(profiles.WaitForDeletion(types.NamespacedName{
+					Name:      profile.Name,
+					Namespace: profile.Namespace,
+				}, 60*time.Second)).ToNot(HaveOccurred())
+			})
+
+		})
 
 		When("the performance profile does not contain NUMA field", func() {
 			BeforeEach(func() {
@@ -639,7 +769,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			}
 		})
 
-		validateObject := func(obj runtime.Object, message string) {
+		validateObject := func(obj client.Object, message string) {
 			err := testclient.Client.Create(context.TODO(), obj)
 			Expect(err).To(HaveOccurred(), "expected the validation error")
 			Expect(err.Error()).To(ContainSubstring(message))
@@ -1082,7 +1212,7 @@ func verifyV2Conversion(v2Profile *performancev2.PerformanceProfile, v1Profile *
 	for _, f := range v2Profile.GetObjectMeta().GetManagedFields() {
 		if f.APIVersion == performancev1alpha1.GroupVersion.String() ||
 			f.APIVersion == performancev1.GroupVersion.String() {
-			if v2Profile.Spec.GloballyDisableIrqLoadBalancing == nil || !*v2Profile.Spec.GloballyDisableIrqLoadBalancing {
+			if v2Profile.Spec.GloballyDisableIrqLoadBalancing == nil {
 				return fmt.Errorf("globallyDisableIrqLoadBalancing field must be set to true")
 			}
 		}
@@ -1105,7 +1235,7 @@ func execSysctlOnWorkers(workerNodes []corev1.Node, sysctlMap map[string]string)
 }
 
 // execute sysctl command inside container in a tuned pod
-func validateTunedActiveProfile(nodes []corev1.Node) {
+func validateTunedActiveProfile(wrknodes []corev1.Node) {
 	var err error
 	var out []byte
 	activeProfileName := components.GetComponentName(testutils.PerformanceProfileName, components.ProfileNamePerformance)
@@ -1124,44 +1254,14 @@ func validateTunedActiveProfile(nodes []corev1.Node) {
 		}
 	}
 
-	for _, node := range nodes {
-		tuned := tunedForNode(&node)
+	for _, node := range wrknodes {
+		tuned := nodes.TunedForNode(&node, RunningOnSingleNode)
 		tunedName := tuned.ObjectMeta.Name
 		By(fmt.Sprintf("executing the command cat /etc/tuned/active_profile inside the pod %s", tunedName))
 		Eventually(func() string {
-			out, err = pods.ExecCommandOnPod(tuned, []string{"cat", "/etc/tuned/active_profile"})
+			out, err = pods.WaitForPodOutput(testclient.K8sClient, tuned, []string{"cat", "/etc/tuned/active_profile"})
 			return strings.TrimSpace(string(out))
-		}, testTimeout*time.Second, testPollInterval*time.Second).Should(Equal(activeProfileName),
+		}, cluster.ComputeTestTimeout(testTimeout*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(Equal(activeProfileName),
 			fmt.Sprintf("active_profile is not set to %s. %v", activeProfileName, err))
 	}
-}
-
-// find tuned pod for appropriate node
-func tunedForNode(node *corev1.Node) *corev1.Pod {
-	listOptions := &client.ListOptions{
-		Namespace:     components.NamespaceNodeTuningOperator,
-		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}),
-		LabelSelector: labels.SelectorFromSet(labels.Set{"openshift-app": "tuned"}),
-	}
-
-	tunedList := &corev1.PodList{}
-	Eventually(func() bool {
-		if err := testclient.Client.List(context.TODO(), tunedList, listOptions); err != nil {
-			return false
-		}
-
-		if len(tunedList.Items) == 0 {
-			return false
-		}
-		for _, s := range tunedList.Items[0].Status.ContainerStatuses {
-			if s.Ready == false {
-				return false
-			}
-		}
-		return true
-
-	}, testTimeout*time.Second, testPollInterval*time.Second).Should(BeTrue(),
-		"there should be one tuned daemon per node")
-
-	return &tunedList.Items[0]
 }

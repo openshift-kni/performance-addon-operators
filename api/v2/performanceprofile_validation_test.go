@@ -192,7 +192,7 @@ var _ = Describe("PerformanceProfile", func() {
 			profile.Spec.MachineConfigPoolSelector["foo"] = "bar"
 			errors = profile.validateSelectors()
 			Expect(errors).NotTo(BeEmpty(), "should have validation error when the profile has two machine config pool selectors")
-			Expect(errors[0].Error()).To(ContainSubstring("you should provide only 1 MachineConfigPoolLabel"))
+			Expect(errors[0].Error()).To(ContainSubstring("you should provide only 1 MachineConfigPoolSelector"))
 
 			profile.Spec.MachineConfigPoolSelector = nil
 			setValidNodeSelector(profile)
@@ -205,7 +205,7 @@ var _ = Describe("PerformanceProfile", func() {
 			profile.Spec.MachineConfigLabel = nil
 			errors := profile.validateSelectors()
 			Expect(errors).NotTo(BeEmpty(), "should have validation error with invalid NodeSelector")
-			Expect(errors[0].Error()).To(ContainSubstring("invalid NodeSelector label key, can't be split into domain/role"))
+			Expect(errors[0].Error()).To(ContainSubstring("invalid NodeSelector label key that can't be split into domain/role"))
 
 			setValidNodeSelector(profile)
 			errors = profile.validateSelectors()
@@ -298,10 +298,10 @@ var _ = Describe("PerformanceProfile", func() {
 				profile.Spec.Net.Devices[0].VendorID = pointer.StringPtr(invalidVendor)
 				profile.Spec.Net.Devices[0].DeviceID = pointer.StringPtr(invalidDevice)
 				errors := profile.validateNet()
-				Expect(errors).NotTo(BeEmpty())
+				Expect(len(errors)).To(Equal(3))
 				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device name cannot be empty")))
-				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device vendor ID %s has an invalid format. Vendor ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidVendor)))
-				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device model ID %s has an invalid format. Model ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidDevice)))
+				Expect(errors[1].Error()).To(ContainSubstring(fmt.Sprintf("device vendor ID %s has an invalid format. Vendor ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidVendor)))
+				Expect(errors[2].Error()).To(ContainSubstring(fmt.Sprintf("device model ID %s has an invalid format. Model ID should be represented as 0x<4 hexadecimal digits> (16 bit representation)", invalidDevice)))
 
 			})
 			It("should raise the validation errors for missing fields", func() {
@@ -309,7 +309,7 @@ var _ = Describe("PerformanceProfile", func() {
 				profile.Spec.Net.Devices[0].DeviceID = pointer.StringPtr("0x1")
 				errors := profile.validateNet()
 				Expect(errors).NotTo(BeEmpty())
-				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device ID can not be used without specifying the device vendor ID.")))
+				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device model ID can not be used without specifying the device vendor ID.")))
 			})
 		})
 	})

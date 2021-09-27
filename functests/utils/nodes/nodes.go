@@ -2,9 +2,14 @@ package nodes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
+	"time"
+
+	. "github.com/onsi/gomega"
 
 	"github.com/ghodss/yaml"
 
@@ -18,9 +23,27 @@ import (
 
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/cluster"
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
+	testpods "github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 )
+
+const (
+	testTimeout      = 480
+	testPollInterval = 2
+)
+
+// NumaNodes defines cpus in each numa node
+type NumaNodes struct {
+	Cpus []NodeCPU `json:"cpus"`
+}
+
+// NodeCPU Structure
+type NodeCPU struct {
+	CPU  string `json:"cpu"`
+	Node string `json:"node"`
+}
 
 // GetByRole returns all nodes with the specified role
 func GetByRole(role string) ([]corev1.Node, error) {
@@ -88,17 +111,7 @@ func ExecCommandOnMachineConfigDaemon(node *corev1.Node, command []string) ([]by
 	}
 	testlog.Infof("found mcd %s for node %s", mcd.Name, node.Name)
 
-	initialArgs := []string{
-		"exec",
-		"-i",
-		"-n", testutils.NamespaceMachineConfigOperator,
-		"-c", testutils.ContainerMachineConfigDaemon,
-		"--request-timeout", "30",
-		mcd.Name,
-		"--",
-	}
-	initialArgs = append(initialArgs, command...)
-	return testutils.ExecAndLogCommand("oc", initialArgs...)
+	return testpods.WaitForPodOutput(testclient.K8sClient, mcd, command)
 }
 
 // ExecCommandOnNode executes given command on given node and returns the result
@@ -107,7 +120,9 @@ func ExecCommandOnNode(cmd []string, node *corev1.Node) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.Trim(string(out), "\n"), nil
+
+	trimmedString := strings.Trim(string(out), "\n")
+	return strings.ReplaceAll(trimmedString, "\r", ""), nil
 }
 
 // GetKubeletConfig returns KubeletConfiguration loaded from the node /etc/kubernetes/kubelet.conf
@@ -195,6 +210,11 @@ func BannedCPUs(node corev1.Node) (banned cpuset.CPUSet, err error) {
 		return cpuset.NewCPUSet(), fmt.Errorf("failed to execute %v: %v", cmd, err)
 	}
 
+	if bannedCPUs == "" {
+		testlog.Infof("Banned CPUs on node %q returned empty set", node.Name)
+		return cpuset.NewCPUSet(), nil // TODO: should this be a error?
+	}
+
 	banned, err = components.CPUMaskToCPUSet(bannedCPUs)
 	if err != nil {
 		return cpuset.NewCPUSet(), fmt.Errorf("failed to parse the banned CPUs: %v", err)
@@ -221,4 +241,61 @@ func GetOnlineCPUsSet(node *corev1.Node) (cpuset.CPUSet, error) {
 		return cpuset.NewCPUSet(), err
 	}
 	return cpuset.Parse(onlineCPUs)
+}
+
+// GetNumaNodes returns the number of numa nodes and the associated cpus as list on the node
+func GetNumaNodes(node *corev1.Node) (map[int][]int, error) {
+	lscpuCmd := []string{"lscpu", "-e=cpu,node", "-J"}
+	cmdout, err := ExecCommandOnNode(lscpuCmd, node)
+	var numaNode, cpu int
+	if err != nil {
+		return nil, err
+	}
+	numaCpus := make(map[int][]int)
+	var result NumaNodes
+	err = json.Unmarshal([]byte(cmdout), &result)
+	if err != nil {
+		return nil, err
+	}
+	for _, value := range result.Cpus {
+		if numaNode, err = strconv.Atoi(value.Node); err != nil {
+			break
+		}
+		if cpu, err = strconv.Atoi(value.CPU); err != nil {
+			break
+		}
+		numaCpus[numaNode] = append(numaCpus[numaNode], cpu)
+	}
+	return numaCpus, err
+}
+
+//TunedForNode find tuned pod for appropriate node
+func TunedForNode(node *corev1.Node, sno bool) *corev1.Pod {
+
+	listOptions := &client.ListOptions{
+		Namespace:     components.NamespaceNodeTuningOperator,
+		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Name}),
+		LabelSelector: labels.SelectorFromSet(labels.Set{"openshift-app": "tuned"}),
+	}
+
+	tunedList := &corev1.PodList{}
+	Eventually(func() bool {
+		if err := testclient.Client.List(context.TODO(), tunedList, listOptions); err != nil {
+			return false
+		}
+
+		if len(tunedList.Items) == 0 {
+			return false
+		}
+		for _, s := range tunedList.Items[0].Status.ContainerStatuses {
+			if s.Ready == false {
+				return false
+			}
+		}
+		return true
+
+	}, cluster.ComputeTestTimeout(testTimeout*time.Second, sno), testPollInterval*time.Second).Should(BeTrue(),
+		"there should be one tuned daemon per node")
+
+	return &tunedList.Items[0]
 }

@@ -21,8 +21,20 @@ import (
 const (
 	mustGatherPath       = "../../testdata/must-gather"
 	expectedProfilesPath = "../../testdata/ppc-expected-profiles"
+	expectedInfoPath     = "../../testdata/ppc-expected-info"
 	ppcPath              = "../../build/_output/bin/performance-profile-creator"
 )
+
+var mustGatherFullPath = path.Join(mustGatherPath, "must-gather.bare-metal")
+
+var defaultArgs = []string{
+	"--disable-ht=false",
+	"--mcp-name=worker-cnf",
+	"--rt-kernel=true",
+	"--user-level-networking=false",
+	"--profile-name=Performance",
+	fmt.Sprintf("--must-gather-dir-path=%s", mustGatherFullPath),
+}
 
 var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 	It("[test_id:OCP-40940] performance profile creator regression tests", func() {
@@ -74,6 +86,105 @@ var _ = Describe("[rfe_id:OCP-38968][ppc] Performance Profile Creator", func() {
 
 			Expect(profile).To(BeEquivalentTo(expectedProfile), "regression test failed for '%s' case", expectedProfilePath)
 		}
+	})
+
+	It("should describe the cluster from must-gather data in info mode", func() {
+		Expect(ppcPath).To(BeAnExistingFile())
+
+		// directory base name => full path
+		mustGatherDirs := getMustGatherDirs(mustGatherPath)
+
+		for name, path := range mustGatherDirs {
+			cmdArgs := []string{
+				"--info=json",
+				fmt.Sprintf("--must-gather-dir-path=%s", path),
+			}
+
+			out, err := testutils.ExecAndLogCommand(ppcPath, cmdArgs...)
+			Expect(err).To(BeNil(), "failed to run ppc for %q: %v", path, err)
+
+			var cInfo cmd.ClusterInfo
+			err = json.Unmarshal(out, &cInfo)
+			Expect(err).To(BeNil(), "failed to unmarshal the output json for %q: %v", path, err)
+			expectedClusterInfoPath := filepath.Join(expectedInfoPath, fmt.Sprintf("%s.json", name))
+			bytes, err := ioutil.ReadFile(expectedClusterInfoPath)
+			Expect(err).To(BeNil(), "failed to read the expected json for %q: %v", expectedClusterInfoPath, err)
+
+			var expectedInfo cmd.ClusterInfo
+			err = json.Unmarshal(bytes, &expectedInfo)
+			Expect(err).To(BeNil(), "failed to unmarshal the expected json for '%s': %v", expectedClusterInfoPath, err)
+
+			expectedInfo.Sort()
+
+			Expect(cInfo).To(BeEquivalentTo(expectedInfo), "regression test failed for '%s' case", expectedClusterInfoPath)
+		}
+	})
+	Context("Systems with Hyperthreading enabled", func() {
+		It("[test_id:41419] Verify PPC script fails when reserved cpu count is 2 and requires to split across numa nodes", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				"--reserved-cpu-count=2",
+				"--split-reserved-cpus-across-numa=true",
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
+			Expect(ppcErrorString).To(ContainSubstring("can't allocate odd number of CPUs from a NUMA Node"))
+		})
+
+		It("[test_id:41405] Verify PPC fails when splitting of reserved cpus and single numa-node policy is specified", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				fmt.Sprintf("--reserved-cpu-count=%d", 2),
+				fmt.Sprintf("--split-reserved-cpus-across-numa=%t", true),
+				fmt.Sprintf("--topology-manager-policy=%s", "single-numa-node"),
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
+			Expect(ppcErrorString).To(ContainSubstring("not appropriate to split reserved CPUs in case of topology-manager-policy: single-numa-node"))
+		})
+
+		It("[test_id:41420] Verify PPC fails when reserved cpu count is more than available cpus", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				fmt.Sprintf("--reserved-cpu-count=%d", 100),
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
+			Expect(ppcErrorString).To(ContainSubstring("please specify the reserved CPU count in the range"))
+		})
+
+		It("[test_id:41421] Verify PPC fails when odd number of reserved cpus are specified", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				fmt.Sprintf("--reserved-cpu-count=%d", 5),
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
+			Expect(ppcErrorString).To(ContainSubstring("can't allocate odd number of CPUs from a NUMA Node"))
+		})
+	})
+	Context("Systems with Hyperthreading disabled", func() {
+		It("[test_id:42035] verify PPC fails when splitting of reserved cpus and single numa-node policy is specified", func() {
+			Expect(ppcPath).To(BeAnExistingFile())
+			Expect(mustGatherFullPath).To(BeADirectory())
+			ppcArgs := []string{
+				fmt.Sprintf("--reserved-cpu-count=%d", 2),
+				fmt.Sprintf("--split-reserved-cpus-across-numa=%t", true),
+				fmt.Sprintf("--topology-manager-policy=%s", "single-numa-node"),
+			}
+			cmdArgs := append(defaultArgs, ppcArgs...)
+			_, errData, _ := testutils.ExecAndLogCommandWithStderr(ppcPath, cmdArgs...)
+			ppcErrorString := errorStringParser(errData)
+			Expect(ppcErrorString).To(ContainSubstring("not appropriate to split reserved CPUs in case of topology-manager-policy: single-numa-node"))
+		})
 	})
 })
 
@@ -129,7 +240,6 @@ func getExpectedProfiles(expectedProfilesPath string, mustGatherDirs map[string]
 		if filepath.Ext(file.Name()) != ".yaml" {
 			continue
 		}
-
 		profileKey := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 		ppcArgs, ok := ppcParams[profileKey]
 		Expect(ok).To(BeTrue(), "can't find ppc params for the expected profile: '%s'", file.Name())
@@ -139,4 +249,15 @@ func getExpectedProfiles(expectedProfilesPath string, mustGatherDirs map[string]
 	}
 
 	return expectedProfiles
+}
+
+// PPC stderr parser
+func errorStringParser(errData []byte) string {
+	stdError := string(errData)
+	for _, line := range strings.Split(stdError, "\n") {
+		if strings.Contains(line, "Error: ") {
+			return line
+		}
+	}
+	return ""
 }

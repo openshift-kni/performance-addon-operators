@@ -7,7 +7,6 @@ import (
 
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	profileutil "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
@@ -21,7 +20,8 @@ import (
 )
 
 const (
-	conditionReasonValidationFailed          = "ValidationFailed"
+	conditionFailedToFindMachineConfigPool   = "GettingMachineConfigPoolFailed"
+	conditionBadMachineConfigLabels          = "BadMachineConfigLabels"
 	conditionReasonComponentsCreationFailed  = "ComponentCreationFailed"
 	conditionReasonMCPDegraded               = "MCPDegraded"
 	conditionFailedGettingMCPStatus          = "GettingMCPStatusFailed"
@@ -174,38 +174,15 @@ func (r *PerformanceProfileReconciler) getProgressingConditions(reason string, m
 	}
 }
 
-func (r *PerformanceProfileReconciler) getMCPConditionsByProfile(profile *performancev2.PerformanceProfile) ([]conditionsv1.Condition, error) {
-	mcpList := &mcov1.MachineConfigPoolList{}
-	if err := r.List(context.TODO(), mcpList); err != nil {
-		klog.Errorf("Cannot list Machine config pools to match with profile %q : %v", profile.Name, err)
-		return nil, err
-	}
-
-	// TODO: from some reason we have double entries for each MCP during the call to list
-	// for now the code will just filter duplicates entries, but it can be nice to understand
-	// why it happens
-	filtered := removeMCPDuplicateEntries(mcpList.Items)
-
-	machineConfigPoolSelector := labels.Set(profileutil.GetMachineConfigPoolSelector(profile))
+func (r *PerformanceProfileReconciler) getMCPDegradedCondition(profileMCP *mcov1.MachineConfigPool) ([]conditionsv1.Condition, error) {
 	message := bytes.Buffer{}
-	for _, mcp := range filtered {
-		selector, err := metav1.LabelSelectorAsSelector(mcp.Spec.MachineConfigSelector)
-		if err != nil {
-			return nil, err
-		}
-
-		if !selector.Matches(machineConfigPoolSelector) {
-			continue
-		}
-
-		for _, condition := range mcp.Status.Conditions {
-			if (condition.Type == mcov1.MachineConfigPoolNodeDegraded || condition.Type == mcov1.MachineConfigPoolRenderDegraded) && condition.Status == corev1.ConditionTrue {
-				if len(condition.Reason) > 0 {
-					message.WriteString("Machine config pool " + mcp.GetName() + " Degraded Reason: " + condition.Reason + ".\n")
-				}
-				if len(condition.Message) > 0 {
-					message.WriteString("Machine config pool " + mcp.GetName() + " Degraded Message: " + condition.Message + ".\n")
-				}
+	for _, condition := range profileMCP.Status.Conditions {
+		if (condition.Type == mcov1.MachineConfigPoolNodeDegraded || condition.Type == mcov1.MachineConfigPoolRenderDegraded) && condition.Status == corev1.ConditionTrue {
+			if len(condition.Reason) > 0 {
+				message.WriteString("Machine config pool " + profileMCP.Name + " Degraded Reason: " + condition.Reason + ".\n")
+			}
+			if len(condition.Message) > 0 {
+				message.WriteString("Machine config pool " + profileMCP.Name + " Degraded Message: " + condition.Message + ".\n")
 			}
 		}
 	}
@@ -303,19 +280,6 @@ func getLatestKubeletConfigCondition(conditions []mcov1.KubeletConfigCondition) 
 		}
 	}
 	return latestCondition
-}
-
-func removeMCPDuplicateEntries(mcps []mcov1.MachineConfigPool) []mcov1.MachineConfigPool {
-	var filtered []mcov1.MachineConfigPool
-	items := map[string]mcov1.MachineConfigPool{}
-	for _, mcp := range mcps {
-		if _, exists := items[mcp.Name]; !exists {
-			items[mcp.Name] = mcp
-			filtered = append(filtered, mcp)
-		}
-	}
-
-	return filtered
 }
 
 func removeUnMatchedTunedProfiles(nodes []corev1.Node, profiles []tunedv1.Profile) []tunedv1.Profile {

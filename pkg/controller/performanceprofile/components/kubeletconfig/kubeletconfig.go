@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	profile2 "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,15 +17,17 @@ import (
 )
 
 const (
-	cpuManagerPolicyStatic      = "static"
-	defaultKubeReservedCPU      = "1000m"
-	defaultKubeReservedMemory   = "500Mi"
-	defaultSystemReservedCPU    = "1000m"
-	defaultSystemReservedMemory = "500Mi"
+	cpuManagerPolicyStatic       = "static"
+	memoryManagerPolicyStatic    = "Static"
+	defaultKubeReservedCPU       = "1000m"
+	defaultKubeReservedMemory    = "500Mi"
+	defaultSystemReservedCPU     = "1000m"
+	defaultSystemReservedMemory  = "500Mi"
+	defaultHardEvictionThreshold = "100Mi"
 )
 
 // New returns new KubeletConfig object for performance sensetive workflows
-func New(profile *performancev2.PerformanceProfile) (*machineconfigv1.KubeletConfig, error) {
+func New(profile *performancev2.PerformanceProfile, profileMCPLabels map[string]string) (*machineconfigv1.KubeletConfig, error) {
 	name := components.GetComponentName(profile.Name, components.ComponentNamePrefix)
 	kubeletConfig := &kubeletconfigv1beta1.KubeletConfiguration{
 		TypeMeta: metav1.TypeMeta{
@@ -33,6 +37,9 @@ func New(profile *performancev2.PerformanceProfile) (*machineconfigv1.KubeletCon
 		CPUManagerPolicy:          cpuManagerPolicyStatic,
 		CPUManagerReconcilePeriod: metav1.Duration{Duration: 5 * time.Second},
 		TopologyManagerPolicy:     kubeletconfigv1beta1.BestEffortTopologyManagerPolicy,
+		EvictionHard: map[string]string{
+			"memory.available": defaultHardEvictionThreshold,
+		},
 		KubeReserved: map[string]string{
 			"cpu":    defaultKubeReservedCPU,
 			"memory": defaultKubeReservedMemory,
@@ -49,7 +56,37 @@ func New(profile *performancev2.PerformanceProfile) (*machineconfigv1.KubeletCon
 
 	if profile.Spec.NUMA != nil {
 		if profile.Spec.NUMA.TopologyPolicy != nil {
-			kubeletConfig.TopologyManagerPolicy = string(*profile.Spec.NUMA.TopologyPolicy)
+			topologyPolicy := *profile.Spec.NUMA.TopologyPolicy
+			kubeletConfig.TopologyManagerPolicy = topologyPolicy
+
+			// set the memory manager policy to static only when the topology policy is
+			// restricted or single NUMA node
+			if topologyPolicy == kubeletconfigv1beta1.RestrictedTopologyManagerPolicy ||
+				topologyPolicy == kubeletconfigv1beta1.SingleNumaNodeTopologyManagerPolicy {
+				kubeletConfig.MemoryManagerPolicy = memoryManagerPolicyStatic
+
+				reservedMemory := resource.NewQuantity(0, resource.DecimalSI)
+				if err := addStringToQuantity(reservedMemory, defaultKubeReservedMemory); err != nil {
+					return nil, err
+				}
+				if err := addStringToQuantity(reservedMemory, defaultSystemReservedMemory); err != nil {
+					return nil, err
+				}
+				if err := addStringToQuantity(reservedMemory, defaultHardEvictionThreshold); err != nil {
+					return nil, err
+				}
+
+				kubeletConfig.ReservedMemory = []kubeletconfigv1beta1.MemoryReservation{
+					{
+						// the NUMA node 0 is the only safe choice for non NUMA machines
+						//  in the future we can extend our API to get this information from a user
+						NumaNode: 0,
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: *reservedMemory,
+						},
+					},
+				}
+			}
 		}
 	}
 
@@ -68,11 +105,21 @@ func New(profile *performancev2.PerformanceProfile) (*machineconfigv1.KubeletCon
 		},
 		Spec: machineconfigv1.KubeletConfigSpec{
 			MachineConfigPoolSelector: &metav1.LabelSelector{
-				MatchLabels: profile2.GetMachineConfigPoolSelector(profile),
+				MatchLabels: profileMCPLabels,
 			},
 			KubeletConfig: &runtime.RawExtension{
 				Raw: raw,
 			},
 		},
 	}, nil
+}
+
+func addStringToQuantity(q *resource.Quantity, value string) error {
+	v, err := resource.ParseQuantity(value)
+	if err != nil {
+		return err
+	}
+	q.Add(v)
+
+	return nil
 }

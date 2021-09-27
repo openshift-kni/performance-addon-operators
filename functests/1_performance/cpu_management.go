@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"k8s.io/utils/pointer"
 
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
@@ -23,6 +24,7 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/cluster"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
@@ -40,6 +42,12 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	var reservedCPU, isolatedCPU string
 	var listReservedCPU []int
 	var reservedCPUSet cpuset.CPUSet
+
+	testutils.BeforeAll(func() {
+		isSNO, err := cluster.IsSingleNode()
+		Expect(err).ToNot(HaveOccurred())
+		RunningOnSingleNode = isSNO
+	})
 
 	BeforeEach(func() {
 		if discovery.Enabled() && testutils.ProfileNotFound {
@@ -73,10 +81,12 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 	Describe("Verification of configuration on the worker node", func() {
 		It("[test_id:28528][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify CPU reservation on the node", func() {
-			By(fmt.Sprintf("Allocatable CPU should be less then capacity by %d", len(listReservedCPU)))
+			By(fmt.Sprintf("Allocatable CPU should be less than capacity by %d", len(listReservedCPU)))
 			capacityCPU, _ := workerRTNode.Status.Capacity.Cpu().AsInt64()
 			allocatableCPU, _ := workerRTNode.Status.Allocatable.Cpu().AsInt64()
-			Expect(capacityCPU - allocatableCPU).To(Equal(int64(len(listReservedCPU))))
+			differenceCPUGot := capacityCPU - allocatableCPU
+			differenceCPUExpected := int64(len(listReservedCPU))
+			Expect(differenceCPUGot).To(Equal(differenceCPUExpected), "Allocatable CPU %d should be less than capacity %d by %d; got %d instead", allocatableCPU, capacityCPU, differenceCPUExpected, differenceCPUGot)
 		})
 
 		It("[test_id:37862][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify CPU affinity mask, CPU reservation and CPU isolation on worker node", func() {
@@ -270,8 +280,9 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		})
 
 		It("[test_id:32646] should disable CPU load balancing for CPU's used by the pod", func() {
+			var err error
 			By("Starting the pod")
-			err := testclient.Client.Create(context.TODO(), testpod)
+			err = testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
 			err = pods.WaitForCondition(testpod, corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
@@ -281,12 +292,17 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			containerID, err := pods.GetContainerIDByName(testpod, "test")
 			Expect(err).ToNot(HaveOccurred())
 
-			cmd := []string{"/bin/bash", "-c", fmt.Sprintf("find /rootfs/sys/fs/cgroup/cpuset/ -name *%s*", containerID)}
-			containerCgroup, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
-			Expect(err).ToNot(HaveOccurred())
+			containerCgroup := ""
+			Eventually(func() string {
+				cmd := []string{"/bin/bash", "-c", fmt.Sprintf("find /rootfs/sys/fs/cgroup/cpuset/ -name *%s*", containerID)}
+				containerCgroup, err = nodes.ExecCommandOnNode(cmd, workerRTNode)
+				Expect(err).ToNot(HaveOccurred())
+				return containerCgroup
+			}, (cluster.ComputeTestTimeout(30*time.Second, RunningOnSingleNode)), 5*time.Second).ShouldNot(BeEmpty(),
+				fmt.Sprintf("cannot find cgroup for container %q", containerID))
 
 			By("Checking what CPU the pod is using")
-			cmd = []string{"/bin/bash", "-c", fmt.Sprintf("cat %s/cpuset.cpus", containerCgroup)}
+			cmd := []string{"/bin/bash", "-c", fmt.Sprintf("cat %s/cpuset.cpus", containerCgroup)}
 			output, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -330,7 +346,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		var testpod *corev1.Pod
 
 		BeforeEach(func() {
-			Skip("the test because part of interrupts can not be moved because of underlying hardware, and currently, we do not have a proper way to identify such interrupts")
+			Skip("part of interrupts does not support CPU affinity change because of underlying hardware")
 
 			if profile.Spec.GloballyDisableIrqLoadBalancing != nil && *profile.Spec.GloballyDisableIrqLoadBalancing {
 				Skip("IRQ load balance should be enabled (GloballyDisableIrqLoadBalancing=false), skipping test")
@@ -368,7 +384,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			getPsr := []string{"/bin/bash", "-c", "grep Cpus_allowed_list /proc/self/status | awk '{print $2}'"}
-			psr, err := pods.ExecCommandOnPod(testpod, getPsr)
+			psr, err := pods.WaitForPodOutput(testclient.K8sClient, testpod, getPsr)
 			Expect(err).ToNot(HaveOccurred())
 			psrSet, err := cpuset.Parse(strings.Trim(string(psr), "\n"))
 			Expect(err).ToNot(HaveOccurred())
@@ -381,6 +397,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 				getActiveIrq := []string{"/bin/bash", "-c", "for n in $(find /proc/irq/ -name smp_affinity_list); do echo $(cat $n); done"}
 				activeIrq, err := nodes.ExecCommandOnNode(getActiveIrq, workerRTNode)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(activeIrq).ToNot(BeEmpty())
 				for _, irq := range strings.Split(activeIrq, "\n") {
 					irqAffinity, err := cpuset.Parse(irq)
 					Expect(err).ToNot(HaveOccurred())
@@ -389,7 +406,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 					}
 				}
 				return true
-			}, 30*time.Second, 5*time.Second).Should(BeTrue(),
+			}, (cluster.ComputeTestTimeout(30*time.Second, RunningOnSingleNode)), 5*time.Second).Should(BeTrue(),
 				fmt.Sprintf("IRQ still active on CPU%s", psr))
 
 			By("Checking that after removing POD default smp affinity is returned back to all active CPUs")
@@ -408,6 +425,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			testpod = pods.GetTestPod()
 			testpod.Namespace = testutils.NamespaceTesting
 			testpod.Spec.NodeSelector = map[string]string{testutils.LabelHostname: workerRTNode.Name}
+			testpod.Spec.ShareProcessNamespace = pointer.BoolPtr(true)
 
 			err := testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
@@ -417,17 +435,28 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		})
 
 		It("should run infra containers on reserved CPUs", func() {
+			var err error
 			// find used because that crictl does not show infra containers, `runc list` shows them
 			// but you will need somehow to find infra containers ID's
 			podUID := strings.Replace(string(testpod.UID), "-", "_", -1)
 
-			cmd := []string{"/bin/bash", "-c", fmt.Sprintf("find /rootfs/sys/fs/cgroup/cpuset/ -name *%s*", podUID)}
-			podCgroup, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
-			Expect(err).ToNot(HaveOccurred())
+			podCgroup := ""
+			Eventually(func() string {
+				cmd := []string{"/bin/bash", "-c", fmt.Sprintf("find /rootfs/sys/fs/cgroup/cpuset/ -name *%s*", podUID)}
+				podCgroup, err = nodes.ExecCommandOnNode(cmd, workerRTNode)
+				Expect(err).ToNot(HaveOccurred())
+				return podCgroup
+			}, cluster.ComputeTestTimeout(30*time.Second, RunningOnSingleNode), 5*time.Second).ShouldNot(BeEmpty(),
+				fmt.Sprintf("cannot find cgroup for pod %q", podUID))
 
-			cmd = []string{"/bin/bash", "-c", fmt.Sprintf("find %s -name crio-*", podCgroup)}
-			containersCgroups, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
-			Expect(err).ToNot(HaveOccurred())
+			containersCgroups := ""
+			Eventually(func() string {
+				cmd := []string{"/bin/bash", "-c", fmt.Sprintf("find %s -name crio-*", podCgroup)}
+				containersCgroups, err = nodes.ExecCommandOnNode(cmd, workerRTNode)
+				Expect(err).ToNot(HaveOccurred())
+				return containersCgroups
+			}, cluster.ComputeTestTimeout(30*time.Second, RunningOnSingleNode), 5*time.Second).ShouldNot(BeEmpty(),
+				fmt.Sprintf("cannot find containers cgroups from pod cgroup %q", podCgroup))
 
 			containerID, err := pods.GetContainerIDByName(testpod, "test")
 			Expect(err).ToNot(HaveOccurred())
@@ -443,7 +472,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 				}
 
 				By("Checking what CPU the infra container is using")
-				cmd = []string{"/bin/bash", "-c", fmt.Sprintf("cat %s/cpuset.cpus", dir)}
+				cmd := []string{"/bin/bash", "-c", fmt.Sprintf("cat %s/cpuset.cpus", dir)}
 				output, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
 				Expect(err).ToNot(HaveOccurred())
 

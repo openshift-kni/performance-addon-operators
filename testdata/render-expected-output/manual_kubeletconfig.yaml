@@ -22,6 +22,8 @@ spec:
         cacheUnauthorizedTTL: 0s
     cpuManagerPolicy: static
     cpuManagerReconcilePeriod: 5s
+    evictionHard:
+      memory.available: 100Mi
     evictionPressureTransitionPeriod: 0s
     fileCheckFrequency: 0s
     httpCheckFrequency: 0s
@@ -31,8 +33,13 @@ spec:
       cpu: 1000m
       memory: 500Mi
     logging: {}
+    memoryManagerPolicy: Static
     nodeStatusReportFrequency: 0s
     nodeStatusUpdateFrequency: 0s
+    reservedMemory:
+      - limits:
+          memory: 1100Mi
+        numaNode: 0
     reservedSystemCPUs: "0"
     runtimeRequestTimeout: 0s
     shutdownGracePeriod: 0s

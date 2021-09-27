@@ -106,6 +106,26 @@ CLUSTER=manual make cluster-wait-for-mcp
 
 > Note: in CI this step is skipped, because the test code will wait for the MCP being up to date.
 
+# Render mode
+
+The operator can render manifests for all the components it supposes to create, based on Given a `PerformanceProfile`  
+
+You need to provide the following environment variables
+```
+export PERFORMANCE_PROFILE_INPUT_FILES=<your PerformanceProfile directory path>
+export ASSET_OUTPUT_DIR=<output path for the rendered manifests>
+```
+
+Build and invoke the binary
+```
+build/_output/bin/performance-addon-operators render
+```
+
+Or provide the variables via command line arguments
+```
+build/_output/bin/performance-addon-operators render --performance-profile-input-files <path> --asset-output-dir<path>
+```
+
 # Troubleshooting
 
 When the deployment fails, or the performance tuning does not work as expected, follow the [Troubleshooting Guide](docs/troubleshooting.md)
@@ -127,13 +147,18 @@ deployed Performance Operator and configured MCP and nodes. It will create its o
 The latency-test container image gives the possibility to run the latency 
 test without need to install go, ginkgo or other go related modules.
 
-The test himself is running the `oslat` binary and verifies if the maximal latency returned by the `oslat`
-less than specified value under the `OSLAT_MAXIMUM_LATENCY`.
+The test itself is running the `oslat` `cyclictest` and `hwlatdetect` binaries and verifies if the maximal latency returned by each one of the tools is
+less than specified value under the `MAXIMUM_LATENCY`.
 
-To run the latency test inside of the container:
+To run the latency test inside the container:
 
 ```
-docker run --rm -v /kubeconfig:/kubeconfig -e KUBECONFIG=/kubeconfig -e LATENCY_TEST_RUN=true -e LATENCY_TEST_RUNTIME=60 -e OSLAT_MAXIMUM_LATENCY=700 alukiano/latency-test:4.6-snapshot /usr/bin/run-tests.sh
+docker run --rm -v /kubeconfig:/kubeconfig \
+-e KUBECONFIG=/kubeconfig \
+-e LATENCY_TEST_RUN=true \
+-e LATENCY_TEST_RUNTIME=60 \
+-e MAXIMUM_LATENCY=700 \
+ quay.io/openshift-kni/cnf-tests /usr/bin/run-tests.sh
 ```
 
 You can run the container with different ENV variables, but the bare minimum is to pass
@@ -144,7 +169,11 @@ You can run the container with different ENV variables, but the bare minimum is 
 - `LATENCY_TEST_RUN` indicates if the latency test should run.
 - `LATENCY_TEST_RUNTIME` the amount of time in seconds that the latency test should run.
 - `LATENCY_TEST_IMAGE` the image that used under the latency test.
-- `OSLAT_MAXIMUM_LATENCY` the expected maximum latency for all buckets in us.
+- `LATECNY_TEST_CPUS` the amount of CPUs the pod which run the latency test should request
+- `OSLAT_MAXIMUM_LATENCY` the expected maximum latency for all buckets in us in the oslat test.
+- `CYCLICTEST_MAXIMUM_LATENCY` the expected maximum latency for the cyclictest test.
+- `HWLATDETECT_MAXIMUM_LATENCY` the expected maximum latency for the hwlatdetect test.
+- `MAXIMUM_LATENCY` a unified value for the expected maximum latency for all tests (In case both provided, the specific variables will have precedence over the unified one).
 
 # Contributing
 

@@ -17,6 +17,7 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/cluster"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
@@ -28,6 +29,12 @@ import (
 var _ = Describe("[performance]Hugepages", func() {
 	var workerRTNode *corev1.Node
 	var profile *performancev2.PerformanceProfile
+
+	testutils.BeforeAll(func() {
+		isSNO, err := cluster.IsSingleNode()
+		Expect(err).ToNot(HaveOccurred())
+		RunningOnSingleNode = isSNO
+	})
 
 	BeforeEach(func() {
 		if discovery.Enabled() && testutils.ProfileNotFound {
@@ -139,7 +146,7 @@ var _ = Describe("[performance]Hugepages", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			cmd2 := []string{"/bin/bash", "-c", "tmux new -d 'LD_PRELOAD=libhugetlbfs.so HUGETLB_MORECORE=yes top -b > /dev/null'"}
-			_, err = pods.ExecCommandOnPod(testpod, cmd2)
+			_, err = pods.ExecCommandOnPod(testclient.K8sClient, testpod, cmd2)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("checking free hugepages - one should be used by pod")
@@ -150,7 +157,7 @@ var _ = Describe("[performance]Hugepages", func() {
 			Eventually(func() int {
 				freeHugepages := checkHugepagesStatus(freeHugepagesFile, workerRTNode)
 				return availableHugepages - freeHugepages
-			}, 30*time.Second, time.Second).Should(Equal(1))
+			}, cluster.ComputeTestTimeout(30*time.Second, RunningOnSingleNode), time.Second).Should(Equal(1))
 
 			By("checking hugepages usage in bytes")
 			usageHugepages = checkHugepagesStatus(usageHugepagesFile, workerRTNode)
@@ -163,7 +170,7 @@ func checkHugepagesStatus(path string, workerRTNode *corev1.Node) int {
 	command := []string{"cat", path}
 	out, err := nodes.ExecCommandOnMachineConfigDaemon(workerRTNode, command)
 	Expect(err).ToNot(HaveOccurred())
-	n, err := strconv.Atoi(strings.Trim(string(out), "\n"))
+	n, err := strconv.Atoi(strings.Trim(string(out), "\n\r"))
 	Expect(err).ToNot(HaveOccurred())
 	return n
 }

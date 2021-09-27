@@ -3,12 +3,27 @@ layout: go.kubebuilder.io/v2
 projectName: performance-addon-operator
 repo: github.com/openshift-kni/performance-addon-operators
 resources:
-- group: performance
+-
+  controller: true
+  domain: performance.openshift.io
+  group: performance
   kind: PerformanceProfile
+  path: github.com/openshift-kni/performance-addon-operators/api/v1alpha1
   version: v1alpha1
-- group: performance
+-
+  controller: true
+  domain: performance.openshift.io
+  group: performance
   kind: PerformanceProfile
+  path: github.com/openshift-kni/performance-addon-operators/api/v1
   version: v1
-version: 3-alpha
+-
+  controller: true
+  domain: performance.openshift.io
+  group: performance
+  kind: PerformanceProfile
+  path: github.com/openshift-kni/performance-addon-operators/api/v2
+  version: v2
+version: "3"
 plugins:
   go.sdk.operatorframework.io/v2-alpha: {}

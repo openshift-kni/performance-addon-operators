@@ -7,7 +7,7 @@ readonly IMG_EXISTS_CMD="${CONTAINER_RUNTIME} image exists"
 readonly IMG_PULL_CMD="${CONTAINER_RUNTIME} image pull"
 readonly MUST_GATHER_VOL="/must-gather"
 
-PAO_IMG="quay.io/openshift-kni/performance-addon-operator:4.8-snapshot"
+PAO_IMG="quay.io/openshift-kni/performance-addon-operator:4.10-snapshot"
 MG_TARBALL=""
 DATA_DIR=""
 

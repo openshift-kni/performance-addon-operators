@@ -173,7 +173,7 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*channels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*channels=combined\s*` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by interface name with reserved CPUs count", func() {
@@ -192,7 +192,7 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined\s*` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by negative interface name with reserved CPUs count", func() {
@@ -211,7 +211,7 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined\s*` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by specific vendor with reserved CPUs count", func() {
@@ -230,7 +230,7 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined\s*` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by specific vendor and model with reserved CPUs count", func() {
@@ -251,7 +251,7 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined\s*` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by specific vendor,model and interface name with reserved CPUs count", func() {
@@ -274,7 +274,7 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined\s*` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 				It("should set by specific vendor,model and negative interface name with reserved CPUs count", func() {
@@ -297,7 +297,7 @@ var _ = Describe("Tuned", func() {
 					reservedSet, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 					Expect(err).ToNot(HaveOccurred())
 					reserveCPUcount := reservedSet.Size()
-					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined ` + strconv.Itoa(reserveCPUcount) + `\s*`)
+					channelsRegex := regexp.MustCompile(`\s*\[net\]\\ntype=net\\ndevices_udev_regex=` + devicesUdevRegex + `\\nchannels=combined\s*` + strconv.Itoa(reserveCPUcount) + `\s*`)
 					Expect(channelsRegex.MatchString(manifest)).To(BeTrue())
 				})
 			})
