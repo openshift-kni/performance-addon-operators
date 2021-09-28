@@ -219,6 +219,8 @@ deps-update:
 	go mod tidy && \
 	go mod vendor
 
+
+
 .PHONY: deploy
 deploy: cluster-deploy
 	# TODO - deprecated, will be removed soon in favor of cluster-deploy
@@ -229,9 +231,13 @@ cluster-deploy:
 	FULL_INDEX_IMAGE=$(FULL_INDEX_IMAGE) CLUSTER=$(CLUSTER) hack/deploy.sh
 
 .PHONY: cluster-label-worker-cnf
-cluster-label-worker-cnf:
+cluster-label-worker-cnf: 
 	@echo "Adding worker-cnf label to worker nodes"
 	hack/label-worker-cnf.sh
+	hack/run-must-gather-with-ppc.sh -createprofile
+	hack/run-must-gather-with-ppc.sh -applyprofile
+	@echo "Waiting for MCP to be updated"
+	CLUSTER=$(CLUSTER) hack/wait-for-mcp.sh
 
 .PHONY: cluster-wait-for-mcp
 cluster-wait-for-mcp:
@@ -274,6 +280,12 @@ perf-profile-creator-tests: create-performance-profile
 render-command-tests: dist
 	@echo "Running Render Command Tests"
 	hack/run-render-command-functests.sh
+
+.PHONY: collect-must-gather
+collect-must-gather:
+	@echo "Collect must gather to create performance profile"
+	/hack/run-must-gather-with-ppc.sh -createprofile
+
 
 .PHONY: unittests
 unittests:
