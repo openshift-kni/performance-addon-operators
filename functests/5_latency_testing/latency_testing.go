@@ -94,7 +94,7 @@ var _ = table.DescribeTable("Test latency measurement tools tests", func(testGro
 		if _, err := os.Stat("../../build/_output/bin/latency-e2e.test"); os.IsNotExist(err) {
 			Skip("The executable test file does not exist , skipping the test.")
 		}
-		output, err := exec.Command("../../build/_output/bin/latency-e2e.test", "-ginkgo.focus", test.toolToTest).Output()
+		output, err := exec.Command("../../build/_output/bin/latency-e2e.test", "-ginkgo.focus", test.toolToTest).Output() // #nosec G204
 		if err != nil {
 			//we don't log Error level here because the test might be a negative check
 			testlog.Info(err.Error())
