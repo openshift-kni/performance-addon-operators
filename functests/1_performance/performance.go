@@ -98,6 +98,24 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 			Fail("Performance Addon Operator is not running in a master node")
 		})
+		It("[test_id:44885] Should have CPU and Memory requests but not limits - BZ 1957291", func() {
+			// https://bugzilla.redhat.com/show_bug.cgi?id=1957291
+			pod, err := pods.GetPerformanceOperatorPod()
+			Expect(err).ToNot(HaveOccurred(), "Failed to find the Performance Addon Operator pod")
+
+			Expect(pod.Spec.Containers[0].Resources.Limits.Cpu().IsZero()).To(BeTrue(),
+				"Container has CPU Limit != 0")
+
+			Expect(pod.Spec.Containers[0].Resources.Limits.Memory().IsZero()).To(BeTrue(),
+				"Container has Memory Limit != 0")
+
+			Expect(pod.Spec.Containers[0].Resources.Requests.Cpu().Sign() == 1).To(BeTrue(),
+				"Container has CPU Request <= 0")
+
+			Expect(pod.Spec.Containers[0].Resources.Requests.Memory().Sign() == 1).To(BeTrue(),
+				"Container has Memory Request <= 0")
+
+		})
 	})
 
 	Context("Tuned CRs generated from profile", func() {
