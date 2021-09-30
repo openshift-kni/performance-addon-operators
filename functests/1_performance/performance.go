@@ -247,16 +247,18 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 					testlog.Warning("Skip checking rcu since RT kernel is disabled")
 					return
 				}
-				rcuc_pid, err := nodes.ExecCommandOnNode([]string{"pgrep", "-f", "rcuc", "-n"}, &node)
+				//rcuc/n : kthreads that are pinned to CPUs & are responsible to execute the callbacks of rcu threads .
+				//rcub/n : are boosting kthreads ,responsible to monitor per-cpu arrays of lists of tasks that were blocked while in an rcu read-side critical sections.
+				rcu_pid, err := nodes.ExecCommandOnNode([]string{"pgrep", "-f", "rcu[c,b]", "-n"}, &node)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(rcuc_pid).ToNot(BeEmpty())
-				sched_tasks, err = nodes.ExecCommandOnNode([]string{"chrt", "-ap", rcuc_pid}, &node)
+				Expect(rcu_pid).ToNot(BeEmpty())
+				sched_tasks, err = nodes.ExecCommandOnNode([]string{"chrt", "-ap", rcu_pid}, &node)
 				Expect(err).ToNot(HaveOccurred())
 				match = re.FindStringSubmatch(sched_tasks)
-				rcuc_prio, err := strconv.Atoi(match[1])
+				rcu_prio, err := strconv.Atoi(match[1])
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(stalld_prio).To(BeNumerically("<", rcuc_prio))
+				Expect(stalld_prio).To(BeNumerically("<", rcu_prio))
 				Expect(stalld_prio).To(BeNumerically("<", ksoftirq_prio))
 			}
 		})
