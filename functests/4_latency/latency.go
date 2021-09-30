@@ -363,8 +363,7 @@ func getLatencyTestPod(profile *performancev2.PerformanceProfile, node *corev1.N
 	latencyTestRunnerArgs = append(latencyTestRunnerArgs, testSpecificArgs...)
 
 	if latencyTestDelay > 0 {
-		// The runner expects a Duration
-		latencyTestRunnerArgs = append(latencyTestRunnerArgs, fmt.Sprintf("-%s-start-delay=%ds", testName, latencyTestDelay))
+		latencyTestRunnerArgs = append(latencyTestRunnerArgs, fmt.Sprintf("-%s-start-delay=%d", testName, latencyTestDelay))
 	}
 
 	volumeTypeDirectory := corev1.HostPathDirectory
