@@ -36,7 +36,7 @@ func ExecAndLogCommandWithStderr(name string, arg ...string) ([]byte, []byte, er
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, name, arg...)
+	cmd := exec.CommandContext(ctx, name, arg...) // #nosec G204
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
