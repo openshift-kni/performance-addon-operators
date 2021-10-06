@@ -249,7 +249,7 @@ cluster-clean:
 functests: cluster-label-worker-cnf functests-only
 
 .PHONY: functests-only
-functests-only:
+functests-only: dist-latency-tests
 	hack/run-functests.sh
 
 .PHONY: functests-latency
