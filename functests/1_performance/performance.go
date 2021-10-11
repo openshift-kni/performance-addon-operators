@@ -592,6 +592,8 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			v1Profile.Name = "v1"
 			v1Profile.ResourceVersion = ""
 			v1Profile.Spec.NodeSelector = map[string]string{"v1/v1": "v1"}
+			v1Profile.Spec.MachineConfigPoolSelector = nil
+			v1Profile.Spec.MachineConfigLabel = nil
 			Expect(testclient.Client.Create(context.TODO(), v1Profile)).ToNot(HaveOccurred())
 
 			defer func() {
@@ -638,6 +640,8 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			v1alpha1Profile.Name = "v1alpha"
 			v1alpha1Profile.ResourceVersion = ""
 			v1alpha1Profile.Spec.NodeSelector = map[string]string{"v1alpha/v1alpha": "v1alpha"}
+			v1alpha1Profile.Spec.MachineConfigPoolSelector = nil
+			v1alpha1Profile.Spec.MachineConfigLabel = nil
 			Expect(testclient.Client.Create(context.TODO(), v1alpha1Profile)).ToNot(HaveOccurred())
 
 			key = types.NamespacedName{
@@ -673,6 +677,8 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				profile.ResourceVersion = ""
 				profile.Spec.NodeSelector = map[string]string{"test/test": "test"}
 				profile.Spec.GloballyDisableIrqLoadBalancing = pointer.BoolPtr(globallyDisableIrqLoadBalancing)
+				profile.Spec.MachineConfigPoolSelector = nil
+				profile.Spec.MachineConfigLabel = nil
 
 				err = testclient.Client.Create(context.TODO(), profile)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create profile")
@@ -731,6 +737,8 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				profile.ResourceVersion = ""
 				profile.Spec.NodeSelector = map[string]string{"withoutNUMA/withoutNUMA": "withoutNUMA"}
 				profile.Spec.NUMA = nil
+				profile.Spec.MachineConfigPoolSelector = nil
+				profile.Spec.MachineConfigLabel = nil
 
 				err = testclient.Client.Create(context.TODO(), profile)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create profile without NUMA")
