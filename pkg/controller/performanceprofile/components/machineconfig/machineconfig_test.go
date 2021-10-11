@@ -1,6 +1,7 @@
 package machineconfig
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"k8s.io/utils/pointer"
@@ -8,7 +9,11 @@ import (
 	"github.com/ghodss/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
+	gm "github.com/onsi/gomega/types"
 
+	igntypes "github.com/coreos/ignition/v2/config/v3_2/types"
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 )
@@ -77,4 +82,89 @@ var _ = Describe("Machine Config", func() {
 		})
 
 	})
+
+	Context("with CPU spec", func() {
+		var profile *performancev2.PerformanceProfile
+		var ignition igntypes.Config
+
+		BeforeEach(func() {
+			profile = testutils.NewPerformanceProfile("test")
+			isolated := performancev2.CPUSet("0-3")
+			reserved := performancev2.CPUSet("4-15")
+			profile.Spec.CPU = &performancev2.CPU{
+				Isolated: &isolated,
+				Reserved: &reserved,
+			}
+		})
+		JustBeforeEach(func() {
+			mc, err := New(testAssetsDir, profile)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = json.Unmarshal(mc.Spec.Config.Raw, &ignition)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = yaml.Marshal(mc)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		containAcceleratedStartupUnits := func() gm.GomegaMatcher {
+			return ContainElements(
+				MatchFields(IgnoreExtras, Fields{
+					"Name":     Equal("accelerated-container-startup.service"),
+					"Contents": PointTo(ContainSubstring("ExecStart=/usr/local/bin/accelerated-container-startup.sh\n")),
+				}),
+				MatchFields(IgnoreExtras, Fields{
+					"Name":     Equal("accelerated-container-shutdown.service"),
+					"Contents": PointTo(ContainSubstring("ExecStart=/usr/local/bin/accelerated-container-startup.sh\n")),
+				}),
+			)
+		}
+		containAcceleratedStartupFiles := func() gm.GomegaMatcher {
+			executableFilemode := func() gm.GomegaMatcher {
+				return WithTransform(func(mode int) bool {
+					return mode&0700 == 0700
+				}, BeTrue())
+			}
+
+			return ContainElements(
+				MatchFields(IgnoreExtras, Fields{
+					"Node": MatchFields(IgnoreExtras, Fields{
+						"Path": Equal("/usr/local/bin/accelerated-container-startup.sh"),
+					}),
+					"FileEmbedded1": MatchFields(IgnoreExtras, Fields{
+						"Mode": PointTo(executableFilemode()),
+					}),
+				}),
+			)
+		}
+
+		Context("without AcceleratedStartup", func() {
+			It("should not add systemd unit for accelerated startup", func() {
+				Expect(ignition.Systemd.Units).NotTo(containAcceleratedStartupUnits())
+				Expect(ignition.Storage.Files).NotTo(containAcceleratedStartupFiles())
+			})
+		})
+
+		Context("with acceleratedStartup=false", func() {
+			BeforeEach(func() {
+				profile.Spec.CPU.AcceleratedStartup = pointer.Bool(false)
+			})
+			It("should not add systemd unit for accelerated startup", func() {
+				Expect(ignition.Systemd.Units).NotTo(containAcceleratedStartupUnits())
+				Expect(ignition.Storage.Files).NotTo(containAcceleratedStartupFiles())
+			})
+		})
+
+		Context("with acceleratedStartup=true", func() {
+			BeforeEach(func() {
+				profile.Spec.CPU.AcceleratedStartup = pointer.Bool(true)
+			})
+			It("should add systemd unit for accelerated startup", func() {
+				Expect(ignition.Systemd.Units).To(containAcceleratedStartupUnits())
+				Expect(ignition.Storage.Files).To(containAcceleratedStartupFiles())
+			})
+		})
+
+	})
+
 })

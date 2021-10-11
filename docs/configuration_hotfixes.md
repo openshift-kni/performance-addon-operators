@@ -216,3 +216,55 @@ sh-4.2# sysctl -n kernel.sched_rt_runtime_us
 950000
 
 ```
+
+## Accelerated Startup parameters
+
+Accelerated Startup has a set of defaults that should be fairly reasonable, but they can be altered by changing environment variables via a systemd drop-in.
+
+These are the environment variables used by the underlying script:
+
+### CRITICAL_PROCESSES
+
+This is the set of processes that are made unrestricted while the service is active at startup or shutdown.
+
+Default value: `"systemd ovs crio kubelet NetworkManager conmon dbus"`
+
+### MAXIMUM_WAIT_TIME
+
+This is the maximum time the script will allow the restrictions to be lifted automatically.
+
+Default value is 600 (10m) for startup, and 1800 (30m) for shutdown.
+
+### STEADY_STATE_THRESHOLD
+
+If enabled, "steady-state detection" can cause the restrictions to be lifted
+once the system reached a stable container count.  This is most useful at startup
+when the containercount will grow over time until all workloads are up, at which
+point there should not be large variations in the container count and the system
+should be considered "started".
+
+Default value is 2% for startup, and -1 (disabled) for shutdown.
+
+Allowed values:
+ -  4  - absolute container count (+/-)
+ - 4% - percent change (+/-)
+ - -1 - disable the steady-state check
+
+Note: percent signs `%` need to be escaped as `%%` in systemd configuration files.
+
+### STEADY_STATE_WINDOW
+
+If the running container count stays within the given threshold for this time
+period, return CPU utilization to normal before the maximum wait time has
+expires
+
+Default value for startup is 120s (2m)
+
+### STEADY_STATE_MINIMUM
+
+Default steady-state allows any container count to be "steady state"
+Increasing this will skip any steady-state checks until the count rises above
+this number to avoid false positives if there are some periods where the
+count doesn't increase but we know we can't be at steady-state yet.
+
+Default value for startup is 40

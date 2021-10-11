@@ -95,6 +95,12 @@ type CPU struct {
 	// Defaults to "true"
 	// +optional
 	BalanceIsolated *bool `json:"balanceIsolated,omitempty"`
+	// AcceleratedStartup toggles an optional addition to systemd on the host that will temporarily remove the "reserved"
+	// restriction during system startup and shutdown, allowing a subset of critical system services to run unresticted
+	// allowing startup and shutdown to complete more quickly.
+	// Defaults to "false"
+	// +optional
+	AcceleratedStartup *bool `json:"acceleratedStartup,omitempty"`
 }
 
 // HugePageSize defines size of huge pages, can be 2M or 1G.

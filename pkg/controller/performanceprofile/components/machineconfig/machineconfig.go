@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/coreos/go-systemd/unit"
@@ -50,29 +52,46 @@ const (
 )
 
 const (
-	systemdSectionUnit     = "Unit"
-	systemdSectionService  = "Service"
-	systemdSectionInstall  = "Install"
-	systemdDescription     = "Description"
-	systemdBefore          = "Before"
-	systemdEnvironment     = "Environment"
-	systemdType            = "Type"
-	systemdRemainAfterExit = "RemainAfterExit"
-	systemdExecStart       = "ExecStart"
-	systemdWantedBy        = "WantedBy"
+	systemdSectionUnit         = "Unit"
+	systemdSectionService      = "Service"
+	systemdSectionInstall      = "Install"
+	systemdDescription         = "Description"
+	systemdDefaultDependencies = "DefaultDependencies"
+	systemdBefore              = "Before"
+	systemdEnvironment         = "Environment"
+	systemdType                = "Type"
+	systemdRemainAfterExit     = "RemainAfterExit"
+	systemdExecStart           = "ExecStart"
+	systemdWantedBy            = "WantedBy"
 )
 
 const (
 	systemdServiceKubelet     = "kubelet.service"
 	systemdServiceTypeOneshot = "oneshot"
+	systemdServiceTypeSimple  = "simple"
 	systemdTargetMultiUser    = "multi-user.target"
+	systemdTargetShutdown     = "shutdown.target reboot.target halt.target"
 	systemdTrue               = "true"
+	systemdNo                 = "no"
 )
 
 const (
-	environmentHugepagesSize  = "HUGEPAGES_SIZE"
-	environmentHugepagesCount = "HUGEPAGES_COUNT"
-	environmentNUMANode       = "NUMA_NODE"
+	environmentHugepagesSize        = "HUGEPAGES_SIZE"
+	environmentHugepagesCount       = "HUGEPAGES_COUNT"
+	environmentNUMANode             = "NUMA_NODE"
+	environmentMaximumWaitTime      = "MAXIMUM_WAIT_TIME"
+	environmentSteadyStateThreshold = "STEADY_STATE_THRESHOLD"
+	environmentSteadyStateWindow    = "STEADY_STATE_WINDOW"
+	environmentSteadyStateMinimum   = "STEADY_STATE_MINIMUM"
+)
+
+const (
+	startupMaximumWaitTime      = "600"
+	startupSteadyStateThreshold = "2%"
+	startupSteadyStateWindow    = "120"
+	startupSteadyStateMinimum   = "40"
+	shutdownMaximumWaitTime     = "1800"
+	disableStadyStateThreshold  = "-1"
 )
 
 const (
@@ -232,6 +251,35 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 			Contents: &rpsService,
 			Name:     getSystemdService("update-rps@"),
 		})
+
+	}
+
+	if profile.Spec.CPU != nil && profile.Spec.CPU.AcceleratedStartup != nil && *profile.Spec.CPU.AcceleratedStartup {
+		script := "accelerated-container-startup"
+		src := filepath.Join(assetsDir, "scripts", fmt.Sprintf("%s.sh", script))
+		mode := 0700
+		scriptPath := getBashScriptPath(script)
+		if err := addFile(ignitionConfig, src, scriptPath, &mode); err != nil {
+			return nil, err
+		}
+		accelerateStartupService, err := getSystemdContent(getAcceleratedStartupUnitOptions(scriptPath))
+		if err != nil {
+			return nil, err
+		}
+		ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
+			Contents: &accelerateStartupService,
+			Enabled:  pointer.BoolPtr(true),
+			Name:     getSystemdService("accelerated-container-startup"),
+		})
+		accelerateShutdownService, err := getSystemdContent(getAcceleratedShutdownUnitOptions(scriptPath))
+		if err != nil {
+			return nil, err
+		}
+		ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
+			Contents: &accelerateShutdownService,
+			Enabled:  pointer.BoolPtr(true),
+			Name:     getSystemdService("accelerated-container-shutdown"),
+		})
 	}
 
 	return ignitionConfig, nil
@@ -239,6 +287,10 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 
 func getBashScriptPath(scriptName string) string {
 	return fmt.Sprintf("%s/%s.sh", bashScriptsDir, scriptName)
+}
+
+func getSystemdEscaped(value string) string {
+	return strings.ReplaceAll(value, "%", "%%")
 }
 
 func getSystemdEnvironment(key string, value string) string {
@@ -293,6 +345,76 @@ func GetHugepagesSizeKilobytes(hugepagesSize performancev2.HugePageSize) (string
 	default:
 		return "", fmt.Errorf("can not convert size %q to kilobytes", hugepagesSize)
 	}
+}
+
+type acceleratedStartupConfigWrapper struct {
+	maximumWaitTime      string
+	steadyStateThreshold string
+	steadyStateWindow    string
+	steadyStateMinimum   string
+}
+
+func getStringWithDefault(value interface{}, defaultValue string) string {
+	switch v := value.(type) {
+	case *int:
+		if v != nil {
+			return strconv.Itoa(*v)
+		}
+	case string:
+		if len(v) > 0 {
+			return v
+		}
+	}
+	return defaultValue
+}
+
+func getAcceleratedStartupUnitOptions(scriptPath string) []*unit.UnitOption {
+	return []*unit.UnitOption{
+		// [Unit]
+		// Description
+		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Unlocks more CPUs for critical system processes during container startup"),
+		// [Service]
+		// Environment
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentMaximumWaitTime, startupMaximumWaitTime)),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentSteadyStateThreshold, getSystemdEscaped(startupSteadyStateThreshold))),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentSteadyStateWindow, startupSteadyStateWindow)),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentSteadyStateMinimum, startupSteadyStateMinimum)),
+		// Type
+		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeSimple),
+		//ExecStart
+		unit.NewUnitOption(systemdSectionService, systemdExecStart, scriptPath),
+		// [Install]
+		// WantedBy
+		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
+	}
+}
+
+func getAcceleratedShutdownUnitOptions(scriptPath string) []*unit.UnitOption {
+	return []*unit.UnitOption{
+		// [Unit]
+		// Description
+		unit.NewUnitOption(systemdSectionUnit, systemdDescription, "Unlocks more CPUs for critical system processes during container shutdown"),
+		// DefaultDependencies
+		unit.NewUnitOption(systemdSectionUnit, systemdDefaultDependencies, systemdNo),
+		// [Service]
+		// Environment
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentMaximumWaitTime, shutdownMaximumWaitTime)),
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentSteadyStateThreshold, disableStadyStateThreshold)),
+		// Type
+		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeSimple),
+		//ExecStart
+		unit.NewUnitOption(systemdSectionService, systemdExecStart, scriptPath),
+		// [Install]
+		// WantedBy
+		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetShutdown),
+	}
+}
+
+func getIntegerStringWithDefault(value *int, defaultValue string) string {
+	if value != nil {
+		return strconv.Itoa(*value)
+	}
+	return defaultValue
 }
 
 func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int32, numaNode int32) []*unit.UnitOption {

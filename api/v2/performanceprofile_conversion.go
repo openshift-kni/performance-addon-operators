@@ -31,6 +31,9 @@ func (curr *PerformanceProfile) ConvertTo(dstRaw conversion.Hub) error {
 		if curr.Spec.CPU.BalanceIsolated != nil {
 			dst.Spec.CPU.BalanceIsolated = pointer.BoolPtr(*curr.Spec.CPU.BalanceIsolated)
 		}
+		if curr.Spec.CPU.AcceleratedStartup != nil {
+			dst.Spec.CPU.AcceleratedStartup = pointer.BoolPtr(*curr.Spec.CPU.AcceleratedStartup)
+		}
 	}
 
 	if curr.Spec.HugePages != nil {

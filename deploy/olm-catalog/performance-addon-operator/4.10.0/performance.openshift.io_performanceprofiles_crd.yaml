@@ -46,6 +46,13 @@ spec:
               cpu:
                 description: CPU defines a set of CPU related parameters.
                 properties:
+                  acceleratedStartup:
+                    description: AcceleratedStartup toggles an optional addition to
+                      systemd on the host that will temporarily remove the "reserved"
+                      restriction during system startup and shutdown, allowing a subset
+                      of critical system services to run unresticted allowing startup
+                      and shutdown to complete more quickly. Defaults to "false"
+                    type: boolean
                   balanceIsolated:
                     description: BalanceIsolated toggles whether or not the Isolated
                       CPU set is eligible for load balancing work loads. When this
@@ -464,6 +471,13 @@ spec:
               cpu:
                 description: CPU defines a set of CPU related parameters.
                 properties:
+                  acceleratedStartup:
+                    description: AcceleratedStartup toggles an optional addition to
+                      systemd on the host that will temporarily remove the "reserved"
+                      restriction during system startup and shutdown, allowing a subset
+                      of critical system services to run unresticted allowing startup
+                      and shutdown to complete more quickly. Defaults to "false"
+                    type: boolean
                   balanceIsolated:
                     description: BalanceIsolated toggles whether or not the Isolated
                       CPU set is eligible for load balancing work loads. When this
