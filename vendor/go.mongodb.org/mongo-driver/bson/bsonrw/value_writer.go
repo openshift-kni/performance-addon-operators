@@ -12,7 +12,6 @@ import (
 	"io"
 	"math"
 	"strconv"
-	"strings"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/bson/bsontype"
@@ -248,12 +247,7 @@ func (vw *valueWriter) invalidTransitionError(destination mode, name string, mod
 func (vw *valueWriter) writeElementHeader(t bsontype.Type, destination mode, callerName string, addmodes ...mode) error {
 	switch vw.stack[vw.frame].mode {
 	case mElement:
-		key := vw.stack[vw.frame].key
-		if !isValidCString(key) {
-			return errors.New("BSON element key cannot contain null bytes")
-		}
-
-		vw.buf = bsoncore.AppendHeader(vw.buf, t, key)
+		vw.buf = bsoncore.AppendHeader(vw.buf, t, vw.stack[vw.frame].key)
 	case mValue:
 		// TODO: Do this with a cache of the first 1000 or so array keys.
 		vw.buf = bsoncore.AppendHeader(vw.buf, t, strconv.Itoa(vw.stack[vw.frame].arrkey))
@@ -436,9 +430,6 @@ func (vw *valueWriter) WriteObjectID(oid primitive.ObjectID) error {
 }
 
 func (vw *valueWriter) WriteRegex(pattern string, options string) error {
-	if !isValidCString(pattern) || !isValidCString(options) {
-		return errors.New("BSON regex values cannot contain null bytes")
-	}
 	if err := vw.writeElementHeader(bsontype.Regex, mode(0), "WriteRegex"); err != nil {
 		return err
 	}
@@ -610,8 +601,4 @@ func (vw *valueWriter) writeLength() error {
 	vw.buf[start+2] = byte(length >> 16)
 	vw.buf[start+3] = byte(length >> 24)
 	return nil
-}
-
-func isValidCString(cs string) bool {
-	return !strings.ContainsRune(cs, '\x00')
 }

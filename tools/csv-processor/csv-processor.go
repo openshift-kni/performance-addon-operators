@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/blang/semver"
+	semver "github.com/blang/semver/v4"
 	"github.com/openshift-kni/performance-addon-operators/pkg/utils/csvtools"
 	"github.com/operator-framework/api/pkg/lib/version"
 	csvv1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
