@@ -187,9 +187,8 @@ func (rb *RegistryBuilder) RegisterHookDecoder(t reflect.Type, dec ValueDecoder)
 	return rb
 }
 
-// RegisterEncoder registers the provided type and encoder pair.
-//
-// Deprecated: Use RegisterTypeEncoder or RegisterHookEncoder instead.
+// RegisterEncoder has been deprecated and will be removed in a future major version release. Use RegisterTypeEncoder
+// or RegisterHookEncoder instead.
 func (rb *RegistryBuilder) RegisterEncoder(t reflect.Type, enc ValueEncoder) *RegistryBuilder {
 	if t == tEmpty {
 		rb.typeEncoders[t] = enc
@@ -211,9 +210,8 @@ func (rb *RegistryBuilder) RegisterEncoder(t reflect.Type, enc ValueEncoder) *Re
 	return rb
 }
 
-// RegisterDecoder registers the provided type and decoder pair.
-//
-// Deprecated: Use RegisterTypeDecoder or RegisterHookDecoder instead.
+// RegisterDecoder has been deprecated and will be removed in a future major version release. Use RegisterTypeDecoder
+// or RegisterHookDecoder instead.
 func (rb *RegistryBuilder) RegisterDecoder(t reflect.Type, dec ValueDecoder) *RegistryBuilder {
 	if t == nil {
 		rb.typeDecoders[nil] = dec
@@ -327,7 +325,7 @@ func (r *Registry) LookupEncoder(t reflect.Type) (ValueEncoder, error) {
 		return enc, nil
 	}
 
-	enc, found = r.lookupInterfaceEncoder(t, true)
+	enc, found = r.lookupInterfaceEncoder(t)
 	if found {
 		r.mu.Lock()
 		r.typeEncoders[t] = enc
@@ -361,22 +359,13 @@ func (r *Registry) lookupTypeEncoder(t reflect.Type) (ValueEncoder, bool) {
 	return enc, found
 }
 
-func (r *Registry) lookupInterfaceEncoder(t reflect.Type, allowAddr bool) (ValueEncoder, bool) {
+func (r *Registry) lookupInterfaceEncoder(t reflect.Type) (ValueEncoder, bool) {
 	if t == nil {
 		return nil, false
 	}
 	for _, ienc := range r.interfaceEncoders {
-		if t.Implements(ienc.i) {
+		if t.Implements(ienc.i) || reflect.PtrTo(t).Implements(ienc.i) {
 			return ienc.ve, true
-		}
-		if allowAddr && t.Kind() != reflect.Ptr && reflect.PtrTo(t).Implements(ienc.i) {
-			// if *t implements an interface, this will catch if t implements an interface further ahead
-			// in interfaceEncoders
-			defaultEnc, found := r.lookupInterfaceEncoder(t, false)
-			if !found {
-				defaultEnc, _ = r.kindEncoders[t.Kind()]
-			}
-			return newCondAddrEncoder(ienc.ve, defaultEnc), true
 		}
 	}
 	return nil, false
@@ -408,7 +397,7 @@ func (r *Registry) LookupDecoder(t reflect.Type) (ValueDecoder, error) {
 		return dec, nil
 	}
 
-	dec, found = r.lookupInterfaceDecoder(t, true)
+	dec, found = r.lookupInterfaceDecoder(t)
 	if found {
 		r.mu.Lock()
 		r.typeDecoders[t] = dec
@@ -435,20 +424,13 @@ func (r *Registry) lookupTypeDecoder(t reflect.Type) (ValueDecoder, bool) {
 	return dec, found
 }
 
-func (r *Registry) lookupInterfaceDecoder(t reflect.Type, allowAddr bool) (ValueDecoder, bool) {
+func (r *Registry) lookupInterfaceDecoder(t reflect.Type) (ValueDecoder, bool) {
 	for _, idec := range r.interfaceDecoders {
-		if t.Implements(idec.i) {
-			return idec.vd, true
+		if !t.Implements(idec.i) && !reflect.PtrTo(t).Implements(idec.i) {
+			continue
 		}
-		if allowAddr && t.Kind() != reflect.Ptr && reflect.PtrTo(t).Implements(idec.i) {
-			// if *t implements an interface, this will catch if t implements an interface further ahead
-			// in interfaceDecoders
-			defaultDec, found := r.lookupInterfaceDecoder(t, false)
-			if !found {
-				defaultDec, _ = r.kindDecoders[t.Kind()]
-			}
-			return newCondAddrDecoder(idec.vd, defaultDec), true
-		}
+
+		return idec.vd, true
 	}
 	return nil, false
 }
