@@ -30,7 +30,6 @@ spec:
     imageMinimumGCAge: 0s
     kind: KubeletConfiguration
     kubeReserved:
-      cpu: 1000m
       memory: 500Mi
     logging: {}
     memoryManagerPolicy: Static
@@ -47,7 +46,6 @@ spec:
     streamingConnectionIdleTimeout: 0s
     syncFrequency: 0s
     systemReserved:
-      cpu: 1000m
       memory: 500Mi
     topologyManagerPolicy: single-numa-node
     volumeStatsAggPeriod: 0s
