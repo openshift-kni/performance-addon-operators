@@ -4,6 +4,7 @@ package __latency_test
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -39,6 +40,8 @@ var _ = AfterSuite(func() {
 
 func TestLatency(t *testing.T) {
 	RegisterFailHandler(Fail)
+
+	testlog.Infof("KUBECONFIG=%q", os.Getenv("KUBECONFIG"))
 
 	rr := []Reporter{}
 	if ginkgo_reporters.Polarion.Run {

@@ -18,6 +18,7 @@ import (
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/events"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
@@ -422,6 +423,16 @@ func getLatencyTestPod(profile *performancev2.PerformanceProfile, node *corev1.N
 	}
 }
 
+func logEventsForPod(testPod *corev1.Pod) {
+	events, err := events.GetEventsForObject(testclient.Client, testPod.Namespace, testPod.Name, string(testPod.UID))
+	if err != nil {
+		testlog.Error(err)
+	}
+	for _, event := range events.Items {
+		testlog.Warningf("-> %s %s %s", event.Action, event.Reason, event.Message)
+	}
+}
+
 func createLatencyTestPod(testPod *corev1.Pod, node *corev1.Node, logName string) {
 	err := testclient.Client.Create(context.TODO(), testPod)
 	Expect(err).ToNot(HaveOccurred())
@@ -431,6 +442,10 @@ func createLatencyTestPod(testPod *corev1.Pod, node *corev1.Node, logName string
 
 	By("Waiting two minutes to download the latencyTest image")
 	err = pods.WaitForPhase(testPod, corev1.PodRunning, 2*time.Minute)
+	if err != nil {
+		testlog.Error(err)
+		logEventsForPod(testPod)
+	}
 	Expect(err).ToNot(HaveOccurred())
 
 	if runtime, _ := strconv.Atoi(latencyTestRuntime); runtime > 1 {
@@ -445,6 +460,10 @@ func createLatencyTestPod(testPod *corev1.Pod, node *corev1.Node, logName string
 	By("Waiting another two minutes to give enough time for the cluster to move the pod to Succeeded phase")
 	podTimeout := time.Duration(timeout + 120)
 	err = pods.WaitForPhase(testPod, corev1.PodSucceeded, podTimeout*time.Second)
+	if err != nil {
+		testlog.Error(err)
+		logEventsForPod(testPod)
+	}
 	Expect(err).ToNot(HaveOccurred(), getLogFile(node, logName))
 }
 
