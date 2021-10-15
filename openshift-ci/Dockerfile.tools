@@ -19,7 +19,7 @@ RUN yum --setopt=install_weak_deps=False -y install \
     findutils \
     python2 \
     && yum clean all
-
+#test docker tools
 RUN mkdir -p $HOME && \
     # install go
     curl -JL https://dl.google.com/go/go${GOVERSION}.linux-amd64.tar.gz -o go.tar.gz && \
