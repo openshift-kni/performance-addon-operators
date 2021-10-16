@@ -57,7 +57,7 @@ dist: build-output-dir
     LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.Version=$(VERSION) "; \
     LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.GitCommit=$(COMMIT) "; \
     LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/version.BuildDate=$(BUILD_DATE) "; \
-	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="$$LDFLAGS" \
+	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -ldflags="$$LDFLAGS" \
 	  -mod=vendor -o $(TOOLS_BIN_DIR)/performance-addon-operators .
 
 .PHONY: dist-tools
@@ -80,7 +80,7 @@ dist-gather-sysinfo: build-output-dir
 dist-csv-processor: build-output-dir
 	@if [ ! -x $(TOOLS_BIN_DIR)/csv-processor ]; then\
 		echo "Building csv-processor tool";\
-		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/csv-processor ./tools/csv-processor;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/csv-processor ./tools/csv-processor;\
 	else \
 		echo "Using pre-built csv-processor tool";\
 	fi
@@ -89,7 +89,7 @@ dist-csv-processor: build-output-dir
 dist-csv-replace-imageref: build-output-dir
 	@if [ ! -x $(TOOLS_BIN_DIR)/csv-replace-imageref ]; then\
 		echo "Building csv-replace-imageref tool";\
-		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/csv-replace-imageref ./tools/csv-replace-imageref;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/csv-replace-imageref ./tools/csv-replace-imageref;\
 	else \
 		echo "Using pre-built csv-replace-imageref tool";\
 	fi
@@ -98,7 +98,7 @@ dist-csv-replace-imageref: build-output-dir
 dist-docs-generator: build-output-dir
 	@if [ ! -x $(TOOLS_BIN_DIR)/docs-generator ]; then\
 		echo "Building docs-generator tool";\
-		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/docs-generator ./tools/docs-generator;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/docs-generator ./tools/docs-generator;\
 	else \
 		echo "Using pre-built docs-generator tool";\
 	fi
@@ -182,7 +182,7 @@ create-performance-profile:  build-output-dir
 	mkdir -p $(TOOLS_BIN_DIR); \
 	LDFLAGS="-s -w "; \
 	LDFLAGS+="-X github.com/openshift-kni/performance-addon-operators/cmd/performance-profile-creator "; \
-	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build  -v -i $(LDFLAGS) -o $(TOOLS_BIN_DIR)/performance-profile-creator ./cmd/performance-profile-creator
+	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build  -v $(LDFLAGS) -o $(TOOLS_BIN_DIR)/performance-profile-creator ./cmd/performance-profile-creator
 
 .PHONY: generate-csv
 generate-csv: operator-sdk kustomize dist-csv-processor
@@ -349,7 +349,7 @@ generate-code: controller-gen
 controller-gen: build-output-dir
 	@if [ ! -x $(CONTROLLER_GEN) ]; then\
 		echo "Building $(CONTROLLER_GEN)";\
-		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -i -ldflags="-s -w" -mod=vendor -o $(CONTROLLER_GEN) vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go ;\
+		env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -ldflags="-s -w" -mod=vendor -o $(CONTROLLER_GEN) vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go ;\
 	else \
 		echo "Using pre-built $(CONTROLLER_GEN)";\
 	fi
