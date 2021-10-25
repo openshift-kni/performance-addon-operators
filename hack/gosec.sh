@@ -3,7 +3,7 @@
 which gosec
 if [ $? -ne 0 ]; then
 	echo "Downloading gosec tool"
-	go get -u github.com/securego/gosec/v2/cmd/gosec
+	go install github.com/securego/gosec/v2/cmd/gosec@v2.9.1
 fi
 
-time GO111MODULE=off gosec -conf gosec.conf.json ./...
+time gosec -conf gosec.conf.json ./...
