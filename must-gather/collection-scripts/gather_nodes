@@ -24,7 +24,9 @@ NAMESPACE_MANIFEST="/etc/node-gather/namespace.yaml"
 SERVICEACCOUNT_MANIFEST="/etc/node-gather/serviceaccount.yaml"
 DAEMONSET_MANIFEST="/etc/node-gather/daemonset.yaml"
 NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
-POD_NAME=$(oc get pods -l 'app=must-gather' -n $NAMESPACE -o'custom-columns=name:metadata.name' --no-headers)
+# Once you start the pod, the Kubernetes will set the pod hostname to the name of the pod
+# https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-hostname-and-subdomain-fields
+POD_NAME=${HOSTNAME}
 MUST_GATHER_IMAGE=$(oc get pod -n $NAMESPACE $POD_NAME -o jsonpath="{.spec.containers[0].image}")
 
 POD_IP=$(hostname -I |  tr -d "[:blank:]" )
