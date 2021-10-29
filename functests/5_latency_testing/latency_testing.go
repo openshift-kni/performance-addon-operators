@@ -60,10 +60,11 @@ const (
 	//hwlatdetect fail message regex
 	hwlatdetectFail = `Samples exceeding threshold: [^0]`
 	//skip messages regex
-	skipTestRun    = `Skip the latency test, the LATENCY_TEST_RUN set to false`
-	skipMaxLatency = `no maximum latency value provided, skip buckets latency check`
-	skipCpuNumber  = `Skip the oslat test, LATENCY_TEST_CPUS is less than the minimum CPUs amount`
-	skip           = `SUCCESS.*0 Passed.*0 Failed.*3 Skipped`
+	skipTestRun         = `Skip the latency test, the LATENCY_TEST_RUN set to false`
+	skipMaxLatency      = `no maximum latency value provided, skip buckets latency check`
+	skipOslatCpuNumber  = `Skip the oslat test, LATENCY_TEST_CPUS is less than the minimum CPUs amount`
+	skip                = `SUCCESS.*0 Passed.*0 Failed.*3 Skipped`
+	skipInsufficientCpu = `Insufficient cpu to run the test`
 
 	//used values parameters
 	guaranteedLatency = "20000"
@@ -94,10 +95,18 @@ var _ = table.DescribeTable("Test latency measurement tools tests", func(testGro
 			Skip("The executable test file does not exist , skipping the test.")
 		}
 		output, err := exec.Command("../../build/_output/bin/latency-e2e.test", "-ginkgo.focus", test.toolToTest).Output()
-
 		if err != nil {
-			//we don't fail the test here because the test might be a negative check
+			//we don't log Error level here because the test might be a negative check
 			testlog.Info(err.Error())
+		}
+
+		ok, matchErr := regexp.MatchString(skipInsufficientCpu, string(output))
+		if matchErr != nil {
+			testlog.Error(matchErr.Error())
+		}
+		if ok {
+			testlog.Info(skipInsufficientCpu)
+			continue
 		}
 
 		if isPositiveTest {
@@ -105,12 +114,12 @@ var _ = table.DescribeTable("Test latency measurement tools tests", func(testGro
 				testlog.Error(err.Error())
 			}
 			Expect(string(output)).NotTo(MatchRegexp(unexpectedError), "Unexpected error was detected in a positve test")
-			//Check runtime argument in the pod's log only if the tool is expecetd to be executed
-			res, err := regexp.MatchString(success, string(output))
-			if err != nil {
-				testlog.Error(err.Error())
+			//Check runtime argument in the pod's log only if the tool is expected to be executed
+			ok, matchErr := regexp.MatchString(success, string(output))
+			if matchErr != nil {
+				testlog.Error(matchErr.Error())
 			}
-			if res {
+			if ok {
 				var commandRegex string
 				if test.toolToTest == oslat {
 					commandRegex = fmt.Sprintf("Running the oslat command with arguments .*--duration %s", test.testRuntime)
@@ -206,7 +215,7 @@ func getValidValuesTests(toolToTest string) []latencyTest {
 	if toolToTest == oslat {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", testMaxLatency: "1", oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testMaxLatency: guaranteedLatency, testCpus: "1", outputMsgs: []string{skip, skipCpuNumber}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testMaxLatency: guaranteedLatency, testCpus: "1", outputMsgs: []string{skip, skipOslatCpuNumber}, toolToTest: toolToTest})
 	}
 	if toolToTest == cyclictest {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", testMaxLatency: "1", cyclictestMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
