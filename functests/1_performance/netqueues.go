@@ -21,6 +21,7 @@ import (
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/cluster"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
@@ -50,6 +51,9 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 	})
 
 	BeforeEach(func() {
+		if discovery.Enabled() && testutils.ProfileNotFound {
+			Skip("Discovery mode enabled, performance profile not found")
+		}
 		profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
 		if profile.Spec.Net == nil {
