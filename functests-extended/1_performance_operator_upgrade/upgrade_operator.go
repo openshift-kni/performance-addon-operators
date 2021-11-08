@@ -8,10 +8,11 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	olmv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	olmv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/namespaces"
@@ -67,6 +68,24 @@ var _ = Describe("[rfe_id:28567][performance] Performance Addon Operator Upgrade
 				[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/channel", "value": "%s" }]`, toVersion)),
 			),
 		)).ToNot(HaveOccurred())
+
+		// TODO: remove the hack once https://github.com/openshift/operator-framework-olm/pull/196 merged
+		// the W/A deletes OLM related pods to initiate OLM pods restart
+		By("Getting OLM pods")
+		for _, labelValue := range []string{"olm-operator", "catalog-operator"} {
+			olmPods := &v1.PodList{}
+			Expect(testclient.Client.List(
+				context.TODO(),
+				olmPods,
+				client.InNamespace("openshift-operator-lifecycle-manager"),
+				client.MatchingLabels{"app": labelValue}),
+			).To(BeNil())
+
+			By("Deleting OLM pods")
+			for i := range olmPods.Items {
+				Expect(testclient.Client.Delete(context.TODO(), &olmPods.Items[i])).To(BeNil())
+			}
+		}
 
 		By(fmt.Sprintf("Verifying that channel was updated to %s", toVersion))
 		subscriptionWaitForUpdate(subscription.Name, namespaces.PerformanceOperator, toVersion)
