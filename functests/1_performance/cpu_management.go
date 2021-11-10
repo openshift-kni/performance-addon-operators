@@ -279,7 +279,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			deleteTestPod(testpod)
 		})
 
-		It("[test_id:32646] should disable CPU load balancing for CPU's used by the pod", func() {
+		FIt("[test_id:32646] should disable CPU load balancing for CPU's used by the pod", func() {
 			var err error
 			By("Starting the pod")
 			err = testclient.Client.Create(context.TODO(), testpod)
@@ -313,6 +313,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			flags, err := getCPUsSchedulingDomainFlags()
 			Expect(err).ToNot(HaveOccurred())
 
+			time.Sleep(time.Hour)
 			By("Verifying that the CPU load balancing was disabled")
 			for _, cpu := range cpus.ToSlice() {
 				Expect(len(flags[cpu])).To(Equal(len(defaultFlags[cpu])))
