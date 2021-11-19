@@ -28,6 +28,7 @@ const (
 	// Please avoid specifying them and use the relevant API to configure these parameters.
 	experimentalKubeletSnippetAnnotation = "kubeletconfig.experimental"
 	cpuManagerPolicyStatic               = "static"
+	cpuManagerPolicyOptionFullPCPUsOnly  = "full-pcpus-only"
 	memoryManagerPolicyStatic            = "Static"
 	defaultKubeReservedMemory            = "500Mi"
 	defaultSystemReservedMemory          = "500Mi"
@@ -114,6 +115,17 @@ func New(profile *performancev2.PerformanceProfile, profileMCPLabels map[string]
 								corev1.ResourceMemory: *reservedMemory,
 							},
 						},
+					}
+				}
+
+				// require full physical CPUs only to ensure maximum isolation
+				if topologyPolicy == kubeletconfigv1beta1.SingleNumaNodeTopologyManagerPolicy {
+					if kubeletConfig.CPUManagerPolicyOptions == nil {
+						kubeletConfig.CPUManagerPolicyOptions = make(map[string]string)
+					}
+
+					if _, ok := kubeletConfig.CPUManagerPolicyOptions[cpuManagerPolicyOptionFullPCPUsOnly]; !ok {
+						kubeletConfig.CPUManagerPolicyOptions[cpuManagerPolicyOptionFullPCPUsOnly] = "true"
 					}
 				}
 			}

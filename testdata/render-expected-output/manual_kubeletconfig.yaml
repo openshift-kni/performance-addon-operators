@@ -21,6 +21,8 @@ spec:
         cacheAuthorizedTTL: 0s
         cacheUnauthorizedTTL: 0s
     cpuManagerPolicy: static
+    cpuManagerPolicyOptions:
+      full-pcpus-only: "true"
     cpuManagerReconcilePeriod: 5s
     evictionHard:
       memory.available: 100Mi

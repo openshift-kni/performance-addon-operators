@@ -87,6 +87,26 @@ func WaitForCondition(pod *corev1.Pod, conditionType corev1.PodConditionType, co
 	})
 }
 
+// WaitForPredicate waits until the fiven predicate against the pod returns true or error.
+func WaitForPredicate(pod *corev1.Pod, timeout time.Duration, pred func(pod *corev1.Pod) (bool, error)) error {
+	key := types.NamespacedName{
+		Name:      pod.Name,
+		Namespace: pod.Namespace,
+	}
+	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
+		updatedPod := &corev1.Pod{}
+		if err := testclient.Client.Get(context.TODO(), key, updatedPod); err != nil {
+			return false, nil
+		}
+
+		ret, err := pred(updatedPod)
+		if err != nil {
+			return false, err
+		}
+		return ret, nil
+	})
+}
+
 // WaitForPhase waits until the pod will have specified phase
 func WaitForPhase(pod *corev1.Pod, phase corev1.PodPhase, timeout time.Duration) error {
 	key := types.NamespacedName{
