@@ -35,6 +35,7 @@ var _ = Describe("Kubelet Config", func() {
 		Expect(manifest).To(ContainSubstring("topologyManagerPolicy: single-numa-node"))
 		Expect(manifest).To(ContainSubstring("cpuManagerPolicy: static"))
 		Expect(manifest).To(ContainSubstring("memoryManagerPolicy: Static"))
+		Expect(manifest).To(ContainSubstring("cpuManagerPolicyOptions"))
 		Expect(manifest).To(ContainSubstring(testReservedMemory))
 	})
 
@@ -53,6 +54,21 @@ var _ = Describe("Kubelet Config", func() {
 			Expect(manifest).To(ContainSubstring("memoryManagerPolicy: Static"))
 			Expect(manifest).To(ContainSubstring(testReservedMemory))
 		})
+
+		It("should not have the cpumanager policy options set", func() {
+			profile := testutils.NewPerformanceProfile("test")
+			profile.Spec.NUMA.TopologyPolicy = pointer.String(kubeletconfigv1beta1.RestrictedTopologyManagerPolicy)
+			selectorKey, selectorValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
+			kc, err := New(profile, map[string]string{selectorKey: selectorValue})
+			Expect(err).ToNot(HaveOccurred())
+
+			y, err := yaml.Marshal(kc)
+			Expect(err).ToNot(HaveOccurred())
+
+			manifest := string(y)
+			Expect(manifest).ToNot(ContainSubstring("cpuManagerPolicyOptions"))
+		})
+
 	})
 
 	Context("with topology manager best-effort policy", func() {
@@ -133,5 +149,21 @@ var _ = Describe("Kubelet Config", func() {
 			Expect(manifest).To(ContainSubstring("net.core.somaxconn"))
 			Expect(manifest).To(ContainSubstring("memory.available: 200Mi"))
 		})
+
+		It("should allow to override the cpumanager policy options and update the kubelet config accordingly", func() {
+			profile := testutils.NewPerformanceProfile("test")
+			profile.Annotations = map[string]string{
+				experimentalKubeletSnippetAnnotation: `{"allowedUnsafeSysctls": ["net.core.somaxconn"], "cpuManagerPolicyOptions": {"full-pcpus-only": "false"}}`,
+			}
+			selectorKey, selectorValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
+			kc, err := New(profile, map[string]string{selectorKey: selectorValue})
+			y, err := yaml.Marshal(kc)
+			Expect(err).ToNot(HaveOccurred())
+
+			manifest := string(y)
+			Expect(manifest).To(ContainSubstring("net.core.somaxconn"))
+			Expect(manifest).To(ContainSubstring(`full-pcpus-only: "false"`))
+		})
+
 	})
 })

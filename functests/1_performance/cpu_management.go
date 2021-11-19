@@ -483,7 +483,83 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			}
 		})
 	})
+
+	When("strict NUMA aligment is requested", func() {
+		var testpod *corev1.Pod
+
+		BeforeEach(func() {
+			if profile.Spec.NUMA == nil || profile.Spec.NUMA.TopologyPolicy == nil {
+				Skip("Topology Manager Policy is not configured")
+			}
+			tmPolicy := *profile.Spec.NUMA.TopologyPolicy
+			if tmPolicy != "single-numa-node" {
+				Skip("Topology Manager Policy is not Single NUMA Node")
+			}
+		})
+
+		AfterEach(func() {
+			if testpod == nil {
+				return
+			}
+			deleteTestPod(testpod)
+		})
+
+		It("should reject pods which request integral CPUs not aligned with machine SMT level", func() {
+			testpod = getStressPod(workerRTNode.Name)
+			testpod.Namespace = testutils.NamespaceTesting
+
+			smtLevel := getSMTLevel(workerRTNode)
+			if smtLevel < 2 {
+				Skip(fmt.Sprintf("designated worker node %q has SMT level %d - minimum required 2", workerRTNode.Name, smtLevel))
+			}
+
+			testpod.Spec.Containers[0].Resources.Limits = map[corev1.ResourceName]resource.Quantity{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("1Gi"),
+			}
+
+			err := testclient.Client.Create(context.TODO(), testpod)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = pods.WaitForPredicate(testpod, 10*time.Minute, func(pod *corev1.Pod) (bool, error) {
+				if pod.Status.Phase != corev1.PodPending {
+					return true, nil
+				}
+				return false, nil
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			updatedPod := &corev1.Pod{}
+			key := types.NamespacedName{
+				Name:      testpod.Name,
+				Namespace: testpod.Namespace,
+			}
+			err = testclient.Client.Get(context.TODO(), key, updatedPod)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(updatedPod.Status.Phase).To(Equal(corev1.PodFailed), "pod %s not failed: %v", updatedPod.Name, updatedPod.Status)
+			Expect(isSMTAlignmentError(updatedPod)).To(BeTrue(), "pod %s failed for wrong reason: %q", updatedPod.Name, updatedPod.Status.Reason)
+		})
+	})
+
 })
+
+func isSMTAlignmentError(pod *corev1.Pod) bool {
+	re := regexp.MustCompile(`SMT.*Alignment.*Error`)
+	return re.MatchString(pod.Status.Reason)
+}
+
+func getSMTLevel(node *corev1.Node) int {
+	cpuID := 0 // this is just the most likely cpu to be present in a random system. No special meaning besides this.
+	cmd := []string{"/bin/sh", "-c", fmt.Sprintf("cat /sys/devices/system/cpu/cpu%d/topology/thread_siblings_list | tr -d \"\n\r\"", cpuID)}
+	threadSiblingsList, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+	Expect(err).ToNot(HaveOccurred())
+	// how many thread sibling you have = SMT level
+	// example: 2-way SMT means 2 threads sibling for each thread
+	cpus, err := cpuset.Parse(strings.TrimSpace(string(threadSiblingsList)))
+	Expect(err).ToNot(HaveOccurred())
+	return cpus.Size()
+}
 
 func getStressPod(nodeName string) *corev1.Pod {
 	return &corev1.Pod{
