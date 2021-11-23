@@ -1,3 +1,4 @@
+//go:build !unittests
 // +build !unittests
 
 package __performance_config_test
