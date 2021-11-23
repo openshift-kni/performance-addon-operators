@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
@@ -159,6 +160,82 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		})
 	})
 
+	Context("Verify hugepages count split on two NUMA nodes", func() {
+		hpSize2M := performancev2.HugePageSize("2M")
+
+		table.DescribeTable("Verify that profile parameters were updated", func(hpCntOnNuma0 int32, hpCntOnNuma1 int32) {
+			By("Verifying cluster configuration matches the requirement")
+			for _, node := range workerRTNodes {
+				numaInfo, err := nodes.GetNumaNodes(&node)
+				Expect(err).ToNot(HaveOccurred())
+				if len(numaInfo) < 2 {
+					Skip(fmt.Sprintf("This test need 2 NUMA nodes.The number of NUMA nodes on node %s < 2", node.Name))
+				}
+			}
+			//have total of 4 cpus so VMs can handle running the configuration
+			numaInfo, _ := nodes.GetNumaNodes(&workerRTNodes[0])
+			cpuSlice := numaInfo[0][0:4]
+			isolated := performancev2.CPUSet(fmt.Sprintf("%d-%d", cpuSlice[2], cpuSlice[3]))
+			reserved := performancev2.CPUSet(fmt.Sprintf("%d-%d", cpuSlice[0], cpuSlice[1]))
+
+			By("Modifying profile")
+			initialProfile = profile.DeepCopy()
+			profile.Spec.CPU = &performancev2.CPU{
+				BalanceIsolated: pointer.BoolPtr(false),
+				Reserved:        &reserved,
+				Isolated:        &isolated,
+			}
+			profile.Spec.HugePages = &performancev2.HugePages{
+				DefaultHugePagesSize: &hpSize2M,
+				Pages: []performancev2.HugePage{
+					{
+						Count: hpCntOnNuma0,
+						Size:  hpSize2M,
+						Node:  pointer.Int32Ptr(0),
+					},
+					{
+						Count: hpCntOnNuma1,
+						Size:  hpSize2M,
+						Node:  pointer.Int32Ptr(1),
+					},
+				},
+			}
+			profile.Spec.RealTimeKernel = &performancev2.RealTimeKernel{
+				Enabled: pointer.BoolPtr(true),
+			}
+
+			By("Verifying that mcp is ready for update")
+			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
+
+			By("Applying changes in performance profile and waiting until mcp will start updating")
+			profiles.UpdateWithRetry(profile)
+			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
+
+			By("Waiting when mcp finishes updates")
+			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
+
+			for _, node := range workerRTNodes {
+				for i := 0; i < 2; i++ {
+					nodeCmd := []string{"cat", hugepagesPathForNode(i, 2)}
+					result, err := nodes.ExecCommandOnNode(nodeCmd, &node)
+					Expect(err).ToNot(HaveOccurred())
+
+					t, err := strconv.Atoi(result)
+					Expect(err).ToNot(HaveOccurred())
+
+					if i == 0 {
+						Expect(int32(t)).To(Equal(hpCntOnNuma0))
+					} else {
+						Expect(int32(t)).To(Equal(hpCntOnNuma1))
+					}
+				}
+			}
+		},
+			table.Entry("[test_id:45023] verify uneven split of hugepages between 2 numa nodes", int32(2), int32(1)),
+			table.Entry("[test_id:45024] verify even split between 2 numa nodes", int32(1), int32(1)),
+		)
+	})
+
 	Context("Verify that all performance profile parameters can be updated", func() {
 		var removedKernelArgs string
 
@@ -167,7 +244,6 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 		isolated := performancev2.CPUSet("1-2")
 		reserved := performancev2.CPUSet("0,3")
 		policy := "best-effort"
-		f := false
 
 		// Modify profile and verify that MCO successfully updated the node
 		testutils.BeforeAll(func() {
@@ -188,7 +264,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 				},
 			}
 			profile.Spec.CPU = &performancev2.CPU{
-				BalanceIsolated: &f,
+				BalanceIsolated: pointer.BoolPtr(false),
 				Reserved:        &reserved,
 				Isolated:        &isolated,
 			}
@@ -196,7 +272,7 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 				TopologyPolicy: &policy,
 			}
 			profile.Spec.RealTimeKernel = &performancev2.RealTimeKernel{
-				Enabled: &f,
+				Enabled: pointer.BoolPtr(false),
 			}
 
 			if profile.Spec.AdditionalKernelArgs == nil {
