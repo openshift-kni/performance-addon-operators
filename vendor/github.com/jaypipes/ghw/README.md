@@ -81,6 +81,34 @@ Alternately, you can use the `ghw.WithChroot()` function like so:
 cpu, err := ghw.CPU(ghw.WithChroot("/host"))
 ```
 
+### Overriding the per-mountpoint `ghw` uses
+
+When running inside containers, it could be a bit cumbersome to just override
+the root mountpoint. Inside containers, when granting access to the host
+file systems, is more common to bind-mount them in non standard location,
+like `/sys` on `/host-sys` or `/proc` on `/host-proc`.
+Is rarer to mount them in a common subtree (e.g. `/sys` on `/host/sys` and
+ `/proc` on /host/proc...)
+
+To better cover this use case, `ghw` allows to *programmatically* override
+the initial component of filesystems subtrees, allowing to access `sysfs`
+(or `procfs` or...) mounted on non-standard locations.
+
+
+```go
+cpu, err := ghw.CPU(ghw.WithPathOverrides(ghw.PathOverrides{
+	"/proc": "/host-proc",
+	"/sys": "/host-sys",
+}))
+```
+
+Please note
+- this feature works in addition and is composable with the
+  `WithChroot`/`GHW_CHROOT` feature.
+- `ghw` doesn't support yet environs variable to override individual
+   mountpoints, because this could lead to significant environs variables
+   proliferation.
+
 ### Consuming snapshots
 
 You can make `ghw` read from snapshots (created with `ghw-snapshot`) using
@@ -493,6 +521,8 @@ Each `ghw.Partition` struct contains these fields:
 * `ghw.Partition.Disk` is a pointer to the `ghw.Disk` object associated with
   the partition. This will be `nil` if the `ghw.Partition` struct was returned
   by the `ghw.DiskPartitions()` library function.
+* `ghw.Partition.UUID` is a string containing the volume UUID on Linux, the
+  partition UUID on MacOS and nothing on Windows.
 
 ```go
 package main
@@ -806,6 +836,26 @@ The `ghw.PCIDevice` struct has the following fields:
 * `ghw.PCIDevice.ProgrammingInterface` is a pointer to a
   `pcidb.ProgrammingInterface` struct that describes the device subclass'
   programming interface. This will always be non-nil.
+
+The `ghw.PCIAddress` (which is an alias for the `ghw.pci.address.Address`
+struct) contains the PCI address fields. It has a `ghw.PCIAddress.String()`
+method that returns the canonical Domain:Bus:Device.Function ([D]BDF)
+representation of this Address.
+
+The `ghw.PCIAddress` struct has the following fields:
+
+* `ghw.PCIAddress.Domain` is a string representing the PCI domain component of
+  the address.
+* `ghw.PCIAddress.Bus` is a string representing the PCI bus component of
+  the address.
+* `ghw.PCIAddress.Device` is a string representing the PCI device component of
+  the address.
+* `ghw.PCIAddress.Function` is a string representing the PCI function component of
+  the address.
+
+**NOTE**: Older versions (pre-`v0.9.0`) erroneously referred to the `Device`
+field as the `Slot` field. As noted by [@pearsonk](https://github.com/pearsonk)
+in [#220](https://github.com/jaypipes/ghw/issues/220), this was a misnomer.
 
 #### Finding a PCI device by PCI address
 
@@ -1139,6 +1189,8 @@ The `ghw.BaseboardInfo` struct contains multiple fields:
 * `ghw.BaseboardInfo.AssetTag` is a string with the baseboard asset tag
 * `ghw.BaseboardInfo.SerialNumber` is a string with the baseboard serial number
 * `ghw.BaseboardInfo.Vendor` is a string with the baseboard vendor
+* `ghw.BaseboardInfo.Product` is a string with the baseboard name on Linux and
+  Product on Windows
 * `ghw.BaseboardInfo.Version` is a string with the baseboard version
 
 **NOTE**: These fields are often missing for non-server hardware. Don't be

@@ -155,6 +155,17 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
+# github.com/google/cadvisor v0.39.2
+## explicit; go 1.13
+github.com/google/cadvisor/devicemapper
+github.com/google/cadvisor/fs
+github.com/google/cadvisor/info/v1
+github.com/google/cadvisor/machine
+github.com/google/cadvisor/nvm
+github.com/google/cadvisor/utils
+github.com/google/cadvisor/utils/cloudinfo
+github.com/google/cadvisor/utils/sysfs
+github.com/google/cadvisor/utils/sysinfo
 # github.com/google/go-cmp v0.5.6
 ## explicit; go 1.8
 github.com/google/go-cmp/cmp
@@ -184,7 +195,7 @@ github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.0.0
 ## explicit
 github.com/inconshreveable/mousetrap
-# github.com/jaypipes/ghw v0.7.1-0.20210419135914-b8b1e31b27f5
+# github.com/jaypipes/ghw v0.8.1-0.20210605191321-eb162add542b
 ## explicit; go 1.12
 github.com/jaypipes/ghw
 github.com/jaypipes/ghw/pkg/baseboard
@@ -227,6 +238,9 @@ github.com/mattn/go-isatty
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible
+## explicit
+github.com/mistifyio/go-zfs
 # github.com/mitchellh/go-homedir v1.1.0
 ## explicit
 github.com/mitchellh/go-homedir
@@ -237,6 +251,9 @@ github.com/mitchellh/mapstructure
 ## explicit; go 1.13
 github.com/moby/spdystream
 github.com/moby/spdystream/spdy
+# github.com/moby/sys/mountinfo v0.4.1
+## explicit; go 1.14
+github.com/moby/sys/mountinfo
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 ## explicit
 github.com/modern-go/concurrent
@@ -290,12 +307,14 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
-# github.com/openshift-kni/debug-tools v0.0.0-20210315132340-1e9bf93e0a88
-## explicit; go 1.15
+# github.com/openshift-kni/debug-tools v0.1.2
+## explicit; go 1.16
 github.com/openshift-kni/debug-tools/pkg/fswrap
 github.com/openshift-kni/debug-tools/pkg/irqs
 github.com/openshift-kni/debug-tools/pkg/irqs/soft
 github.com/openshift-kni/debug-tools/pkg/knit/cmd
+github.com/openshift-kni/debug-tools/pkg/knit/cmd/k8s
+github.com/openshift-kni/debug-tools/pkg/machineinformer
 github.com/openshift-kni/debug-tools/pkg/procs
 # github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible => github.com/openshift/api v0.0.0-20210610130314-a6ac319a7eed
 ## explicit; go 1.16
@@ -409,6 +428,7 @@ golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
+golang.org/x/sys/windows/registry
 # golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
 ## explicit; go 1.11
 golang.org/x/term
@@ -804,7 +824,7 @@ k8s.io/component-base/version
 # k8s.io/klog v1.0.0
 ## explicit; go 1.12
 k8s.io/klog
-# k8s.io/klog/v2 v2.8.0
+# k8s.io/klog/v2 v2.9.0
 ## explicit; go 1.13
 k8s.io/klog/v2
 # k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7

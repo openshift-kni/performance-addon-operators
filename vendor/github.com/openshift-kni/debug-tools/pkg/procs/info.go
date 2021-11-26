@@ -97,7 +97,7 @@ func (handler *Handler) FromPID(pid int) (PIDInfo, error) {
 		handler.log.Printf("Error reading process name for pid %d: %v", pid, err)
 	}
 
-	tasksDir := filepath.Join(handler.procfsRoot, fmt.Sprintf("%d", pid), "task")
+	tasksDir := filepath.Join(handler.procfsRoot, procEntry(pid), "task")
 	tidEntries, err := handler.fs.ReadDir(tasksDir)
 	if err != nil {
 		handler.log.Printf("Error reading the tasks %q for %d: %v", tasksDir, pid, err)
@@ -157,7 +157,7 @@ func (handler *Handler) parseProcStatus(path string) (TIDInfo, error) {
 }
 
 func (handler *Handler) readProcessName(pid int) (string, error) {
-	data, err := handler.fs.ReadFile(filepath.Join(handler.procfsRoot, fmt.Sprintf("%d", pid), "cmdline"))
+	data, err := handler.fs.ReadFile(filepath.Join(handler.procfsRoot, procEntry(pid), "cmdline"))
 	if err != nil {
 		return "", err
 	}
@@ -179,4 +179,11 @@ func fixFilename(filename string) string {
 		return ""
 	}
 	return strings.Trim(name, "\x00")
+}
+
+func procEntry(pid int) string {
+	if pid == 0 {
+		return "self"
+	}
+	return fmt.Sprintf("%d", pid)
 }

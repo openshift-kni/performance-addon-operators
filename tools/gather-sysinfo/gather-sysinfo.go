@@ -3,14 +3,19 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/jaypipes/ghw/pkg/snapshot"
 	"github.com/openshift-kni/debug-tools/pkg/knit/cmd"
+	"github.com/openshift-kni/debug-tools/pkg/knit/cmd/k8s"
+	"github.com/openshift-kni/debug-tools/pkg/machineinformer"
 	"github.com/spf13/cobra"
 )
+
+const machineInfoFilePath string = "machineinfo.json"
 
 type snapshotOptions struct {
 	dumpList  bool
@@ -20,7 +25,8 @@ type snapshotOptions struct {
 }
 
 func main() {
-	root := cmd.NewRootCommand(newSnapshotCommand)
+	root := cmd.NewRootCommand(newSnapshotCommand,
+		k8s.NewPodResourcesCommand)
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -45,6 +51,21 @@ func newSnapshotCommand(knitOpts *cmd.KnitOptions) *cobra.Command {
 	snap.Flags().IntVar(&opts.sleepTime, "sleep", 0, "amount of seconds to sleep once done, before exit")
 
 	return snap
+}
+
+func collectMachineinfo(knitOpts *cmd.KnitOptions, destPath string) error {
+	outfile, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+
+	mih := machineinformer.Handle{
+		RootDirectory: knitOpts.SysFSRoot,
+		Out:           outfile,
+	}
+	mih.Run()
+
+	return nil
 }
 
 func makeSnapshot(cmd *cobra.Command, knitOpts *cmd.KnitOptions, opts *snapshotOptions, args []string) error {
@@ -84,6 +105,16 @@ func makeSnapshot(cmd *cobra.Command, knitOpts *cmd.KnitOptions, opts *snapshotO
 
 	if opts.rootDir != "" {
 		scratchDir = filepath.Join(scratchDir, opts.rootDir)
+	}
+
+	// intentionally ignore errors, keep collecting data
+	// machineinfo data is accessory, if we fail to collect
+	// we want to keep going and try to collect /proc and /sys data,
+	// which is more important
+	localPath := filepath.Join(scratchDir, machineInfoFilePath)
+	err = collectMachineinfo(knitOpts, localPath)
+	if err != nil {
+		log.Printf("error collecting machineinfo data: %v - continuing", err)
 	}
 
 	dest := opts.output
