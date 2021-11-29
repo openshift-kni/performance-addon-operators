@@ -311,6 +311,7 @@ spec:
   - realtime
   - cpu pinning
   - hugepages
+  - pao
   links:
   - name: Source Code
     url: https://github.com/openshift-kni/performance-addon-operators

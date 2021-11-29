@@ -142,6 +142,7 @@ func generateUnifiedCSV(userData csvUserData) {
 		"realtime",
 		"cpu pinning",
 		"hugepages",
+		"pao",
 	}
 
 	// Set Provider
