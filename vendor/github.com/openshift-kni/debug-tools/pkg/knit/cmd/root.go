@@ -59,7 +59,7 @@ func NewRootCommand(extraCmds ...NewCommandFunc) *cobra.Command {
 			}
 
 			if knitOpts.Debug {
-				knitOpts.Log = log.New(os.Stderr, "knit", log.LstdFlags)
+				knitOpts.Log = log.New(os.Stderr, "knit ", log.LstdFlags)
 			} else {
 				knitOpts.Log = log.New(ioutil.Discard, "", 0)
 			}
@@ -82,7 +82,7 @@ func NewRootCommand(extraCmds ...NewCommandFunc) *cobra.Command {
 	root.AddCommand(
 		NewCPUAffinityCommand(knitOpts),
 		NewIRQAffinityCommand(knitOpts),
-		NewPodResourcesCommand(knitOpts),
+		NewIRQWatchCommand(knitOpts),
 		NewWaitCommand(knitOpts),
 	)
 	for _, extraCmd := range extraCmds {
@@ -90,5 +90,4 @@ func NewRootCommand(extraCmds ...NewCommandFunc) *cobra.Command {
 	}
 
 	return root
-
 }
