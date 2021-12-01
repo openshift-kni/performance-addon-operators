@@ -33,6 +33,7 @@ spec:
       memory: 500Mi
     logging: {}
     memoryManagerPolicy: Static
+    memorySwap: {}
     nodeStatusReportFrequency: 0s
     nodeStatusUpdateFrequency: 0s
     reservedMemory:

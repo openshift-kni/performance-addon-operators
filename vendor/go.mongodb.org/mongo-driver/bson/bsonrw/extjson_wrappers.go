@@ -217,7 +217,7 @@ func parseDatetimeString(data string) (int64, error) {
 		return 0, fmt.Errorf("invalid $date value string: %s", data)
 	}
 
-	return int64(primitive.NewDateTimeFromTime(t)), nil
+	return t.Unix()*1e3 + int64(t.Nanosecond())/1e6, nil
 }
 
 func parseDatetimeObject(data *extJSONObject) (d int64, err error) {
@@ -430,20 +430,17 @@ func (ejv *extJSONValue) parseTimestamp() (t, i uint32, err error) {
 
 		switch val.t {
 		case bsontype.Int32:
-			value := val.v.(int32)
-
-			if value < 0 {
-				return 0, fmt.Errorf("$timestamp %s number should be uint32: %d", key, value)
+			if val.v.(int32) < 0 {
+				return 0, fmt.Errorf("$timestamp %s number should be uint32: %s", key, string(val.v.(int32)))
 			}
 
-			return uint32(value), nil
+			return uint32(val.v.(int32)), nil
 		case bsontype.Int64:
-			value := val.v.(int64)
-			if value < 0 || value > int64(math.MaxUint32) {
-				return 0, fmt.Errorf("$timestamp %s number should be uint32: %d", key, value)
+			if val.v.(int64) < 0 || uint32(val.v.(int64)) > math.MaxUint32 {
+				return 0, fmt.Errorf("$timestamp %s number should be uint32: %s", key, string(val.v.(int32)))
 			}
 
-			return uint32(value), nil
+			return uint32(val.v.(int64)), nil
 		default:
 			return 0, fmt.Errorf("$timestamp %s value should be uint32, but instead is %s", key, val.t)
 		}

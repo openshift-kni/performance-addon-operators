@@ -130,6 +130,8 @@ metadata:
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
+  cleanup:
+    enabled: false
   customresourcedefinitions:
     owned:
     - description: PerformanceProfile is the Schema for the performanceprofiles API
