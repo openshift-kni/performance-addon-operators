@@ -18,13 +18,12 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
-
 	kubeletpodresourcesv1 "k8s.io/kubelet/pkg/apis/podresources/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"
 
@@ -63,7 +62,7 @@ func NewPodResourcesCommand(knitOpts *cmd.KnitOptions) *cobra.Command {
 	return podRes
 }
 
-// we use spew to avoid artifacts due to JSON mashalling. We want to see all the fields.
+// we fill our own structs to avoid the problem when default int value(0) removed from the json
 func selectAction(apiName string) (func(cli kubeletpodresourcesv1.PodResourcesListerClient) error, error) {
 	if apiName == apiCallList {
 		return func(cli kubeletpodresourcesv1.PodResourcesListerClient) error {
@@ -71,7 +70,12 @@ func selectAction(apiName string) (func(cli kubeletpodresourcesv1.PodResourcesLi
 			if err != nil {
 				return err
 			}
-			spew.Fdump(os.Stdout, resp)
+
+			listPodResourcesResp := getListPodResourcesResponse(resp)
+			if err := json.NewEncoder(os.Stdout).Encode(listPodResourcesResp); err != nil {
+				return err
+			}
+
 			return nil
 		}, nil
 	}
@@ -81,7 +85,12 @@ func selectAction(apiName string) (func(cli kubeletpodresourcesv1.PodResourcesLi
 			if err != nil {
 				return err
 			}
-			spew.Fdump(os.Stdout, resp)
+
+			allocatableResourcesResponse := getAllocatableResourcesResponse(resp)
+			if err := json.NewEncoder(os.Stdout).Encode(allocatableResourcesResponse); err != nil {
+				return err
+			}
+
 			return nil
 		}, nil
 	}
@@ -108,4 +117,83 @@ func showPodResources(cmd *cobra.Command, opts *podResOptions, args []string) er
 	defer conn.Close()
 
 	return action(cli)
+}
+
+func getListPodResourcesResponse(resp *kubeletpodresourcesv1.ListPodResourcesResponse) *ListPodResourcesResponse {
+	var podResources []*PodResources
+	for _, podRes := range resp.PodResources {
+		var podResContainers []*ContainerResources
+		for _, c := range podRes.Containers {
+			podResContainers = append(podResContainers, &ContainerResources{
+				Name:    c.Name,
+				CpuIds:  c.CpuIds,
+				Devices: getDevices(c.Devices),
+				Memory:  getMemory(c.Memory),
+			})
+		}
+
+		podResources = append(podResources, &PodResources{
+			Name:       podRes.Name,
+			Namespace:  podRes.Namespace,
+			Containers: podResContainers,
+		})
+	}
+
+	return &ListPodResourcesResponse{
+		PodResources: podResources,
+	}
+}
+
+func getAllocatableResourcesResponse(resp *kubeletpodresourcesv1.AllocatableResourcesResponse) *AllocatableResourcesResponse {
+	return &AllocatableResourcesResponse{
+		CpuIds:  resp.CpuIds,
+		Devices: getDevices(resp.Devices),
+		Memory:  getMemory(resp.Memory),
+	}
+}
+
+func getDevices(containerDevices []*kubeletpodresourcesv1.ContainerDevices) []*ContainerDevices {
+	var cDevices []*ContainerDevices
+	for _, d := range containerDevices {
+		deviceTopologyInfo := getTopologyInfo(d.Topology)
+		cDevices = append(cDevices, &ContainerDevices{
+			ResourceName: d.ResourceName,
+			DeviceIds:    d.DeviceIds,
+			Topology:     deviceTopologyInfo,
+		})
+	}
+
+	return cDevices
+}
+
+func getMemory(containerMemory []*kubeletpodresourcesv1.ContainerMemory) []*ContainerMemory {
+	var cMemory []*ContainerMemory
+	for _, m := range containerMemory {
+		memoryTopologyInfo := getTopologyInfo(m.Topology)
+		cMemory = append(cMemory, &ContainerMemory{
+			MemoryType: m.MemoryType,
+			Size_:      m.Size_,
+			Topology:   memoryTopologyInfo,
+		})
+	}
+
+	return cMemory
+}
+
+func getTopologyInfo(topologyInfo *kubeletpodresourcesv1.TopologyInfo) *TopologyInfo {
+	if topologyInfo == nil {
+		return nil
+	}
+
+	var numaNodes []*NUMANode
+	for _, numaNode := range topologyInfo.Nodes {
+		numaNodeID := numaNode.ID
+		numaNodes = append(numaNodes, &NUMANode{
+			ID: &numaNodeID,
+		})
+	}
+
+	return &TopologyInfo{
+		Nodes: numaNodes,
+	}
 }
