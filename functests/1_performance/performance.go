@@ -106,10 +106,10 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			// If workload partitioning is enabled on the node, resources.limits.cpu index is mutated to
 			// resources.limits."management.workload.openshift.io/cores" index
 
-			if wp_cpu_limit, ok := pod.Spec.Containers[0].Resources.Limits["management.workload.openshift.io/cores"]; ok {
-				By("Workload Partitioning enabled, checking Resources.Limits[\"management.workload.openshift.io/cores\"]")
-				Expect(wp_cpu_limit.IsZero()).To(BeTrue(), "Container has \"management.workload.openshift.io/cores\" Limit != 0")
-			} else {
+			if _, ok := pod.Spec.Containers[0].Resources.Limits["management.workload.openshift.io/cores"]; !ok {
+				// Ignore limits set for Workload Partition mutation of CPU requests (custom resource)
+				// https://bugzilla.redhat.com/show_bug.cgi?id=2019924
+				// https://bugzilla.redhat.com/show_bug.cgi?id=2018443
 				By("Checking Resources.Limits.Cpu()")
 				Expect(pod.Spec.Containers[0].Resources.Limits.Cpu().IsZero()).To(BeTrue(),
 					"Container has CPU Limit != 0")
@@ -123,7 +123,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			// resources.requests."management.workload.openshift.io/cores" index
 
 			if wp_cpu_req, ok := pod.Spec.Containers[0].Resources.Requests["management.workload.openshift.io/cores"]; ok {
-				By("Workload Partitioning enabled, checking Resources.Requests[\"management.workload.openshift.io/cores\"]")
+				By("Workload Partitioning enabled, checking custom resource Resources.Requests[\"management.workload.openshift.io/cores\"]")
 				Expect(wp_cpu_req.Sign() == 1).To(BeTrue(), "Container has \"management.workload.openshift.io/cores\" Request <= 0")
 			} else {
 				By("Checking Resources.Requests.Cpu()")
