@@ -6,6 +6,7 @@ ENV GOVERSION 1.13.5
 ENV GOPATH /go
 ENV GOBIN ${GOPATH}/bin
 ENV PATH=${PATH}:${GOROOT}/bin:${GOBIN}
+ENV GO111MODULE=on
 ENV GINKGO_VERSION v1.12.0
 
 ARG GO_PACKAGE_PATH=github.com/openshift-kni/performance-addon-operators
