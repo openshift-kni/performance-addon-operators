@@ -6,6 +6,8 @@ ENV GOVERSION=1.16.3
 ENV GOPATH=/go
 ENV GOBIN=${GOPATH}/bin
 ENV PATH=${PATH}:${GOROOT}/bin:${GOBIN}
+ENV GO111MODULE=on
+ENV GINKGO_VERSION=v1.12.1
 
 ARG GO_PACKAGE_PATH=github.com/openshift-kni/performance-addon-operators
 
@@ -26,7 +28,7 @@ RUN mkdir -p $HOME && \
     tar -C /usr/local -xzf go.tar.gz && \
     rm go.tar.gz && \
     # get required golang tools and OC client
-    go get github.com/onsi/ginkgo/ginkgo && \
+    go get github.com/onsi/ginkgo/ginkgo@${GINKGO_VERSION} && \
     go get golang.org/x/lint/golint && \
     go get github.com/mattn/goveralls && \
     go clean -cache -modcache && \
