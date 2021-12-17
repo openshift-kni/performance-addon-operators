@@ -11,8 +11,8 @@ require (
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/google/go-cmp v0.5.6
 	github.com/jaypipes/ghw v0.8.1-0.20210605191321-eb162add542b
-	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.13.0
+	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/gomega v1.17.0
 	github.com/openshift-kni/debug-tools v0.1.3
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20200914165052-a39511828cf0
@@ -33,7 +33,7 @@ require (
 	k8s.io/kubernetes v0.23.0
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 	kubevirt.io/qe-tools v0.1.6
-	sigs.k8s.io/controller-runtime v0.10.0
+	sigs.k8s.io/controller-runtime v0.11.0
 	sigs.k8s.io/controller-tools v0.6.2
 )
 
@@ -60,7 +60,7 @@ require (
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/fatih/color v1.12.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
-	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/go-logr/zapr v1.2.0 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
@@ -108,11 +108,11 @@ require (
 	go.mongodb.org/mongo-driver v1.3.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.19.0 // indirect
+	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
-	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
+	golang.org/x/sys v0.0.0-20211029165221-6e7872819dc8 // indirect
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
@@ -132,8 +132,8 @@ require (
 	k8s.io/klog/v2 v2.30.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
 	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
-	sigs.k8s.io/yaml v1.2.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.0 // indirect
+	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
 // Pinned to kubernetes-1.23.0
@@ -164,8 +164,8 @@ replace (
 	k8s.io/mount-utils => k8s.io/mount-utils v0.23.0
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.23.0
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.23.0
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.9.2
-	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.6.1
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.11.0
+	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.6.2
 )
 
 // Other pinned deps
