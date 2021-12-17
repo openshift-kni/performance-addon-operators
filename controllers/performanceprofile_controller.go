@@ -87,7 +87,8 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 			kubeletOld := e.ObjectOld.(*mcov1.KubeletConfig)
 			kubeletNew := e.ObjectNew.(*mcov1.KubeletConfig)
 
-			return !reflect.DeepEqual(kubeletOld.Status.Conditions, kubeletNew.Status.Conditions)
+			return kubeletOld.GetGeneration() != kubeletNew.GetGeneration() ||
+				!reflect.DeepEqual(kubeletOld.Status.Conditions, kubeletNew.Status.Conditions)
 		},
 	}
 
