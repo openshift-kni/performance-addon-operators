@@ -44,6 +44,10 @@ banned_cpus=""
 runtime=0
 group.ksoftirqd=0:f:11:*:ksoftirqd.*
 group.rcuc=0:f:11:*:rcuc.*
+sched_rt_runtime_us=-1
+sched_min_granularity_ns=10000000
+sched_migration_cost_ns=5000000
+numa_balancing=0
 {{if not .GloballyDisableIrqLoadBalancing}}
 default_irq_smp_affinity = ignore
 {{end}}
