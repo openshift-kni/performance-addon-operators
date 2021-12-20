@@ -104,6 +104,19 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		},
 	}
 
+	tunedProfilePredicates := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if !validateUpdateEvent(&e) {
+				return false
+			}
+
+			tunedProfileOld := e.ObjectOld.(*tunedv1.Profile)
+			tunedProfileNew := e.ObjectNew.(*tunedv1.Profile)
+
+			return !reflect.DeepEqual(tunedProfileOld.Status.Conditions, tunedProfileNew.Status.Conditions)
+		},
+	}
+
 	err := ctrl.NewControllerManagedBy(mgr).
 		For(&performancev2.PerformanceProfile{}).
 		Owns(&mcov1.MachineConfig{}, builder.WithPredicates(p)).
@@ -114,6 +127,11 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 			&source.Kind{Type: &mcov1.MachineConfigPool{}},
 			handler.EnqueueRequestsFromMapFunc(r.mcpToPerformanceProfile),
 			builder.WithPredicates(mcpPredicates)).
+		Watches(
+			&source.Kind{Type: &tunedv1.Profile{}},
+			handler.EnqueueRequestsFromMapFunc(r.tunedProfileToPerformanceProfile),
+			builder.WithPredicates(tunedProfilePredicates),
+		).
 		Complete(r)
 	if err != nil {
 		return err
@@ -149,6 +167,36 @@ func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj client.Obj
 		}
 
 		if mcpNodeSelector.Matches(profileNodeSelector) {
+			requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&profiles.Items[i])})
+		}
+	}
+
+	return requests
+}
+
+func (r *PerformanceProfileReconciler) tunedProfileToPerformanceProfile(tunedProfileObj client.Object) []reconcile.Request {
+	node := &corev1.Node{}
+	key := types.NamespacedName{
+		// the tuned profile name is the same as node
+		Name: tunedProfileObj.GetName(),
+	}
+
+	if err := r.Get(context.TODO(), key, node); err != nil {
+		klog.Errorf("failed to get the tuned profile %+v", key)
+		return nil
+	}
+
+	profiles := &performancev2.PerformanceProfileList{}
+	if err := r.List(context.TODO(), profiles); err != nil {
+		klog.Error("failed to get performance profiles")
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for i, profile := range profiles.Items {
+		profileNodeSelector := labels.Set(profile.Spec.NodeSelector)
+		nodeLabels := labels.Set(node.Labels)
+		if profileNodeSelector.AsSelector().Matches(nodeLabels) {
 			requests = append(requests, reconcile.Request{NamespacedName: namespacedName(&profiles.Items[i])})
 		}
 	}
