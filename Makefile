@@ -295,7 +295,7 @@ govet:
 	go vet ./...
 
 .PHONY: generate
-generate: deps-update gofmt manifests generate-code generate-latest-dev-csv generate-docs
+generate: clean deps-update gofmt manifests generate-code generate-latest-dev-csv generate-docs
 	@echo Updating generated files
 	@echo
 
