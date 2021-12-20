@@ -799,3 +799,46 @@ var _ = Describe("PerformanceProfileCreator: Test Helper Function GetAdditionalK
 
 	})
 })
+
+var _ = Describe("PerformanceProfileCreator: Test Helper cpuAccumulator", func() {
+	nodes1 := []*topology.Node{
+		{
+			ID: 0,
+			Cores: []*cpu.ProcessorCore{
+				{ID: 0, Index: 0, NumThreads: 2, LogicalProcessors: []int{0, 1}},
+				{ID: 1, Index: 1, NumThreads: 2, LogicalProcessors: []int{2, 3}},
+			},
+		},
+		{
+			ID: 1,
+			Cores: []*cpu.ProcessorCore{
+				{ID: 2, Index: 2, NumThreads: 2, LogicalProcessors: []int{4, 5}},
+				{ID: 3, Index: 3, NumThreads: 2, LogicalProcessors: []int{6, 7}},
+			},
+		},
+	}
+	topology1 := topology.Info{
+		Architecture: topology.ARCHITECTURE_NUMA,
+		Nodes:        nodes1,
+	}
+
+	Context("Check if cpuAccumulator is working correctly", func() {
+		It("should accumulate allCores", func() {
+			acc := newCPUAccumulator()
+			for _, node := range topology1.Nodes {
+				acc.AddCores(allCores, node.Cores)
+			}
+			cores := acc.Result().ToSlice()
+			Expect(cores).Should(Equal([]int{0, 1, 2, 3, 4, 5, 6, 7}))
+		})
+		It("should accumulate cores up to the max", func() {
+			acc := newCPUAccumulator()
+			for _, node := range topology1.Nodes {
+				acc.AddCores(3, node.Cores)
+			}
+			cores := acc.Result().ToSlice()
+			Expect(cores).Should(Equal([]int{0, 1, 2}))
+		})
+
+	})
+})

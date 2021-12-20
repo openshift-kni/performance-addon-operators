@@ -31,7 +31,12 @@ spec:
     kind: KubeletConfiguration
     kubeReserved:
       memory: 500Mi
-    logging: {}
+    logging:
+      flushFrequency: 0
+      options:
+        json:
+          infoBufferSize: "0"
+      verbosity: 0
     memoryManagerPolicy: Static
     memorySwap: {}
     nodeStatusReportFrequency: 0s
