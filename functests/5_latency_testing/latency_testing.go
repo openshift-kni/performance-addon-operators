@@ -198,8 +198,11 @@ func getValidValuesTests(toolToTest string) []latencyTest {
 	var testSet []latencyTest
 	testSet = append(testSet, latencyTest{testDelay: "0", testRun: "true", testRuntime: "5", testMaxLatency: guaranteedLatency, testCpus: "2", outputMsgs: []string{success}, toolToTest: toolToTest})
 	testSet = append(testSet, latencyTest{testDelay: "0", testRun: "true", testRuntime: "1", testMaxLatency: guaranteedLatency, testCpus: "5", outputMsgs: []string{success}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testDelay: "1", testRun: "true", testRuntime: "2", testMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testDelay: "60", testRun: "true", testRuntime: "2", testMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
+	//BZ https://bugzilla.redhat.com/show_bug.cgi?id=2006675
+	if toolToTest == oslat {
+		testSet = append(testSet, latencyTest{testDelay: "1", testRun: "true", testRuntime: "2", testMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testDelay: "60", testRun: "true", testRuntime: "2", testMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
+	}
 	if toolToTest != hwlatdetect {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "5", outputMsgs: []string{skip, skipMaxLatency}, toolToTest: toolToTest})
 	}
