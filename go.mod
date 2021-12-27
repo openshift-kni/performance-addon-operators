@@ -17,6 +17,7 @@ require (
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20200914165052-a39511828cf0
 	github.com/openshift/custom-resource-status v0.0.0-20200602122900-c002fd1547ca
+	github.com/openshift/library-go v0.0.0-20211220195323-eca2c467c492
 	github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible
 	github.com/operator-framework/api v0.10.7
 	github.com/operator-framework/operator-lifecycle-manager v3.11.0+incompatible
@@ -100,6 +101,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/openshift/client-go v0.0.0-20210916133943-9acee1a0fb83 // indirect
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.28.0 // indirect
@@ -176,7 +178,7 @@ replace (
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20210610130314-a6ac319a7eed // release-4.8
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142 // release-4.8
 	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20210303185751-cbeeb4d9f3cc // release-4.9
-	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20210706120254-6f1208ffd780 // release-4.8
+	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20211208213416-9b73bdcf5d00 // release-4.8
 	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.1-0.20210701174259-29813c845a4a // release-4.8
 	github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.18.1
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343

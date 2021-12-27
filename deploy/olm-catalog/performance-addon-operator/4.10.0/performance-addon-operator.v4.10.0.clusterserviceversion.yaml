@@ -178,6 +178,14 @@ spec:
           - list
           - watch
         - apiGroups:
+          - config.openshift.io
+          resources:
+          - infrastructures
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
           - machineconfiguration.openshift.io
           resources:
           - kubeletconfigs

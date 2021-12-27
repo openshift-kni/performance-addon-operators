@@ -26,6 +26,7 @@ import (
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	"github.com/openshift-kni/performance-addon-operators/controllers"
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	"github.com/openshift-kni/performance-addon-operators/pkg/utils/leaderelection"
 	"github.com/openshift-kni/performance-addon-operators/version"
 	"github.com/spf13/cobra"
 
@@ -132,12 +133,18 @@ func runPAO() {
 		metav1.NamespaceNone,
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	le := leaderelection.GetLeaderElectionConfig(restConfig, enableLeaderElection)
+
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		NewCache:           cache.MultiNamespacedCacheBuilder(namespaces),
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   leaderElectionID,
+		LeaseDuration:      &le.LeaseDuration.Duration,
+		RetryPeriod:        &le.RetryPeriod.Duration,
+		RenewDeadline:      &le.RenewDeadline.Duration,
 	})
 
 	if err != nil {
