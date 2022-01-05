@@ -242,7 +242,6 @@ spec:
                 - name: OPERATOR_NAME
                   value: performance-operator
                 image: REPLACE_IMAGE
-                imagePullPolicy: Always
                 name: performance-operator
                 resources:
                   requests:
