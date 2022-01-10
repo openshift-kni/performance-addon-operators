@@ -31,7 +31,6 @@ spec:
           image: REPLACE_IMAGE
           command:
           - performance-operator
-          imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
