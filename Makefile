@@ -103,6 +103,10 @@ dist-docs-generator: build-output-dir
 		echo "Using pre-built docs-generator tool";\
 	fi
 
+.PHONY: dist-imgpull-tool
+dist-imgpull-tool: build-output-dir
+	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/imgpull-tool ./tools/imgpull-tool
+
 .PHONY: dist-functests
 dist-functests:
 	./hack/build-test-bin.sh
