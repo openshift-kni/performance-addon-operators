@@ -12,7 +12,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -27,8 +29,39 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/namespaces"
 )
 
+//Container Resources
+type CtnResources struct {
+	cpu, memory, hpgSize, medium, noOfhpgs string
+}
+
+//Memory Manager Container structure
+type MMContainer struct {
+	CtnName, CtnImage string
+	command           []string
+	CtnResources
+}
+
+//Memory Manager Volume structure
+type MMVolumes struct {
+	volumenName, medium string
+}
+
+//Memory Manager Pod Definition
+type MMPod struct {
+	podV1Struct        *corev1.Pod
+	podName, nameSpace string
+	labels             map[string]string
+	MMContainer
+	MMVolumes
+}
+
 // DefaultDeletionTimeout contains the default pod deletion timeout in seconds
 const DefaultDeletionTimeout = 120
+
+const (
+	hugepagesResourceName2Mi = "hugepages-2Mi"
+	mediumHugepages2Mi       = "HugePages-2Mi"
+)
 
 // GetTestPod returns pod with the busybox image
 func GetTestPod() *corev1.Pod {
@@ -222,4 +255,118 @@ func GetPerformanceOperatorPod() (*corev1.Pod, error) {
 	}
 
 	return &pods.Items[0], nil
+}
+
+/*//Container Resources
+type CtnResources struct {
+	cpu, memory, hpgSize, medium, noOfhpgs string
+}
+
+//Memory Manager Container structure
+type MMContainer struct {
+	name, image string
+	command     []string
+	CtnResources
+}
+
+//Memory Manager Volume structure
+type MMVolumes struct {
+	volumenName, medium string
+}
+
+//Memory Manager Pod Definition
+type MMPod struct {
+	podV1Struct        *corev1.Pod
+	podName, nameSpace string
+	labels             map[string]string
+	MMContainer
+	MMVolumes
+    }*/
+
+//Create Container resources with cpu, memory and huagepages
+func CreateCtnResources(ctn *MMContainer) *corev1.ResourceRequirements {
+
+	ctnLimits := v1.ResourceList{
+		v1.ResourceCPU:    resource.MustParse(ctn.cpu),
+		v1.ResourceMemory: resource.MustParse(ctn.memory),
+	}
+	if ctn.hpgSize == "hugepages-2mi" {
+		ctnLimits[hugepagesResourceName2Mi] = resource.MustParse(ctn.noOfhpgs)
+	}
+	return &v1.ResourceRequirements{
+		Limits: ctnLimits,
+	}
+}
+
+//Create Memory Manager Container
+func CreateContainer(ctnData *MMContainer) *corev1.Container {
+	mmctn := v1.Container{
+		Name:      ctnData.CtnName,
+		Image:     ctnData.CtnImage,
+		Command:   ctnData.command,
+		Resources: *CreateCtnResources(ctnData),
+		VolumeMounts: []corev1.VolumeMount{
+			*CreateVolumeMounts(ctnData),
+		},
+	}
+	return &mmctn
+}
+
+//Create Volume Mounts
+func CreateVolumeMounts(ctnData *MMContainer) *corev1.VolumeMount {
+	if ctnData.hpgSize == "hugepages-2mi" {
+		return &corev1.VolumeMount{
+			Name:      "hugepages-2mi",
+			MountPath: "/hugepages-2Mi",
+		}
+	} else {
+		return &corev1.VolumeMount{
+			Name:      "hugepage-1gi",
+			MountPath: "/hugepages-1Gi",
+		}
+	}
+}
+
+//Pod Template to create pods with hugepages for memory manager tests
+func MMPodTemplate(testPod *MMPod, targetNode *corev1.Node) *corev1.Pod {
+	testNode := make(map[string]string)
+	testNode["kubernetes.io/hostname"] = targetNode.Name
+	testPod.podV1Struct = &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-pod", testPod.podName),
+			Namespace: testPod.nameSpace,
+			Labels: map[string]string{
+				"name": testPod.podName,
+			},
+		},
+		Spec: v1.PodSpec{
+			Containers: []corev1.Container{
+				*CreateContainer(&testPod.MMContainer),
+			},
+			Volumes: []corev1.Volume{
+				{
+					Name: testPod.hpgSize,
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{
+							Medium: corev1.StorageMedium(testPod.medium),
+						},
+					},
+				},
+			},
+			NodeSelector: testNode,
+		},
+	}
+	return testPod.podV1Struct
+}
+
+func (m *MMPod) DefaultPod() {
+	m.nameSpace = "default"
+	m.CtnImage = "fedora:latest"
+	m.cpu = "2"
+	m.memory = "200Mi"
+	m.command = []string{"sleep", "inf"}
+	m.hpgSize = "hugepages-2mi"
+	m.noOfhpgs = "24Mi"
+	m.podName = "example1"
+	m.CtnName = fmt.Sprintf("%s-container", m.podName)
 }
