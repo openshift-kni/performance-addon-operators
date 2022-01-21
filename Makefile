@@ -254,6 +254,8 @@ functests: cluster-label-worker-cnf functests-only
 
 .PHONY: functests-only
 functests-only:
+	@echo "Cluster Version"
+	hack/show-cluster-version.sh
 	hack/run-functests.sh
 
 .PHONY: functests-latency
@@ -313,6 +315,8 @@ ci-job: verify build unittests
 
 .PHONY: ci-tools-job
 ci-tools-job:
+	@echo "Cluster Version"
+	hack/show-cluster-version.sh
 	@echo "Verifying tools operation"
 	hack/verify-tools.sh
 	
