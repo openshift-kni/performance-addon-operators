@@ -15,7 +15,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const machineInfoFilePath string = "machineinfo.json"
+const (
+	machineInfoFilePath string = "machineinfo.json"
+)
 
 type snapshotOptions struct {
 	dumpList  bool
