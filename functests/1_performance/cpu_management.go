@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
 
@@ -26,6 +27,7 @@ import (
 	testclient "github.com/openshift-kni/performance-addon-operators/functests/utils/client"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/cluster"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/discovery"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/events"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/images"
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
@@ -36,6 +38,10 @@ import (
 
 var workerRTNode *corev1.Node
 var profile *performancev2.PerformanceProfile
+
+const (
+	sysDevicesOnlineCPUs = "/sys/devices/system/cpu/online"
+)
 
 var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 	var balanceIsolated bool
@@ -63,7 +69,7 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
 
-		By(fmt.Sprintf("Checking the profile %s with cpus %#v", profile.Name, profile.Spec.CPU))
+		By(fmt.Sprintf("Checking the profile %s with cpus %s", profile.Name, cpuSpecToString(profile.Spec.CPU)))
 		balanceIsolated = true
 		if profile.Spec.CPU.BalanceIsolated != nil {
 			balanceIsolated = *profile.Spec.CPU.BalanceIsolated
@@ -176,10 +182,12 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			testpod.Namespace = testutils.NamespaceTesting
 
 			//list worker cpus
-			cmd := []string{"/bin/bash", "-c", "lscpu | grep On-line | awk '{print $4}'"}
-			lscpu, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
-			Expect(err).ToNot(HaveOccurred(), "failed to execute lscpu")
-			cpus, err := cpuset.Parse(lscpu)
+			cmd := []string{"/bin/cat", sysDevicesOnlineCPUs}
+			onlineCPUs, err := nodes.ExecCommandOnNode(cmd, workerRTNode)
+			Expect(err).ToNot(HaveOccurred(), "failed to get the online CPUs")
+			klog.Infof("%q: online cpus: %q", workerRTNode.Name, onlineCPUs)
+
+			cpus, err := cpuset.Parse(onlineCPUs)
 			Expect(err).ToNot(HaveOccurred())
 			listCPU = cpus.ToSlice()
 
@@ -197,7 +205,19 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			err = testclient.Client.Create(context.TODO(), testpod)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = pods.WaitForCondition(testpod, corev1.PodReady, corev1.ConditionTrue, 10*time.Minute)
+			err = pods.WaitForPredicate(testpod, 10*time.Minute, func(pod *corev1.Pod) (bool, error) {
+				if pod == nil {
+					return false, fmt.Errorf("received nil pod")
+				}
+				cond := findPodConditionByType(pod, corev1.PodReady)
+				if cond == nil {
+					klog.Warningf("cannot find condition %q for pod %s/%s", corev1.PodReady, pod.Namespace, pod.Name)
+					return false, nil
+				}
+				klog.Infof("pod %s/%s condition %q status %q", pod.Namespace, pod.Name, cond.Type, cond.Status)
+				return cond.Status == corev1.ConditionTrue, nil
+			})
+			logEventsForPod(testpod)
 			Expect(err).ToNot(HaveOccurred())
 
 			output, err := nodes.ExecCommandOnNode(
@@ -630,4 +650,41 @@ func deleteTestPod(testpod *corev1.Pod) {
 
 	err = pods.WaitForDeletion(testpod, pods.DefaultDeletionTimeout*time.Second)
 	Expect(err).ToNot(HaveOccurred())
+}
+
+func findPodConditionByType(pod *corev1.Pod, condType corev1.PodConditionType) *corev1.PodCondition {
+	for idx := 0; idx < len(pod.Status.Conditions); idx++ {
+		c := &pod.Status.Conditions[idx]
+		if c.Type == condType {
+			return c
+		}
+	}
+	return nil
+}
+
+func cpuSpecToString(cpus *performancev2.CPU) string {
+	if cpus == nil {
+		return "<nil>"
+	}
+	sb := strings.Builder{}
+	if cpus.Reserved != nil {
+		fmt.Fprintf(&sb, "reserved=[%s]", *cpus.Reserved)
+	}
+	if cpus.Isolated != nil {
+		fmt.Fprintf(&sb, " isolated=[%s]", *cpus.Isolated)
+	}
+	if cpus.BalanceIsolated != nil {
+		fmt.Fprintf(&sb, " balanceIsolated=%t", *cpus.BalanceIsolated)
+	}
+	return sb.String()
+}
+
+func logEventsForPod(testPod *corev1.Pod) {
+	evs, err := events.GetEventsForObject(testclient.Client, testPod.Namespace, testPod.Name, string(testPod.UID))
+	if err != nil {
+		testlog.Error(err)
+	}
+	for _, event := range evs.Items {
+		testlog.Warningf("-> %s %s %s", event.Action, event.Reason, event.Message)
+	}
 }

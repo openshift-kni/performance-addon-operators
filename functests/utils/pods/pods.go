@@ -87,7 +87,7 @@ func WaitForCondition(pod *corev1.Pod, conditionType corev1.PodConditionType, co
 	})
 }
 
-// WaitForPredicate waits until the fiven predicate against the pod returns true or error.
+// WaitForPredicate waits until the given predicate against the pod returns true or error.
 func WaitForPredicate(pod *corev1.Pod, timeout time.Duration, pred func(pod *corev1.Pod) (bool, error)) error {
 	key := types.NamespacedName{
 		Name:      pod.Name,
