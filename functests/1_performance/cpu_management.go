@@ -17,6 +17,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
@@ -176,9 +177,14 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		})
 
 		table.DescribeTable("Verify CPU usage by stress PODs", func(guaranteed bool) {
-			var listCPU []int
+			smtLevel := getSMTLevel(workerRTNode)
+			if smtLevel < 2 {
+				Skip(fmt.Sprintf("designated worker node %q has SMT level %d - minimum required 2", workerRTNode.Name, smtLevel))
+			}
 
-			testpod = getStressPod(workerRTNode.Name)
+			// note must be a multiple of the smtLevel. Pick the minimum to maximize the chances to run on CI
+			cpuRequest := smtLevel
+			testpod = getStressPod(workerRTNode.Name, cpuRequest)
 			testpod.Namespace = testutils.NamespaceTesting
 
 			//list worker cpus
@@ -189,14 +195,13 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 
 			cpus, err := cpuset.Parse(onlineCPUs)
 			Expect(err).ToNot(HaveOccurred())
-			listCPU = cpus.ToSlice()
+			listCPU := cpus.ToSlice()
+			expectedQos := corev1.PodQOSBurstable
 
 			if guaranteed {
 				listCPU = cpus.Difference(reservedCPUSet).ToSlice()
-				testpod.Spec.Containers[0].Resources.Limits = map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceCPU:    resource.MustParse("1"),
-					corev1.ResourceMemory: resource.MustParse("1Gi"),
-				}
+				expectedQos = corev1.PodQOSGuaranteed
+				promotePodToGuaranteed(testpod)
 			} else if !balanceIsolated {
 				// when balanceIsolated is False - non-guaranteed pod should run on reserved cpu
 				listCPU = listReservedCPU
@@ -219,6 +224,13 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			})
 			logEventsForPod(testpod)
 			Expect(err).ToNot(HaveOccurred())
+
+			updatedPod := &corev1.Pod{}
+			err = testclient.Client.Get(context.TODO(), client.ObjectKeyFromObject(testpod), updatedPod)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(updatedPod.Status.QOSClass).To(Equal(expectedQos),
+				"unexpected QoS Class for %s/%s: %s (looking for %s)",
+				updatedPod.Namespace, updatedPod.Name, updatedPod.Status.QOSClass, expectedQos)
 
 			output, err := nodes.ExecCommandOnNode(
 				[]string{"/bin/bash", "-c", "ps -o psr $(pgrep -n stress) | tail -1"},
@@ -525,17 +537,13 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 		})
 
 		It("should reject pods which request integral CPUs not aligned with machine SMT level", func() {
-			testpod = getStressPod(workerRTNode.Name)
+			cpuCount := 1 // not must be intentionally < than the smtLevel
+			testpod = promotePodToGuaranteed(getStressPod(workerRTNode.Name, cpuCount))
 			testpod.Namespace = testutils.NamespaceTesting
 
 			smtLevel := getSMTLevel(workerRTNode)
 			if smtLevel < 2 {
 				Skip(fmt.Sprintf("designated worker node %q has SMT level %d - minimum required 2", workerRTNode.Name, smtLevel))
-			}
-
-			testpod.Spec.Containers[0].Resources.Limits = map[corev1.ResourceName]resource.Quantity{
-				corev1.ResourceCPU:    resource.MustParse("1"),
-				corev1.ResourceMemory: resource.MustParse("1Gi"),
 			}
 
 			err := testclient.Client.Create(context.TODO(), testpod)
@@ -550,12 +558,10 @@ var _ = Describe("[rfe_id:27363][performance] CPU Management", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			updatedPod := &corev1.Pod{}
-			key := types.NamespacedName{
-				Name:      testpod.Name,
-				Namespace: testpod.Namespace,
-			}
-			err = testclient.Client.Get(context.TODO(), key, updatedPod)
+			err = testclient.Client.Get(context.TODO(), client.ObjectKeyFromObject(testpod), updatedPod)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(updatedPod.Status.QOSClass).To(Equal(corev1.PodQOSGuaranteed),
+				"unexpected QoS Class for %s/%s: %s", updatedPod.Namespace, updatedPod.Name, updatedPod.Status.QOSClass)
 
 			Expect(updatedPod.Status.Phase).To(Equal(corev1.PodFailed), "pod %s not failed: %v", updatedPod.Name, updatedPod.Status)
 			Expect(isSMTAlignmentError(updatedPod)).To(BeTrue(), "pod %s failed for wrong reason: %q", updatedPod.Name, updatedPod.Status.Reason)
@@ -581,7 +587,8 @@ func getSMTLevel(node *corev1.Node) int {
 	return cpus.Size()
 }
 
-func getStressPod(nodeName string) *corev1.Pod {
+func getStressPod(nodeName string, cpus int) *corev1.Pod {
+	cpuCount := fmt.Sprintf("%d", cpus)
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "test-cpu-",
@@ -596,12 +603,12 @@ func getStressPod(nodeName string) *corev1.Pod {
 					Image: images.Test(),
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceCPU:    resource.MustParse(cpuCount),
 							corev1.ResourceMemory: resource.MustParse("1Gi"),
 						},
 					},
 					Command: []string{"/usr/bin/stresser"},
-					Args:    []string{"-cpus", "1"},
+					Args:    []string{"-cpus", cpuCount},
 				},
 			},
 			NodeSelector: map[string]string{
@@ -609,6 +616,19 @@ func getStressPod(nodeName string) *corev1.Pod {
 			},
 		},
 	}
+}
+
+func promotePodToGuaranteed(pod *corev1.Pod) *corev1.Pod {
+	for idx := 0; idx < len(pod.Spec.Containers); idx++ {
+		cnt := &pod.Spec.Containers[idx] // shortcut
+		if cnt.Resources.Limits == nil {
+			cnt.Resources.Limits = make(corev1.ResourceList)
+		}
+		for resName, resQty := range cnt.Resources.Requests {
+			cnt.Resources.Limits[resName] = resQty
+		}
+	}
+	return pod
 }
 
 func getTestPodWithAnnotations(annotations map[string]string) *corev1.Pod {
