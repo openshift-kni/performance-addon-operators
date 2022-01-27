@@ -1,11 +1,9 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
 ARG BIN_DIR=
-ARG ASSETS_DIR=build/assets
 
 ENV LANG=en_US.utf8
 
-COPY ${ASSETS_DIR} /assets
 COPY ${BIN_DIR}performance-addon-operators /usr/local/bin/performance-operator
 COPY ${BIN_DIR}performance-profile-creator /usr/local/bin/performance-profile-creator
 USER 1001

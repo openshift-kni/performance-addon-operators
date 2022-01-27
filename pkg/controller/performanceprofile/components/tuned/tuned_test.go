@@ -17,7 +17,6 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-const testAssetsDir = "../../../../../build/assets"
 const expectedMatchSelector = `
   - machineConfigLabels:
       mcKey: mcValue
@@ -43,7 +42,7 @@ var _ = Describe("Tuned", func() {
 	})
 
 	getTunedManifest := func(profile *performancev2.PerformanceProfile) string {
-		tuned, err := NewNodePerformance(testAssetsDir, profile)
+		tuned, err := NewNodePerformance(profile)
 		Expect(err).ToNot(HaveOccurred())
 		y, err := yaml.Marshal(tuned)
 		Expect(err).ToNot(HaveOccurred())

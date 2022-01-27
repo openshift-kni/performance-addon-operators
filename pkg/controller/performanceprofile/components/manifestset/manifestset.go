@@ -49,10 +49,10 @@ func (ms *ManifestResultSet) ToManifestTable() ManifestTable {
 }
 
 // GetNewComponents return a list of all component's instances that should be created according to profile
-func GetNewComponents(profile *performancev2.PerformanceProfile, profileMCP *mcov1.MachineConfigPool, assetDir *string) (*ManifestResultSet, error) {
+func GetNewComponents(profile *performancev2.PerformanceProfile, profileMCP *mcov1.MachineConfigPool) (*ManifestResultSet, error) {
 	machineConfigPoolSelector := profilecomponent.GetMachineConfigPoolSelector(profile, profileMCP)
 
-	mc, err := machineconfig.New(*assetDir, profile)
+	mc, err := machineconfig.New(profile)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func GetNewComponents(profile *performancev2.PerformanceProfile, profileMCP *mco
 		return nil, err
 	}
 
-	performanceTuned, err := tuned.NewNodePerformance(*assetDir, profile)
+	performanceTuned, err := tuned.NewNodePerformance(profile)
 	if err != nil {
 		return nil, err
 	}

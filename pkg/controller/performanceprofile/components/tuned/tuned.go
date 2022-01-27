@@ -3,19 +3,20 @@ package tuned
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
 
-	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
-	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
-	profilecomponent "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
+
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
+	"github.com/openshift-kni/performance-addon-operators/build/assets"
+	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
+	profilecomponent "github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components/profile"
 )
 
 const (
@@ -48,8 +49,7 @@ func new(name string, profiles []tunedv1.TunedProfile, recommends []tunedv1.Tune
 }
 
 // NewNodePerformance returns tuned profile for performance sensitive workflows
-func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProfile) (*tunedv1.Tuned, error) {
-
+func NewNodePerformance(profile *performancev2.PerformanceProfile) (*tunedv1.Tuned, error) {
 	templateArgs := make(map[string]string)
 
 	if profile.Spec.CPU.Isolated != nil {
@@ -166,7 +166,7 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 		}
 	}
 
-	profileData, err := getProfileData(getProfilePath(components.ProfileNamePerformance, assetsDir), templateArgs)
+	profileData, err := getProfileData(filepath.Join("tuned", components.ProfileNamePerformance), templateArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -190,18 +190,13 @@ func NewNodePerformance(assetsDir string, profile *performancev2.PerformanceProf
 	return new(name, profiles, recommends), nil
 }
 
-func getProfilePath(name string, assetsDir string) string {
-	return fmt.Sprintf("%s/tuned/%s", assetsDir, name)
-}
-
-func getProfileData(profileOperatorlPath string, data interface{}) (string, error) {
-	profileContent, err := ioutil.ReadFile(profileOperatorlPath)
+func getProfileData(tunedTemplate string, data interface{}) (string, error) {
+	profileTemplate, err := template.ParseFS(assets.Tuned, tunedTemplate)
 	if err != nil {
 		return "", err
 	}
 
 	profile := &bytes.Buffer{}
-	profileTemplate := template.Must(template.New("profile").Parse(string(profileContent)))
 	if err := profileTemplate.Execute(profile, data); err != nil {
 		return "", err
 	}

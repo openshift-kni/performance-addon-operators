@@ -160,10 +160,9 @@ func runPAO() {
 	}
 
 	if err = (&controllers.PerformanceProfileReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		Recorder:  mgr.GetEventRecorderFor("performance-profile-controller"),
-		AssetsDir: components.AssetsDir,
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("performance-profile-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		klog.Exitf("unable to create PerformanceProfile controller : %v", err)
 	}

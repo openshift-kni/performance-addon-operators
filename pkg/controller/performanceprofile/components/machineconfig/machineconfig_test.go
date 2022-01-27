@@ -13,7 +13,6 @@ import (
 	testutils "github.com/openshift-kni/performance-addon-operators/pkg/utils/testing"
 )
 
-const testAssetsDir = "../../../../../build/assets"
 const hugepagesAllocationService = `
       - contents: |
           [Unit]
@@ -37,14 +36,12 @@ const hugepagesAllocationService = `
 var _ = Describe("Machine Config", func() {
 
 	Context("machine config creation ", func() {
-		It("should create machine config with valid assests", func() {
+		It("should create machine config with valid assets", func() {
 			profile := testutils.NewPerformanceProfile("test")
 			profile.Spec.HugePages.Pages[0].Node = pointer.Int32Ptr(0)
 
-			_, err := New(testAssetsDir, profile)
+			_, err := New(profile)
 			Expect(err).ToNot(HaveOccurred())
-			_, err = New("../../../../../build/invalid/assets", profile)
-			Expect(err).Should(HaveOccurred(), "should fail with missing CPU")
 		})
 	})
 
@@ -56,7 +53,7 @@ var _ = Describe("Machine Config", func() {
 			profile.Spec.HugePages.Pages[0].Node = pointer.Int32Ptr(0)
 
 			labelKey, labelValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigLabel)
-			mc, err := New(testAssetsDir, profile)
+			mc, err := New(profile)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(mc.Spec.KernelType).To(Equal(MCKernelRT))
 

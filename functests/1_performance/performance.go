@@ -359,7 +359,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 			expectedRPSCPUs, err := cpuset.Parse(string(*profile.Spec.CPU.Reserved))
 			Expect(err).ToNot(HaveOccurred())
-			ociHookPath := filepath.Join("/rootfs", machineconfig.OCIHooksConfigDir, machineconfig.OCIHooksConfig+".json")
+			ociHookPath := filepath.Join("/rootfs", machineconfig.OCIHooksConfigDir, machineconfig.OCIHooksConfig)
 			Expect(err).ToNot(HaveOccurred())
 			for _, node := range workerRTNodes {
 				// Verify the OCI RPS hook uses the correct RPS mask
