@@ -33,10 +33,10 @@ Developers can build the Performance Profile Creator images from the source tree
    ```bash
    make operator-container
    ```
-Alternatively, you can pull the latest master upstream image.  In the following examples, TAG has the format major.minor-snapshot. For example, the TAG for OpenShift 4.10 will be 4.10-snapshot:
+Alternatively, you can pull the latest master upstream image.  In the following examples, TAG has the format major.minor-snapshot. For example, the TAG for OpenShift 4.11 will be 4.11-snapshot:
 
 ```bash
-podman pull quay.io/openshift-kni/performance-addon-operator:4.10-snapshot
+podman pull quay.io/openshift-kni/performance-addon-operator:4.11-snapshot
 ```
 
 ## Running Performance Profile Creator
@@ -44,7 +44,7 @@ Depending on how the must-gather directory was set up the operator can now run t
 
 PPC Tool help output:
 ```bash
-$ podman run --entrypoint performance-profile-creator quay.io/openshift-kni/performance-addon-operator:4.10-snapshot -h
+$ podman run --entrypoint performance-profile-creator quay.io/openshift-kni/performance-addon-operator:4.11-snapshot -h
 A tool that automates creation of Performance Profiles
 
 Usage:
@@ -68,13 +68,13 @@ Flags:
 1. Option 1: Example of using must-gather output dir (obtained after running must gather manually) along with required arguments
    ```bash
    podman run --entrypoint performance-profile-creator -v /path/to/must-gather-output:/must-gather:z \
-   quay.io/openshift-kni/performance-addon-operator:4.10-snapshot --must-gather-dir-path /must-gather \
+   quay.io/openshift-kni/performance-addon-operator:4.11-snapshot --must-gather-dir-path /must-gather \
    --reserved-cpu-count 20 --mcp-name worker-cnf --rt-kernel false > performance-profile.yaml
    ```
 1. Option 2: Example of using an existing must-gather tarball which is decompressed to a directory along with required arguments
    ```bash
    podman run --entrypoint performance-profile-creator -v /path/to/decompressed-tarball:/must-gather:z \
-   quay.io/openshift-kni/performance-addon-operator:4.10-snapshot --must-gather-dir-path /must-gather \
+   quay.io/openshift-kni/performance-addon-operator:4.11-snapshot --must-gather-dir-path /must-gather \
    --reserved-cpu-count 20 --mcp-name worker-cnf --rt-kernel false > performance-profile.yaml
     ```
 
