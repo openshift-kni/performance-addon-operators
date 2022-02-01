@@ -71,13 +71,15 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 				Expect(kubeletSliceValues(sysctlsValue, "net.core.somaxconn")).To(BeTrue())
 				Expect(kubeletSliceValues(sysctlsValue, "kernel.msg*")).To(BeTrue())
 				Expect(kubeletConfig.KubeReserved["memory"]).To(Equal("768Mi"))
+				Expect(kubeletConfig.ImageMinimumGCAge.Seconds()).To(Equal(180))
+			}
+			for _, node := range workerRTNodes {
 				stdout, err := nodes.ExecCommandOnNode(kubeletArguments, &node)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(strings.Contains(stdout, "300Mi")).To(BeTrue())
-				Expect(kubeletConfig.ImageMinimumGCAge.Seconds()).To(Equal(180))
 			}
 		})
-		when("Setting cpu manager related parameters", func() {
+		Context("When setting cpu manager related parameters", func() {
 			It("[test_id:45493]Should not override performance-addon-operator values", func() {
 				cpuManagerAnnotation := map[string]string{
 					"kubeletconfig.experimental": "{\"cpuManagerPolicy\":\"static\",\"cpuManagerReconcilePeriod\":\"5s\"}",
@@ -156,11 +158,13 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 				Expect(err).ToNot(HaveOccurred())
 				Expect(kubeletConfig.AllowedUnsafeSysctls).To(Equal(nil))
 				Expect(kubeletConfig.KubeReserved["memory"]).ToNot(Equal("768Mi"))
-				stdout, err := nodes.ExecCommandOnNode(kubeletArguments, &node)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(strings.Contains(stdout, "300Mi")).ToNot(BeTrue())
 				Expect(kubeletConfig.ImageMinimumGCAge.Seconds()).ToNot(Equal(180))
 			}
+			for _, node := range workerRTNodes {
+				stdout, err := nodes.ExecCommandOnNode(kubeletArguments, &node)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(strings.Contains(stdout, "300Mi")).To(BeTrue())
+			}			
 
 		})
 
