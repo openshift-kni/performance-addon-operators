@@ -95,7 +95,9 @@ func (r *renderOpts) AddFlags(fs *pflag.FlagSet) {
 
 func (r *renderOpts) readFlagsFromEnv() {
 	if ppInFiles := os.Getenv("PERFORMANCE_PROFILE_INPUT_FILES"); len(ppInFiles) > 0 {
-		r.performanceProfileInputFiles.Set(ppInFiles)
+		if err := r.performanceProfileInputFiles.Set(ppInFiles); err != nil {
+			panic(err)
+		}
 	}
 
 	if assetInDir := os.Getenv("ASSET_INPUT_DIR"); len(assetInDir) > 0 {
@@ -121,7 +123,7 @@ func (r *renderOpts) Validate() error {
 
 func (r *renderOpts) Run() error {
 	for _, pp := range r.performanceProfileInputFiles {
-		b, err := ioutil.ReadFile(pp)
+		b, err := ioutil.ReadFile(filepath.Clean(pp))
 		if err != nil {
 			return err
 		}
@@ -154,7 +156,7 @@ func (r *renderOpts) Run() error {
 			}
 
 			fileName := fmt.Sprintf("%s_%s.yaml", profile.Name, strings.ToLower(kind))
-			err = ioutil.WriteFile(filepath.Join(r.assetsOutDir, fileName), b, 0644)
+			err = ioutil.WriteFile(filepath.Join(r.assetsOutDir, fileName), b, 0600)
 			if err != nil {
 				return err
 			}

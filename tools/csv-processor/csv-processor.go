@@ -246,9 +246,12 @@ Performance Addon Operator provides the ability to enable advanced node performa
 
 	// write CSV to out dir
 	writer := strings.Builder{}
-	csvtools.MarshallObject(operatorCSV, &writer)
+	err := csvtools.MarshallObject(operatorCSV, &writer)
+	if err != nil {
+		panic(err)
+	}
 	outputFilename := filepath.Join(*outputDir, finalizedCsvFilename())
-	err := ioutil.WriteFile(outputFilename, []byte(writer.String()), 0644)
+	err = ioutil.WriteFile(outputFilename, []byte(writer.String()), 0600)
 	if err != nil {
 		panic(err)
 	}
@@ -257,7 +260,7 @@ Performance Addon Operator provides the ability to enable advanced node performa
 }
 
 func readFileOrPanic(filename string) []byte {
-	data, err := ioutil.ReadFile(filename)
+	data, err := ioutil.ReadFile(filepath.Clean(filename))
 	if err != nil {
 		panic(err)
 	}
@@ -319,10 +322,16 @@ Performance Addon Operator provides the ability to enable advanced node performa
 	}
 
 	// start with a fresh output directory if it already exists
-	os.RemoveAll(*outputDir)
+	err = os.RemoveAll(*outputDir)
+	if err != nil {
+		panic(err)
+	}
 
 	// create output directory
-	os.MkdirAll(*outputDir, os.FileMode(0775))
+	err = os.MkdirAll(*outputDir, os.FileMode(0775))
+	if err != nil {
+		panic(err)
+	}
 
 	generateUnifiedCSV(userData)
 }

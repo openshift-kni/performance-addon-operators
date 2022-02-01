@@ -285,6 +285,11 @@ render-command-tests: dist
 unittests:
 	hack/unittests.sh
 
+.PHONY: gosec
+gosec:
+	@echo "Running gosec"
+	hack/gosec.sh
+
 .PHONY: gofmt
 gofmt:
 	@echo "Running gofmt"
@@ -306,7 +311,7 @@ generate: clean deps-update gofmt manifests generate-code generate-latest-dev-cs
 	@echo
 
 .PHONY: verify
-verify: golint govet generate
+verify: golint govet gosec generate
 	@echo "Verifying that all code is committed after updating deps and formatting and generating code"
 	hack/verify-generated.sh
 

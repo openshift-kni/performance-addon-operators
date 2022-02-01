@@ -106,21 +106,24 @@ func getMustGatherFullPaths(mustGatherPath string, suffix string) (string, error
 
 func getNode(mustGatherDirPath, nodeName string) (*v1.Node, error) {
 	var node v1.Node
+
 	nodePathSuffix := path.Join(ClusterScopedResources, CoreNodes, nodeName)
 	path, err := getMustGatherFullPaths(mustGatherDirPath, nodePathSuffix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get MachineConfigPool for %s: %v", nodeName, err)
 	}
 
-	src, err := os.Open(path)
+	src, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %q: %v", path, err)
 	}
-	defer src.Close()
 
 	dec := k8syaml.NewYAMLOrJSONDecoder(src, 1024)
 	if err := dec.Decode(&node); err != nil {
 		return nil, fmt.Errorf("failed to decode %q: %v", path, err)
+	}
+	if err := src.Close(); err != nil {
+		return nil, fmt.Errorf("error closing file %s: %s", src.Name(), err)
 	}
 	return &node, nil
 }
@@ -196,14 +199,16 @@ func GetMCP(mustGatherDirPath, mcpName string) (*machineconfigv1.MachineConfigPo
 		return nil, fmt.Errorf("failed to obtain MachineConfigPool, mcp:%s does not exist: %v", mcpName, err)
 	}
 
-	src, err := os.Open(mcpPath)
+	src, err := os.Open(filepath.Clean(mcpPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %q: %v", mcpPath, err)
 	}
-	defer src.Close()
 	dec := k8syaml.NewYAMLOrJSONDecoder(src, 1024)
 	if err := dec.Decode(&mcp); err != nil {
 		return nil, fmt.Errorf("failed to decode %q: %v", mcpPath, err)
+	}
+	if err := src.Close(); err != nil {
+		return nil, fmt.Errorf("error closing file %s: %s", src.Name(), err)
 	}
 	return &mcp, nil
 }

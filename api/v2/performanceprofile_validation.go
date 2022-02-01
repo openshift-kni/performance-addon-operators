@@ -201,7 +201,7 @@ func (r *PerformanceProfile) validateHugePages() field.ErrorList {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec.hugepages.pages"), r.Spec.HugePages.Pages, fmt.Sprintf("the page size should be equal to %q or %q", hugepagesSize1G, hugepagesSize2M)))
 		}
 
-		allErrs = append(allErrs, r.validatePageDuplication(&page, r.Spec.HugePages.Pages[i+1:])...)
+		allErrs = append(allErrs, r.validatePageDuplication(&r.Spec.HugePages.Pages[i], r.Spec.HugePages.Pages[i+1:])...)
 	}
 
 	return allErrs

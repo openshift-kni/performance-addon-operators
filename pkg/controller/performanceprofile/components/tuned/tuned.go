@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
@@ -195,7 +196,7 @@ func getProfilePath(name string, assetsDir string) string {
 }
 
 func getProfileData(profileOperatorlPath string, data interface{}) (string, error) {
-	profileContent, err := ioutil.ReadFile(profileOperatorlPath)
+	profileContent, err := ioutil.ReadFile(filepath.Clean(profileOperatorlPath))
 	if err != nil {
 		return "", err
 	}

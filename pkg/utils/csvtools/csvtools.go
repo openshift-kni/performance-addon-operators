@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 
 	yaml "github.com/ghodss/yaml"
@@ -40,7 +41,7 @@ type CSVStrategySpec struct {
 
 // UnmarshalCSV decodes a YAML file, by path, and returns a CSV
 func UnmarshalCSV(filePath string) *csvv1.ClusterServiceVersion {
-	bytes, err := ioutil.ReadFile(filePath)
+	bytes, err := ioutil.ReadFile(filepath.Clean(filePath))
 	if err != nil {
 		panic(err)
 	}
@@ -80,7 +81,10 @@ func MarshallObject(obj interface{}, writer io.Writer) error {
 			unstructured.RemoveNestedField(deployment, "spec", "template", "metadata", "creationTimestamp")
 			unstructured.RemoveNestedField(deployment, "status")
 		}
-		unstructured.SetNestedSlice(r.Object, deployments, "spec", "install", "spec", "deployments")
+		err = unstructured.SetNestedSlice(r.Object, deployments, "spec", "install", "spec", "deployments")
+		if err != nil {
+			return err
+		}
 	}
 
 	jsonBytes, err = json.Marshal(r.Object)

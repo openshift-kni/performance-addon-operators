@@ -260,7 +260,7 @@ func getSystemdContent(options []*unit.UnitOption) (string, error) {
 
 // GetOCIHooksConfigContent reads and returns the content of the OCI hook file
 func GetOCIHooksConfigContent(configFile string, profile *performancev2.PerformanceProfile) ([]byte, error) {
-	content, err := ioutil.ReadFile(configFile)
+	content, err := ioutil.ReadFile(filepath.Clean(configFile))
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +355,7 @@ func addCrioConfigSnippet(profile *performancev2.PerformanceProfile, src string)
 		templateArgs[templateReservedCpus] = string(*profile.Spec.CPU.Reserved)
 	}
 
-	content, err := ioutil.ReadFile(src)
+	content, err := ioutil.ReadFile(filepath.Clean(src))
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +370,7 @@ func addCrioConfigSnippet(profile *performancev2.PerformanceProfile, src string)
 }
 
 func addFile(ignitionConfig *igntypes.Config, src string, dst string, mode *int) error {
-	content, err := ioutil.ReadFile(src)
+	content, err := ioutil.ReadFile(filepath.Clean(src))
 	if err != nil {
 		return err
 	}

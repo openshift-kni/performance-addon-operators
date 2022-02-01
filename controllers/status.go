@@ -242,10 +242,10 @@ func (r *PerformanceProfileReconciler) getTunedConditionsByProfile(profile *perf
 		isApplied := true
 		var tunedDegradedCondition *tunedv1.ProfileStatusCondition
 
-		for _, condition := range tunedProfile.Status.Conditions {
+		for i, condition := range tunedProfile.Status.Conditions {
 			if (condition.Type == tunedv1.TunedDegraded) && condition.Status == corev1.ConditionTrue {
 				isDegraded = true
-				tunedDegradedCondition = &condition
+				tunedDegradedCondition = &tunedProfile.Status.Conditions[i]
 			}
 
 			if (condition.Type == tunedv1.TunedProfileApplied) && condition.Status == corev1.ConditionFalse {

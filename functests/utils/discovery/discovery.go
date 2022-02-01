@@ -50,7 +50,7 @@ func GetFilteredDiscoveryPerformanceProfile(iterator ConditionIterator) (*perfor
 func getDiscoveryPerformanceProfile(performanceProfiles []performancev2.PerformanceProfile, nodesSelector string) (*performancev2.PerformanceProfile, error) {
 	var currentProfile *performancev2.PerformanceProfile = nil
 	maxNodesNumber := 0
-	for _, profile := range performanceProfiles {
+	for i, profile := range performanceProfiles {
 		selector := labels.SelectorFromSet(profile.Spec.NodeSelector)
 
 		profileNodes := &corev1.NodeList{}
@@ -65,7 +65,7 @@ func getDiscoveryPerformanceProfile(performanceProfiles []performancev2.Performa
 		}
 
 		if len(profileNodes.Items) > maxNodesNumber {
-			currentProfile = &profile
+			currentProfile = &performanceProfiles[i]
 			maxNodesNumber = len(profileNodes.Items)
 		}
 	}
