@@ -98,7 +98,7 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 				}
 			})
 		})
-		It("[test_id:45490]Test memory reservation cahnges", func() {
+		It("[test_id:45490]Test memory reservation changes", func() {
 			memoryAnnotation := map[string]string{
 				"kubeletconfig.experimental": "{\"systemReserved\":{\"memory\":\"300Mi\"},\"kubeReserved\":{\"memory\":\"768Mi\"}}",
 			}
@@ -149,9 +149,7 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 					[]byte(fmt.Sprintf(`[{ "op": "remove", "path": "/metadata/annotations/kubeletconfig.experimental"}]`)),
 				),
 			)).ToNot(HaveOccurred())
-			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
-
 			kubeletArguments := []string{"/bin/bash", "-c", "ps -ef | grep kubelet | grep config"}
 			for _, node := range workerRTNodes {
 				kubeletConfig, err := nodes.GetKubeletConfig(&node)
@@ -164,7 +162,7 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 				stdout, err := nodes.ExecCommandOnNode(kubeletArguments, &node)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(strings.Contains(stdout, "300Mi")).To(BeTrue())
-			}			
+			}
 
 		})
 
