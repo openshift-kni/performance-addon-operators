@@ -57,9 +57,8 @@ const finalizer = "foreground-deletion"
 // PerformanceProfileReconciler reconciles a PerformanceProfile object
 type PerformanceProfileReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	Recorder  record.EventRecorder
-	AssetsDir string
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // SetupWithManager creates a new PerformanceProfile Controller and adds it to the Manager.
@@ -392,7 +391,7 @@ func (r *PerformanceProfileReconciler) applyComponents(profile *performancev2.Pe
 		return nil, nil
 	}
 
-	components, err := manifestset.GetNewComponents(profile, profileMCP, &r.AssetsDir)
+	components, err := manifestset.GetNewComponents(profile, profileMCP)
 	if err != nil {
 		return nil, err
 	}

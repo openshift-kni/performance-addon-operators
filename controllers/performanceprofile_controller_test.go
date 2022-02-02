@@ -37,8 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const assetsDir = "../build/assets"
-
 var _ = Describe("Controller", func() {
 	var request reconcile.Request
 	var profile *performancev2.PerformanceProfile
@@ -243,13 +241,13 @@ var _ = Describe("Controller", func() {
 		})
 
 		It("should remove outdated tuned objects", func() {
-			tunedOutdatedA, err := tuned.NewNodePerformance(assetsDir, profile)
+			tunedOutdatedA, err := tuned.NewNodePerformance(profile)
 			Expect(err).ToNot(HaveOccurred())
 			tunedOutdatedA.Name = "outdated-a"
 			tunedOutdatedA.OwnerReferences = []metav1.OwnerReference{
 				{Name: profile.Name},
 			}
-			tunedOutdatedB, err := tuned.NewNodePerformance(assetsDir, profile)
+			tunedOutdatedB, err := tuned.NewNodePerformance(profile)
 			Expect(err).ToNot(HaveOccurred())
 			tunedOutdatedB.Name = "outdated-b"
 			tunedOutdatedB.OwnerReferences = []metav1.OwnerReference{
@@ -334,14 +332,14 @@ var _ = Describe("Controller", func() {
 			BeforeEach(func() {
 				var err error
 
-				mc, err = machineconfig.New(assetsDir, profile)
+				mc, err = machineconfig.New(profile)
 				Expect(err).ToNot(HaveOccurred())
 
 				mcpSelectorKey, mcpSelectorValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
 				kc, err = kubeletconfig.New(profile, map[string]string{mcpSelectorKey: mcpSelectorValue})
 				Expect(err).ToNot(HaveOccurred())
 
-				tunedPerformance, err = tuned.NewNodePerformance(assetsDir, profile)
+				tunedPerformance, err = tuned.NewNodePerformance(profile)
 				Expect(err).ToNot(HaveOccurred())
 
 				runtimeClass = runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
@@ -782,14 +780,14 @@ var _ = Describe("Controller", func() {
 		})
 
 		It("should remove all components and remove the finalizer on first reconcile loop", func() {
-			mc, err := machineconfig.New(assetsDir, profile)
+			mc, err := machineconfig.New(profile)
 			Expect(err).ToNot(HaveOccurred())
 
 			mcpSelectorKey, mcpSelectorValue := components.GetFirstKeyAndValue(profile.Spec.MachineConfigPoolSelector)
 			kc, err := kubeletconfig.New(profile, map[string]string{mcpSelectorKey: mcpSelectorValue})
 			Expect(err).ToNot(HaveOccurred())
 
-			tunedPerformance, err := tuned.NewNodePerformance(assetsDir, profile)
+			tunedPerformance, err := tuned.NewNodePerformance(profile)
 			Expect(err).ToNot(HaveOccurred())
 
 			runtimeClass := runtimeclass.New(profile, machineconfig.HighPerformanceRuntime)
@@ -879,9 +877,8 @@ func newFakeReconciler(initObjects ...runtime.Object) *PerformanceProfileReconci
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithRuntimeObjects(initObjects...).Build()
 	fakeRecorder := record.NewFakeRecorder(10)
 	return &PerformanceProfileReconciler{
-		Client:    fakeClient,
-		Scheme:    scheme.Scheme,
-		Recorder:  fakeRecorder,
-		AssetsDir: assetsDir,
+		Client:   fakeClient,
+		Scheme:   scheme.Scheme,
+		Recorder: fakeRecorder,
 	}
 }

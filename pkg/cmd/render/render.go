@@ -132,7 +132,7 @@ func (r *renderOpts) Run() error {
 			return err
 		}
 
-		components, err := manifestset.GetNewComponents(profile, nil, &r.assetsInDir)
+		components, err := manifestset.GetNewComponents(profile, nil)
 		if err != nil {
 			return err
 		}
