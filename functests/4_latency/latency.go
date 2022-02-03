@@ -146,7 +146,7 @@ var _ = Describe("[performance] Latency Test", func() {
 				Skip(fmt.Sprintf("Skip the oslat test, the profile %q has less than %d isolated CPUs", profile.Name, minCpuAmountForOslat))
 			}
 			if latencyTestCpus < minCpuAmountForOslat && latencyTestCpus != defaultTestCpus {
-				Skip("Skip the oslat test, LATENCY_TEST_CPUS is less than the minimum CPUs amount %d", minCpuAmountForOslat)
+				Skip(fmt.Sprintf("Skip the oslat test, LATENCY_TEST_CPUS is less than the minimum CPUs amount %d", minCpuAmountForOslat))
 			}
 		})
 
