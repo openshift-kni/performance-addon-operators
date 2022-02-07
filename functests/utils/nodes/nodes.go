@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 
@@ -71,6 +72,18 @@ func GetBySelector(selector labels.Selector) ([]corev1.Node, error) {
 func GetByLabels(nodeLabels map[string]string) ([]corev1.Node, error) {
 	selector := labels.SelectorFromSet(nodeLabels)
 	return GetBySelector(selector)
+}
+
+// GetByName returns a node object by for a node name
+func GetByName(nodeName string) (*corev1.Node, error) {
+	node := &corev1.Node{}
+	key := types.NamespacedName{
+		Name: nodeName,
+	}
+	if err := testclient.Client.Get(context.TODO(), key, node); err != nil {
+		return nil, fmt.Errorf("failed to get node for the node %q", node.Name)
+	}
+	return node, nil
 }
 
 // GetNonPerformancesWorkers returns list of nodes with non matching perfomance profile labels
