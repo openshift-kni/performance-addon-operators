@@ -147,13 +147,13 @@ func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj client.Obj
 		Name:      mcpObj.GetName(),
 	}
 	if err := r.Get(context.TODO(), key, mcp); err != nil {
-		klog.Errorf("failed to get the machine config pool %+v", key)
+		klog.Errorf("failed to get the machine config pool %+v: %v", key, err)
 		return nil
 	}
 
 	profiles := &performancev2.PerformanceProfileList{}
 	if err := r.List(context.TODO(), profiles); err != nil {
-		klog.Error("failed to get performance profiles")
+		klog.Errorf("failed to get performance profiles: %v", err)
 		return nil
 	}
 
@@ -162,7 +162,7 @@ func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj client.Obj
 		profileNodeSelector := labels.Set(profile.Spec.NodeSelector)
 		mcpNodeSelector, err := metav1.LabelSelectorAsSelector(mcp.Spec.NodeSelector)
 		if err != nil {
-			klog.Errorf("failed to parse the selector %v", mcp.Spec.NodeSelector)
+			klog.Errorf("failed to parse the selector %v: %v", mcp.Spec.NodeSelector, err)
 			return nil
 		}
 
@@ -182,13 +182,13 @@ func (r *PerformanceProfileReconciler) tunedProfileToPerformanceProfile(tunedPro
 	}
 
 	if err := r.Get(context.TODO(), key, node); err != nil {
-		klog.Errorf("failed to get the tuned profile %+v", key)
+		klog.Errorf("failed to get the tuned profile %+v: %v", key, err)
 		return nil
 	}
 
 	profiles := &performancev2.PerformanceProfileList{}
 	if err := r.List(context.TODO(), profiles); err != nil {
-		klog.Error("failed to get performance profiles")
+		klog.Errorf("failed to get performance profiles: %v", err)
 		return nil
 	}
 
