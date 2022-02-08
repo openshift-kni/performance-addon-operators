@@ -153,12 +153,6 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 				}
 				By("Updating the performance profile")
 				profiles.UpdateWithRetry(profile)
-
-				Eventually(func() bool {
-					err := checkDeviceSupport(workerRTNodes, nodesDevices)
-					Expect(err).ToNot(HaveOccurred())
-					return true
-				}, cluster.ComputeTestTimeout(200*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(BeTrue())
 			}
 			//Verify the tuned profile is created on the worker-cnf nodes:
 			tunedCmd := []string{"bash", "-c",
@@ -205,11 +199,6 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 					},
 				}
 				profiles.UpdateWithRetry(profile)
-				Eventually(func() bool {
-					err := checkDeviceSupport(workerRTNodes, nodesDevices)
-					Expect(err).ToNot(HaveOccurred())
-					return true
-				}, cluster.ComputeTestTimeout(200*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(BeTrue())
 			}
 			//Verify the tuned profile is created on the worker-cnf nodes:
 			tunedCmd := []string{"bash", "-c",
@@ -237,15 +226,14 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 
 		It("[test_id:40668] Verify reserved cpu count is added to networking devices matched with vendor and Device id", func() {
 			nodesDevices := make(map[string]map[string]int)
-			var device, vid, did string
 			count := 0
 			err := checkDeviceSupport(workerRTNodes, nodesDevices)
 			Expect(err).ToNot(HaveOccurred())
 			nodeName, device := getRandomNodeDevice(nodesDevices)
-			for _, node := range workerRTNodes {
-				vid = getVendorID(node, device)
-				did = getDeviceID(node, device)
-			}
+			node, err := nodes.GetByName(nodeName)
+			Expect(err).ToNot(HaveOccurred())
+			vid := getVendorID(*node, device)
+			did := getDeviceID(*node, device)
 			profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 			Expect(err).ToNot(HaveOccurred())
 			if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
@@ -263,17 +251,12 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 					},
 				}
 				profiles.UpdateWithRetry(profile)
-				Eventually(func() bool {
-					err := checkDeviceSupport(workerRTNodes, nodesDevices)
-					Expect(err).ToNot(HaveOccurred())
-					return true
-				}, cluster.ComputeTestTimeout(240*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(BeTrue())
 			}
 			//Verify the tuned profile is created on the worker-cnf nodes:
 			tunedCmd := []string{"bash", "-c",
 				fmt.Sprintf("cat /etc/tuned/openshift-node-performance-%s/tuned.conf | grep devices_udev_regex", performanceProfileName)}
 
-			node, err := nodes.GetByName(nodeName)
+			node, err = nodes.GetByName(nodeName)
 			Expect(err).ToNot(HaveOccurred())
 			tunedPod := nodes.TunedForNode(node, RunningOnSingleNode)
 			out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
@@ -302,7 +285,9 @@ func checkDeviceSupport(workernodes []corev1.Node, nodesDevices map[string]map[s
 	var noSupportedDevices = true
 	var err error
 	for _, node := range workernodes {
-		nodesDevices[node.Name] = make(map[string]int)
+		if nodesDevices[node.Name] == nil {
+			nodesDevices[node.Name] = make(map[string]int)
+		}
 		tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
 		phyDevs, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, cmdGetPhysicalDevices)
 		Expect(err).ToNot(HaveOccurred())
@@ -370,7 +355,7 @@ func getRandomNodeDevice(nodesDevices map[string]map[string]int) (string, string
 		for d := range nodesDevices[node] {
 			if d != "" {
 				device = d
-				break
+				return node, device
 			}
 		}
 	}
