@@ -28,11 +28,7 @@ var prePullNamespace = &corev1.Namespace{
 }
 
 var _ = AfterSuite(func() {
-	prePullNamespaceName := prePullNamespace.Name
-	err := testclient.Client.Delete(context.TODO(), prePullNamespace)
-	testlog.Infof("deleted namespace %q err=%v", prePullNamespace.Name, err)
-	Expect(err).ToNot(HaveOccurred())
-	err = namespaces.WaitForDeletion(prePullNamespaceName, 5*time.Minute)
+	deleteNamespace()
 })
 
 func Test5LatencyTesting(t *testing.T) {
@@ -50,6 +46,7 @@ func Test5LatencyTesting(t *testing.T) {
 	if err != nil {
 		data, _ := json.Marshal(ds) // we can safely skip errors
 		testlog.Infof("DaemonSet %s/%s image=%q status:\n%s", ds.Namespace, ds.Name, images.Test(), string(data))
+		deleteNamespace()
 		t.Fatalf("cannot prepull image %q: %v", images.Test(), err)
 	}
 
@@ -69,4 +66,13 @@ func createNamespace() error {
 	}
 	testlog.Infof("created namespace %q err=%v", prePullNamespace.Name, err)
 	return err
+}
+
+func deleteNamespace() {
+	prePullNamespaceName := prePullNamespace.Name
+	err := testclient.Client.Delete(context.TODO(), prePullNamespace)
+	testlog.Infof("deleted namespace %q err=%v", prePullNamespace.Name, err)
+	Expect(err).ToNot(HaveOccurred())
+	err = namespaces.WaitForDeletion(prePullNamespaceName, 5*time.Minute)
+	Expect(err).ToNot(HaveOccurred())
 }
