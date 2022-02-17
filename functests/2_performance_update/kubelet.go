@@ -68,8 +68,7 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 				kubeletConfig, err := nodes.GetKubeletConfig(&node)
 				Expect(err).ToNot(HaveOccurred())
 				sysctlsValue := kubeletConfig.AllowedUnsafeSysctls
-				Expect(kubeletSliceValues(sysctlsValue, "net.core.somaxconn")).To(BeTrue())
-				Expect(kubeletSliceValues(sysctlsValue, "kernel.msg*")).To(BeTrue())
+				Expect(sysctlsValue).Should(ContainElements("net.core.somaxconn", "kernel.msg*"))
 				Expect(kubeletConfig.KubeReserved["memory"]).To(Equal("768Mi"))
 				Expect(kubeletConfig.ImageMinimumGCAge.Seconds()).To(Equal(180))
 			}
@@ -168,12 +167,3 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 
 	})
 })
-
-func kubeletSliceValues(values []string, str string) bool {
-	for _, v := range values {
-		if str == v {
-			return true
-		}
-	}
-	return false
-}
