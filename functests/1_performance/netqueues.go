@@ -10,6 +10,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,6 +52,15 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 		initialProfile = profile.DeepCopy()
 
 		performanceProfileName = profile.Name
+
+		tunedPaoProfile := fmt.Sprintf("openshift-node-performance-%s", performanceProfileName)
+		//Verify the tuned profile is created on the worker-cnf nodes:
+		tunedCmd := []string{"tuned-adm", "profile_info", tunedPaoProfile}
+		for _, node := range workerRTNodes {
+			tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
+			_, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
+			Expect(err).ToNot(HaveOccurred())
+		}
 	})
 
 	BeforeEach(func() {
@@ -84,20 +94,11 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 	Context("Updating performance profile for netqueues", func() {
 		It("[test_id:40308][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Network device queues Should be set to the profile's reserved CPUs count ", func() {
 			nodesDevices := make(map[string]map[string]int)
-			count := 0
 			if profile.Spec.Net != nil {
 				if profile.Spec.Net.UserLevelNetworking != nil && *profile.Spec.Net.UserLevelNetworking && len(profile.Spec.Net.Devices) == 0 {
 					By("To all non virtual network devices when no devices are specified under profile.Spec.Net.Devices")
-					err := checkDeviceSupport(workerRTNodes, nodesDevices)
-					Expect(err).ToNot(HaveOccurred())
-					for _, devices := range nodesDevices {
-						for _, size := range devices {
-							if size == getReservedCPUSize(profile.Spec.CPU) {
-								count++
-							}
-						}
-					}
-					if count == 0 {
+					err := checkDeviceSetWithReservedCPU(workerRTNodes, nodesDevices, *profile)
+					if err != nil {
 						Skip("Skipping Test: Unable to set Network queue size to reserved cpu count")
 					}
 				}
@@ -105,37 +106,15 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 		})
 
 		It("[test_id:40542] Verify the number of network queues of all supported network interfaces are equal to reserved cpus count", func() {
-			tunedPaoProfile := fmt.Sprintf("openshift-node-performance-%s", performanceProfileName)
 			nodesDevices := make(map[string]map[string]int)
-			count := 0
-			// Populate the device map with queue sizes
-			Eventually(func() bool {
-				err := checkDeviceSupport(workerRTNodes, nodesDevices)
-				Expect(err).ToNot(HaveOccurred())
-				return true
-			}, cluster.ComputeTestTimeout(200*time.Second, RunningOnSingleNode), testPollInterval*time.Second).Should(BeTrue())
-			//Verify the tuned profile is created on the worker-cnf nodes:
-			tunedCmd := []string{"tuned-adm", "profile_info", tunedPaoProfile}
-			for _, node := range workerRTNodes {
-				tunedPod := nodes.TunedForNode(&node, RunningOnSingleNode)
-				_, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
-				Expect(err).ToNot(HaveOccurred())
-			}
-			for _, devices := range nodesDevices {
-				for _, size := range devices {
-					if size == getReservedCPUSize(profile.Spec.CPU) {
-						count++
-					}
-				}
-			}
-			if count == 0 {
+			err := checkDeviceSetWithReservedCPU(workerRTNodes, nodesDevices, *profile)
+			if err != nil {
 				Skip("Skipping Test: Unable to set Network queue size to reserved cpu count")
 			}
 		})
 
 		It("[test_id:40543] Add interfaceName and verify the interface netqueues are equal to reserved cpus count.", func() {
 			nodesDevices := make(map[string]map[string]int)
-			count := 0
 			err := checkDeviceSupport(workerRTNodes, nodesDevices)
 			Expect(err).ToNot(HaveOccurred())
 			nodeName, device := getRandomNodeDevice(nodesDevices)
@@ -161,19 +140,18 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			node, err := nodes.GetByName(nodeName)
 			Expect(err).ToNot(HaveOccurred())
 			tunedPod := nodes.TunedForNode(node, RunningOnSingleNode)
-			out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
-			deviceExists := strings.ContainsAny(string(out), device)
-			Expect(deviceExists).To(BeTrue())
-			Expect(err).ToNot(HaveOccurred())
 
-			for _, devices := range nodesDevices {
-				for _, size := range devices {
-					if size == getReservedCPUSize(profile.Spec.CPU) {
-						count++
-					}
+			Eventually(func() bool {
+				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
+				if err != nil {
+					return false
 				}
-			}
-			if count == 0 {
+				return strings.ContainsAny(string(out), device)
+			}, cluster.ComputeTestTimeout(2*time.Minute, RunningOnSingleNode), 5*time.Second).Should(BeTrue(), "could not get a tuned profile set with devices_udev_regex")
+
+			nodesDevices = make(map[string]map[string]int)
+			err = checkDeviceSetWithReservedCPU(workerRTNodes, nodesDevices, *profile)
+			if err != nil {
 				Skip("Skipping Test: Unable to set Network queue size to reserved cpu count")
 			}
 		})
@@ -181,7 +159,6 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 		It("[test_id:40545] Verify reserved cpus count is applied to specific supported networking devices using wildcard matches", func() {
 			nodesDevices := make(map[string]map[string]int)
 			var device, devicePattern string
-			count := 0
 			err := checkDeviceSupport(workerRTNodes, nodesDevices)
 			Expect(err).ToNot(HaveOccurred())
 			nodeName, device := getRandomNodeDevice(nodesDevices)
@@ -207,26 +184,24 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			node, err := nodes.GetByName(nodeName)
 			Expect(err).ToNot(HaveOccurred())
 			tunedPod := nodes.TunedForNode(node, RunningOnSingleNode)
-			out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
-			deviceExists := strings.ContainsAny(string(out), device)
-			Expect(deviceExists).To(BeTrue())
-			Expect(err).ToNot(HaveOccurred())
 
-			for _, devices := range nodesDevices {
-				for _, size := range devices {
-					if size == getReservedCPUSize(profile.Spec.CPU) {
-						count++
-					}
+			Eventually(func() bool {
+				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
+				if err != nil {
+					return false
 				}
-			}
-			if count == 0 {
+				return strings.ContainsAny(string(out), device)
+			}, cluster.ComputeTestTimeout(2*time.Minute, RunningOnSingleNode), 5*time.Second).Should(BeTrue(), "could not get a tuned profile set with devices_udev_regex")
+
+			nodesDevices = make(map[string]map[string]int)
+			err = checkDeviceSetWithReservedCPU(workerRTNodes, nodesDevices, *profile)
+			if err != nil {
 				Skip("Skipping Test: Unable to set Network queue size to reserved cpu count")
 			}
 		})
 
 		It("[test_id:40668] Verify reserved cpu count is added to networking devices matched with vendor and Device id", func() {
 			nodesDevices := make(map[string]map[string]int)
-			count := 0
 			err := checkDeviceSupport(workerRTNodes, nodesDevices)
 			Expect(err).ToNot(HaveOccurred())
 			nodeName, device := getRandomNodeDevice(nodesDevices)
@@ -259,26 +234,40 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 			node, err = nodes.GetByName(nodeName)
 			Expect(err).ToNot(HaveOccurred())
 			tunedPod := nodes.TunedForNode(node, RunningOnSingleNode)
-			out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
-			deviceExists := strings.ContainsAny(string(out), device)
-			Expect(deviceExists).To(BeTrue())
-			Expect(err).ToNot(HaveOccurred())
-
-			for _, devices := range nodesDevices {
-				for _, size := range devices {
-					if size == getReservedCPUSize(profile.Spec.CPU) {
-						count++
-					}
+			Eventually(func() bool {
+				out, err := pods.WaitForPodOutput(testclient.K8sClient, tunedPod, tunedCmd)
+				if err != nil {
+					return false
 				}
-			}
-			if count == 0 {
+				return strings.ContainsAny(string(out), device)
+			}, cluster.ComputeTestTimeout(2*time.Minute, RunningOnSingleNode), 5*time.Second).Should(BeTrue(), "could not get a tuned profile set with devices_udev_regex")
+
+			nodesDevices = make(map[string]map[string]int)
+			err = checkDeviceSetWithReservedCPU(workerRTNodes, nodesDevices, *profile)
+			if err != nil {
 				Skip("Skipping Test: Unable to set Network queue size to reserved cpu count")
 			}
 		})
 	})
 })
 
-//Check if the device support multiple queues
+// Check a device that supports multiple queues and set with with reserved CPU size exists
+func checkDeviceSetWithReservedCPU(workerRTNodes []corev1.Node, nodesDevices map[string]map[string]int, profile performancev2.PerformanceProfile) error {
+	return wait.PollImmediate(5*time.Second, 90*time.Second, func() (bool, error) {
+		err := checkDeviceSupport(workerRTNodes, nodesDevices)
+		Expect(err).ToNot(HaveOccurred())
+		for _, devices := range nodesDevices {
+			for _, size := range devices {
+				if size == getReservedCPUSize(profile.Spec.CPU) {
+					return true, nil
+				}
+			}
+		}
+		return false, nil
+	})
+}
+
+// Check if the device support multiple queues
 func checkDeviceSupport(workernodes []corev1.Node, nodesDevices map[string]map[string]int) error {
 	cmdGetPhysicalDevices := []string{"find", "/sys/class/net", "-type", "l", "-not", "-lname", "*virtual*", "-printf", "%f "}
 	var channelCurrentCombined int
