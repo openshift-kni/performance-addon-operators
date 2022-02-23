@@ -8,7 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,6 +21,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/mcps"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
+	machineconfigv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 )
 
 var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", func() {
@@ -63,7 +64,6 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
 			By("Waiting when mcp finishes updates")
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
-			kubeletArguments := []string{"/bin/bash", "-c", "ps -ef | grep kubelet | grep config"}
 			for _, node := range workerRTNodes {
 				kubeletConfig, err := nodes.GetKubeletConfig(&node)
 				Expect(err).ToNot(HaveOccurred())
@@ -72,6 +72,7 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 				Expect(kubeletConfig.KubeReserved["memory"]).To(Equal("768Mi"))
 				Expect(kubeletConfig.ImageMinimumGCAge.Seconds()).To(Equal(180))
 			}
+			kubeletArguments := []string{"/bin/bash", "-c", "ps -ef | grep kubelet | grep config"}
 			for _, node := range workerRTNodes {
 				stdout, err := nodes.ExecCommandOnNode(kubeletArguments, &node)
 				Expect(err).ToNot(HaveOccurred())
