@@ -336,7 +336,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 				"kernel.nmi_watchdog":           "0",
 				"kernel.sched_rt_runtime_us":    "-1",
 				"vm.stat_interval":              "10",
-				"kernel.timer_migration":        "0",
+				"kernel.timer_migration":        "1",
 			}
 
 			key := types.NamespacedName{

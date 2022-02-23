@@ -59,8 +59,10 @@ kernel.hung_task_timeout_secs = 600
 kernel.nmi_watchdog = 0
 #> realtime
 kernel.sched_rt_runtime_us = -1
-#> cpu-partitioning (= 1) #realtime (= 0)
-kernel.timer_migration = 0
+# cpu-partitioning and realtime for RHEL disable it (= 0)
+# OCP is too dynamic when partitioning and needs to evacuate
+#> scheduled timers when starting a guaranteed workload (= 1)
+kernel.timer_migration = 1
 #> network-latency
 kernel.numa_balancing=0
 net.core.busy_read=50
