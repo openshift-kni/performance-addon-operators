@@ -115,8 +115,11 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 
 		It("[test_id:40543] Add interfaceName and verify the interface netqueues are equal to reserved cpus count.", func() {
 			nodesDevices := make(map[string]map[string]int)
-			err := checkDeviceSupport(workerRTNodes, nodesDevices)
+			deviceSupport, err := checkDeviceSupport(workerRTNodes, nodesDevices)
 			Expect(err).ToNot(HaveOccurred())
+			if !deviceSupport {
+				Skip("Skipping Test: There are no supported Network Devices")
+			}
 			nodeName, device := getRandomNodeDevice(nodesDevices)
 			profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 			Expect(err).ToNot(HaveOccurred())
@@ -159,8 +162,11 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 		It("[test_id:40545] Verify reserved cpus count is applied to specific supported networking devices using wildcard matches", func() {
 			nodesDevices := make(map[string]map[string]int)
 			var device, devicePattern string
-			err := checkDeviceSupport(workerRTNodes, nodesDevices)
+			deviceSupport, err := checkDeviceSupport(workerRTNodes, nodesDevices)
 			Expect(err).ToNot(HaveOccurred())
+			if !deviceSupport {
+				Skip("Skipping Test: There are no supported Network Devices")
+			}
 			nodeName, device := getRandomNodeDevice(nodesDevices)
 			devicePattern = device[:len(device)-1] + "*"
 			profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
@@ -202,8 +208,11 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 
 		It("[test_id:40668] Verify reserved cpu count is added to networking devices matched with vendor and Device id", func() {
 			nodesDevices := make(map[string]map[string]int)
-			err := checkDeviceSupport(workerRTNodes, nodesDevices)
+			deviceSupport, err := checkDeviceSupport(workerRTNodes, nodesDevices)
 			Expect(err).ToNot(HaveOccurred())
+			if !deviceSupport {
+				Skip("Skipping Test: There are no supported Network Devices")
+			}
 			nodeName, device := getRandomNodeDevice(nodesDevices)
 			node, err := nodes.GetByName(nodeName)
 			Expect(err).ToNot(HaveOccurred())
@@ -254,8 +263,11 @@ var _ = Describe("[ref_id: 40307][pao]Resizing Network Queues", func() {
 // Check a device that supports multiple queues and set with with reserved CPU size exists
 func checkDeviceSetWithReservedCPU(workerRTNodes []corev1.Node, nodesDevices map[string]map[string]int, profile performancev2.PerformanceProfile) error {
 	return wait.PollImmediate(5*time.Second, 90*time.Second, func() (bool, error) {
-		err := checkDeviceSupport(workerRTNodes, nodesDevices)
+		deviceSupport, err := checkDeviceSupport(workerRTNodes, nodesDevices)
 		Expect(err).ToNot(HaveOccurred())
+		if !deviceSupport {
+			return false, nil
+		}
 		for _, devices := range nodesDevices {
 			for _, size := range devices {
 				if size == getReservedCPUSize(profile.Spec.CPU) {
@@ -268,7 +280,7 @@ func checkDeviceSetWithReservedCPU(workerRTNodes []corev1.Node, nodesDevices map
 }
 
 // Check if the device support multiple queues
-func checkDeviceSupport(workernodes []corev1.Node, nodesDevices map[string]map[string]int) error {
+func checkDeviceSupport(workernodes []corev1.Node, nodesDevices map[string]map[string]int) (bool, error) {
 	cmdGetPhysicalDevices := []string{"find", "/sys/class/net", "-type", "l", "-not", "-lname", "*virtual*", "-printf", "%f "}
 	var channelCurrentCombined int
 	var noSupportedDevices = true
@@ -309,9 +321,9 @@ func checkDeviceSupport(workernodes []corev1.Node, nodesDevices map[string]map[s
 		}
 	}
 	if noSupportedDevices {
-		Skip("Skipping Test: There are no supported Network Devices")
+		return false, err
 	}
-	return err
+	return true, err
 }
 
 func getReservedCPUSize(CPU *performancev2.CPU) int {
