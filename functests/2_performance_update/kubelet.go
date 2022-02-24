@@ -99,6 +99,9 @@ var _ = Describe("[ref_id: 45487][performance]additional kubelet arguments", fun
 			})
 		})
 		It("[test_id:45490]Test memory reservation changes", func() {
+			// In this test case we are testing if after applying reserving memory for
+			// systemReserved and KubeReserved, the allocatable is reduced and Allocatable
+			// Verify that Allocatable = Node capacity - (kubereserved + systemReserved + EvictionMemory)
 			memoryAnnotation := map[string]string{
 				"kubeletconfig.experimental": "{\"systemReserved\":{\"memory\":\"300Mi\"},\"kubeReserved\":{\"memory\":\"768Mi\"}}",
 			}
