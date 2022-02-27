@@ -117,7 +117,7 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		},
 	}
 
-	err := ctrl.NewControllerManagedBy(mgr).
+	return ctrl.NewControllerManagedBy(mgr).
 		For(&performancev2.PerformanceProfile{}).
 		Owns(&mcov1.MachineConfig{}, builder.WithPredicates(p)).
 		Owns(&mcov1.KubeletConfig{}, builder.WithPredicates(kubeletPredicates)).
@@ -133,10 +133,6 @@ func (r *PerformanceProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 			builder.WithPredicates(tunedProfilePredicates),
 		).
 		Complete(r)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *PerformanceProfileReconciler) mcpToPerformanceProfile(mcpObj client.Object) []reconcile.Request {
