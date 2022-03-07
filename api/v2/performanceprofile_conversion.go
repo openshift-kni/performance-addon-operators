@@ -132,6 +132,17 @@ func (curr *PerformanceProfile) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Spec.GloballyDisableIrqLoadBalancing = pointer.BoolPtr(*curr.Spec.GloballyDisableIrqLoadBalancing)
 	}
 
+	// Workload hints
+	if curr.Spec.WorkloadHints != nil {
+		dst.Spec.WorkloadHints = &v1.WorkloadHints{}
+		if curr.Spec.WorkloadHints.RealTime != nil {
+			dst.Spec.WorkloadHints.RealTime = pointer.BoolPtr(*curr.Spec.WorkloadHints.RealTime)
+		}
+		if curr.Spec.WorkloadHints.PowerSaving != nil {
+			dst.Spec.WorkloadHints.PowerSaving = pointer.BoolPtr(*curr.Spec.WorkloadHints.PowerSaving)
+		}
+	}
+
 	// Status
 	if curr.Status.Conditions != nil {
 		dst.Status.Conditions = make([]conditionsv1.Condition, len(curr.Status.Conditions))
@@ -272,6 +283,17 @@ func (curr *PerformanceProfile) ConvertFrom(srcRaw conversion.Hub) error {
 		curr.Spec.GloballyDisableIrqLoadBalancing = pointer.BoolPtr(*src.Spec.GloballyDisableIrqLoadBalancing)
 	} else { // set to true by default
 		curr.Spec.GloballyDisableIrqLoadBalancing = pointer.BoolPtr(true)
+	}
+
+	// Workload hints
+	if src.Spec.WorkloadHints != nil {
+		curr.Spec.WorkloadHints = &WorkloadHints{}
+		if src.Spec.WorkloadHints.RealTime != nil {
+			curr.Spec.WorkloadHints.RealTime = pointer.BoolPtr(*src.Spec.WorkloadHints.RealTime)
+		}
+		if src.Spec.WorkloadHints.PowerSaving != nil {
+			curr.Spec.WorkloadHints.PowerSaving = pointer.BoolPtr(*src.Spec.WorkloadHints.PowerSaving)
+		}
 	}
 
 	// Status

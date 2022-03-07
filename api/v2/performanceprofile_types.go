@@ -70,6 +70,9 @@ type PerformanceProfileSpec struct {
 	// Defaults to "false"
 	// +optional
 	GloballyDisableIrqLoadBalancing *bool `json:"globallyDisableIrqLoadBalancing,omitempty"`
+	// WorkloadHints defines hints for different types of workloads. It will allow defining exact set of tuned and
+	// kernel arguments that should be applied on top of the node.
+	WorkloadHints *WorkloadHints `json:"workloadHints,omitempty"`
 }
 
 // CPUSet defines the set of CPUs(0-3,8-11).
@@ -156,6 +159,14 @@ type Device struct {
 type RealTimeKernel struct {
 	// Enabled defines if the real time kernel packages should be installed. Defaults to "false"
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// WorkloadHints defines the set of upper level flags for different type of workloads.
+type WorkloadHints struct {
+	// PowerSaving defines if the node should be configured in power saving mode.
+	PowerSaving *bool `json:"powerSaving,omitempty"`
+	// RealTime defines if the node should be configured for the real time workload.
+	RealTime *bool `json:"realTime,omitempty"`
 }
 
 // PerformanceProfileStatus defines the observed state of PerformanceProfile.
