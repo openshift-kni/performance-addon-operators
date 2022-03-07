@@ -1336,6 +1336,35 @@ func verifyV2Conversion(v2Profile *performancev2.PerformanceProfile, v1Profile *
 		}
 	}
 
+	specWorkloadHints := v2Profile.Spec.WorkloadHints
+	if (specWorkloadHints == nil) != (v1Profile.Spec.WorkloadHints == nil) {
+		return fmt.Errorf("spec workloadHints field is different")
+	}
+
+	if specWorkloadHints != nil {
+		if (specWorkloadHints.PowerSaving == nil) != (v1Profile.Spec.WorkloadHints.PowerSaving == nil) {
+			return fmt.Errorf("spec workloadHints powerSaving field is different")
+		}
+
+		if specWorkloadHints.PowerSaving != nil {
+			if *specWorkloadHints.PowerSaving != *v1Profile.Spec.WorkloadHints.PowerSaving {
+				return fmt.Errorf("PowerSaving field is different [v2: %t, v1: %t]",
+					*specWorkloadHints.PowerSaving, *v1Profile.Spec.WorkloadHints.PowerSaving)
+			}
+		}
+
+		if (specWorkloadHints.RealTime == nil) != (v1Profile.Spec.WorkloadHints.RealTime == nil) {
+			return fmt.Errorf("spec workloadHints realTime field is different")
+		}
+
+		if specWorkloadHints.RealTime != nil {
+			if *specWorkloadHints.RealTime != *v1Profile.Spec.WorkloadHints.RealTime {
+				return fmt.Errorf("RealTime field is different [v2: %t, v1: %t]",
+					*specWorkloadHints.RealTime, *v1Profile.Spec.WorkloadHints.RealTime)
+			}
+		}
+	}
+
 	for _, f := range v2Profile.GetObjectMeta().GetManagedFields() {
 		if f.APIVersion == performancev1alpha1.GroupVersion.String() ||
 			f.APIVersion == performancev1.GroupVersion.String() {
