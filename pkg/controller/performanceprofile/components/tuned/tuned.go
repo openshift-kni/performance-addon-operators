@@ -28,6 +28,8 @@ const (
 	templateAdditionalArgs                  = "AdditionalArgs"
 	templateGloballyDisableIrqLoadBalancing = "GloballyDisableIrqLoadBalancing"
 	templateNetDevices                      = "NetDevices"
+	templateRealTime                        = "RealTime"
+	templatePowerSaving                     = "PowerSaving"
 	nfConntrackHashsize                     = "nf_conntrack_hashsize=131072"
 )
 
@@ -163,6 +165,21 @@ func NewNodePerformance(profile *performancev2.PerformanceProfile) (*tunedv1.Tun
 			templateArgs[templateNetDevices] = fmt.Sprintf("[net]\nchannels=combined %d\n%s", reserveCPUcount, nfConntrackHashsize)
 		} else {
 			templateArgs[templateNetDevices] = strings.Join(tunedNetDevicesOutput, "")
+		}
+	}
+
+	// TODO: I think we need to parse additional kernel arguments and in case when it intersect with workload hints
+	// kernel arguments we should or override it or drop an error
+	// set default values for workload hints
+	if profile.Spec.WorkloadHints == nil {
+		templateArgs[templateRealTime] = "true"
+	} else {
+		if profile.Spec.WorkloadHints.RealTime != nil && *profile.Spec.WorkloadHints.RealTime {
+			templateArgs[templateRealTime] = "true"
+		}
+
+		if profile.Spec.WorkloadHints.PowerSaving != nil && *profile.Spec.WorkloadHints.PowerSaving {
+			templateArgs[templatePowerSaving] = "true"
 		}
 	}
 

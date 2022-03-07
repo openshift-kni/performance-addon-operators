@@ -1,7 +1,6 @@
 package tuned
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -23,13 +22,15 @@ const expectedMatchSelector = `
 `
 
 var (
-	cmdlineCPUsPartitioning            = regexp.MustCompile(`\s*cmdline_cpu_part=\+\s*nohz=on\s+rcu_nocbs=\${isolated_cores}\s+tuned.non_isolcpus=\${not_isolated_cpumask}\s+intel_pstate=disable\s+nosoftlockup\s*`)
-	cmdlineRealtimeWithCPUBalancing    = regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=managed_irq,\${isolated_cores}\s+systemd.cpu_affinity=\${not_isolated_cores_expanded}\s*`)
-	cmdlineRealtimeWithoutCPUBalancing = regexp.MustCompile(`\s*cmdline_realtime=\+\s*tsc=nowatchdog\s+intel_iommu=on\s+iommu=pt\s+isolcpus=domain,managed_irq,\${isolated_cores}\s+systemd.cpu_affinity=\${not_isolated_cores_expanded}\s*`)
-	cmdlineHugepages                   = regexp.MustCompile(`\s*cmdline_hugepages=\+\s*default_hugepagesz=1G\s+hugepagesz=1G\s+hugepages=4\s*`)
-	cmdlineAdditionalArg               = regexp.MustCompile(`\s*cmdline_additionalArg=\+\s*test1=val1\s+test2=val2\s*`)
-	cmdlineDummy2MHugePages            = regexp.MustCompile(`\s*cmdline_hugepages=\+\s*default_hugepagesz=1G\s+hugepagesz=1G\s+hugepages=4\s+hugepagesz=2M\s+hugepages=0\s*`)
-	cmdlineMultipleHugePages           = regexp.MustCompile(`\s*cmdline_hugepages=\+\s*default_hugepagesz=1G\s+hugepagesz=1G\s+hugepages=4\s+hugepagesz=2M\s+hugepages=128\s*`)
+	cmdlineCPUsPartitioning       = regexp.MustCompile(`\s*cmdline_cpu_part=\+\s*nohz=on\s+rcu_nocbs=\${isolated_cores}\s+tuned.non_isolcpus=\${not_isolated_cpumask}\s+systemd.cpu_affinity=\${not_isolated_cores_expanded}\s+intel_iommu=on\s+iommu=pt\s*`)
+	cmdlineWithStaticIsolation    = regexp.MustCompile(`\s*cmdline_isolation=\+\s*isolcpus=managed_irq,\${isolated_cores}\s*`)
+	cmdlineWithoutStaticIsolation = regexp.MustCompile(`\s*cmdline_isolation=\+\s*isolcpus=domain,managed_irq,\${isolated_cores}\s*`)
+	cmdlineWithRealtime           = regexp.MustCompile(`\s*cmdline_realtime=\+\s*nohz_full=\${isolated_cores}\s+tsc=nowatchdog\s+nosoftlockup\s+nmi_watchdog=0\s+mce=off\s+skew_tick=1\s*`)
+	cmdlineWithoutPowerSaving     = regexp.MustCompile(`\s*cmdline_power_performance=\+\s*processor.max_cstate=1\s+intel_idle.max_cstate=0\s+idle=poll\s+intel_pstate=disable\s*`)
+	cmdlineHugepages              = regexp.MustCompile(`\s*cmdline_hugepages=\+\s*default_hugepagesz=1G\s+hugepagesz=1G\s+hugepages=4\s*`)
+	cmdlineAdditionalArg          = regexp.MustCompile(`\s*cmdline_additionalArg=\+\s*test1=val1\s+test2=val2\s*`)
+	cmdlineDummy2MHugePages       = regexp.MustCompile(`\s*cmdline_hugepages=\+\s*default_hugepagesz=1G\s+hugepagesz=1G\s+hugepages=4\s+hugepagesz=2M\s+hugepages=0\s*`)
+	cmdlineMultipleHugePages      = regexp.MustCompile(`\s*cmdline_hugepages=\+\s*default_hugepagesz=1G\s+hugepagesz=1G\s+hugepages=4\s+hugepagesz=2M\s+hugepages=128\s*`)
 )
 
 var additionalArgs = []string{"test1=val1", "test2=val2"}
@@ -54,23 +55,60 @@ var _ = Describe("Tuned", func() {
 			manifest := getTunedManifest(profile)
 
 			Expect(manifest).To(ContainSubstring(expectedMatchSelector))
-			Expect(manifest).To(ContainSubstring(fmt.Sprintf("isolated_cores=4-7")))
+			Expect(manifest).To(ContainSubstring("isolated_cores=4-7"))
+			Expect(manifest).To(ContainSubstring("governor=performance"))
+			Expect(manifest).To(ContainSubstring("service.stalld=start,enable"))
+			Expect(manifest).To(ContainSubstring("sched_rt_runtime_us=-1"))
+			Expect(manifest).To(ContainSubstring("kernel.hung_task_timeout_secs=600"))
+			Expect(manifest).To(ContainSubstring("kernel.sched_rt_runtime_us=-1"))
 			By("Populating CPU partitioning cmdline")
 			Expect(cmdlineCPUsPartitioning.MatchString(manifest)).To(BeTrue())
-			By("Populating realtime cmdline")
-			Expect(cmdlineRealtimeWithCPUBalancing.MatchString(manifest)).To(BeTrue())
+			By("Populating static isolation cmdline")
+			Expect(cmdlineWithStaticIsolation.MatchString(manifest)).To(BeTrue())
 			By("Populating hugepages cmdline")
 			Expect(cmdlineHugepages.MatchString(manifest)).To(BeTrue())
 			By("Populating empty additional kernel arguments cmdline")
 			Expect(manifest).To(ContainSubstring("cmdline_additionalArg="))
+			By("Populating realtime cmdline")
+			Expect(cmdlineWithRealtime.MatchString(manifest)).To(BeTrue())
+			By("Populating power performance cmdline")
+			Expect(cmdlineWithoutPowerSaving.MatchString(manifest)).To(BeTrue())
+		})
 
+		When("realtime hint disabled", func() {
+			BeforeEach(func() {
+				profile.Spec.WorkloadHints = &performancev2.WorkloadHints{RealTime: pointer.BoolPtr(false)}
+			})
+
+			It("should not contain realtime related parameters", func() {
+				manifest := getTunedManifest(profile)
+				Expect(manifest).ToNot(ContainSubstring("service.stalld=start,enable"))
+				Expect(manifest).ToNot(ContainSubstring("sched_rt_runtime_us=-1"))
+				Expect(manifest).ToNot(ContainSubstring("kernel.hung_task_timeout_secs=600"))
+				Expect(manifest).ToNot(ContainSubstring("kernel.sched_rt_runtime_us=-1"))
+				By("Populating realtime cmdline")
+				Expect(cmdlineWithRealtime.MatchString(manifest)).ToNot(BeTrue())
+			})
+		})
+
+		When("power saving hint enabled", func() {
+			BeforeEach(func() {
+				profile.Spec.WorkloadHints = &performancev2.WorkloadHints{PowerSaving: pointer.BoolPtr(true)}
+			})
+
+			It("should not contain performance power mode related parameters", func() {
+				manifest := getTunedManifest(profile)
+				Expect(manifest).ToNot(ContainSubstring("governor=performance"))
+				By("Populating realtime cmdline")
+				Expect(cmdlineWithoutPowerSaving.MatchString(manifest)).ToNot(BeTrue())
+			})
 		})
 
 		It("should generate yaml with expected parameters for Isolated balancing disabled", func() {
 			profile.Spec.CPU.BalanceIsolated = pointer.BoolPtr(false)
 			manifest := getTunedManifest(profile)
 
-			Expect(cmdlineRealtimeWithoutCPUBalancing.MatchString(manifest)).To(BeTrue())
+			Expect(cmdlineWithoutStaticIsolation.MatchString(manifest)).To(BeTrue())
 		})
 
 		It("should generate yaml with expected parameters for additional kernel arguments", func() {
