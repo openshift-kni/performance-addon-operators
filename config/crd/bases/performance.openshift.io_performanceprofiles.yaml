@@ -203,6 +203,20 @@ spec:
                       should be installed. Defaults to "false"
                     type: boolean
                 type: object
+              workloadHints:
+                description: WorkloadHints defines hints for different types of workloads.
+                  It will allow defining exact set of tuned and kernel arguments that
+                  should be applied on top of the node.
+                properties:
+                  powerSaving:
+                    description: PowerSaving defines if the node should be configured
+                      in power saving mode.
+                    type: boolean
+                  realTime:
+                    description: RealTime defines if the node should be configured
+                      for the real time workload.
+                    type: boolean
+                type: object
             required:
             - cpu
             - nodeSelector
@@ -620,6 +634,20 @@ spec:
                   enabled:
                     description: Enabled defines if the real time kernel packages
                       should be installed. Defaults to "false"
+                    type: boolean
+                type: object
+              workloadHints:
+                description: WorkloadHints defines hints for different types of workloads.
+                  It will allow defining exact set of tuned and kernel arguments that
+                  should be applied on top of the node.
+                properties:
+                  powerSaving:
+                    description: PowerSaving defines if the node should be configured
+                      in power saving mode.
+                    type: boolean
+                  realTime:
+                    description: RealTime defines if the node should be configured
+                      for the real time workload.
                     type: boolean
                 type: object
             required:
