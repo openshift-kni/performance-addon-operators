@@ -312,6 +312,34 @@ var _ = Describe("PerformanceProfile", func() {
 				Expect(errors[0].Error()).To(ContainSubstring(fmt.Sprintf("device model ID can not be used without specifying the device vendor ID.")))
 			})
 		})
+
+		Describe("Workload hints validation", func() {
+			When("both realtime and power saving defined as true", func() {
+				It("should raise validation error", func() {
+					profile.Spec.WorkloadHints = &WorkloadHints{
+						RealTime:    pointer.BoolPtr(true),
+						PowerSaving: pointer.BoolPtr(true),
+					}
+					errors := profile.validateWorkloadHints()
+					Expect(errors).NotTo(BeEmpty())
+					Expect(errors[0].Error()).To(ContainSubstring("both realTime and PowerSaving options are enabled"))
+				})
+			})
+
+			When("realtime kernel is enabled and realtime workload hint is explicitly disabled", func() {
+				It("should raise validation error", func() {
+					profile.Spec.WorkloadHints = &WorkloadHints{
+						RealTime: pointer.BoolPtr(false),
+					}
+					profile.Spec.RealTimeKernel = &RealTimeKernel{
+						Enabled: pointer.BoolPtr(true),
+					}
+					errors := profile.validateWorkloadHints()
+					Expect(errors).NotTo(BeEmpty())
+					Expect(errors[0].Error()).To(ContainSubstring("realtime kernel is enabled, but realtime workload hint is explicitly disable"))
+				})
+			})
+		})
 	})
 })
 
