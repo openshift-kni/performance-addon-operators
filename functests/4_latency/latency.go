@@ -382,6 +382,7 @@ func getLatencyTestPod(profile *performancev2.PerformanceProfile, node *corev1.N
 			Annotations: map[string]string{
 				"irq-load-balancing.crio.io": "disable",
 				"cpu-load-balancing.crio.io": "disable",
+				"cpu-quota.crio.io":          "disable",
 			},
 			Namespace: testutils.NamespaceTesting,
 		},
