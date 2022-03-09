@@ -4,9 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
+
+	"k8s.io/klog"
 
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
@@ -510,6 +515,86 @@ var _ = Describe("[rfe_id:28761][performance] Updating parameters in performance
 			performanceMCP, err = mcps.GetByProfile(updatedProfile)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(testclient.Client.Delete(context.TODO(), mcp)).ToNot(HaveOccurred())
+			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
+		})
+	})
+
+	Context("WorkloadHints", func() {
+		BeforeEach(func() {
+			By("Saving the old performance profile")
+			initialProfile = profile.DeepCopy()
+		})
+
+		When("realtime disabled and power saving enabled", func() {
+			It("should update kernel arguments and tuned accordingly", func() {
+				profile.Spec.WorkloadHints = &performancev2.WorkloadHints{
+					PowerSaving: pointer.BoolPtr(true),
+					RealTime:    pointer.BoolPtr(false),
+				}
+				By("Patching the performance profile with workload hints")
+				workloadHints, err := json.Marshal(profile.Spec.WorkloadHints)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(testclient.Client.Patch(context.TODO(), profile,
+					client.RawPatch(
+						types.JSONPatchType,
+						[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec/workloadHints", "value": %s }]`, workloadHints)),
+					),
+				)).ToNot(HaveOccurred())
+
+				By("Applying changes in performance profile and waiting until mcp will start updating")
+				mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
+
+				By("Waiting when mcp finishes updates")
+				mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
+
+				By("Verifying node kernel arguments")
+				cmdline, err := nodes.ExecCommandOnMachineConfigDaemon(&workerRTNodes[0], []string{"cat", "/proc/cmdline"})
+				Expect(err).ToNot(HaveOccurred())
+				Expect(cmdline).ToNot(ContainSubstring("nosoftlockup"))
+				Expect(cmdline).ToNot(ContainSubstring("processor.max_cstate=1"))
+				Expect(cmdline).ToNot(ContainSubstring("idle=poll"))
+
+				By("Verifying tuned profile")
+				key := types.NamespacedName{
+					Name:      components.GetComponentName(profile.Name, components.ProfileNamePerformance),
+					Namespace: components.NamespaceNodeTuningOperator,
+				}
+				tuned := &tunedv1.Tuned{}
+				err = testclient.Client.Get(context.TODO(), key, tuned)
+				Expect(err).ToNot(HaveOccurred(), "cannot find the Cluster Node Tuning Operator object")
+				Expect(*tuned.Spec.Profile[0].Data).ToNot(ContainSubstring("stalld"))
+				Expect(*tuned.Spec.Profile[0].Data).ToNot(ContainSubstring("governor=performance"))
+				Expect(*tuned.Spec.Profile[0].Data).ToNot(ContainSubstring("kernel.sched_rt_runtime_us=-1"))
+			})
+		})
+
+		AfterEach(func() {
+			currentProfile := &performancev2.PerformanceProfile{}
+			if err := testclient.Client.Get(context.TODO(), client.ObjectKeyFromObject(initialProfile), currentProfile); err != nil {
+				klog.Errorf("failed to get performance profile %q", initialProfile.Name)
+				return
+			}
+
+			if reflect.DeepEqual(currentProfile.Spec, initialProfile.Spec) {
+				return
+			}
+
+			By("Restoring the old performance profile")
+			spec, err := json.Marshal(initialProfile.Spec)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(testclient.Client.Patch(context.TODO(), profile,
+				client.RawPatch(
+					types.JSONPatchType,
+					[]byte(fmt.Sprintf(`[{ "op": "replace", "path": "/spec", "value": %s }]`, spec)),
+				),
+			)).ToNot(HaveOccurred())
+
+			By("Applying changes in performance profile and waiting until mcp will start updating")
+			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdating, corev1.ConditionTrue)
+
+			By("Waiting when mcp finishes updates")
 			mcps.WaitForCondition(performanceMCP, machineconfigv1.MachineConfigPoolUpdated, corev1.ConditionTrue)
 		})
 	})
