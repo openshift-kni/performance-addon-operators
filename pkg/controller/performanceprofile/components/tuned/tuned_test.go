@@ -1,7 +1,6 @@
 package tuned
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -54,7 +53,9 @@ var _ = Describe("Tuned", func() {
 			manifest := getTunedManifest(profile)
 
 			Expect(manifest).To(ContainSubstring(expectedMatchSelector))
-			Expect(manifest).To(ContainSubstring(fmt.Sprintf("isolated_cores=4-7")))
+			Expect(manifest).To(ContainSubstring("isolated_cores=4-7"))
+			//Expect(manifest).To(ContainSubstring("maxcpus=6-7"))
+			//TODO MARIOFER
 			By("Populating CPU partitioning cmdline")
 			Expect(cmdlineCPUsPartitioning.MatchString(manifest)).To(BeTrue())
 			By("Populating realtime cmdline")

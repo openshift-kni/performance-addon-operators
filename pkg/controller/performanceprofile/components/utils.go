@@ -92,6 +92,11 @@ func (c *CPULists) CountIsolated() int {
 	return c.isolated.Size()
 }
 
+// OnlineCpus returns how many cpus are online, isolated + reserved
+func (c *CPULists) OnlineCpus() int {
+	return c.reserved.Size() + c.isolated.Size()
+}
+
 // NewCPULists parse text representations of reserved and isolated cpusets definiton and returns a CPULists object
 func NewCPULists(reservedList, isolatedList string) (*CPULists, error) {
 	var err error

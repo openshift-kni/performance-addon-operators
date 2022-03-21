@@ -17,6 +17,13 @@ include=openshift-node,cpu-partitioning
 isolated_cores={{.IsolatedCpus}}
 {{end}}
 
+#> offline_cores take a list of ranges; e.g. offline_cores=2,4-7
+#{{if .OfflineCpus}}
+offline_cores={{.OfflineCpus}}
+#{{end}}
+
+maxcpus={{.MaxCpus}}
+
 not_isolated_cores_expanded=${f:cpulist_invert:${isolated_cores_expanded}}
 
 [cpu]
@@ -122,7 +129,7 @@ initrd_remove_dir=
 initrd_dst_img=
 initrd_add_dir=
 # overrides cpu-partitioning cmdline
-cmdline_cpu_part=+nohz=on rcu_nocbs=${isolated_cores} tuned.non_isolcpus=${not_isolated_cpumask} intel_pstate=disable nosoftlockup
+cmdline_cpu_part=+nohz=on rcu_nocbs=${isolated_cores} tuned.non_isolcpus=${not_isolated_cpumask} intel_pstate=disable nosoftlockup maxcpus={maxcpus}
 {{if .StaticIsolation}}
 cmdline_realtime=+tsc=nowatchdog intel_iommu=on iommu=pt isolcpus=domain,managed_irq,${isolated_cores} systemd.cpu_affinity=${not_isolated_cores_expanded}
 {{else}}

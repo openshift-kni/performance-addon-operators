@@ -23,6 +23,8 @@ const (
 	cmdlineDelimiter                        = " "
 	templateIsolatedCpus                    = "IsolatedCpus"
 	templateStaticIsolation                 = "StaticIsolation"
+	templateOfflineCpus                     = "OfflineCpus"
+	templateMaxCpus                         = "MaxCpus"
 	templateDefaultHugepagesSize            = "DefaultHugepagesSize"
 	templateHugepages                       = "Hugepages"
 	templateAdditionalArgs                  = "AdditionalArgs"
@@ -58,6 +60,14 @@ func NewNodePerformance(profile *performancev2.PerformanceProfile) (*tunedv1.Tun
 			templateArgs[templateStaticIsolation] = strconv.FormatBool(true)
 		}
 	}
+
+	if profile.Spec.CPU.Offlined != nil {
+		templateArgs[templateOfflineCpus] = string(*profile.Spec.CPU.Offlined)
+	}
+
+	//Calculate maxCpus as isolated + reserved
+	cpuLists, _ := components.NewCPULists(string(*profile.Spec.CPU.Reserved), string(*profile.Spec.CPU.Isolated))
+	templateArgs[templateMaxCpus] = strconv.Itoa(cpuLists.OnlineCpus())
 
 	if profile.Spec.HugePages != nil {
 		var defaultHugepageSize performancev2.HugePageSize

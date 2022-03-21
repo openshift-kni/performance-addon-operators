@@ -48,6 +48,7 @@ const (
 	udevRpsRules       = "99-netdev-rps.rules"
 	// scripts
 	hugepagesAllocation = "hugepages-allocation"
+	addOfflineCpus      = "add-offline-cpus"
 	ociHooks            = "low-latency-hooks"
 	setRPSMask          = "set-rps-mask"
 )
@@ -79,6 +80,10 @@ const (
 )
 
 const (
+	environmentOfflineCpus = "OFFLINE_CPUS"
+)
+
+const (
 	templateReservedCpus = "ReservedCpus"
 )
 
@@ -106,6 +111,7 @@ func New(profile *performancev2.PerformanceProfile) (*machineconfigv1.MachineCon
 	if err != nil {
 		return nil, err
 	}
+
 	mc.Spec.Config = runtime.RawExtension{Raw: rawIgnition}
 
 	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
@@ -139,7 +145,7 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 
 	// add script files under the node /usr/local/bin directory
 	mode := 0700
-	for _, script := range []string{hugepagesAllocation, ociHooks, setRPSMask} {
+	for _, script := range []string{hugepagesAllocation, ociHooks, setRPSMask, addOfflineCpus} {
 		dst := getBashScriptPath(script)
 		content, err := assets.Scripts.ReadFile(fmt.Sprintf("scripts/%s.sh", script))
 		if err != nil {
@@ -221,6 +227,19 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 		})
 	}
 
+	if profile.Spec.CPU.Offlined != nil {
+		offlineCpus, err := getSystemdContent(getOfflineCpus(string(*profile.Spec.CPU.Offlined)))
+		if err != nil {
+			return nil, err
+		}
+
+		ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
+			Contents: &offlineCpus,
+			Enabled:  pointer.BoolPtr(true),
+			Name:     getSystemdService(fmt.Sprintf("offlineCpus")),
+		})
+	}
+
 	return ignitionConfig, nil
 }
 
@@ -299,6 +318,27 @@ func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int3
 		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
 		// ExecStart
 		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(hugepagesAllocation)),
+		// [Install]
+		// WantedBy
+		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
+	}
+}
+
+func getOfflineCpus(offlineCpus string) []*unit.UnitOption {
+	return []*unit.UnitOption{
+		// [Unit]
+		// Description
+		unit.NewUnitOption(systemdSectionUnit, systemdDescription, fmt.Sprintf("offlineCpus - offline cpus: %s", offlineCpus)),
+		// Before
+		unit.NewUnitOption(systemdSectionUnit, systemdBefore, systemdServiceKubelet),
+		// Environment
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentOfflineCpus, offlineCpus)),
+		// Type
+		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
+		// RemainAfterExit
+		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
+		// ExecStart
+		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(addOfflineCpus)),
 		// [Install]
 		// WantedBy
 		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),

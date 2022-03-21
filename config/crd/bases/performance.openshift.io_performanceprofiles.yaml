@@ -70,12 +70,16 @@ spec:
                       CPUs   2. The isolated CPUs field should be the complementary
                       to reserved CPUs field'
                     type: string
+                  offlined:
+                    description: CPUSet defines the set of CPUs(0-3,8-11).
+                    type: string
                   reserved:
                     description: Reserved defines a set of CPUs that will not be used
                       for any container workloads initiated by kubelet.
                     type: string
                 required:
                 - isolated
+                - offlined
                 type: object
               globallyDisableIrqLoadBalancing:
                 description: GloballyDisableIrqLoadBalancing toggles whether IRQ load
@@ -306,6 +310,9 @@ spec:
                       CPUs   2. The isolated CPUs field should be the complementary
                       to reserved CPUs field'
                     type: string
+                  offlined:
+                    description: Offline to fill
+                    type: string
                   reserved:
                     description: Reserved defines a set of CPUs that will not be used
                       for any container workloads initiated by kubelet.
@@ -488,12 +495,16 @@ spec:
                       CPUs   2. The isolated CPUs field should be the complementary
                       to reserved CPUs field'
                     type: string
+                  offlined:
+                    description: Offline to fill
+                    type: string
                   reserved:
                     description: Reserved defines a set of CPUs that will not be used
                       for any container workloads initiated by kubelet.
                     type: string
                 required:
                 - isolated
+                - offlined
                 - reserved
                 type: object
               globallyDisableIrqLoadBalancing:

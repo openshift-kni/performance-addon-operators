@@ -28,6 +28,10 @@ func (curr *PerformanceProfile) ConvertTo(dstRaw conversion.Hub) error {
 			isolated := v1.CPUSet(*curr.Spec.CPU.Isolated)
 			dst.Spec.CPU.Isolated = &isolated
 		}
+		if curr.Spec.CPU.Offlined != nil {
+			offlined := v1.CPUSet(*curr.Spec.CPU.Offlined)
+			dst.Spec.CPU.Offlined = &offlined
+		}
 		if curr.Spec.CPU.BalanceIsolated != nil {
 			dst.Spec.CPU.BalanceIsolated = pointer.BoolPtr(*curr.Spec.CPU.BalanceIsolated)
 		}

@@ -95,6 +95,9 @@ type CPU struct {
 	// Defaults to "true"
 	// +optional
 	BalanceIsolated *bool `json:"balanceIsolated,omitempty"`
+	// Offline to fill TODO mariofer
+	// +optional
+	Offlined *CPUSet `json:"offlined"`
 }
 
 // HugePageSize defines size of huge pages, can be 2M or 1G.
