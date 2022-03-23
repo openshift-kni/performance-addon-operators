@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/openshift-kni/performance-addon-operators/build/assets"
@@ -15,6 +16,7 @@ import (
 	igntypes "github.com/coreos/ignition/v2/config/v3_2/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/pointer"
 
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
@@ -48,6 +50,7 @@ const (
 	udevRpsRules       = "99-netdev-rps.rules"
 	// scripts
 	hugepagesAllocation = "hugepages-allocation"
+	addOfflineCpus      = "add-offline-cpus"
 	ociHooks            = "low-latency-hooks"
 	setRPSMask          = "set-rps-mask"
 )
@@ -79,6 +82,10 @@ const (
 )
 
 const (
+	environmentOfflineCpus = "OFFLINE_CPUS"
+)
+
+const (
 	templateReservedCpus = "ReservedCpus"
 )
 
@@ -106,6 +113,7 @@ func New(profile *performancev2.PerformanceProfile) (*machineconfigv1.MachineCon
 	if err != nil {
 		return nil, err
 	}
+
 	mc.Spec.Config = runtime.RawExtension{Raw: rawIgnition}
 
 	enableRTKernel := profile.Spec.RealTimeKernel != nil &&
@@ -139,7 +147,7 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 
 	// add script files under the node /usr/local/bin directory
 	mode := 0700
-	for _, script := range []string{hugepagesAllocation, ociHooks, setRPSMask} {
+	for _, script := range []string{hugepagesAllocation, ociHooks, setRPSMask, addOfflineCpus} {
 		dst := getBashScriptPath(script)
 		content, err := assets.Scripts.ReadFile(fmt.Sprintf("scripts/%s.sh", script))
 		if err != nil {
@@ -218,6 +226,24 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 		ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
 			Contents: &rpsService,
 			Name:     getSystemdService("update-rps@"),
+		})
+	}
+
+	if profile.Spec.CPU.Offlined != nil {
+		offlinedCPUSList, err := cpuset.Parse(string(*profile.Spec.CPU.Offlined))
+		if err != nil {
+			return nil, err
+		}
+		offlinedCPUSstring := stringSplit(offlinedCPUSList.ToSlice())
+		offlineCpusService, err := getSystemdContent(getOfflineCpus(offlinedCPUSstring))
+		if err != nil {
+			return nil, err
+		}
+
+		ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
+			Contents: &offlineCpusService,
+			Enabled:  pointer.BoolPtr(true),
+			Name:     getSystemdService(addOfflineCpus),
 		})
 	}
 
@@ -305,6 +331,27 @@ func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int3
 	}
 }
 
+func getOfflineCpus(offlineCpus string) []*unit.UnitOption {
+	return []*unit.UnitOption{
+		// [Unit]
+		// Description
+		unit.NewUnitOption(systemdSectionUnit, systemdDescription, fmt.Sprintf("OfflineCpus - offlined cpus: %s", offlineCpus)),
+		// Before
+		unit.NewUnitOption(systemdSectionUnit, systemdBefore, systemdServiceKubelet),
+		// Environment
+		unit.NewUnitOption(systemdSectionService, systemdEnvironment, getSystemdEnvironment(environmentOfflineCpus, offlineCpus)),
+		// Type
+		unit.NewUnitOption(systemdSectionService, systemdType, systemdServiceTypeOneshot),
+		// RemainAfterExit
+		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
+		// ExecStart
+		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(addOfflineCpus)),
+		// [Install]
+		// WantedBy
+		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
+	}
+}
+
 func getRPSUnitOptions(rpsMask string) []*unit.UnitOption {
 	cmd := fmt.Sprintf("%s %%i %s", getBashScriptPath(setRPSMask), rpsMask)
 	return []*unit.UnitOption{
@@ -351,4 +398,8 @@ func renderCrioConfigSnippet(profile *performancev2.PerformanceProfile, src stri
 	}
 
 	return crioConfig.Bytes(), nil
+}
+
+func stringSplit(cpuListSlice []int) string {
+	return strings.Trim(strings.Join(strings.Fields(fmt.Sprint(cpuListSlice)), ","), "[]")
 }

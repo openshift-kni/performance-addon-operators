@@ -95,7 +95,8 @@ metadata:
               "intel_idle.max_cstate=0"
             ],
             "cpu": {
-              "isolated": "2-3",
+              "isolated": "2",
+              "offlined": "3",
               "reserved": "0-1"
             },
             "hugepages": {

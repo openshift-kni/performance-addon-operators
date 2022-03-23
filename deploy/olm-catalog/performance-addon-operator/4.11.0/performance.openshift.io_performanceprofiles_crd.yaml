@@ -68,6 +68,9 @@ spec:
                       CPUs   2. The isolated CPUs field should be the complementary
                       to reserved CPUs field'
                     type: string
+                  offlined:
+                    description: Offline to fill TODO mariofer
+                    type: string
                   reserved:
                     description: Reserved defines a set of CPUs that will not be used
                       for any container workloads initiated by kubelet.
@@ -304,6 +307,9 @@ spec:
                       CPUs   2. The isolated CPUs field should be the complementary
                       to reserved CPUs field'
                     type: string
+                  offlined:
+                    description: Offline to fill TODO mariofer
+                    type: string
                   reserved:
                     description: Reserved defines a set of CPUs that will not be used
                       for any container workloads initiated by kubelet.
@@ -485,6 +491,9 @@ spec:
                       of reserved CPUs and isolated CPUs should include all online
                       CPUs   2. The isolated CPUs field should be the complementary
                       to reserved CPUs field'
+                    type: string
+                  offlined:
+                    description: Offline to fill TODO mariofer
                     type: string
                   reserved:
                     description: Reserved defines a set of CPUs that will not be used

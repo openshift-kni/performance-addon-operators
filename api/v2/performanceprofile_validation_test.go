@@ -20,9 +20,11 @@ const (
 	// HugePagesCount defines the huge page count used for tests
 	HugePagesCount = 4
 	// IsolatedCPUs defines the isolated CPU set used for tests
-	IsolatedCPUs = CPUSet("4-7")
+	IsolatedCPUs = CPUSet("4-6")
 	// ReservedCPUs defines the reserved CPU set used for tests
 	ReservedCPUs = CPUSet("0-3")
+	// ReservedCPUs defines the reserved CPU set used for tests
+	OfflinedCPUs = CPUSet("7")
 	// SingleNUMAPolicy defines the topologyManager policy used for tests
 	SingleNUMAPolicy = "single-numa-node"
 
@@ -48,6 +50,7 @@ func NewPerformanceProfile(name string) *PerformanceProfile {
 	size := HugePageSize1G
 	isolatedCPUs := IsolatedCPUs
 	reservedCPUs := ReservedCPUs
+	offlinedCPUs := OfflinedCPUs
 	numaPolicy := SingleNUMAPolicy
 
 	netDeviceName := NetDeviceName
@@ -64,6 +67,7 @@ func NewPerformanceProfile(name string) *PerformanceProfile {
 			CPU: &CPU{
 				Isolated: &isolatedCPUs,
 				Reserved: &reservedCPUs,
+				Offlined: &offlinedCPUs,
 			},
 			HugePages: &HugePages{
 				DefaultHugePagesSize: &size,

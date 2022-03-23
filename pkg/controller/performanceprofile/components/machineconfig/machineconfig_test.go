@@ -71,6 +71,7 @@ var _ = Describe("Machine Config", func() {
 
 		It("should add systemd unit to allocate hugepages", func() {
 			Expect(manifest).To(ContainSubstring(hugepagesAllocationService))
+			fmt.Printf("Mario %s", manifest)
 		})
 
 	})

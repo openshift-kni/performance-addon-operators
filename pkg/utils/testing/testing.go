@@ -12,12 +12,14 @@ import (
 const (
 	// HugePageSize defines the huge page size used for tests
 	HugePageSize = performancev2.HugePageSize("1G")
-	// HugePagesCount defines the huge page count used for tests
+	// HugePagesCount defines the huge page count used for testStringSplits
 	HugePagesCount = 4
 	// IsolatedCPUs defines the isolated CPU set used for tests
-	IsolatedCPUs = performancev2.CPUSet("4-7")
+	IsolatedCPUs = performancev2.CPUSet("4-5")
 	// ReservedCPUs defines the reserved CPU set used for tests
 	ReservedCPUs = performancev2.CPUSet("0-3")
+	// OfflinedCPUs defines the Offline CPU set used for tests
+	OfflinedCPUs = performancev2.CPUSet("6-7")
 	// SingleNUMAPolicy defines the topologyManager policy used for tests
 	SingleNUMAPolicy = "single-numa-node"
 
@@ -36,6 +38,7 @@ func NewPerformanceProfile(name string) *performancev2.PerformanceProfile {
 	size := HugePageSize
 	isolatedCPUs := IsolatedCPUs
 	reservedCPUs := ReservedCPUs
+	offlineCPUs := OfflinedCPUs
 	numaPolicy := SingleNUMAPolicy
 
 	return &performancev2.PerformanceProfile{
@@ -48,6 +51,7 @@ func NewPerformanceProfile(name string) *performancev2.PerformanceProfile {
 			CPU: &performancev2.CPU{
 				Isolated: &isolatedCPUs,
 				Reserved: &reservedCPUs,
+				Offlined: &offlineCPUs,
 			},
 			HugePages: &performancev2.HugePages{
 				DefaultHugePagesSize: &size,

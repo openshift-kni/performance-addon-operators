@@ -79,6 +79,7 @@ func CPUListToMaskList(cpulist string) (hexMask string, err error) {
 type CPULists struct {
 	reserved cpuset.CPUSet
 	isolated cpuset.CPUSet
+	offlined cpuset.CPUSet
 }
 
 // Intersect returns cpu ids found in both the provided cpuLists, if any
