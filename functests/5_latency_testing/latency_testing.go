@@ -35,6 +35,7 @@ const (
 	incorrectMsgPart2                  = " has incorrect value"
 	invalidNumber                      = " has an invalid number"
 	maxInt                             = "2147483647"
+	minimumCpuForOslat                 = "2"
 	mustBePositiveInt                  = ".*it must be a positive integer with maximum value of " + maxInt
 	mustBeNonNegativeInt               = ".*it must be a non-negative integer with maximum value of " + maxInt
 	incorrectCpuNumber                 = incorrectMsgPart1 + latencyTestCpus + incorrectMsgPart2 + mustBePositiveInt
@@ -62,7 +63,7 @@ const (
 	//skip messages regex
 	skipTestRun         = `Skip the latency test, the LATENCY_TEST_RUN set to false`
 	skipMaxLatency      = `no maximum latency value provided, skip buckets latency check`
-	skipOslatCpuNumber  = `Skip the oslat test, LATENCY_TEST_CPUS is less than the minimum CPUs amount`
+	skipOslatCpuNumber  = `Skip the oslat test, LATENCY_TEST_CPUS is less than the minimum CPUs amount ` + minimumCpuForOslat
 	skip                = `SUCCESS.*0 Passed.*0 Failed.*3 Skipped`
 	skipInsufficientCpu = `Insufficient cpu to run the test`
 
