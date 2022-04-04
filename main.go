@@ -17,10 +17,9 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"runtime"
-
 	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
@@ -28,10 +27,17 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/pkg/controller/performanceprofile/components"
 	"github.com/openshift-kni/performance-addon-operators/pkg/utils/leaderelection"
 	"github.com/openshift-kni/performance-addon-operators/version"
-	"github.com/spf13/cobra"
-
+	v1 "github.com/openshift/api/config/v1"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
+	"github.com/spf13/cobra"
+	"k8s.io/client-go/rest"
+	"os"
+	"os/signal"
+	"runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
+	"syscall"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -109,6 +115,52 @@ func newRootCommand() *cobra.Command {
 	return cmd
 }
 
+func sleepUntilTERM() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+
+	for {
+		select {
+		case sig := <-sigs:
+			if sig == syscall.SIGTERM {
+				signal.Stop(sigs)
+				klog.Info("SIGTERM caught")
+				break
+			}
+		}
+	}
+}
+
+func detectOCP411(cfg *rest.Config) {
+	// Detect cluster version
+	// and cease operation (do not die to avoid respawn) when on 4.11
+	// as the PAO logic is provided by NTO there
+	k8sclient, err := client.New(cfg, client.Options{})
+	if err != nil {
+		klog.Fatalf("could not detect cluster version: %v", err)
+	}
+
+	// Get OCP version objects (there should be just one)
+	clusterversionlist := v1.ClusterVersionList{}
+	ctx := context.Background()
+	err = k8sclient.List(ctx, &clusterversionlist)
+	if err != nil {
+		klog.Fatalf("could not detect cluster version: %v", err)
+	}
+	if len(clusterversionlist.Items) == 0 {
+		klog.Fatalf("could not detect cluster version: no version objects found")
+	}
+
+	// Detect 4.11
+	// The operator will not be installable on 4.12 so this is
+	// the only exception we need to check for
+	if strings.HasPrefix(clusterversionlist.Items[0].Spec.Channel, "4.11") {
+		klog.Error("This operator's functionality is provided by the Node Tuning Operator from now on. Hibernating.")
+		sleepUntilTERM()
+		os.Exit(0)
+	}
+}
+
 func runPAO() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -135,6 +187,8 @@ func runPAO() {
 
 	restConfig := ctrl.GetConfigOrDie()
 	le := leaderelection.GetLeaderElectionConfig(restConfig, enableLeaderElection)
+
+	detectOCP411(restConfig)
 
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		NewCache:           cache.MultiNamespacedCacheBuilder(namespaces),
