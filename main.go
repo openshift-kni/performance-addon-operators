@@ -20,6 +20,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"runtime"
+	"strings"
+	"syscall"
+
 	performancev1 "github.com/openshift-kni/performance-addon-operators/api/v1"
 	performancev1alpha1 "github.com/openshift-kni/performance-addon-operators/api/v1alpha1"
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
@@ -32,12 +38,7 @@ import (
 	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
-	"os"
-	"os/signal"
-	"runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
-	"syscall"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -120,13 +121,10 @@ func sleepUntilTERM() {
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
 
 	for {
-		select {
-		case sig := <-sigs:
-			if sig == syscall.SIGTERM {
-				signal.Stop(sigs)
-				klog.Info("SIGTERM caught")
-				break
-			}
+		if sig := <-sigs; sig == syscall.SIGTERM {
+			signal.Stop(sigs)
+			klog.Info("SIGTERM caught")
+			break
 		}
 	}
 }
@@ -143,8 +141,7 @@ func detectOCP411(cfg *rest.Config) {
 	// Get OCP version objects (there should be just one)
 	clusterversionlist := v1.ClusterVersionList{}
 	ctx := context.Background()
-	err = k8sclient.List(ctx, &clusterversionlist)
-	if err != nil {
+	if err := k8sclient.List(ctx, &clusterversionlist); err != nil {
 		klog.Fatalf("could not detect cluster version: %v", err)
 	}
 	if len(clusterversionlist.Items) == 0 {
