@@ -154,7 +154,7 @@ func detectOCP411(cfg *rest.Config) {
 	// Detect 4.11
 	// The operator will not be installable on 4.12 so this is
 	// the only exception we need to check for
-	if strings.HasPrefix(clusterversionlist.Items[0].Spec.Channel, "4.11") {
+	if strings.HasPrefix(clusterversionlist.Items[0].Status.Desired.Version, "4.11") {
 		klog.Error("This operator's functionality is provided by the Node Tuning Operator from now on. Hibernating.")
 		sleepUntilTERM()
 		os.Exit(0)
