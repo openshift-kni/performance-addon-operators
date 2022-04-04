@@ -135,7 +135,12 @@ func detectOCP411(cfg *rest.Config) {
 	// as the PAO logic is provided by NTO there
 	k8sclient, err := client.New(cfg, client.Options{})
 	if err != nil {
-		klog.Fatalf("could not detect cluster version: %v", err)
+		klog.Fatalf("could not detect cluster version: failed to create client: %v", err)
+	}
+
+	// Register OCP types to the client
+	if err := v1.Install(k8sclient.Scheme()); err != nil {
+		klog.Fatalf("could not detect cluster version: failed to register OCP types: %v", err)
 	}
 
 	// Get OCP version objects (there should be just one)
