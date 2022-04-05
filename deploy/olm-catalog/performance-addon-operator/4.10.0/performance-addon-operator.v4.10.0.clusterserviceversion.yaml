@@ -180,8 +180,8 @@ spec:
         - apiGroups:
           - config.openshift.io
           resources:
-          - infrastructures
           - clusterversions
+          - infrastructures
           verbs:
           - get
           - list

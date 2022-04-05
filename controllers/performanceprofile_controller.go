@@ -224,7 +224,7 @@ func validateUpdateEvent(e *event.UpdateEvent) bool {
 // +kubebuilder:rbac:groups=machineconfiguration.openshift.io,resources=machineconfigs;machineconfigpools;kubeletconfigs,verbs=*
 // +kubebuilder:rbac:groups=tuned.openshift.io,resources=tuneds;profiles,verbs=*
 // +kubebuilder:rbac:groups=node.k8s.io,resources=runtimeclasses,verbs=*
-// +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
+// +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures;clusterversions,verbs=get;list;watch
 // +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=core,resources=pods;services;services/finalizers;configmaps,verbs=*
 // +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=coordination.k8s.io,resources=leases,verbs=create;get;list;update
 // +kubebuilder:rbac:namespace="openshift-performance-addon-operator",groups=apps,resourceNames=performance-operator,resources=deployments/finalizers,verbs=update
