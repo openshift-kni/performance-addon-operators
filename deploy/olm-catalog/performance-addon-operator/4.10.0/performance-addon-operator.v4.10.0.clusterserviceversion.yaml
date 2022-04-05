@@ -181,6 +181,7 @@ spec:
           - config.openshift.io
           resources:
           - infrastructures
+          - clusterversions
           verbs:
           - get
           - list
