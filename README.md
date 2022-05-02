@@ -1,3 +1,11 @@
+**Staring from 4.11 and above, the following project components have been deprecated and moved under [Node Tuning Operator](https://github.com/openshift/cluster-node-tuning-operator):**
+- Performance Addon Operator, now [Performance Addon controller](https://github.com/openshift/cluster-node-tuning-operator/blob/master/docs/performanceprofile/performance_addon.md), a day-0 controller deployed with Node Tuning Operator.
+- [Performance profile creator](https://github.com/openshift/cluster-node-tuning-operator/blob/master/cmd/performance-profile-creator/README.md).
+- Render mode.
+
+**Must Gather is still maintained under this project.**\
+**Versions 4.10 and below are still supported in bugfix mode.**
+
 # Performance Addon Operator
 
 [![Drone.io Status](https://cloud.drone.io/api/badges/openshift-kni/performance-addon-operators/status.svg?ref=refs/heads/master)](https://cloud.drone.io/openshift-kni/performance-addon-operators/)
