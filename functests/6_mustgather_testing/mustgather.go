@@ -9,11 +9,11 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/nodes"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/pods"
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
-	performancev2 "github.com/openshift-kni/performance-addon-operators/pkg/apis/performance/v2"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
