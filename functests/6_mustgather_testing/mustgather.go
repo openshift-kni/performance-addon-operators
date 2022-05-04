@@ -86,13 +86,13 @@ var _ = Describe("Testing PAO Mustgather", func() {
 			profile, _ = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 			pod, err := pods.GetPerformanceOperatorPod()
 			Expect(err).ToNot(HaveOccurred(), "Failed to find the Performance Addon Operator pod")
-			ClusterSpecificFiles := []string{
+			clusterSpecificFiles := []string{
 				fmt.Sprintf("cluster-scoped-resources/machineconfiguration.openshift.io/machineconfigpools/%s.yaml", testutils.RoleWorker),
 				fmt.Sprintf("namespaces/openshift-cluster-node-tuning-operator/tuned.openshift.io/tuneds/openshift-node-performance-%s.yaml", profile.Name),
 				fmt.Sprintf("namespaces/openshift-performance-addon-operator/pods/%s/%s.yaml", pod.Name, pod.Name),
 				fmt.Sprintf("namespaces/openshift-performance-addon-operator/pods/%s/performance-operator/performance-operator/logs/current.log", pod.Name),
 			}
-			err := checkfilesExist(ClusterSpecificFiles)
+			err = checkfilesExist(clusterSpecificFiles)
 			Expect(err).To(BeNil())
 		})
 		It("[test_id:1113][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify node specific files exist", func() {
