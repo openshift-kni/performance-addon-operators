@@ -23,7 +23,7 @@ var mustGatherPath = os.Getenv("MUSTGATHER_DIR")
 var mustGatherFailed bool
 var mustGatherContentDir string
 
-var _ = Describe("Testing PAO Mustgather", func() {
+var _ = Describe("[rfe_id: 50649]Performance Addon Operator Must Gather", func() {
 	var profile *performancev2.PerformanceProfile
 	var workerRTNodes []corev1.Node
 	var err error
@@ -45,8 +45,8 @@ var _ = Describe("Testing PAO Mustgather", func() {
 		}
 
 	})
-	Context("Test Mustgather Directory", func() {
-		It("[test_id:1111][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify cluster generic files exist", func() {
+	Context("PAO Mustgather Tests", func() {
+		It("[test_id: 50650][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify Generic cluster resource definitions are captured", func() {
 			var genericFiles = []string{
 				"version",
 				"cluster-scoped-resources/config.openshift.io/featuregates/cluster.yaml",
@@ -82,7 +82,7 @@ var _ = Describe("Testing PAO Mustgather", func() {
 			Expect(err).To(BeNil())
 		})
 
-		It("[test_id:1112][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify cluster specific files exist", func() {
+		It("[test_id: 50651][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify PAO cluster resources are captured", func() {
 			profile, _ = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 			pod, err := pods.GetPerformanceOperatorPod()
 			Expect(err).ToNot(HaveOccurred(), "Failed to find the Performance Addon Operator pod")
@@ -95,7 +95,7 @@ var _ = Describe("Testing PAO Mustgather", func() {
 			err = checkfilesExist(clusterSpecificFiles)
 			Expect(err).To(BeNil())
 		})
-		It("[test_id:1113][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify node specific files exist", func() {
+		It("[test_id:50652][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify hardware related information are captured", func() {
 			workerRTNodes, err = nodes.GetByLabels(testutils.NodeSelectorLabels)
 			Expect(err).ToNot(HaveOccurred())
 			workerRTNodes, err = nodes.MatchingOptionalSelector(workerRTNodes)
@@ -112,7 +112,7 @@ var _ = Describe("Testing PAO Mustgather", func() {
 			}
 
 		})
-		It("[test_id:1114][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify machineconfig specific files exist", func() {
+		It("[test_id:50653][crit:high][vendor:cnf-qe@redhat.com][level:acceptance] Verify machineconfig resources are captured", func() {
 			mcpList := []string{"master", "worker", testutils.RoleWorkerCNF}
 			mcpFiles := make([]string, len(mcpList))
 			for _, mcp := range mcpList {
@@ -120,7 +120,6 @@ var _ = Describe("Testing PAO Mustgather", func() {
 			}
 			err := checkfilesExist(mcpFiles)
 			Expect(err).To(BeNil())
-
 		})
 
 	})
