@@ -73,6 +73,8 @@ var _ = Describe("[rfe_id: 50649]Performance Addon Operator Must Gather", func()
 				}
 				err = checkfilesExist(clusterSpecificFiles)
 				Expect(err).To(BeNil())
+			} else {
+				Skip("No Performance Profile found")
 			}
 			pod, err := pods.GetPerformanceOperatorPod()
 			if err == nil {
