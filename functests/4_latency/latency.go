@@ -89,6 +89,10 @@ var _ = Describe("[performance] Latency Test", func() {
 			Skip("Discovery mode enabled, performance profile not found")
 		}
 
+		if isOddCpuNumber(latencyTestCpus, profile) {
+			Skip("Skip the test, the requested number of CPUs should be even to avoid noisy neighbor situation")
+		}
+
 		profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -508,4 +512,13 @@ func removeLogfile(node *corev1.Node, logName string) {
 
 func isEqual(qty *resource.Quantity, amount int) bool {
 	return qty.CmpInt64(int64(amount)) == 0
+}
+
+func isOddCpuNumber(cpusNum int, profile *performancev2.PerformanceProfile) bool {
+	if cpusNum == defaultTestCpus {
+		isolatedCpus := cpuset.MustParse(string(*profile.Spec.CPU.Isolated))
+		isolatedCpusNum := isolatedCpus.Size() - 1
+		return isolatedCpusNum%2 != 0
+	}
+	return cpusNum%2 != 0
 }
