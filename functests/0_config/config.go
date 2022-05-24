@@ -45,7 +45,7 @@ var _ = Describe("[performance][config] Performance configuration", func() {
 	})
 
 	It("Should successfully deploy the performance profile", func() {
-
+		erformanceProfile := testProfile()
 		performanceProfile := testProfile()
 		profileAlreadyExists := false
 
