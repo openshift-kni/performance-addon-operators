@@ -89,12 +89,12 @@ var _ = Describe("[performance] Latency Test", func() {
 			Skip("Discovery mode enabled, performance profile not found")
 		}
 
+		profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
+		Expect(err).ToNot(HaveOccurred())
+
 		if isOddCpuNumber(latencyTestCpus, profile) {
 			Skip("Skip the test, the requested number of CPUs should be even to avoid noisy neighbor situation")
 		}
-
-		profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
-		Expect(err).ToNot(HaveOccurred())
 
 		workerRTNodes, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
 		Expect(err).ToNot(HaveOccurred())
