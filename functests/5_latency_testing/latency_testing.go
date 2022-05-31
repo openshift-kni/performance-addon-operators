@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
 )
 
@@ -145,9 +146,6 @@ var _ = table.DescribeTable("Test latency measurement tools tests", func(testGro
 					Expect(strings.Contains(string(output), argument)).To(BeTrue(), "The tool command didn't pass the argument %q", argument)
 				}
 			}
-		}
-		for _, msg := range test.outputMsgs {
-			Expect(string(output)).To(MatchRegexp(msg), "The output of the executed tool is not as expected")
 		}
 	}
 },
