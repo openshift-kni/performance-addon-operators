@@ -214,7 +214,7 @@ func getValidValuesTests(toolToTest string) []latencyTest {
 	if toolToTest == oslat {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "10", testMaxLatency: "1", oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "10", oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "10", testMaxLatency: guaranteedLatency, testCpus: "1", outputMsgs: []string{skip, skipOslatCpuNumber}, toolToTest: toolToTest})
+		//TODO: update isolated CPUs in PP to 1 and restore the original set post test
 	}
 	if toolToTest == cyclictest {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "10", testMaxLatency: "1", cyclictestMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
