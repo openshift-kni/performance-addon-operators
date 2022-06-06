@@ -62,6 +62,7 @@ do
     oc exec $pod -n perf-node-gather -- lspci -nvv > $NODE_PATH/lspci
     oc exec $pod -n perf-node-gather -- lscpu -e > $NODE_PATH/lscpu
     oc exec $pod -n perf-node-gather -- cat /proc/cmdline > $NODE_PATH/proc_cmdline
+    oc exec $pod -n perf-node-gather -- dmesg > $NODE_PATH/dmesg
     COLLECTABLE_NODES+=($node)
 
     oc exec $pod -n perf-node-gather -- gather_sysinfo --json cpuaff --procfs=/host/proc --sysfs=/host/sys > $NODE_PATH/cpu_affinities.json
