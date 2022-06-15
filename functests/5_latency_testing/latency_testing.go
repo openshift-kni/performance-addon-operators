@@ -13,7 +13,11 @@ import (
 	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
+	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
+	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
 	testlog "github.com/openshift-kni/performance-addon-operators/functests/utils/log"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/profiles"
+	"github.com/openshift-kni/performance-addon-operators/functests/utils/profilesupdate"
 )
 
 const (
@@ -63,13 +67,13 @@ const (
 	//hwlatdetect fail message regex
 	hwlatdetectFail = `Samples exceeding threshold: [^0]`
 	//skip messages regex
-	skipTestRun         = `Skip the latency test, the LATENCY_TEST_RUN set to false`
-	skipMaxLatency      = `no maximum latency value provided, skip buckets latency check`
-	skipOslatCpuNumber  = `Skip the oslat test, LATENCY_TEST_CPUS is less than the minimum CPUs amount ` + minimumCpuForOslat
-	skip                = `SUCCESS.*0 Passed.*0 Failed.*3 Skipped`
-	skipInsufficientCpu = `Insufficient cpu to run the test`
-	skipOddCpuNumber    = `Skip the test, the requested number of CPUs should be even to avoid noisy neighbor situation`
-
+	skipTestRun              = `Skip the latency test, the LATENCY_TEST_RUN set to false`
+	skipMaxLatency           = `no maximum latency value provided, skip buckets latency check`
+	skipOslatCpuNumber       = `Skip the oslat test, LATENCY_TEST_CPUS is less than the minimum CPUs amount ` + minimumCpuForOslat
+	skip                     = `SUCCESS.*0 Passed.*0 Failed.*3 Skipped`
+	skipInsufficientCpu      = `Insufficient cpu to run the test`
+	skipOddCpuNumber         = `Skip the test, the requested number of CPUs should be even to avoid noisy neighbor situation`
+	skipOslatForIsolatedCpus = `Skip the oslat test, the profile .* has less than 2 isolated CPUs`
 	//used values parameters
 	guaranteedLatency = "20000"
 	negativeTesting   = false
@@ -90,73 +94,109 @@ type latencyTest struct {
 	toolToTest            string
 }
 
-var _ = table.DescribeTable("Test latency measurement tools tests", func(testGroup []latencyTest, isPositiveTest bool) {
-	for _, test := range testGroup {
-		clearEnv()
-		testDescription := setEnvAndGetDescription(test)
-		By(testDescription)
-		if _, err := os.Stat("../../build/_output/bin/latency-e2e.test"); os.IsNotExist(err) {
-			Skip("The executable test file does not exist , skipping the test.")
-		}
-		output, err := exec.Command("../../build/_output/bin/latency-e2e.test", "-ginkgo.focus", test.toolToTest).Output()
-		if err != nil {
-			//we don't log Error level here because the test might be a negative check
-			testlog.Info(err.Error())
-		}
+var _ = Describe("Run tests of latency measurement tools with different values of latency environment variables", func() {
+	Context("Verify tests output with existed performance profile", func() {
+		table.DescribeTable("Test latency measurement tools tests", func(testGroup []latencyTest, isPositiveTest bool) {
+			for _, test := range testGroup {
+				clearEnv()
+				testDescription := setEnvAndGetDescription(test)
+				By(testDescription)
+				if _, err := os.Stat("../../build/_output/bin/latency-e2e.test"); os.IsNotExist(err) {
+					Skip("The executable test file does not exist , skipping the test.")
+				}
+				output, err := exec.Command("../../build/_output/bin/latency-e2e.test", "-ginkgo.focus", test.toolToTest).Output()
+				if err != nil {
+					//we don't log Error level here because the test might be a negative check
+					testlog.Info(err.Error())
+				}
 
-		ok, matchErr := regexp.MatchString(skipInsufficientCpu, string(output))
-		if matchErr != nil {
-			testlog.Error(matchErr.Error())
-		}
-		if ok {
-			testlog.Info(skipInsufficientCpu)
-			continue
-		}
+				ok, matchErr := regexp.MatchString(skipInsufficientCpu, string(output))
+				if matchErr != nil {
+					testlog.Error(matchErr.Error())
+				}
+				if ok {
+					testlog.Info(skipInsufficientCpu)
+					continue
+				}
 
-		if isPositiveTest {
-			if err != nil {
-				testlog.Error(err.Error())
-			}
-			Expect(string(output)).NotTo(MatchRegexp(unexpectedError), "Unexpected error was detected in a positive test")
-			//Check runtime argument in the pod's log only if the tool is expected to be executed
-			ok, matchErr := regexp.MatchString(success, string(output))
-			if matchErr != nil {
-				testlog.Error(matchErr.Error())
-			}
-			if ok {
-				//verify the command is executed with the expected args
-				//this lists of args depend on the ones the latency tool runners adds to tool command in cnf-features-deploy.
-				var passedArgs []string
-				switch test.toolToTest {
-				case oslat:
-					passedArgs = []string{"--duration " + test.testRuntime, "--rtprio ", "--cpu-list ", "--cpu-main-thread "}
-				case cyclictest:
-					passedArgs = []string{"--duration " + test.testRuntime, "--priority 95", "--threads ", "--affinity ", "--histogram ", "--interval ", "--mlockall ", "--quiet"}
-				case hwlatdetect:
-					thr := test.testMaxLatency
-					if test.hwlatdetectMaxLatency != "" {
-						thr = test.hwlatdetectMaxLatency
+				if isPositiveTest {
+					if err != nil {
+						testlog.Error(err.Error())
 					}
-					passedArgs = []string{"--duration " + test.testRuntime, "--threshold " + thr, "--hardlimit " + thr, "--window ", "--width "}
-				default:
-					testlog.Error("the tool to test was not set")
-				}
+					Expect(string(output)).NotTo(MatchRegexp(unexpectedError), "Unexpected error was detected in a positive test")
+					//Check runtime argument in the pod's log only if the tool is expected to be executed
+					ok, matchErr := regexp.MatchString(success, string(output))
+					if matchErr != nil {
+						testlog.Error(matchErr.Error())
+					}
+					if ok {
+						//verify the command is executed with the expected args
+						//this lists of args depend on the ones the latency tool runners adds to tool command in cnf-features-deploy.
+						var passedArgs []string
+						switch test.toolToTest {
+						case oslat:
+							passedArgs = []string{"--duration " + test.testRuntime, "--rtprio ", "--cpu-list ", "--cpu-main-thread "}
+						case cyclictest:
+							passedArgs = []string{"--duration " + test.testRuntime, "--priority 95", "--threads ", "--affinity ", "--histogram ", "--interval ", "--mlockall ", "--quiet"}
+						case hwlatdetect:
+							thr := test.testMaxLatency
+							if test.hwlatdetectMaxLatency != "" {
+								thr = test.hwlatdetectMaxLatency
+							}
+							passedArgs = []string{"--duration " + test.testRuntime, "--threshold " + thr, "--hardlimit " + thr, "--window ", "--width "}
+						default:
+							testlog.Error("the tool to test was not set")
+						}
 
-				for _, argument := range passedArgs {
-					Expect(strings.Contains(string(output), argument)).To(BeTrue(), "The tool command didn't pass the argument %q", argument)
+						for _, argument := range passedArgs {
+							Expect(strings.Contains(string(output), argument)).To(BeTrue(), "The tool command didn't pass the argument %q", argument)
+						}
+					}
 				}
 			}
-		}
-	}
-},
-	table.Entry("[test_id:42851] Latency tools shouldn't run with default environment variables values", []latencyTest{{outputMsgs: []string{skip, skipTestRun}}}, positiveTesting),
-	table.Entry("[test_id:42850] Oslat - Verify that the tool is working properly with valid environment variables values", getValidValuesTests(oslat), positiveTesting),
-	table.Entry("[test_id:42853] Oslat - Verify that the latency tool test should print an expected error message when passing invalid environment variables values", getNegativeTests(oslat), negativeTesting),
-	table.Entry("[test_id:42115] Cyclictest - Verify that the tool is working properly with valid environment variables values", getValidValuesTests(cyclictest), positiveTesting),
-	table.Entry("[test_id:42852] Cyclictest - Verify that the latency tool test should print an expected error message when passing invalid environment variables values", getNegativeTests(cyclictest), negativeTesting),
-	table.Entry("[test_id:42849] Hwlatdetect - Verify that the tool is working properly with valid environment variables values", getValidValuesTests(hwlatdetect), positiveTesting),
-	table.Entry("[test_id:42856] Hwlatdetect - Verify that the latency tool test should print an expected error message when passing invalid environment variables values", getNegativeTests(hwlatdetect), negativeTesting),
-)
+		},
+			table.Entry("[test_id:42851] Latency tools shouldn't run with default environment variables values", []latencyTest{{outputMsgs: []string{skip, skipTestRun}}}, positiveTesting),
+			table.Entry("[test_id:42850] Oslat - Verify that the tool is working properly with valid environment variables values", getValidValuesTests(oslat), positiveTesting),
+			table.Entry("[test_id:42853] Oslat - Verify that the latency tool test should print an expected error message when passing invalid environment variables values", getNegativeTests(oslat), negativeTesting),
+			table.Entry("[test_id:42115] Cyclictest - Verify that the tool is working properly with valid environment variables values", getValidValuesTests(cyclictest), positiveTesting),
+			table.Entry("[test_id:42852] Cyclictest - Verify that the latency tool test should print an expected error message when passing invalid environment variables values", getNegativeTests(cyclictest), negativeTesting),
+			table.Entry("[test_id:42849] Hwlatdetect - Verify that the tool is working properly with valid environment variables values", getValidValuesTests(hwlatdetect), positiveTesting),
+			table.Entry("[test_id:42856] Hwlatdetect - Verify that the latency tool test should print an expected error message when passing invalid environment variables values", getNegativeTests(hwlatdetect), negativeTesting),
+		)
+	})
+
+	Context("Verify tests output with updated performance profile", func() {
+		It("[test_id:52388] should skip oslat test when isolated CPUs amount is less than 2", func() {
+			profile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
+			Expect(err).ToNot(HaveOccurred())
+			initialIsolated := profile.Spec.CPU.Isolated
+			initialReserved := profile.Spec.CPU.Reserved
+			//updated both sets to ensure there is no overlap
+			latencyIsolatedSet := performancev2.CPUSet("1")
+			latencyReservedSet := performancev2.CPUSet("0")
+			profilesupdate.UpdateIsolatedReservedCpus(latencyIsolatedSet, latencyReservedSet)
+
+			defer func() {
+				//restore initial isolated
+				profilesupdate.UpdateIsolatedReservedCpus(*initialIsolated, *initialReserved)
+			}()
+			test := latencyTest{testRun: "true", testRuntime: "10", testMaxLatency: guaranteedLatency, outputMsgs: []string{skip, skipOslatForIsolatedCpus}, toolToTest: oslat}
+
+			clearEnv()
+			testDescription := setEnvAndGetDescription(test)
+			By(testDescription)
+			if _, err := os.Stat("../../build/_output/bin/latency-e2e.test"); os.IsNotExist(err) {
+				Skip("The executable test file does not exist , skipping the test.")
+			}
+			output, err := exec.Command("../../build/_output/bin/latency-e2e.test", "-ginkgo.focus", test.toolToTest).Output()
+			Expect(string(output)).NotTo(MatchRegexp(unexpectedError), "Unexpected error was detected in a positive test: %v", err)
+
+			for _, msg := range test.outputMsgs {
+				Expect(string(output)).To(MatchRegexp(msg), "The output of the executed tool is not as expected")
+			}
+		})
+	})
+})
 
 func setEnvAndGetDescription(tst latencyTest) string {
 	sb := bytes.NewBufferString("")
@@ -234,8 +274,6 @@ func getValidValuesTests(toolToTest string) []latencyTest {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: "1", oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
 		//TODO add tests when requested cpus for oslat is 2 once BZ 2055267 is resolved
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-		//TODO: update isolated CPUs in PP to 1 and restore the original set post test
-
 	}
 	if toolToTest == cyclictest {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: "1", cyclictestMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
