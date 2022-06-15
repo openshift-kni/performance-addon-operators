@@ -62,6 +62,7 @@ do
     oc exec $pod -n perf-node-gather -- lspci -nvv 2>/dev/null >> $NODE_PATH/lspci
     oc exec $pod -n perf-node-gather -- lscpu -e 2>/dev/null >> $NODE_PATH/lscpu
     oc exec $pod -n perf-node-gather -- cat /proc/cmdline 2>/dev/null >> $NODE_PATH/proc_cmdline
+    oc get pods -A --field-selector spec.nodeName=$node,status.phase=Running -o go-template='[{{range $idx, $item := .items}} {{if (ne $idx 0)}},{{end}}{"namespace":"{{.metadata.namespace}}", "name":"{{.metadata.name}}", "nodeName":"{{.spec.nodeName}}", "qosClass": "{{.status.qosClass}}" }{{"\n"}}{{end}}]' > $NODE_PATH/pods_info.json
     WORKER_NODES+=($node)
 done
 
