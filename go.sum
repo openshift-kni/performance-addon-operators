@@ -799,8 +799,8 @@ github.com/opencontainers/runtime-spec v1.0.3-0.20200929063507-e6143ca7d51d/go.m
 github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417/go.mod h1:jwyrGlmzljRJv/Fgzds9SsS/C5hL+LL3ko9hs6T5lQ0=
 github.com/opencontainers/selinux v1.5.2/go.mod h1:yTcKuYAh6R95iDpefGLQaPaRwJFwyzAJufJyiTt7s0g=
 github.com/opencontainers/selinux v1.8.2/go.mod h1:MUIHuUEvKB1wtJjQdOyYRgOnLD2xAPP8dBsCoU0KuF8=
-github.com/openshift-kni/debug-tools v0.1.3 h1:DYcF3ZMR5tJEO1smZMkW+lZ1fhnOcnttyqqewhPZ2g4=
-github.com/openshift-kni/debug-tools v0.1.3/go.mod h1:HW2qp9MZgRM8mmzEbWoeoJxQH7A0kbqOMzSa9/dktcQ=
+github.com/openshift-kni/debug-tools v0.1.7 h1:FCg1xY94Zi3WB04dMKZdTn/OVEsKYEwpVJfgdO+JbR4=
+github.com/openshift-kni/debug-tools v0.1.7/go.mod h1:oq0XTqe9bAYyQUXZdHwRmRrMqHZTEC+yuJbipYzvqvI=
 github.com/openshift/api v0.0.0-20210610130314-a6ac319a7eed h1:8Q94GlNfhBoMqQFw9gCNQ0Q9V1B+tw5VBn+M4e5ooaI=
 github.com/openshift/api v0.0.0-20210610130314-a6ac319a7eed/go.mod h1:izBmoXbUu3z5kUa4FjZhvekTsyzIWiOoaIgJiZBBMQs=
 github.com/openshift/build-machinery-go v0.0.0-20200211121458-5e3d6e570160/go.mod h1:1CkcsT3aVebzRBzVTSbiKSkJMsC/CASqxesfqEMfJEc=
@@ -891,6 +891,7 @@ github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQD
 github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd/go.mod h1:hPqNNc0+uJM6H+SuU8sEs5K5IQeKccPqeSjfgcKGgPk=
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
 github.com/ryanuber/go-glob v0.0.0-20170128012129-256dc444b735/go.mod h1:807d1WSdnB0XRJzKNil9Om6lcp/3a0v4qIHxIXzX/Yc=
+github.com/safchain/ethtool v0.2.0/go.mod h1:WkKB1DnNtvsMlDmQ50sgwowDJV/hGbJSOvJoEXs1AJQ=
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/seccomp/libseccomp-golang v0.9.1/go.mod h1:GbW5+tmTXfcxTToHLXlScSlAvWlF4P2Ca7zGrPiEpWo=
 github.com/securego/gosec v0.0.0-20191002120514-e680875ea14d/go.mod h1:w5+eXa0mYznDkHaMCXA4XYffjlH+cy1oyKbfzJXa2Do=
