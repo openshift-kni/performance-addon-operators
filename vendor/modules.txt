@@ -305,8 +305,8 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
-# github.com/openshift-kni/debug-tools v0.1.3
-## explicit; go 1.17
+# github.com/openshift-kni/debug-tools v0.1.7
+## explicit; go 1.18
 github.com/openshift-kni/debug-tools/pkg/fswrap
 github.com/openshift-kni/debug-tools/pkg/irqs
 github.com/openshift-kni/debug-tools/pkg/irqs/soft
