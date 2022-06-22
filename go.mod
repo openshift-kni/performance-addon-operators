@@ -79,6 +79,8 @@ replace (
 replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v14.2.0+incompatible
 	github.com/coreos/prometheus-operator => github.com/coreos/prometheus-operator v0.40.0
+	github.com/go-logr/logr => github.com/go-logr/logr v0.4.0
+	github.com/go-logr/zapr => github.com/go-logr/zapr v0.4.0
 	github.com/mtrmac/gpgme => github.com/mtrmac/gpgme v0.1.1
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20210610130314-a6ac319a7eed // release-4.8
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142 // release-4.8
@@ -87,6 +89,7 @@ replace (
 	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.1-0.20210701174259-29813c845a4a // release-4.8
 	github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.18.1
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
+	k8s.io/klog/v2 => k8s.io/klog/v2 v2.8.0
 )
 
 replace vbom.ml/util => github.com/fvbommel/util v0.0.0-20180919145318-efcd4e0f9787
