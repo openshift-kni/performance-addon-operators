@@ -13,7 +13,7 @@ require (
 	github.com/jaypipes/ghw v0.8.1-0.20210605191321-eb162add542b
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
-	github.com/openshift-kni/debug-tools v0.1.3
+	github.com/openshift-kni/debug-tools v0.1.4-0.20220622153847-4220a6115b28
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20200914165052-a39511828cf0
 	github.com/openshift/custom-resource-status v0.0.0-20200602122900-c002fd1547ca

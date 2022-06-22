@@ -26,7 +26,9 @@ type snapshotOptions struct {
 
 func main() {
 	root := cmd.NewRootCommand(newSnapshotCommand,
-		k8s.NewPodResourcesCommand)
+		k8s.NewPodResourcesCommand,
+		k8s.NewPodInfoCommand,
+	)
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
