@@ -19,13 +19,18 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: PerformanceProfile is the Schema for the performanceprofiles API
+        description: PerformanceProfile is the Schema for the performanceprofiles
+          API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -41,36 +46,67 @@ spec:
                 description: CPU defines a set of CPU related parameters.
                 properties:
                   balanceIsolated:
-                    description: BalanceIsolated toggles whether or not the Isolated CPU set is eligible for load balancing work loads. When this option is set to "false", the Isolated CPU set will be static, meaning workloads have to explicitly assign each thread to a specific cpu in order to work across multiple CPUs. Setting this to "true" allows workloads to be balanced across CPUs. Setting this to "false" offers the most predictable performance for guaranteed workloads, but it offloads the complexity of cpu load balancing to the application. Defaults to "true"
+                    description: BalanceIsolated toggles whether or not the Isolated
+                      CPU set is eligible for load balancing work loads. When this
+                      option is set to "false", the Isolated CPU set will be static,
+                      meaning workloads have to explicitly assign each thread to a
+                      specific cpu in order to work across multiple CPUs. Setting
+                      this to "true" allows workloads to be balanced across CPUs.
+                      Setting this to "false" offers the most predictable performance
+                      for guaranteed workloads, but it offloads the complexity of
+                      cpu load balancing to the application. Defaults to "true"
                     type: boolean
                   isolated:
-                    description: 'Isolated defines a set of CPUs that will be used to give to application threads the most execution time possible, which means removing as many extraneous tasks off a CPU as possible. It is important to notice the CPU manager can choose any CPU to run the workload except the reserved CPUs. In order to guarantee that your workload will run on the isolated CPU:   1. The union of reserved CPUs and isolated CPUs should include all online CPUs   2. The isolated CPUs field should be the complementary to reserved CPUs field Also note that non guaranteed workloads can run on Isolated CPU if it is not used by a guaranteed workload.'
+                    description: 'Isolated defines a set of CPUs that will be used
+                      to give to application threads the most execution time possible,
+                      which means removing as many extraneous tasks off a CPU as possible.
+                      It is important to notice the CPU manager can choose any CPU
+                      to run the workload except the reserved CPUs. In order to guarantee
+                      that your workload will run on the isolated CPU:   1. The union
+                      of reserved CPUs and isolated CPUs should include all online
+                      CPUs   2. The isolated CPUs field should be the complementary
+                      to reserved CPUs field Also note that non guaranteed workloads
+                      can run on Isolated CPU if it is not used by a guaranteed workload.'
                     type: string
                   reserved:
-                    description: Reserved defines a set of CPUs that will be used for interrupts, systemd services, OS and kernel processes.
+                    description: Reserved defines a set of CPUs that will be used
+                      for interrupts, systemd services, OS and kernel processes.
                     type: string
                 type: object
               hugepages:
-                description: HugePages defines a set of huge pages related parameters. It is possible to set huge pages with multiple size values at the same time. For example, hugepages can be set with 1G and 2M, both values will be set on the node by the performance-addon-operator. It is important to notice that setting hugepages default size to 1G will remove all 2M related folders from the node and it will be impossible to configure 2M hugepages under the node.
+                description: HugePages defines a set of huge pages related parameters.
+                  It is possible to set huge pages with multiple size values at the
+                  same time. For example, hugepages can be set with 1G and 2M, both
+                  values will be set on the node by the performance-addon-operator.
+                  It is important to notice that setting hugepages default size to
+                  1G will remove all 2M related folders from the node and it will
+                  be impossible to configure 2M hugepages under the node.
                 properties:
                   defaultHugepagesSize:
-                    description: DefaultHugePagesSize defines huge pages default size under kernel boot parameters.
+                    description: DefaultHugePagesSize defines huge pages default size
+                      under kernel boot parameters.
                     type: string
                   pages:
-                    description: Pages defines huge pages that we want to allocate at boot time.
+                    description: Pages defines huge pages that we want to allocate
+                      at boot time.
                     items:
-                      description: HugePage defines the number of allocated huge pages of the specific size.
+                      description: HugePage defines the number of allocated huge pages
+                        of the specific size.
                       properties:
                         count:
-                          description: Count defines amount of huge pages, maps to the 'hugepages' kernel boot parameter.
+                          description: Count defines amount of huge pages, maps to
+                            the 'hugepages' kernel boot parameter.
                           format: int32
                           type: integer
                         node:
-                          description: Node defines the NUMA node where hugepages will be allocated, if not specified, pages will be allocated equally between NUMA nodes
+                          description: Node defines the NUMA node where hugepages
+                            will be allocated, if not specified, pages will be allocated
+                            equally between NUMA nodes
                           format: int32
                           type: integer
                         size:
-                          description: Size defines huge page size, maps to the 'hugepagesz' kernel boot parameter.
+                          description: Size defines huge page size, maps to the 'hugepagesz'
+                            kernel boot parameter.
                           type: string
                       type: object
                     type: array
@@ -78,30 +114,43 @@ spec:
               machineConfigLabel:
                 additionalProperties:
                   type: string
-                description: MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile. Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+                description: MachineConfigLabel defines the label to add to the MachineConfigs
+                  the operator creates. It has to be used in the MachineConfigSelector
+                  of the MachineConfigPool which targets this performance profile.
+                  Defaults to "machineconfiguration.openshift.io/role=<same role as
+                  in NodeSelector label key>"
                 type: object
               machineConfigPoolSelector:
                 additionalProperties:
                   type: string
-                description: MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector of resources like KubeletConfigs created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+                description: MachineConfigPoolSelector defines the MachineConfigPool
+                  label to use in the MachineConfigPoolSelector of resources like
+                  KubeletConfigs created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same
+                  role as in NodeSelector label key>"
                 type: object
               nodeSelector:
                 additionalProperties:
                   type: string
-                description: NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator. It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool which targets this performance profile.
+                description: NodeSelector defines the Node label to use in the NodeSelectors
+                  of resources like Tuned created by the operator. It most likely
+                  should, but does not have to match the node label in the NodeSelector
+                  of the MachineConfigPool which targets this performance profile.
                 type: object
               numa:
                 description: NUMA defines options related to topology aware affinities
                 properties:
                   topologyPolicy:
-                    description: Name of the policy applied when TopologyManager is enabled Operator defaults to "best-effort"
+                    description: Name of the policy applied when TopologyManager is
+                      enabled Operator defaults to "best-effort"
                     type: string
                 type: object
               realTimeKernel:
-                description: RealTimeKernel defines a set of real time kernel related parameters. RT kernel won't be installed when not set.
+                description: RealTimeKernel defines a set of real time kernel related
+                  parameters. RT kernel won't be installed when not set.
                 properties:
                   enabled:
-                    description: Enabled defines if the real time kernel packages should be installed. Defaults to "false"
+                    description: Enabled defines if the real time kernel packages
+                      should be installed. Defaults to "false"
                     type: boolean
                 type: object
             type: object
@@ -109,9 +158,11 @@ spec:
             description: PerformanceProfileStatus defines the observed state of PerformanceProfile.
             properties:
               conditions:
-                description: Conditions represents the latest available observations of current state.
+                description: Conditions represents the latest available observations
+                  of current state.
                 items:
-                  description: Condition represents the state of the operator's reconciliation functionality.
+                  description: Condition represents the state of the operator's reconciliation
+                    functionality.
                   properties:
                     lastHeartbeatTime:
                       format: date-time
@@ -126,7 +177,8 @@ spec:
                     status:
                       type: string
                     type:
-                      description: ConditionType is the state of the operator's reconciliation functionality.
+                      description: ConditionType is the state of the operator's reconciliation
+                        functionality.
                       type: string
                   required:
                   - status
@@ -134,10 +186,12 @@ spec:
                   type: object
                 type: array
               runtimeClass:
-                description: RuntimeClass contains the name of the RuntimeClass resource created by the operator.
+                description: RuntimeClass contains the name of the RuntimeClass resource
+                  created by the operator.
                 type: string
               tuned:
-                description: Tuned points to the Tuned custom resource object that contains the tuning values generated by this operator.
+                description: Tuned points to the Tuned custom resource object that
+                  contains the tuning values generated by this operator.
                 type: string
             type: object
         type: object
@@ -148,13 +202,18 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: PerformanceProfile is the Schema for the performanceprofiles API
+        description: PerformanceProfile is the Schema for the performanceprofiles
+          API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -170,36 +229,66 @@ spec:
                 description: CPU defines a set of CPU related parameters.
                 properties:
                   balanceIsolated:
-                    description: BalanceIsolated toggles whether or not the Isolated CPU set is eligible for load balancing work loads. When this option is set to "false", the Isolated CPU set will be static, meaning workloads have to explicitly assign each thread to a specific cpu in order to work across multiple CPUs. Setting this to "true" allows workloads to be balanced across CPUs. Setting this to "false" offers the most predictable performance for guaranteed workloads, but it offloads the complexity of cpu load balancing to the application. Defaults to "true"
+                    description: BalanceIsolated toggles whether or not the Isolated
+                      CPU set is eligible for load balancing work loads. When this
+                      option is set to "false", the Isolated CPU set will be static,
+                      meaning workloads have to explicitly assign each thread to a
+                      specific cpu in order to work across multiple CPUs. Setting
+                      this to "true" allows workloads to be balanced across CPUs.
+                      Setting this to "false" offers the most predictable performance
+                      for guaranteed workloads, but it offloads the complexity of
+                      cpu load balancing to the application. Defaults to "true"
                     type: boolean
                   isolated:
-                    description: 'Isolated defines a set of CPUs that will be used to give to application threads the most execution time possible, which means removing as many extraneous tasks off a CPU as possible. It is important to notice the CPU manager can choose any CPU to run the workload except the reserved CPUs. In order to guarantee that your workload will run on the isolated CPU:   1. The union of reserved CPUs and isolated CPUs should include all online CPUs   2. The isolated CPUs field should be the complementary to reserved CPUs field'
+                    description: 'Isolated defines a set of CPUs that will be used
+                      to give to application threads the most execution time possible,
+                      which means removing as many extraneous tasks off a CPU as possible.
+                      It is important to notice the CPU manager can choose any CPU
+                      to run the workload except the reserved CPUs. In order to guarantee
+                      that your workload will run on the isolated CPU:   1. The union
+                      of reserved CPUs and isolated CPUs should include all online
+                      CPUs   2. The isolated CPUs field should be the complementary
+                      to reserved CPUs field'
                     type: string
                   reserved:
-                    description: Reserved defines a set of CPUs that will not be used for any container workloads initiated by kubelet.
+                    description: Reserved defines a set of CPUs that will not be used
+                      for any container workloads initiated by kubelet.
                     type: string
                 type: object
               hugepages:
-                description: HugePages defines a set of huge pages related parameters. It is possible to set huge pages with multiple size values at the same time. For example, hugepages can be set with 1G and 2M, both values will be set on the node by the performance-addon-operator. It is important to notice that setting hugepages default size to 1G will remove all 2M related folders from the node and it will be impossible to configure 2M hugepages under the node.
+                description: HugePages defines a set of huge pages related parameters.
+                  It is possible to set huge pages with multiple size values at the
+                  same time. For example, hugepages can be set with 1G and 2M, both
+                  values will be set on the node by the performance-addon-operator.
+                  It is important to notice that setting hugepages default size to
+                  1G will remove all 2M related folders from the node and it will
+                  be impossible to configure 2M hugepages under the node.
                 properties:
                   defaultHugepagesSize:
-                    description: DefaultHugePagesSize defines huge pages default size under kernel boot parameters.
+                    description: DefaultHugePagesSize defines huge pages default size
+                      under kernel boot parameters.
                     type: string
                   pages:
-                    description: Pages defines huge pages that we want to allocate at boot time.
+                    description: Pages defines huge pages that we want to allocate
+                      at boot time.
                     items:
-                      description: HugePage defines the number of allocated huge pages of the specific size.
+                      description: HugePage defines the number of allocated huge pages
+                        of the specific size.
                       properties:
                         count:
-                          description: Count defines amount of huge pages, maps to the 'hugepages' kernel boot parameter.
+                          description: Count defines amount of huge pages, maps to
+                            the 'hugepages' kernel boot parameter.
                           format: int32
                           type: integer
                         node:
-                          description: Node defines the NUMA node where hugepages will be allocated, if not specified, pages will be allocated equally between NUMA nodes
+                          description: Node defines the NUMA node where hugepages
+                            will be allocated, if not specified, pages will be allocated
+                            equally between NUMA nodes
                           format: int32
                           type: integer
                         size:
-                          description: Size defines huge page size, maps to the 'hugepagesz' kernel boot parameter.
+                          description: Size defines huge page size, maps to the 'hugepagesz'
+                            kernel boot parameter.
                           type: string
                       type: object
                     type: array
@@ -207,30 +296,43 @@ spec:
               machineConfigLabel:
                 additionalProperties:
                   type: string
-                description: MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile. Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+                description: MachineConfigLabel defines the label to add to the MachineConfigs
+                  the operator creates. It has to be used in the MachineConfigSelector
+                  of the MachineConfigPool which targets this performance profile.
+                  Defaults to "machineconfiguration.openshift.io/role=<same role as
+                  in NodeSelector label key>"
                 type: object
               machineConfigPoolSelector:
                 additionalProperties:
                   type: string
-                description: MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector of resources like KubeletConfigs created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+                description: MachineConfigPoolSelector defines the MachineConfigPool
+                  label to use in the MachineConfigPoolSelector of resources like
+                  KubeletConfigs created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same
+                  role as in NodeSelector label key>"
                 type: object
               nodeSelector:
                 additionalProperties:
                   type: string
-                description: NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator. It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool which targets this performance profile.
+                description: NodeSelector defines the Node label to use in the NodeSelectors
+                  of resources like Tuned created by the operator. It most likely
+                  should, but does not have to match the node label in the NodeSelector
+                  of the MachineConfigPool which targets this performance profile.
                 type: object
               numa:
                 description: NUMA defines options related to topology aware affinities
                 properties:
                   topologyPolicy:
-                    description: Name of the policy applied when TopologyManager is enabled Operator defaults to "best-effort"
+                    description: Name of the policy applied when TopologyManager is
+                      enabled Operator defaults to "best-effort"
                     type: string
                 type: object
               realTimeKernel:
-                description: RealTimeKernel defines a set of real time kernel related parameters. RT kernel won't be installed when not set.
+                description: RealTimeKernel defines a set of real time kernel related
+                  parameters. RT kernel won't be installed when not set.
                 properties:
                   enabled:
-                    description: Enabled defines if the real time kernel packages should be installed. Defaults to "false"
+                    description: Enabled defines if the real time kernel packages
+                      should be installed. Defaults to "false"
                     type: boolean
                 type: object
             type: object
@@ -238,9 +340,11 @@ spec:
             description: PerformanceProfileStatus defines the observed state of PerformanceProfile.
             properties:
               conditions:
-                description: Conditions represents the latest available observations of current state.
+                description: Conditions represents the latest available observations
+                  of current state.
                 items:
-                  description: Condition represents the state of the operator's reconciliation functionality.
+                  description: Condition represents the state of the operator's reconciliation
+                    functionality.
                   properties:
                     lastHeartbeatTime:
                       format: date-time
@@ -255,7 +359,8 @@ spec:
                     status:
                       type: string
                     type:
-                      description: ConditionType is the state of the operator's reconciliation functionality.
+                      description: ConditionType is the state of the operator's reconciliation
+                        functionality.
                       type: string
                   required:
                   - status
@@ -263,10 +368,12 @@ spec:
                   type: object
                 type: array
               runtimeClass:
-                description: RuntimeClass contains the name of the RuntimeClass resource created by the operator.
+                description: RuntimeClass contains the name of the RuntimeClass resource
+                  created by the operator.
                 type: string
               tuned:
-                description: Tuned points to the Tuned custom resource object that contains the tuning values generated by this operator.
+                description: Tuned points to the Tuned custom resource object that
+                  contains the tuning values generated by this operator.
                 type: string
             type: object
         type: object
@@ -277,13 +384,18 @@ spec:
   - name: v2
     schema:
       openAPIV3Schema:
-        description: PerformanceProfile is the Schema for the performanceprofiles API
+        description: PerformanceProfile is the Schema for the performanceprofiles
+          API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -299,42 +411,78 @@ spec:
                 description: CPU defines a set of CPU related parameters.
                 properties:
                   balanceIsolated:
-                    description: BalanceIsolated toggles whether or not the Isolated CPU set is eligible for load balancing work loads. When this option is set to "false", the Isolated CPU set will be static, meaning workloads have to explicitly assign each thread to a specific cpu in order to work across multiple CPUs. Setting this to "true" allows workloads to be balanced across CPUs. Setting this to "false" offers the most predictable performance for guaranteed workloads, but it offloads the complexity of cpu load balancing to the application. Defaults to "true"
+                    description: BalanceIsolated toggles whether or not the Isolated
+                      CPU set is eligible for load balancing work loads. When this
+                      option is set to "false", the Isolated CPU set will be static,
+                      meaning workloads have to explicitly assign each thread to a
+                      specific cpu in order to work across multiple CPUs. Setting
+                      this to "true" allows workloads to be balanced across CPUs.
+                      Setting this to "false" offers the most predictable performance
+                      for guaranteed workloads, but it offloads the complexity of
+                      cpu load balancing to the application. Defaults to "true"
                     type: boolean
                   isolated:
-                    description: 'Isolated defines a set of CPUs that will be used to give to application threads the most execution time possible, which means removing as many extraneous tasks off a CPU as possible. It is important to notice the CPU manager can choose any CPU to run the workload except the reserved CPUs. In order to guarantee that your workload will run on the isolated CPU:   1. The union of reserved CPUs and isolated CPUs should include all online CPUs   2. The isolated CPUs field should be the complementary to reserved CPUs field'
+                    description: 'Isolated defines a set of CPUs that will be used
+                      to give to application threads the most execution time possible,
+                      which means removing as many extraneous tasks off a CPU as possible.
+                      It is important to notice the CPU manager can choose any CPU
+                      to run the workload except the reserved CPUs. In order to guarantee
+                      that your workload will run on the isolated CPU:   1. The union
+                      of reserved CPUs and isolated CPUs should include all online
+                      CPUs   2. The isolated CPUs field should be the complementary
+                      to reserved CPUs field'
                     type: string
                   reserved:
-                    description: Reserved defines a set of CPUs that will not be used for any container workloads initiated by kubelet.
+                    description: Reserved defines a set of CPUs that will not be used
+                      for any container workloads initiated by kubelet.
                     type: string
                 required:
                 - isolated
                 - reserved
                 type: object
               globallyDisableIrqLoadBalancing:
-                description: GloballyDisableIrqLoadBalancing toggles whether IRQ load balancing will be disabled for the Isolated CPU set. When the option is set to "true" it disables IRQs load balancing for the Isolated CPU set. Setting the option to "false" allows the IRQs to be balanced across all CPUs, however the IRQs load balancing can be disabled per pod CPUs when using irq-load-balancing.crio.io/cpu-quota.crio.io annotations. Defaults to "false"
+                description: GloballyDisableIrqLoadBalancing toggles whether IRQ load
+                  balancing will be disabled for the Isolated CPU set. When the option
+                  is set to "true" it disables IRQs load balancing for the Isolated
+                  CPU set. Setting the option to "false" allows the IRQs to be balanced
+                  across all CPUs, however the IRQs load balancing can be disabled
+                  per pod CPUs when using irq-load-balancing.crio.io/cpu-quota.crio.io
+                  annotations. Defaults to "false"
                 type: boolean
               hugepages:
-                description: HugePages defines a set of huge pages related parameters. It is possible to set huge pages with multiple size values at the same time. For example, hugepages can be set with 1G and 2M, both values will be set on the node by the performance-addon-operator. It is important to notice that setting hugepages default size to 1G will remove all 2M related folders from the node and it will be impossible to configure 2M hugepages under the node.
+                description: HugePages defines a set of huge pages related parameters.
+                  It is possible to set huge pages with multiple size values at the
+                  same time. For example, hugepages can be set with 1G and 2M, both
+                  values will be set on the node by the performance-addon-operator.
+                  It is important to notice that setting hugepages default size to
+                  1G will remove all 2M related folders from the node and it will
+                  be impossible to configure 2M hugepages under the node.
                 properties:
                   defaultHugepagesSize:
-                    description: DefaultHugePagesSize defines huge pages default size under kernel boot parameters.
+                    description: DefaultHugePagesSize defines huge pages default size
+                      under kernel boot parameters.
                     type: string
                   pages:
-                    description: Pages defines huge pages that we want to allocate at boot time.
+                    description: Pages defines huge pages that we want to allocate
+                      at boot time.
                     items:
-                      description: HugePage defines the number of allocated huge pages of the specific size.
+                      description: HugePage defines the number of allocated huge pages
+                        of the specific size.
                       properties:
                         count:
-                          description: Count defines amount of huge pages, maps to the 'hugepages' kernel boot parameter.
+                          description: Count defines amount of huge pages, maps to
+                            the 'hugepages' kernel boot parameter.
                           format: int32
                           type: integer
                         node:
-                          description: Node defines the NUMA node where hugepages will be allocated, if not specified, pages will be allocated equally between NUMA nodes
+                          description: Node defines the NUMA node where hugepages
+                            will be allocated, if not specified, pages will be allocated
+                            equally between NUMA nodes
                           format: int32
                           type: integer
                         size:
-                          description: Size defines huge page size, maps to the 'hugepagesz' kernel boot parameter.
+                          description: Size defines huge page size, maps to the 'hugepagesz'
+                            kernel boot parameter.
                           type: string
                       type: object
                     type: array
@@ -342,53 +490,76 @@ spec:
               machineConfigLabel:
                 additionalProperties:
                   type: string
-                description: MachineConfigLabel defines the label to add to the MachineConfigs the operator creates. It has to be used in the MachineConfigSelector of the MachineConfigPool which targets this performance profile. Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+                description: MachineConfigLabel defines the label to add to the MachineConfigs
+                  the operator creates. It has to be used in the MachineConfigSelector
+                  of the MachineConfigPool which targets this performance profile.
+                  Defaults to "machineconfiguration.openshift.io/role=<same role as
+                  in NodeSelector label key>"
                 type: object
               machineConfigPoolSelector:
                 additionalProperties:
                   type: string
-                description: MachineConfigPoolSelector defines the MachineConfigPool label to use in the MachineConfigPoolSelector of resources like KubeletConfigs created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same role as in NodeSelector label key>"
+                description: MachineConfigPoolSelector defines the MachineConfigPool
+                  label to use in the MachineConfigPoolSelector of resources like
+                  KubeletConfigs created by the operator. Defaults to "machineconfiguration.openshift.io/role=<same
+                  role as in NodeSelector label key>"
                 type: object
               net:
                 description: Net defines a set of network related features
                 properties:
                   devices:
-                    description: Devices contains a list of network device representations that will be set with a netqueue count equal to CPU.Reserved . If no devices are specified then the default is all devices.
+                    description: Devices contains a list of network device representations
+                      that will be set with a netqueue count equal to CPU.Reserved
+                      . If no devices are specified then the default is all devices.
                     items:
-                      description: 'Device defines a way to represent a network device in several options: device name, vendor ID, model ID, PCI path and MAC address'
+                      description: 'Device defines a way to represent a network device
+                        in several options: device name, vendor ID, model ID, PCI
+                        path and MAC address'
                       properties:
                         deviceID:
-                          description: Network device ID (model) represnted as a 16 bit hexmadecimal number.
+                          description: Network device ID (model) represnted as a 16
+                            bit hexmadecimal number.
                           type: string
                         interfaceName:
-                          description: Network device name to be matched. It uses a syntax of shell-style wildcards which are either positive or negative.
+                          description: Network device name to be matched. It uses
+                            a syntax of shell-style wildcards which are either positive
+                            or negative.
                           type: string
                         vendorID:
-                          description: Network device vendor ID represnted as a 16 bit Hexmadecimal number.
+                          description: Network device vendor ID represnted as a 16
+                            bit Hexmadecimal number.
                           type: string
                       type: object
                     type: array
                   userLevelNetworking:
-                    description: UserLevelNetworking when enabled - sets either all or specified network devices queue size to the amount of reserved CPUs. Defaults to "false".
+                    description: UserLevelNetworking when enabled - sets either all
+                      or specified network devices queue size to the amount of reserved
+                      CPUs. Defaults to "false".
                     type: boolean
                 type: object
               nodeSelector:
                 additionalProperties:
                   type: string
-                description: NodeSelector defines the Node label to use in the NodeSelectors of resources like Tuned created by the operator. It most likely should, but does not have to match the node label in the NodeSelector of the MachineConfigPool which targets this performance profile.
+                description: NodeSelector defines the Node label to use in the NodeSelectors
+                  of resources like Tuned created by the operator. It most likely
+                  should, but does not have to match the node label in the NodeSelector
+                  of the MachineConfigPool which targets this performance profile.
                 type: object
               numa:
                 description: NUMA defines options related to topology aware affinities
                 properties:
                   topologyPolicy:
-                    description: Name of the policy applied when TopologyManager is enabled Operator defaults to "best-effort"
+                    description: Name of the policy applied when TopologyManager is
+                      enabled Operator defaults to "best-effort"
                     type: string
                 type: object
               realTimeKernel:
-                description: RealTimeKernel defines a set of real time kernel related parameters. RT kernel won't be installed when not set.
+                description: RealTimeKernel defines a set of real time kernel related
+                  parameters. RT kernel won't be installed when not set.
                 properties:
                   enabled:
-                    description: Enabled defines if the real time kernel packages should be installed. Defaults to "false"
+                    description: Enabled defines if the real time kernel packages
+                      should be installed. Defaults to "false"
                     type: boolean
                 type: object
             required:
@@ -399,9 +570,11 @@ spec:
             description: PerformanceProfileStatus defines the observed state of PerformanceProfile.
             properties:
               conditions:
-                description: Conditions represents the latest available observations of current state.
+                description: Conditions represents the latest available observations
+                  of current state.
                 items:
-                  description: Condition represents the state of the operator's reconciliation functionality.
+                  description: Condition represents the state of the operator's reconciliation
+                    functionality.
                   properties:
                     lastHeartbeatTime:
                       format: date-time
@@ -416,7 +589,8 @@ spec:
                     status:
                       type: string
                     type:
-                      description: ConditionType is the state of the operator's reconciliation functionality.
+                      description: ConditionType is the state of the operator's reconciliation
+                        functionality.
                       type: string
                   required:
                   - status
@@ -424,10 +598,12 @@ spec:
                   type: object
                 type: array
               runtimeClass:
-                description: RuntimeClass contains the name of the RuntimeClass resource created by the operator.
+                description: RuntimeClass contains the name of the RuntimeClass resource
+                  created by the operator.
                 type: string
               tuned:
-                description: Tuned points to the Tuned custom resource object that contains the tuning values generated by this operator.
+                description: Tuned points to the Tuned custom resource object that
+                  contains the tuning values generated by this operator.
                 type: string
             type: object
         type: object
