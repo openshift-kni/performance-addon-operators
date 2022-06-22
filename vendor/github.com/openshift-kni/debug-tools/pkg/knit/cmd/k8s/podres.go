@@ -14,7 +14,7 @@
  * Copyright 2020 Red Hat, Inc.
  */
 
-package cmd
+package k8s
 
 import (
 	"context"
@@ -26,6 +26,8 @@ import (
 
 	kubeletpodresourcesv1 "k8s.io/kubelet/pkg/apis/podresources/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"
+
+	"github.com/openshift-kni/debug-tools/pkg/knit/cmd"
 )
 
 // see k/k/test/e2e_node/util.go
@@ -41,7 +43,7 @@ type podResOptions struct {
 	socketPath string
 }
 
-func NewPodResourcesCommand(knitOpts *KnitOptions) *cobra.Command {
+func NewPodResourcesCommand(knitOpts *cmd.KnitOptions) *cobra.Command {
 	opts := &podResOptions{}
 	podRes := &cobra.Command{
 		Use:   "podres",

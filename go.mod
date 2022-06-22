@@ -19,7 +19,7 @@ require (
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
-	github.com/openshift-kni/debug-tools v0.0.0-20210315132340-1e9bf93e0a88
+	github.com/openshift-kni/debug-tools v0.0.0-20220621140421-49b5d37621ff
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20200914165052-a39511828cf0
 	github.com/openshift/custom-resource-status v0.0.0-20200602122900-c002fd1547ca
@@ -31,7 +31,6 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	go.mongodb.org/mongo-driver v1.5.1 // indirect
-	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	k8s.io/api v0.21.2
 	k8s.io/apiextensions-apiserver v0.21.2
 	k8s.io/apimachinery v0.21.2
@@ -39,7 +38,7 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/kubelet v0.21.2
 	k8s.io/kubernetes v0.21.2
-	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b
+	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 	kubevirt.io/qe-tools v0.1.6
 	sigs.k8s.io/controller-runtime v0.6.2
 	sigs.k8s.io/controller-tools v0.4.0
@@ -80,6 +79,8 @@ replace (
 replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v14.2.0+incompatible
 	github.com/coreos/prometheus-operator => github.com/coreos/prometheus-operator v0.40.0
+	github.com/go-logr/logr => github.com/go-logr/logr v0.4.0
+	github.com/go-logr/zapr => github.com/go-logr/zapr v0.4.0
 	github.com/mtrmac/gpgme => github.com/mtrmac/gpgme v0.1.1
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20210610130314-a6ac319a7eed // release-4.8
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142 // release-4.8
@@ -88,6 +89,7 @@ replace (
 	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.1-0.20210701174259-29813c845a4a // release-4.8
 	github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.18.1
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
+	k8s.io/klog/v2 => k8s.io/klog/v2 v2.8.0
 )
 
 replace vbom.ml/util => github.com/fvbommel/util v0.0.0-20180919145318-efcd4e0f9787
