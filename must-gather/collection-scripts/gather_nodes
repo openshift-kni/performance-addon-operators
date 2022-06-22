@@ -72,7 +72,7 @@ do
 
     oc exec $pod -n perf-node-gather -- gather_sysinfo snapshot --debug --root=/host --output=- > $NODE_PATH/sysinfo.tgz 2> $NODE_PATH/sysinfo.log
 
-    oc get pods -A --field-selector spec.nodeName=$node,status.phase=Running -o go-template='[{{range $idx, $item := .items}} {{if (ne $idx 0)}},{{end}}{"namespace":"{{.metadata.namespace}}", "name":"{{.metadata.name}}", "nodeName":"{{.spec.nodeName}}", "qosClass": "{{.status.qosClass}}" }{{"\n"}}{{end}}]' > $NODE_PATH/pods_info.json
+    oc exec $pod -n perf-node-gather -- gather_sysinfo podinfo --node-name $node > $NODE_PATH/pods_info.json
 done
 
 # Collect journal logs for specified units for all nodes
