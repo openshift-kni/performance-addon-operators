@@ -140,12 +140,12 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 	// add script files under the node /usr/local/bin directory
 	mode := 0700
 	for _, script := range []string{hugepagesAllocation, ociHooks, setRPSMask} {
-		dst := getBashScriptPath(script)
+		dst := GetBashScriptPath(script)
 		content, err := assets.Scripts.ReadFile(fmt.Sprintf("scripts/%s.sh", script))
 		if err != nil {
 			return nil, err
 		}
-		addContent(ignitionConfig, content, dst, &mode)
+		AddContent(ignitionConfig, content, dst, &mode)
 	}
 
 	// add crio config snippet under the node /etc/crio/crio.conf.d/ directory
@@ -155,7 +155,7 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 		return nil, err
 	}
 	crioConfSnippetDst := filepath.Join(crioConfd, crioRuntimesConfig)
-	addContent(ignitionConfig, crioConfigSnippetContent, crioConfSnippetDst, &crioConfdRuntimesMode)
+	AddContent(ignitionConfig, crioConfigSnippetContent, crioConfSnippetDst, &crioConfdRuntimesMode)
 
 	// add crio hooks config  under the node cri-o hook directory
 	crioHooksConfigsMode := 0644
@@ -164,7 +164,7 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 		return nil, err
 	}
 	ociHookConfigDst := filepath.Join(OCIHooksConfigDir, OCIHooksConfig)
-	addContent(ignitionConfig, ociHooksConfigContent, ociHookConfigDst, &crioHooksConfigsMode)
+	AddContent(ignitionConfig, ociHooksConfigContent, ociHookConfigDst, &crioHooksConfigsMode)
 
 	// add rps udev rule
 	rpsRulesMode := 0644
@@ -173,7 +173,7 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 		return nil, err
 	}
 	rpsRulesDst := filepath.Join(udevRulesDir, udevRpsRules)
-	addContent(ignitionConfig, rpsRulesContent, rpsRulesDst, &rpsRulesMode)
+	AddContent(ignitionConfig, rpsRulesContent, rpsRulesDst, &rpsRulesMode)
 
 	if profile.Spec.HugePages != nil {
 		for _, page := range profile.Spec.HugePages.Pages {
@@ -187,7 +187,7 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 				return nil, err
 			}
 
-			hugepagesService, err := getSystemdContent(getHugepagesAllocationUnitOptions(
+			hugepagesService, err := GetSystemdContent(GetHugepagesAllocationUnitOptions(
 				hugepagesSize,
 				page.Count,
 				*page.Node,
@@ -199,7 +199,7 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 			ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
 				Contents: &hugepagesService,
 				Enabled:  pointer.BoolPtr(true),
-				Name:     getSystemdService(fmt.Sprintf("%s-%skB-NUMA%d", hugepagesAllocation, hugepagesSize, *page.Node)),
+				Name:     GetSystemdService(fmt.Sprintf("%s-%skB-NUMA%d", hugepagesAllocation, hugepagesSize, *page.Node)),
 			})
 		}
 	}
@@ -210,21 +210,22 @@ func getIgnitionConfig(profile *performancev2.PerformanceProfile) (*igntypes.Con
 			return nil, err
 		}
 
-		rpsService, err := getSystemdContent(getRPSUnitOptions(rpsMask))
+		rpsService, err := GetSystemdContent(getRPSUnitOptions(rpsMask))
 		if err != nil {
 			return nil, err
 		}
 
 		ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
 			Contents: &rpsService,
-			Name:     getSystemdService("update-rps@"),
+			Name:     GetSystemdService("update-rps@"),
 		})
 	}
 
 	return ignitionConfig, nil
 }
 
-func getBashScriptPath(scriptName string) string {
+//GetBashScriptPath returns the script path containing teh directory and the script name
+func GetBashScriptPath(scriptName string) string {
 	return fmt.Sprintf("%s/%s.sh", bashScriptsDir, scriptName)
 }
 
@@ -232,11 +233,13 @@ func getSystemdEnvironment(key string, value string) string {
 	return fmt.Sprintf("%s=%s", key, value)
 }
 
-func getSystemdService(serviceName string) string {
+//GetSystemdService returns the service name in systemd
+func GetSystemdService(serviceName string) string {
 	return fmt.Sprintf("%s.service", serviceName)
 }
 
-func getSystemdContent(options []*unit.UnitOption) (string, error) {
+//GetSystemdContent get systemd content from list of unit options
+func GetSystemdContent(options []*unit.UnitOption) (string, error) {
 	outReader := unit.Serialize(options)
 	outBytes, err := ioutil.ReadAll(outReader)
 	if err != nil {
@@ -281,7 +284,8 @@ func GetHugepagesSizeKilobytes(hugepagesSize performancev2.HugePageSize) (string
 	}
 }
 
-func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int32, numaNode int32) []*unit.UnitOption {
+//GetHugepagesAllocationUnitOptions returns list of unit options based on the settings of the hugepage
+func GetHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int32, numaNode int32) []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
@@ -298,7 +302,7 @@ func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int3
 		// RemainAfterExit
 		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
 		// ExecStart
-		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(hugepagesAllocation)),
+		unit.NewUnitOption(systemdSectionService, systemdExecStart, GetBashScriptPath(hugepagesAllocation)),
 		// [Install]
 		// WantedBy
 		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
@@ -306,7 +310,7 @@ func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int3
 }
 
 func getRPSUnitOptions(rpsMask string) []*unit.UnitOption {
-	cmd := fmt.Sprintf("%s %%i %s", getBashScriptPath(setRPSMask), rpsMask)
+	cmd := fmt.Sprintf("%s %%i %s", GetBashScriptPath(setRPSMask), rpsMask)
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
@@ -319,7 +323,8 @@ func getRPSUnitOptions(rpsMask string) []*unit.UnitOption {
 	}
 }
 
-func addContent(ignitionConfig *igntypes.Config, content []byte, dst string, mode *int) {
+//AddContent appends more content to the ignition configuration
+func AddContent(ignitionConfig *igntypes.Config, content []byte, dst string, mode *int) {
 	contentBase64 := base64.StdEncoding.EncodeToString(content)
 	ignitionConfig.Storage.Files = append(ignitionConfig.Storage.Files, igntypes.File{
 		Node: igntypes.Node{

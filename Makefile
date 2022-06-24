@@ -76,6 +76,11 @@ dist-gather-sysinfo: build-output-dir
 		echo "Using pre-built gather-sysinfo helper";\
 	fi
 
+.PHONY: dist-hugepages-mc-genarator
+dist-hugepages-mc-genarator: build-output-dir
+	echo "Building hugepages machineconfig genarator tool";\
+	env GOOS=$(TARGET_GOOS) GOARCH=$(TARGET_GOARCH) go build -ldflags="-s -w" -mod=vendor -o $(TOOLS_BIN_DIR)/hugepages-machineconfig-generator ./tools/hugepages-machineconfig-generator
+
 .PHONY: dist-csv-processor
 dist-csv-processor: build-output-dir
 	@if [ ! -x $(TOOLS_BIN_DIR)/csv-processor ]; then\
