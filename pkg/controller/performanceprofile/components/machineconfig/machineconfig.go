@@ -140,7 +140,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 	mode := 0700
 	for _, script := range []string{hugepagesAllocation, ociHooks, setRPSMask} {
 		src := filepath.Join(assetsDir, "scripts", fmt.Sprintf("%s.sh", script))
-		if err := addFile(ignitionConfig, src, getBashScriptPath(script), &mode); err != nil {
+		if err := addFile(ignitionConfig, src, GetBashScriptPath(script), &mode); err != nil {
 			return nil, err
 		}
 	}
@@ -152,7 +152,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 		return nil, err
 	}
 
-	if err := addContent(
+	if err := AddContent(
 		ignitionConfig,
 		crioConfigSnippetContent,
 		filepath.Join(crioConfd, crioRuntimesConfig),
@@ -169,7 +169,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 		return nil, err
 	}
 
-	if err := addContent(
+	if err := AddContent(
 		ignitionConfig,
 		ociHooksConfigContent,
 		filepath.Join(OCIHooksConfigDir, config),
@@ -208,7 +208,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 				return nil, err
 			}
 
-			hugepagesService, err := getSystemdContent(getHugepagesAllocationUnitOptions(
+			hugepagesService, err := GetSystemdContent(GetHugepagesAllocationUnitOptions(
 				hugepagesSize,
 				page.Count,
 				*page.Node,
@@ -220,7 +220,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 			ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
 				Contents: &hugepagesService,
 				Enabled:  pointer.BoolPtr(true),
-				Name:     getSystemdService(fmt.Sprintf("%s-%skB-NUMA%d", hugepagesAllocation, hugepagesSize, *page.Node)),
+				Name:     GetSystemdService(fmt.Sprintf("%s-%skB-NUMA%d", hugepagesAllocation, hugepagesSize, *page.Node)),
 			})
 		}
 	}
@@ -231,21 +231,22 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 			return nil, err
 		}
 
-		rpsService, err := getSystemdContent(getRPSUnitOptions(rpsMask))
+		rpsService, err := GetSystemdContent(getRPSUnitOptions(rpsMask))
 		if err != nil {
 			return nil, err
 		}
 
 		ignitionConfig.Systemd.Units = append(ignitionConfig.Systemd.Units, igntypes.Unit{
 			Contents: &rpsService,
-			Name:     getSystemdService("update-rps@"),
+			Name:     GetSystemdService("update-rps@"),
 		})
 	}
 
 	return ignitionConfig, nil
 }
 
-func getBashScriptPath(scriptName string) string {
+//GetBashScriptPath returns the script path containing the directory and the script name
+func GetBashScriptPath(scriptName string) string {
 	return fmt.Sprintf("%s/%s.sh", bashScriptsDir, scriptName)
 }
 
@@ -253,11 +254,13 @@ func getSystemdEnvironment(key string, value string) string {
 	return fmt.Sprintf("%s=%s", key, value)
 }
 
-func getSystemdService(serviceName string) string {
+//GetSystemdService returns the service name in systemd
+func GetSystemdService(serviceName string) string {
 	return fmt.Sprintf("%s.service", serviceName)
 }
 
-func getSystemdContent(options []*unit.UnitOption) (string, error) {
+//GetSystemdContent get systemd content from list of unit options
+func GetSystemdContent(options []*unit.UnitOption) (string, error) {
 	outReader := unit.Serialize(options)
 	outBytes, err := ioutil.ReadAll(outReader)
 	if err != nil {
@@ -303,7 +306,8 @@ func GetHugepagesSizeKilobytes(hugepagesSize performancev2.HugePageSize) (string
 	}
 }
 
-func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int32, numaNode int32) []*unit.UnitOption {
+//GetHugepagesAllocationUnitOptions returns list of unit options based on the settings of the hugepage
+func GetHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int32, numaNode int32) []*unit.UnitOption {
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
@@ -320,7 +324,7 @@ func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int3
 		// RemainAfterExit
 		unit.NewUnitOption(systemdSectionService, systemdRemainAfterExit, systemdTrue),
 		// ExecStart
-		unit.NewUnitOption(systemdSectionService, systemdExecStart, getBashScriptPath(hugepagesAllocation)),
+		unit.NewUnitOption(systemdSectionService, systemdExecStart, GetBashScriptPath(hugepagesAllocation)),
 		// [Install]
 		// WantedBy
 		unit.NewUnitOption(systemdSectionInstall, systemdWantedBy, systemdTargetMultiUser),
@@ -328,7 +332,7 @@ func getHugepagesAllocationUnitOptions(hugepagesSize string, hugepagesCount int3
 }
 
 func getRPSUnitOptions(rpsMask string) []*unit.UnitOption {
-	cmd := fmt.Sprintf("%s %%i %s", getBashScriptPath(setRPSMask), rpsMask)
+	cmd := fmt.Sprintf("%s %%i %s", GetBashScriptPath(setRPSMask), rpsMask)
 	return []*unit.UnitOption{
 		// [Unit]
 		// Description
@@ -341,7 +345,8 @@ func getRPSUnitOptions(rpsMask string) []*unit.UnitOption {
 	}
 }
 
-func addContent(ignitionConfig *igntypes.Config, content []byte, dst string, mode *int) error {
+//AddContent appends more content to the ignition configuration
+func AddContent(ignitionConfig *igntypes.Config, content []byte, dst string, mode *int) error {
 	contentBase64 := base64.StdEncoding.EncodeToString(content)
 	ignitionConfig.Storage.Files = append(ignitionConfig.Storage.Files, igntypes.File{
 		Node: igntypes.Node{
@@ -383,5 +388,5 @@ func addFile(ignitionConfig *igntypes.Config, src string, dst string, mode *int)
 		return err
 	}
 
-	return addContent(ignitionConfig, content, dst, mode)
+	return AddContent(ignitionConfig, content, dst, mode)
 }
