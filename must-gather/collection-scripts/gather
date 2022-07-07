@@ -6,7 +6,7 @@ echo "performance-addon-operator/must-gather" > /must-gather/version
 version >> /must-gather/version
 
 . namespace
-PAO_NAMESPACE=$( namespace )
+PAO_NAMESPACE=$( pao_namespace )
 
 # resource list
 resources=()
@@ -28,5 +28,7 @@ done
 # Collect nodes details
 /usr/bin/gather_nodes
 
+# Collect NRO details
+/usr/bin/gather_nro
 exit 0
 
