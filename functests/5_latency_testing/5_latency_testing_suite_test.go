@@ -3,6 +3,7 @@ package __latency_testing_test
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -29,6 +30,9 @@ import (
 	ginkgo_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 )
 
+//TODO get commonly used variables from one shared file that defines constants
+const filePath = "../../build/_output/bin/latency-e2e.test"
+
 var prePullNamespace = &corev1.Namespace{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "testing-prepull",
@@ -36,19 +40,54 @@ var prePullNamespace = &corev1.Namespace{
 }
 var profile *performancev2.PerformanceProfile
 
-var _ = BeforeSuite(func() {
-	if !testclient.ClientsEnabled {
-		testlog.Errorf("client not enabled")
+func Test5LatencyTesting(t *testing.T) {
+	RegisterFailHandler(Fail)
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		testlog.Infof("The executable test file %q does not exist, skipping the suite.", filePath)
+		t.Skip()
 	}
 
-	// update PP isolated CPUs. the new cpu set for isolated should have an even number of CPUs to avoid failing the pod on SMTAlignment error,
-	// and should be greater than what is requested by the test cases in the suite so the test runs properly
+	if !testclient.ClientsEnabled {
+		t.Fatalf("client not enabled")
+	}
+
 	var err error
 	profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
-	Expect(err).ToNot(HaveOccurred())
-	workerNodes, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
-	Expect(err).ToNot(HaveOccurred())
+	if err != nil {
+		t.Fatal("could not find performance profile")
+	}
 
+	//setup includes: prepulling the latency pod image; configuring PP to match the tests
+	setup()
+	defer teardown()
+
+	rr := []Reporter{}
+	if ginkgo_reporters.Polarion.Run {
+		rr = append(rr, &ginkgo_reporters.Polarion)
+	}
+	rr = append(rr, junit.NewJUnitReporter("latency_testing"))
+	RunSpecsWithDefaultAndCustomReporters(t, "Performance Addon Operator latency tools testing", rr)
+}
+
+func createNamespace() error {
+	err := testclient.Client.Create(context.TODO(), prePullNamespace)
+	if errors.IsAlreadyExists(err) {
+		testlog.Warningf("%q namespace already exists, that is unexpected", prePullNamespace.Name)
+		return nil
+	}
+	testlog.Infof("created namespace %q err=%v", prePullNamespace.Name, err)
+	return err
+}
+
+func setup() {
+	// update PP isolated CPUs. the new cpu set for isolated should have an even number of CPUs to avoid failing the pod on SMTAlignment error,
+	// and should be greater than what is requested by the test cases in the suite so the test runs properly
+	workerNodes, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
+	if err != nil {
+		testlog.Error("could not get the worker nodes")
+		return
+	}
 	initialIsolated := profile.Spec.CPU.Isolated
 	initialReserved := profile.Spec.CPU.Reserved
 	//updated both sets to ensure there is no overlap
@@ -78,9 +117,9 @@ var _ = BeforeSuite(func() {
 		testlog.Infof("DaemonSet %s/%s image=%q status:\n%s", ds.Namespace, ds.Name, images.Test(), string(data))
 		testlog.Errorf("cannot prepull image %q: %v", images.Test(), err)
 	}
-})
+}
 
-var _ = AfterSuite(func() {
+func teardown() {
 	prePullNamespaceName := prePullNamespace.Name
 	err := testclient.Client.Delete(context.TODO(), prePullNamespace)
 	if err != nil {
@@ -97,25 +136,4 @@ var _ = AfterSuite(func() {
 			testlog.Error("could not restore the initial profile")
 		}
 	}
-})
-
-func Test5LatencyTesting(t *testing.T) {
-	RegisterFailHandler(Fail)
-
-	rr := []Reporter{}
-	if ginkgo_reporters.Polarion.Run {
-		rr = append(rr, &ginkgo_reporters.Polarion)
-	}
-	rr = append(rr, junit.NewJUnitReporter("latency_testing"))
-	RunSpecsWithDefaultAndCustomReporters(t, "Performance Addon Operator latency tools testing", rr)
-}
-
-func createNamespace() error {
-	err := testclient.Client.Create(context.TODO(), prePullNamespace)
-	if errors.IsAlreadyExists(err) {
-		testlog.Warningf("%q namespace already exists, that is unexpected", prePullNamespace.Name)
-		return nil
-	}
-	testlog.Infof("created namespace %q err=%v", prePullNamespace.Name, err)
-	return err
 }
