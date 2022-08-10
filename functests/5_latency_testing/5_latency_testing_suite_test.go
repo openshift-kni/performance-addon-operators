@@ -45,9 +45,15 @@ var _ = BeforeSuite(func() {
 	// and should be greater than what is requested by the test cases in the suite so the test runs properly
 	var err error
 	profile, err = profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
-	Expect(err).ToNot(HaveOccurred())
+	if err != nil {
+		testlog.Errorf("error while getting the performance profile: %v", err)
+		return
+	}
 	workerNodes, err := nodes.GetByLabels(testutils.NodeSelectorLabels)
-	Expect(err).ToNot(HaveOccurred())
+	if err != nil {
+		testlog.Errorf("error while getting the worker nodes: %v", err)
+		return
+	}
 
 	initialIsolated := profile.Spec.CPU.Isolated
 	initialReserved := profile.Spec.CPU.Reserved
@@ -89,7 +95,10 @@ var _ = AfterSuite(func() {
 	namespaces.WaitForDeletion(prePullNamespaceName, 5*time.Minute)
 
 	currentProfile, err := profiles.GetByNodeLabels(testutils.NodeSelectorLabels)
-	Expect(err).ToNot(HaveOccurred())
+	if err != nil {
+		testlog.Errorf("error while getting the performance profile: %v", err)
+		return
+	}
 	if reflect.DeepEqual(currentProfile.Spec, profile.Spec) != true {
 		testlog.Info("Restore initial performance profile")
 		err = profilesupdate.ApplyProfile(profile)
