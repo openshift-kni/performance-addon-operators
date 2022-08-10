@@ -43,6 +43,10 @@ var profile *performancev2.PerformanceProfile
 func Test5LatencyTesting(t *testing.T) {
 	RegisterFailHandler(Fail)
 
+	if !testclient.ClientsEnabled {
+		t.Fatal("client not enabled")
+	}
+
 	if _, err := os.Stat(testExecutablePath); os.IsNotExist(err) {
 		testlog.Infof("The test executable file %q does not exist, skipping the suite.", testExecutablePath)
 		t.Skip()
@@ -70,10 +74,6 @@ func createNamespace() error {
 }
 
 func setup() {
-	if !testclient.ClientsEnabled {
-		testlog.Errorf("client not enabled")
-	}
-
 	// update PP isolated CPUs. the new cpu set for isolated should have an even number of CPUs to avoid failing the pod on SMTAlignment error,
 	// and should be greater than what is requested by the test cases in the suite so the test runs properly
 	var err error
