@@ -136,7 +136,7 @@ func teardown() {
 		testlog.Info("Restore initial performance profile")
 		err = profilesupdate.ApplyProfile(profile)
 		if err != nil {
-			testlog.Error("could not restore the initial profile")
+			testlog.Errorf("could not restore the initial profile: %v", err)
 		}
 	}
 }
