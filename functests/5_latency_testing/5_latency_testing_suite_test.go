@@ -36,7 +36,33 @@ var prePullNamespace = &corev1.Namespace{
 }
 var profile *performancev2.PerformanceProfile
 
-var _ = BeforeSuite(func() {
+func Test5LatencyTesting(t *testing.T) {
+	RegisterFailHandler(Fail)
+
+	//TODO Skip the suite before setup steps in case the executable is not found
+
+	setup()
+	defer teardown()
+
+	rr := []Reporter{}
+	if ginkgo_reporters.Polarion.Run {
+		rr = append(rr, &ginkgo_reporters.Polarion)
+	}
+	rr = append(rr, junit.NewJUnitReporter("latency_testing"))
+	RunSpecsWithDefaultAndCustomReporters(t, "Performance Addon Operator latency tools testing", rr)
+}
+
+func createNamespace() error {
+	err := testclient.Client.Create(context.TODO(), prePullNamespace)
+	if errors.IsAlreadyExists(err) {
+		testlog.Warningf("%q namespace already exists, that is unexpected", prePullNamespace.Name)
+		return nil
+	}
+	testlog.Infof("created namespace %q err=%v", prePullNamespace.Name, err)
+	return err
+}
+
+func setup() {
 	if !testclient.ClientsEnabled {
 		testlog.Errorf("client not enabled")
 	}
@@ -84,9 +110,9 @@ var _ = BeforeSuite(func() {
 		testlog.Infof("DaemonSet %s/%s image=%q status:\n%s", ds.Namespace, ds.Name, images.Test(), string(data))
 		testlog.Errorf("cannot prepull image %q: %v", images.Test(), err)
 	}
-})
+}
 
-var _ = AfterSuite(func() {
+func teardown() {
 	prePullNamespaceName := prePullNamespace.Name
 	err := testclient.Client.Delete(context.TODO(), prePullNamespace)
 	if err != nil {
@@ -106,25 +132,4 @@ var _ = AfterSuite(func() {
 			testlog.Error("could not restore the initial profile")
 		}
 	}
-})
-
-func Test5LatencyTesting(t *testing.T) {
-	RegisterFailHandler(Fail)
-
-	rr := []Reporter{}
-	if ginkgo_reporters.Polarion.Run {
-		rr = append(rr, &ginkgo_reporters.Polarion)
-	}
-	rr = append(rr, junit.NewJUnitReporter("latency_testing"))
-	RunSpecsWithDefaultAndCustomReporters(t, "Performance Addon Operator latency tools testing", rr)
-}
-
-func createNamespace() error {
-	err := testclient.Client.Create(context.TODO(), prePullNamespace)
-	if errors.IsAlreadyExists(err) {
-		testlog.Warningf("%q namespace already exists, that is unexpected", prePullNamespace.Name)
-		return nil
-	}
-	testlog.Infof("created namespace %q err=%v", prePullNamespace.Name, err)
-	return err
 }
