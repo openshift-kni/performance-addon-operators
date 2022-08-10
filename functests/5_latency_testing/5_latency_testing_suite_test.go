@@ -3,6 +3,7 @@ package __latency_testing_test
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -29,6 +30,9 @@ import (
 	ginkgo_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 )
 
+//TODO get commonly used variables from one shared file that defines constants
+const testExecutablePath = "../../build/_output/bin/latency-e2e.test"
+
 var prePullNamespace = &corev1.Namespace{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "testing-prepull",
@@ -39,7 +43,10 @@ var profile *performancev2.PerformanceProfile
 func Test5LatencyTesting(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	//TODO Skip the suite before setup steps in case the executable is not found
+	if _, err := os.Stat(testExecutablePath); os.IsNotExist(err) {
+		testlog.Infof("The test executable file %q does not exist, skipping the suite.", testExecutablePath)
+		t.Skip()
+	}
 
 	setup()
 	defer teardown()
