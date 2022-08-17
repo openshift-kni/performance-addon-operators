@@ -1050,6 +1050,7 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 
 	Context("Verify containers specifications", func() {
 
+		// Automates https://bugzilla.redhat.com/show_bug.cgi?id=2055019
 		It("imagePullPolicy should be ifNotPresent", func() {
 			pod, err := pods.GetPerformanceOperatorPod()
 			Expect(err).ToNot(HaveOccurred())
