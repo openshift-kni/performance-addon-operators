@@ -23,6 +23,8 @@ mkdir -p ${NODES_PATH}
 NAMESPACE_MANIFEST="/etc/node-gather/namespace.yaml"
 SERVICEACCOUNT_MANIFEST="/etc/node-gather/serviceaccount.yaml"
 DAEMONSET_MANIFEST="/etc/node-gather/daemonset.yaml"
+CLUSTER_ROLE_MANIFEST="/etc/node-gather/clusterrole.yaml"
+CLUSTER_ROLE_BINDING_MANIFEST="/etc/node-gather/clusterrolebinding.yaml"
 NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 # Once you start the pod, the Kubernetes will set the pod hostname to the name of the pod
 # https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-hostname-and-subdomain-fields
@@ -38,6 +40,8 @@ sed -i -e "s#MUST_GATHER_IMAGE#$MUST_GATHER_IMAGE#" $DAEMONSET_MANIFEST
 oc create -f $NAMESPACE_MANIFEST
 oc create -f $SERVICEACCOUNT_MANIFEST
 oc adm policy add-scc-to-user privileged -n perf-node-gather -z perf-node-gather
+oc create -f $CLUSTER_ROLE_MANIFEST
+oc create -f $CLUSTER_ROLE_BINDING_MANIFEST
 oc create -f $DAEMONSET_MANIFEST
 
 COUNTER=0
@@ -87,5 +91,7 @@ done
 wait "${ADM_PIDS[@]}"
 
 oc delete -f $DAEMONSET_MANIFEST
+oc delete -f $CLUSTER_ROLE_BINDING_MANIFEST
+oc delete -f $CLUSTER_ROLE_MANIFEST
 oc delete -f $SERVICEACCOUNT_MANIFEST
 oc delete -f $NAMESPACE_MANIFEST
