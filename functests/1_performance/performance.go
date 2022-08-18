@@ -1085,6 +1085,18 @@ var _ = Describe("[rfe_id:27368][performance]", func() {
 			})
 		})
 	})
+
+	Context("Verify containers specifications", func() {
+
+		// Automates https://bugzilla.redhat.com/show_bug.cgi?id=2055019
+		It("imagePullPolicy should be ifNotPresent", func() {
+			pod, err := pods.GetPerformanceOperatorPod()
+			Expect(err).ToNot(HaveOccurred())
+
+			// verify that the pod uses ifNotPresent as imagePullPolicy
+			Expect(pod.Spec.Containers[0].ImagePullPolicy).To(Equal(corev1.PullIfNotPresent))
+		})
+	})
 })
 
 func verifyV1alpha1Conversion(v1alpha1Profile *performancev1alpha1.PerformanceProfile, v1Profile *performancev1.PerformanceProfile) error {
