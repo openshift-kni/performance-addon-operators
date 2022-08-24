@@ -37,9 +37,7 @@ var prePullNamespace = &corev1.Namespace{
 var profile *performancev2.PerformanceProfile
 
 var _ = BeforeSuite(func() {
-	if !testclient.ClientsEnabled {
-		testlog.Errorf("client not enabled")
-	}
+	Expect(testclient.ClientsEnabled).To(BeTrue())
 
 	// update PP isolated CPUs. the new cpu set for isolated should have an even number of CPUs to avoid failing the pod on SMTAlignment error,
 	// and should be greater than what is requested by the test cases in the suite so the test runs properly
