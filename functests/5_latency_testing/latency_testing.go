@@ -103,9 +103,6 @@ var _ = Describe("Run tests of latency measurement tools with different values o
 				clearEnv()
 				testDescription := setEnvAndGetDescription(test)
 				By(testDescription)
-				if _, err := os.Stat(testExecutablePath); os.IsNotExist(err) {
-					Skip("The executable test file does not exist , skipping the test.")
-				}
 				output, err := exec.Command(testExecutablePath, "-ginkgo.focus", test.toolToTest).Output()
 				if err != nil {
 					//we don't log Error level here because the test might be a negative check
@@ -190,9 +187,6 @@ var _ = Describe("Run tests of latency measurement tools with different values o
 			clearEnv()
 			testDescription := setEnvAndGetDescription(test)
 			By(testDescription)
-			if _, err := os.Stat(testExecutablePath); os.IsNotExist(err) {
-				Skip("The executable test file does not exist , skipping the test.")
-			}
 			output, err := exec.Command(testExecutablePath, "-ginkgo.focus", test.toolToTest).Output()
 			Expect(string(output)).NotTo(MatchRegexp(unexpectedError), "Unexpected error was detected in a positive test: %v", err)
 
