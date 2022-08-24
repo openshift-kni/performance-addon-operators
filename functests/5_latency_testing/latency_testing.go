@@ -153,6 +153,9 @@ var _ = Describe("Run tests of latency measurement tools with different values o
 						}
 					}
 				}
+				for _, msg := range test.outputMsgs {
+					Expect(string(output)).To(MatchRegexp(msg), "The output of the executed tool is not as expected")
+				}
 			}
 		},
 			table.Entry("[test_id:42851] Latency tools shouldn't run with default environment variables values", []latencyTest{{outputMsgs: []string{skip, skipTestRun}}}, positiveTesting),
