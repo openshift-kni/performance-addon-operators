@@ -3,6 +3,7 @@ package __latency_testing_test
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -29,6 +30,9 @@ import (
 	ginkgo_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 )
 
+//TODO get commonly used variables from one shared file that defines constants
+const testExecutablePath = "../../build/_output/bin/latency-e2e.test"
+
 var prePullNamespace = &corev1.Namespace{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "testing-prepull",
@@ -37,9 +41,8 @@ var prePullNamespace = &corev1.Namespace{
 var profile *performancev2.PerformanceProfile
 
 var _ = BeforeSuite(func() {
-	if !testclient.ClientsEnabled {
-		testlog.Errorf("client not enabled")
-	}
+	Expect(isTestExecutableFound()).To(BeTrue())
+	Expect(testclient.ClientsEnabled).To(BeTrue())
 
 	// update PP isolated CPUs. the new cpu set for isolated should have an even number of CPUs to avoid failing the pod on SMTAlignment error,
 	// and should be greater than what is requested by the test cases in the suite so the test runs properly
@@ -94,7 +97,7 @@ var _ = AfterSuite(func() {
 		testlog.Info("Restore initial performance profile")
 		err = profilesupdate.ApplyProfile(profile)
 		if err != nil {
-			testlog.Error("could not restore the initial profile")
+			testlog.Errorf("could not restore the initial profile: %v", err)
 		}
 	}
 })
@@ -118,4 +121,11 @@ func createNamespace() error {
 	}
 	testlog.Infof("created namespace %q err=%v", prePullNamespace.Name, err)
 	return err
+}
+
+func isTestExecutableFound() bool {
+	if _, err := os.Stat(testExecutablePath); os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
