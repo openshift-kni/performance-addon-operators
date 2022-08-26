@@ -22,8 +22,5 @@ function nro_namespace() {
   # namespace suggested by the documentation. This is a fancier way to check for its existence
   [ -z "${ns}" ] && ns=$(oc get ns openshift-numaresources -o=jsonpath='{.metadata.name}{"\n"}' 2> /dev/null )
 
-  # we should never get there. This is the last resort.
-  [ -z "${ns}" ] && ns="openshift-numaresources"
-
   echo ${ns}
 }
