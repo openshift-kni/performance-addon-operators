@@ -41,8 +41,7 @@ Here are the documents as reference:
 
 The proposal to handle the Performance Profile (PP) mimics the way NTO handles it `Tuned` API
 
-- New `.spec.performanceProfileConfig` will be created in `NodePool` CRD
-- [Cluster Service Consumer](https://hypershift-docs.netlify.app/reference/concepts-and-personas/) will create `PerformanceProfile` objects inside of configmaps, then reference these configmaps objects in the `.spec.performanceProfileConfig` field of the `NodePool` API
+- [Cluster Service Consumer](https://hypershift-docs.netlify.app/reference/concepts-and-personas/) will create `PerformanceProfile` objects inside of configmaps, then reference these configmaps objects in the `.spec.tunedConfig` field of the `NodePool` API
 - NodePool Controller will read these configmaps, extract the `PerformanceProfile`s and propagate that information into one `configmap` per `NodePool` in the `hosted-control-plane-namespace` where Performance Profile Controller runs and can read them.
   - The `configmap` created by NodePool Controller will have the following labels and annotations:
     - label: `hypershift.openshift.io/performanceprofile-config` : `true`
