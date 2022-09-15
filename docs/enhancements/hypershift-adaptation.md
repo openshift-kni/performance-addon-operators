@@ -10,6 +10,10 @@ Documentation worth reading to get familiar with Hypershift.
 - Main concepts and actors: <https://hypershift-docs.netlify.app/reference/concepts-and-personas/>
 - Architecture: <https://hypershift-docs.netlify.app/reference/controller-architecture/>
 
+Additional documentation about Hypershift.
+
+- [Node lifecycle and the changes in Machine configuration handling due to Hypershift](https://github.com/openshift/enhancements/blob/master/enhancements/hypershift/node-lifecycle.md)
+
 ## Context
 
 Performance Profile Controller optimizes OpenShift clusters for applications sensitive to cpu and network.
@@ -81,15 +85,6 @@ Being this object also handled by MachineConfig Operator (MCO) as `MachineConfig
   - label: `hypershift.openshift.io/nodePool` : `NodePool` API name where the `PeformanceProfile` which generate this `MachineConfig` was referenced.
 - This will trigger the reconcile operation in NodePool Controller for these objects.
   - This operation is __NOT__ in place already, so a modification in the NodePool Controller will be needed, but it would be quite similar to the one handling `MachineConfigs` right now.
-
-> __development NOTE__: I am not sure this is the proper way to handle this because I still have some doubts regarding the way NodePool Controller handles `MachineConfig` objects, that's why I have asked @dagrayvid about that
->
-> Here is the question:
->
-> - Regarding NTO generated machine configs. I have seen that nodepool controller extract all the machine configurations from the configmaps,
->  then comprress them and store them into a core.v1.Secret in the hosted-control-plane-namespace ... and I do not understand this operation.
->  I mean, in the end machineconfig operator should handle this machine configs to apply them in the hosted cluster, right?
->  I thought there have been some adaptations in the MCO for hypershift to handle this, but I cannot find anything in the repo so any help will be really appreciated.
 
 ### RuntimeClass
 
