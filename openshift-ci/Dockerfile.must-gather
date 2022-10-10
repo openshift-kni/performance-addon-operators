@@ -1,7 +1,7 @@
 FROM quay.io/openshift/origin-must-gather:4.10.0 AS builder
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
-RUN microdnf install -y pciutils util-linux hostname rsync tar
+RUN microdnf install -y pciutils util-linux hostname rsync tar ethtool
 
 # Copy must-gather required binaries
 COPY --from=builder /usr/bin/openshift-must-gather /usr/bin/openshift-must-gather
