@@ -17,8 +17,8 @@ require (
 	github.com/google/go-cmp v0.5.6
 	github.com/jaypipes/ghw v0.7.1-0.20210419135914-b8b1e31b27f5
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
-	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.13.0
+	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/gomega v1.17.0
 	github.com/openshift-kni/debug-tools v0.0.0-20220621140421-49b5d37621ff
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20200914165052-a39511828cf0
@@ -31,10 +31,10 @@ require (
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
 	go.mongodb.org/mongo-driver v1.5.1 // indirect
-	k8s.io/api v0.21.2
-	k8s.io/apiextensions-apiserver v0.21.2
-	k8s.io/apimachinery v0.21.2
-	k8s.io/client-go v0.21.2
+	k8s.io/api v0.23.0
+	k8s.io/apiextensions-apiserver v0.23.0
+	k8s.io/apimachinery v0.23.0
+	k8s.io/client-go v0.23.0
 	k8s.io/klog v1.0.0
 	k8s.io/kubelet v0.21.2
 	k8s.io/kubernetes v0.21.2
@@ -71,7 +71,7 @@ replace (
 	k8s.io/metrics => k8s.io/metrics v0.21.2
 	k8s.io/mount-utils => k8s.io/mount-utils v0.21.2
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.21.2
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.9.2
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.11.0
 	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.6.1
 )
 
