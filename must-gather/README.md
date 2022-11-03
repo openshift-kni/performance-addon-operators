@@ -7,7 +7,7 @@ In addition to the performance-operator logs and manifests, the command will col
 This information is useful to understand and verify resource allocation to pods, whose proper alignment is critical for low-latency workloads.
 
 To collect the container-native performance-related data with must-gather, you must specify the extra image using the `--image` option.
-In the following examples, `TAG` has the format `major.minor-snapshot`. For example, the TAG for OpenShift 4.11 will be `4.11-snapshot`.
+In the following examples, `TAG` has the format `major.minor-snapshot`. For example, the TAG for OpenShift 4.12 will be `4.12-snapshot`.
 
 Example command line:
 ```bash
