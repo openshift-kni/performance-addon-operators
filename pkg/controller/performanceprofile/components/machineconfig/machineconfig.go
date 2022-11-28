@@ -35,15 +35,10 @@ const (
 	// HighPerformanceRuntime contains the name of the high-performance runtime
 	HighPerformanceRuntime = "high-performance"
 
-	hugepagesAllocation = "hugepages-allocation"
-	bashScriptsDir      = "/usr/local/bin"
-	crioConfd           = "/etc/crio/crio.conf.d"
-	crioRuntimesConfig  = "99-runtimes.conf"
-	ociHooks            = "low-latency-hooks"
-	// OCIHooksConfigDir is the default directory for the OCI hooks
-	OCIHooksConfigDir = "/etc/containers/oci/hooks.d"
-	// OCIHooksConfig file contains the low latency hooks configuration
-	OCIHooksConfig       = "99-low-latency-hooks"
+	hugepagesAllocation  = "hugepages-allocation"
+	bashScriptsDir       = "/usr/local/bin"
+	crioConfd            = "/etc/crio/crio.conf.d"
+	crioRuntimesConfig   = "99-runtimes.conf"
 	ociTemplateRPSMask   = "RPSMask"
 	udevRulesDir         = "/etc/udev/rules.d"
 	udevRpsRules         = "99-netdev-rps"
@@ -138,7 +133,7 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 
 	// add script files under the node /usr/local/bin directory
 	mode := 0700
-	for _, script := range []string{hugepagesAllocation, ociHooks, setRPSMask} {
+	for _, script := range []string{hugepagesAllocation, setRPSMask} {
 		src := filepath.Join(assetsDir, "scripts", fmt.Sprintf("%s.sh", script))
 		if err := addFile(ignitionConfig, src, getBashScriptPath(script), &mode); err != nil {
 			return nil, err
@@ -157,23 +152,6 @@ func getIgnitionConfig(assetsDir string, profile *performancev2.PerformanceProfi
 		crioConfigSnippetContent,
 		filepath.Join(crioConfd, crioRuntimesConfig),
 		&crioConfdRuntimesMode,
-	); err != nil {
-		return nil, err
-	}
-
-	// add crio hooks config  under the node cri-o hook directory
-	crioHooksConfigsMode := 0644
-	config := fmt.Sprintf("%s.json", OCIHooksConfig)
-	ociHooksConfigContent, err := GetOCIHooksConfigContent(filepath.Join(assetsDir, "configs", config), profile)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := addContent(
-		ignitionConfig,
-		ociHooksConfigContent,
-		filepath.Join(OCIHooksConfigDir, config),
-		&crioHooksConfigsMode,
 	); err != nil {
 		return nil, err
 	}
