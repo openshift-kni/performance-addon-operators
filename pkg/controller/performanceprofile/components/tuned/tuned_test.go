@@ -56,6 +56,9 @@ var _ = Describe("Tuned", func() {
 
 			Expect(manifest).To(ContainSubstring(expectedMatchSelector))
 			Expect(manifest).To(ContainSubstring(fmt.Sprintf("isolated_cores=4-7")))
+			Expect(manifest).To(ContainSubstring("group.ksoftirqd=0:f:11:*:ksoftirqd.*"))
+			Expect(manifest).To(ContainSubstring("group.rcuc=0:f:11:*:rcuc.*"))
+			Expect(manifest).To(ContainSubstring("group.ktimers=0:f:11:*:ktimers.*"))
 			By("Populating CPU partitioning cmdline")
 			Expect(cmdlineCPUsPartitioning.MatchString(manifest)).To(BeTrue())
 			By("Populating realtime cmdline")
