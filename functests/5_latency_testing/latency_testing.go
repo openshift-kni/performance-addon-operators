@@ -20,7 +20,7 @@ import (
 	"github.com/openshift-kni/performance-addon-operators/functests/utils/profilesupdate"
 )
 
-//TODO get commonly used variables from one shared file that defines constants
+// TODO get commonly used variables from one shared file that defines constants
 const (
 	testExecutablePath = "../../build/_output/bin/latency-e2e.test"
 	//tool to test
@@ -77,12 +77,15 @@ const (
 	skipOddCpuNumber         = `Skip the test, the requested number of CPUs should be even to avoid noisy neighbor situation`
 	skipOslatForIsolatedCpus = `Skip the oslat test, the profile .* has less than 2 isolated CPUs`
 	//used values parameters
-	guaranteedLatency = "20000"
+
+	// we do not care about the actual system latency because CI systems are not tuned well enough to be an example for
+	// latency measuring, besides this suite only cares about testing the test executable with different values of env vars.
+	guaranteedLatency = "900000"
 	negativeTesting   = false
 	positiveTesting   = true
 )
 
-//Struct to hold each test parameters
+// Struct to hold each test parameters
 type latencyTest struct {
 	testDelay             string
 	testRun               string
