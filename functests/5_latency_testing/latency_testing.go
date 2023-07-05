@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/format"
 
 	performancev2 "github.com/openshift-kni/performance-addon-operators/api/v2"
 	testutils "github.com/openshift-kni/performance-addon-operators/functests/utils"
@@ -100,6 +101,7 @@ type latencyTest struct {
 }
 
 var _ = Describe("Run tests of latency measurement tools with different values of latency environment variables", func() {
+	format.MaxLength = 0
 	Context("Verify tests output with existed performance profile", func() {
 		table.DescribeTable("Test latency measurement tools tests", func(testGroup []latencyTest, isPositiveTest bool) {
 			for _, test := range testGroup {
