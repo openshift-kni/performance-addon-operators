@@ -81,9 +81,9 @@ const (
 
 	// we do not care about the actual system latency because CI systems are not tuned well enough to be an example for
 	// latency measuring, besides this suite only cares about testing the test executable with different values of env vars.
-	guaranteedLatency = "900000"
-	negativeTesting   = false
-	positiveTesting   = true
+	untunedLatencyThreshold = "900000"
+	negativeTesting         = false
+	positiveTesting         = true
 )
 
 // Struct to hold each test parameters
@@ -187,7 +187,7 @@ var _ = Describe("Run tests of latency measurement tools with different values o
 				//restore initial isolated
 				profilesupdate.UpdateIsolatedReservedCpus(*initialIsolated, *initialReserved)
 			}()
-			test := latencyTest{testRun: "true", testRuntime: "10", testMaxLatency: guaranteedLatency, outputMsgs: []string{skip, skipOslatForIsolatedCpus}, toolToTest: oslat}
+			test := latencyTest{testRun: "true", testRuntime: "10", testMaxLatency: untunedLatencyThreshold, outputMsgs: []string{skip, skipOslatForIsolatedCpus}, toolToTest: oslat}
 
 			clearEnv()
 			testDescription := setEnvAndGetDescription(test)
@@ -265,28 +265,28 @@ func getValidValuesTests(toolToTest string) []latencyTest {
 	//1. to let the tools have their time to measure latency properly 2. have time to check that the pod phase turned running and not completed immediately
 	//testCpus: for tests that expect a success output message, note that an even CPU number is needed, otherwise the test would fail with SMTAlignmentError
 	successRuntime := "30"
-	testSet = append(testSet, latencyTest{testDelay: "0", testRun: "true", testRuntime: successRuntime, testMaxLatency: guaranteedLatency, testCpus: "4", outputMsgs: []string{success}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testDelay: "0", testRun: "true", testRuntime: successRuntime, testMaxLatency: guaranteedLatency, testCpus: "6", outputMsgs: []string{success}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testDelay: "1", testRun: "true", testRuntime: successRuntime, testMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testDelay: "60", testRun: "true", testRuntime: successRuntime, testMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testCpus: "5", testMaxLatency: guaranteedLatency, outputMsgs: []string{skip, skipOddCpuNumber}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testDelay: "0", testRun: "true", testRuntime: successRuntime, testMaxLatency: untunedLatencyThreshold, testCpus: "4", outputMsgs: []string{success}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testDelay: "0", testRun: "true", testRuntime: successRuntime, testMaxLatency: untunedLatencyThreshold, testCpus: "6", outputMsgs: []string{success}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testDelay: "1", testRun: "true", testRuntime: successRuntime, testMaxLatency: untunedLatencyThreshold, outputMsgs: []string{success}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testDelay: "60", testRun: "true", testRuntime: successRuntime, testMaxLatency: untunedLatencyThreshold, outputMsgs: []string{success}, toolToTest: toolToTest})
+	testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "2", testCpus: "5", testMaxLatency: untunedLatencyThreshold, outputMsgs: []string{skip, skipOddCpuNumber}, toolToTest: toolToTest})
 
 	if toolToTest != hwlatdetect {
 		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: "1", outputMsgs: []string{skip, skipMaxLatency}, toolToTest: toolToTest})
 	}
 	if toolToTest == oslat {
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: "1", oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: "1", oslatMaxLatency: untunedLatencyThreshold, outputMsgs: []string{success}, toolToTest: toolToTest})
 		//TODO add tests when requested cpus for oslat is 2 once BZ 2055267 is resolved
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, oslatMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, oslatMaxLatency: untunedLatencyThreshold, outputMsgs: []string{success}, toolToTest: toolToTest})
 	}
 	if toolToTest == cyclictest {
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: "1", cyclictestMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, cyclictestMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: "1", cyclictestMaxLatency: untunedLatencyThreshold, outputMsgs: []string{success}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, cyclictestMaxLatency: untunedLatencyThreshold, outputMsgs: []string{success}, toolToTest: toolToTest})
 	}
 	if toolToTest == hwlatdetect {
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: "1", hwlatdetectMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, hwlatdetectMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
-		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: guaranteedLatency, outputMsgs: []string{success}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: "1", hwlatdetectMaxLatency: untunedLatencyThreshold, outputMsgs: []string{success}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, hwlatdetectMaxLatency: untunedLatencyThreshold, outputMsgs: []string{success}, toolToTest: toolToTest})
+		testSet = append(testSet, latencyTest{testRun: "true", testRuntime: successRuntime, testMaxLatency: untunedLatencyThreshold, outputMsgs: []string{success}, toolToTest: toolToTest})
 	}
 	return testSet
 }
