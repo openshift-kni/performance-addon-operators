@@ -73,9 +73,11 @@ const defaultTemplate string = `
 					"limits": {
 						"cpu": "{{.Resources.Limits.Cpu}}"
 					}
-					{{- end }}{{end}}
-					{{- if .Resources.Requests}}{{if .Resources.Requests.Cpu -}}
+					{{- end -}}{{end}}
+					{{- if and .Resources.Requests .Resources.Limits .Resources.Requests.Cpu .Resources.Limits.Cpu -}}
 					,
+					{{- end -}}
+					{{- if .Resources.Requests}}{{if .Resources.Requests.Cpu }}
 					"requests": {
 						"cpu": "{{.Resources.Requests.Cpu}}"
 					}
@@ -119,13 +121,15 @@ func NewPodInfoCommand(knitOpts *cmd.KnitOptions) *cobra.Command {
 	return podInfo
 }
 
-// GetConfig creates a *rest.Config for talking to a Kubernetes apiserver.
+// getKubeConfig creates a *rest.Config for talking to a Kubernetes apiserver.
 //
-// Config precedence
-//
+// Config precedence:
 // - KUBECONFIG environment variable pointing at a file
-// - $HOME/.kube/config if exists
 // - In-cluster config if running in cluster
+// - $HOME/.kube/config if exists
+//
+// note: Use same precedence as controller-runtime GetConfig.
+// see: https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/client/config#GetConfig
 func getKubeConfig() (*rest.Config, error) {
 	kubeconfigFromFilePath := func(kubeConfigFilePath string) (*rest.Config, error) {
 		if _, err := os.Stat(kubeConfigFilePath); err != nil {
@@ -140,15 +144,15 @@ func getKubeConfig() (*rest.Config, error) {
 		return kubeconfigFromFilePath(kubeConfig)
 	}
 
+	// try the in-cluster config
+	if c, err := rest.InClusterConfig(); err == nil {
+		return c, nil
+	}
+
 	// try the default location in the user's home directory
 	if usr, err := user.Current(); err == nil {
 		kubeConfig := filepath.Join(usr.HomeDir, ".kube", "config")
 		return kubeconfigFromFilePath(kubeConfig)
-	}
-
-	// try the in-cluster config
-	if c, err := rest.InClusterConfig(); err == nil {
-		return c, nil
 	}
 
 	return nil, fmt.Errorf("could not locate a kubeconfig")
