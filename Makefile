@@ -290,6 +290,10 @@ render-command-tests: dist
 unittests:
 	hack/unittests.sh
 
+.PHONY: test-kustomize
+test-kustomize:
+	hack/test-kustomize.sh
+
 .PHONY: gofmt
 gofmt:
 	@echo "Running gofmt"
