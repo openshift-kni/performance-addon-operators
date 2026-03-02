@@ -60,14 +60,14 @@ fi
 for kustomize_file in "${kustomize_files[@]}"; do
     dir=$(dirname "$kustomize_file")
     echo -n "  $dir: "
-    
+
     # Check if this directory requires external plugins
     if is_excluded "$dir"; then
         echo -e "${BLUE}SKIPPED${NC} (requires external plugins)"
         SKIPPED=$((SKIPPED + 1))
         continue
     fi
-    
+
     # Try to build the kustomization
     if kustomize build "$dir" > /dev/null 2>&1; then
         echo -e "${GREEN}OK${NC}"
