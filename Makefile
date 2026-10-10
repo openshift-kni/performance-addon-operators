@@ -3,6 +3,10 @@ IMAGE_REGISTRY ?= "quay.io"
 REGISTRY_NAMESPACE ?= "openshift-kni"
 IMAGE_TAG ?= "4.12-snapshot"
 
+# Get the directory of the current makefile
+# Trim any trailing slash from the directory path as we will add if when necessary later
+PROJECT_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+
 TARGET_GOOS=linux
 TARGET_GOARCH=amd64
 
@@ -377,3 +381,34 @@ KUSTOMIZE=$(GOBIN)/kustomize
 else
 KUSTOMIZE=$(shell which kustomize)
 endif
+
+##@ Konflux
+
+.PHONY: sync-git-submodules
+sync-git-submodules: ## Sync git submodules.
+	@echo "Checking git submodules"
+	@if [ "$(SKIP_SUBMODULE_SYNC)" != "yes" ]; then \
+		echo "Syncing git submodules"; \
+		git submodule sync --recursive; \
+		git submodule update --init --recursive; \
+	else \
+		echo "Skipping submodule sync"; \
+	fi
+
+.PHONY: konflux-update-rpm-lock-must-gather
+konflux-update-rpm-lock-must-gather: sync-git-submodules ## Update the rpm lock file for the must-gather
+	@echo "Creating .konflux/tmp/ directory..."
+	mkdir -p $(PROJECT_DIR)/.konflux/tmp/
+	@echo "Copying rpms.in.yaml and Dockerfile to .konflux/tmp/ directory..."
+	cp $(PROJECT_DIR)/.konflux/rpms.in.yaml $(PROJECT_DIR)/.konflux/tmp/rpms.in.yaml
+	cp $(PROJECT_DIR)/.konflux/must-gather.konflux.Dockerfile $(PROJECT_DIR)/.konflux/tmp/must-gather.konflux.Dockerfile
+	@cat $(PROJECT_DIR)/.konflux/tmp/rpms.in.yaml
+	@echo "Updating rpm lock file for the must-gather..."
+	$(MAKE) -C $(PROJECT_DIR)/telco5g-konflux/scripts/rpm-lock generate-rhel8-locks \
+		LOCK_SCRIPT_TARGET_DIR=$(PROJECT_DIR)/.konflux/tmp/ \
+		RHEL8_EXECUTION_IMAGE=$$(grep -E '^FROM .*/ubi8/ubi-minimal' $(PROJECT_DIR)/.konflux/must-gather.konflux.Dockerfile | sed 's|FROM ||' | sed 's|ubi-minimal|ubi|' | sed 's|@.*||') \
+		RHEL8_IMAGE_TO_LOCK=$$(grep -E '^FROM .*/ubi8/ubi-minimal' $(PROJECT_DIR)/.konflux/must-gather.konflux.Dockerfile | sed 's|FROM ||')
+	@echo "Update rpms.lock.yaml with new contents..."
+	cp $(PROJECT_DIR)/.konflux/tmp/rpms.lock.yaml $(PROJECT_DIR)/.konflux/rpms.lock.yaml
+	# intentionally keep .konflux/tmp/ directory for debugging purposes
+	@echo "RPM lock file updated successfully."
