@@ -1,0 +1,36 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>konflux-ci/mintmaker-presets:refresh-rpm-lockfiles"],
+  "automerge": true,
+  "automergeType": "rebase",
+  "packageRules": [
+    {
+      "matchManagers": ["gomod"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["git-submodules"],
+      "matchPackageNames": ["telco5g-konflux"],
+      "automerge": true,
+      "additionalBranchPrefix": "",
+      "prBodyNotes": [":warning: allow-automatic-merge"]
+    },
+    {
+      "matchManagers": ["rpm-lockfile"],
+      "automerge": true,
+      "prBodyNotes": [":warning: allow-automatic-merge"]
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "matchFileNames": [".konflux/**"],
+      "automerge": true,
+      "prBodyNotes": [":warning: allow-automatic-merge"]
+    },
+    {
+      "matchManagers": ["tekton"],
+      "matchFileNames": [".tekton/**"],
+      "automerge": true,
+      "prBodyNotes": [":warning: allow-automatic-merge"]
+    }
+  ]
+}
