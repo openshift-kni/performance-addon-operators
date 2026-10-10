@@ -1,0 +1,52 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: https://github.com/openshift-kni/performance-addon-operators?rev={{revision}}
+    build.appstudio.redhat.com/commit_sha: '{{revision}}'
+    build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    pipelinesascode.tekton.dev/cancel-in-progress: 'false'
+    pipelinesascode.tekton.dev/max-keep-runs: '3'
+    pipelinesascode.tekton.dev/on-cel-expression: |
+      event == "push" &&
+      target_branch == "release-4.12" &&
+      (".konflux/***".pathChanged() ||
+      ".tekton/performance-addon-operator-must-gather-4-12-push.yaml".pathChanged() ||
+      "must-gather/***".pathChanged())
+  creationTimestamp:
+  labels:
+    appstudio.openshift.io/application: performance-addon-operator-must-gather-4-12
+    appstudio.openshift.io/component: performance-addon-operator-must-gather-4-12
+    pipelines.appstudio.openshift.io/type: build
+  name: performance-addon-operator-must-gather-4-12-on-push
+  namespace: telco-5g-tenant
+spec:
+  params:
+  - name: git-url
+    value: '{{source_url}}'
+  - name: revision
+    value: '{{revision}}'
+  - name: output-image
+    value: quay.io/redhat-user-workloads/telco-5g-tenant/performance-addon-operator-must-gather-4-12:{{revision}}
+  - name: build-platforms
+    value:
+    - linux/x86_64
+  - name: dockerfile
+    value: .konflux/must-gather.konflux.Dockerfile
+  - name: build-source-image
+    value: 'true'
+  - name: hermetic
+    value: 'true'
+  - name: prefetch-input
+    value: '[{"type": "rpm", "path": ".konflux/"}]'
+  - name: skip-sast-coverity
+    value: "true"
+  pipelineRef:
+    name: build-pipeline
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-performance-addon-operator-must-gather-4-12
+  workspaces:
+  - name: git-auth
+    secret:
+      secretName: '{{ git_auth_secret }}'
+status: {}
