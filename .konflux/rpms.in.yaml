@@ -29,6 +29,7 @@ packages:
   - hostname
   - tar
   - rsync
+  - ethtool
 
 arches:
   - x86_64

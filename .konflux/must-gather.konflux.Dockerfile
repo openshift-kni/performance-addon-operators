@@ -19,7 +19,7 @@ RUN make dist-gather-sysinfo
 
 FROM registry.redhat.io/ubi8/ubi-minimal:latest@sha256:2ea767876991dd9c213986be20e8d6352b9c27e310a4102a5150081daac176d2
 
-RUN microdnf install -y pciutils util-linux hostname tar rsync ; microdnf clean all
+RUN microdnf install -y pciutils util-linux hostname tar rsync ethtool ; microdnf clean all
 
 # Copy must-gather required binaries
 COPY --from=mgbuilder /usr/bin/openshift-must-gather /usr/bin/openshift-must-gather
