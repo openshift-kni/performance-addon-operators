@@ -13,7 +13,7 @@ RUN mkdir -p /etc/node-gather && \
 
 FROM registry.redhat.io/openshift/golang-builder:golang-builder-v1.19-rhel8@sha256:9de5282b1ad80c0bc857b889c130a9018757f54200e35960ae343c052d535f13 AS paobuilder
 
-WORKDIR /
+WORKDIR /app
 COPY . .
 RUN make dist-gather-sysinfo
 
@@ -29,7 +29,7 @@ COPY --from=mgbuilder /usr/libexec/must-gather/performance-addon-operator/* /usr
 COPY --from=mgbuilder /etc/node-gather/* /etc/node-gather/
 
 # the binary follows the must-gather convention of helper tools called gather_$SOMETHING
-COPY --from=paobuilder /build/_output/bin/gather-sysinfo /usr/bin/gather_sysinfo
+COPY --from=paobuilder /app/build/_output/bin/gather-sysinfo /usr/bin/gather_sysinfo
 
 ENTRYPOINT ["/usr/bin/gather"]
 
