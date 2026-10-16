@@ -1,4 +1,4 @@
-FROM registry.redhat.io/openshift4/ose-must-gather:v4.12@sha256:b8286a441e352c026e4b8803188dc4f3b51857e8ef60f332836e0bfd24c67a3e AS mgbuilder
+FROM registry.redhat.io/openshift4/ose-must-gather:v4.12@sha256:cf5b1105083e55d560fe3f427ece02f7b966fb19910a53b9572ff12a41750fd0 AS mgbuilder
 
 WORKDIR /
 COPY . .
