@@ -4,7 +4,7 @@ Purell is a tiny Go library to normalize URLs. It returns a pure URL. Pure-ell. 
 
 Based on the [wikipedia paper][wiki] and the [RFC 3986 document][rfc].
 
-[![build status](https://travis-ci.org/PuerkitoBio/purell.svg?branch=master)](http://travis-ci.org/PuerkitoBio/purell)
+[![CI](https://github.com/PuerkitoBio/purell/actions/workflows/ci.yml/badge.svg)](https://github.com/PuerkitoBio/purell/actions/workflows/ci.yml)
 
 ## Install
 
@@ -12,6 +12,9 @@ Based on the [wikipedia paper][wiki] and the [RFC 3986 document][rfc].
 
 ## Changelog
 
+*    **2026-05-17 (v1.2.2)** : Fix test failures with Go 1.24.8+ due to stricter IPv6 host validation introduced by CVE-2025-47912 (thanks to @syedazeez337), and introduce zizmor checks for GitHub Actions.
+*    **2023-10-22 (v1.2.1)** : Fix `FlagRemoveUnnecessaryHostDots` for extra dots between hostname parts (thanks to @michael-peterson-cisco), and upgrade dependencies.
+*    **2022-08-17 (v1.2.0)** : Migrate to Go modules, move CI to GitHub Actions, inline URL escaping support from urlesc, and run CI on Go 1.19.
 *    **v1.1.1** : Fix failing test due to Go1.12 changes (thanks to @ianlancetaylor).
 *    **2016-11-14 (v1.1.0)** : IDN: Conform to RFC 5895: Fold character width (thanks to @beeker1121).
 *    **2016-07-27 (v1.0.0)** : Normalize IDN to ASCII (thanks to @zenovich).
@@ -169,20 +172,15 @@ And with `FlagsUnsafeGreedy`:
 
 ## Thanks / Contributions
 
-@rogpeppe
-@jehiah
-@opennota
-@pchristopher1275
-@zenovich
-@beeker1121
+See <https://github.com/PuerkitoBio/purell/graphs/contributors>.
 
 ## License
 
 The [BSD 3-Clause license][bsd].
 
-[bsd]: http://opensource.org/licenses/BSD-3-Clause
-[wiki]: http://en.wikipedia.org/wiki/URL_normalization
-[rfc]: http://tools.ietf.org/html/rfc3986#section-6
-[godoc]: http://go.pkgdoc.org/github.com/PuerkitoBio/purell
+[bsd]: https://opensource.org/licenses/BSD-3-Clause
+[wiki]: https://en.wikipedia.org/wiki/URL_normalization
+[rfc]: https://tools.ietf.org/html/rfc3986#section-6
+[godoc]: https://pkg.go.dev/github.com/PuerkitoBio/purell
 [pr5]: https://github.com/PuerkitoBio/purell/pull/5
 [iss7]: https://github.com/PuerkitoBio/purell/issues/7
