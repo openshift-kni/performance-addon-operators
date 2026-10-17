@@ -2,20 +2,20 @@ package matchers
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
 
 	"github.com/onsi/gomega/format"
+	"github.com/onsi/gomega/internal/gutil"
 )
 
 type HaveHTTPStatusMatcher struct {
-	Expected []interface{}
+	Expected []any
 }
 
-func (matcher *HaveHTTPStatusMatcher) Match(actual interface{}) (success bool, err error) {
+func (matcher *HaveHTTPStatusMatcher) Match(actual any) (success bool, err error) {
 	var resp *http.Response
 	switch a := actual.(type) {
 	case *http.Response:
@@ -48,11 +48,11 @@ func (matcher *HaveHTTPStatusMatcher) Match(actual interface{}) (success bool, e
 	return false, nil
 }
 
-func (matcher *HaveHTTPStatusMatcher) FailureMessage(actual interface{}) (message string) {
+func (matcher *HaveHTTPStatusMatcher) FailureMessage(actual any) (message string) {
 	return fmt.Sprintf("Expected\n%s\n%s\n%s", formatHttpResponse(actual), "to have HTTP status", matcher.expectedString())
 }
 
-func (matcher *HaveHTTPStatusMatcher) NegatedFailureMessage(actual interface{}) (message string) {
+func (matcher *HaveHTTPStatusMatcher) NegatedFailureMessage(actual any) (message string) {
 	return fmt.Sprintf("Expected\n%s\n%s\n%s", formatHttpResponse(actual), "not to have HTTP status", matcher.expectedString())
 }
 
@@ -64,7 +64,7 @@ func (matcher *HaveHTTPStatusMatcher) expectedString() string {
 	return strings.Join(lines, "\n")
 }
 
-func formatHttpResponse(input interface{}) string {
+func formatHttpResponse(input any) string {
 	var resp *http.Response
 	switch r := input.(type) {
 	case *http.Response:
@@ -78,7 +78,7 @@ func formatHttpResponse(input interface{}) string {
 	body := "<nil>"
 	if resp.Body != nil {
 		defer resp.Body.Close()
-		data, err := io.ReadAll(resp.Body)
+		data, err := gutil.ReadAll(resp.Body)
 		if err != nil {
 			data = []byte("<error reading body>")
 		}
