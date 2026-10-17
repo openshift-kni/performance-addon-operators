@@ -180,7 +180,7 @@ replace (
 	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20210303185751-cbeeb4d9f3cc // release-4.9
 	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20211208213416-9b73bdcf5d00 // release-4.8
 	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.1-0.20210701174259-29813c845a4a // release-4.8
-	github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.18.1
+	github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.19.4
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
 )
 
