@@ -33,7 +33,7 @@ require (
 	k8s.io/kubelet v0.23.3
 	k8s.io/kubernetes v0.23.3
 	k8s.io/utils v0.0.0-20211116205334-6203023598ed
-	kubevirt.io/qe-tools v0.1.6
+	kubevirt.io/qe-tools v0.1.8
 	sigs.k8s.io/controller-runtime v0.11.0
 	sigs.k8s.io/controller-tools v0.6.2
 )
@@ -101,6 +101,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/onsi/ginkgo/v2 v2.1.3 // indirect
 	github.com/openshift/client-go v0.0.0-20210916133943-9acee1a0fb83 // indirect
 	github.com/prometheus/client_golang v1.11.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
