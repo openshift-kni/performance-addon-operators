@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Uber Technologies, Inc.
+// Copyright (c) 2017-2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -18,23 +18,42 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package atomic
+//go:build !go1.20
+// +build !go1.20
 
-import "time"
+package multierr
 
-//go:generate bin/gen-atomicwrapper -name=Duration -type=time.Duration -wrapped=Int64 -pack=int64 -unpack=time.Duration -cas -swap -json -imports time -file=duration.go
+import "errors"
 
-// Add atomically adds to the wrapped time.Duration and returns the new value.
-func (d *Duration) Add(n time.Duration) time.Duration {
-	return time.Duration(d.v.Add(int64(n)))
+// Versions of Go before 1.20 did not support the Unwrap() []error method.
+// This provides a similar behavior by implementing the Is(..) and As(..)
+// methods.
+// See the errors.Join proposal for details:
+// https://github.com/golang/go/issues/53435
+
+// As attempts to find the first error in the error list that matches the type
+// of the value that target points to.
+//
+// This function allows errors.As to traverse the values stored on the
+// multierr error.
+func (merr *multiError) As(target interface{}) bool {
+	for _, err := range merr.Errors() {
+		if errors.As(err, target) {
+			return true
+		}
+	}
+	return false
 }
 
-// Sub atomically subtracts from the wrapped time.Duration and returns the new value.
-func (d *Duration) Sub(n time.Duration) time.Duration {
-	return time.Duration(d.v.Sub(int64(n)))
-}
-
-// String encodes the wrapped value as a string.
-func (d *Duration) String() string {
-	return d.Load().String()
+// Is attempts to match the provided error against errors in the error list.
+//
+// This function allows errors.Is to traverse the values stored on the
+// multierr error.
+func (merr *multiError) Is(target error) bool {
+	for _, err := range merr.Errors() {
+		if errors.Is(err, target) {
+			return true
+		}
+	}
+	return false
 }
