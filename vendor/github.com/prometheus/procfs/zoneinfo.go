@@ -1,4 +1,4 @@
-// Copyright 2019 The Prometheus Authors
+// Copyright The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,18 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !windows
+//go:build !windows
 
 package procfs
 
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 
-	"github.com/prometheus/procfs/internal/util"
+	"github.com/prometheus/procfs/internal/parsers"
 )
 
 // Zoneinfo holds info parsed from /proc/zoneinfo.
@@ -72,13 +72,13 @@ var nodeZoneRE = regexp.MustCompile(`(\d+), zone\s+(\w+)`)
 // structs containing the relevant info.  More information available here:
 // https://www.kernel.org/doc/Documentation/sysctl/vm.txt
 func (fs FS) Zoneinfo() ([]Zoneinfo, error) {
-	data, err := ioutil.ReadFile(fs.proc.Path("zoneinfo"))
+	data, err := os.ReadFile(fs.proc.Path("zoneinfo"))
 	if err != nil {
-		return nil, fmt.Errorf("error reading zoneinfo %q: %w", fs.proc.Path("zoneinfo"), err)
+		return nil, fmt.Errorf("%w: error reading zoneinfo %q: %w", ErrFileRead, fs.proc.Path("zoneinfo"), err)
 	}
 	zoneinfo, err := parseZoneinfo(data)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing zoneinfo %q: %w", fs.proc.Path("zoneinfo"), err)
+		return nil, fmt.Errorf("%w: error parsing zoneinfo %q: %w", ErrFileParse, fs.proc.Path("zoneinfo"), err)
 	}
 	return zoneinfo, nil
 }
@@ -87,11 +87,9 @@ func parseZoneinfo(zoneinfoData []byte) ([]Zoneinfo, error) {
 
 	zoneinfo := []Zoneinfo{}
 
-	zoneinfoBlocks := bytes.Split(zoneinfoData, []byte("\nNode"))
-	for _, block := range zoneinfoBlocks {
+	for block := range bytes.SplitSeq(zoneinfoData, []byte("\nNode")) {
 		var zoneinfoElement Zoneinfo
-		lines := strings.Split(string(block), "\n")
-		for _, line := range lines {
+		for line := range strings.SplitSeq(string(block), "\n") {
 
 			if nodeZone := nodeZoneRE.FindStringSubmatch(line); nodeZone != nil {
 				zoneinfoElement.Node = nodeZone[1]
@@ -99,14 +97,13 @@ func parseZoneinfo(zoneinfoData []byte) ([]Zoneinfo, error) {
 				continue
 			}
 			if strings.HasPrefix(strings.TrimSpace(line), "per-node stats") {
-				zoneinfoElement.Zone = ""
 				continue
 			}
 			parts := strings.Fields(strings.TrimSpace(line))
 			if len(parts) < 2 {
 				continue
 			}
-			vp := util.NewValueParser(parts[1])
+			vp := parsers.NewValueParser(parts[1])
 			switch parts[0] {
 			case "nr_free_pages":
 				zoneinfoElement.NrFreePages = vp.PInt64()
@@ -182,7 +179,7 @@ func parseZoneinfo(zoneinfoData []byte) ([]Zoneinfo, error) {
 				protectionValues = strings.Replace(protectionValues, ")", "", 1)
 				protectionValues = strings.TrimSpace(protectionValues)
 				protectionStringMap := strings.Split(protectionValues, ", ")
-				val, err := util.ParsePInt64s(protectionStringMap)
+				val, err := parsers.ParsePInt64s(protectionStringMap)
 				if err == nil {
 					zoneinfoElement.Protection = val
 				}
