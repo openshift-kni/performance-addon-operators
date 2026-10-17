@@ -38,9 +38,6 @@ func (n Disk) Validate(c path.ContextPath) (r report.Report) {
 	if overlaps, p := n.partitionsOverlap(); overlaps {
 		r.AddOnError(c.Append("partitions", p), errors.ErrPartitionsOverlap)
 	}
-	if n.partitionsMixZeroesAndNonexistence() {
-		r.AddOnError(c.Append("partitions"), errors.ErrZeroesWithShouldNotExist)
-	}
 	if collides, p := n.partitionLabelsCollide(); collides {
 		r.AddOnError(c.Append("partitions", p), errors.ErrDuplicateLabels)
 	}
@@ -121,14 +118,4 @@ func (n Disk) partitionsOverlap() (bool, int) {
 		}
 	}
 	return false, 0
-}
-
-func (n Disk) partitionsMixZeroesAndNonexistence() bool {
-	hasZero := false
-	hasShouldNotExist := false
-	for _, p := range n.Partitions {
-		hasShouldNotExist = hasShouldNotExist || (p.ShouldExist != nil && !*p.ShouldExist)
-		hasZero = hasZero || (p.Number == 0)
-	}
-	return hasZero && hasShouldNotExist
 }
