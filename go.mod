@@ -173,7 +173,7 @@ replace (
 // Other pinned deps
 replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v14.2.0+incompatible
-	github.com/coreos/prometheus-operator => github.com/coreos/prometheus-operator v0.40.0
+	github.com/coreos/prometheus-operator => github.com/coreos/prometheus-operator v0.94.1
 	github.com/mtrmac/gpgme => github.com/mtrmac/gpgme v0.1.1
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20210610130314-a6ac319a7eed // release-4.8
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142 // release-4.8
