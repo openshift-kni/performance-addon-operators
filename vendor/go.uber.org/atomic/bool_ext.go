@@ -38,10 +38,10 @@ func boolToInt(b bool) uint32 {
 }
 
 // Toggle atomically negates the Boolean and returns the previous value.
-func (b *Bool) Toggle() bool {
+func (b *Bool) Toggle() (old bool) {
 	for {
 		old := b.Load()
-		if b.CAS(old, !old) {
+		if b.CompareAndSwap(old, !old) {
 			return old
 		}
 	}
