@@ -9,56 +9,38 @@ package snapshot
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"github.com/jaypipes/ghw/pkg/option"
+	"strings"
 )
 
 const (
 	TargetRoot = "ghw-snapshot-*"
 )
 
-const (
-	// If set, `ghw` will not unpack the snapshot in the user-supplied directory
-	// unless the aforementioned directory is empty.
-	OwnTargetDirectory = 1 << iota
-)
-
-// Clanup removes the unpacket snapshot from the target root.
-// Please not that the environs variable `GHW_SNAPSHOT_PRESERVE`, if set,
-// will make this function silently skip.
-func Cleanup(targetRoot string) error {
-	if option.EnvOrDefaultSnapshotPreserve() {
-		return nil
-	}
-	return os.RemoveAll(targetRoot)
-}
-
-// Unpack expands the given snapshot in a temporary directory managed by `ghw`. Returns the path of that directory.
+// Unpack expands the given snapshot in a temporary directory managed by `ghw`.
+// Returns the path of that directory. Callers are responsible for cleaning up
+// the temporary directory.
 func Unpack(snapshotName string) (string, error) {
-	targetRoot, err := ioutil.TempDir("", TargetRoot)
+	targetRoot, err := os.MkdirTemp("", TargetRoot)
 	if err != nil {
 		return "", err
 	}
-	_, err = UnpackInto(snapshotName, targetRoot, 0)
+	err = UnpackInto(snapshotName, targetRoot)
 	return targetRoot, err
 }
 
 // UnpackInto expands the given snapshot in a client-supplied directory.
 // Returns true if the snapshot was actually unpacked, false otherwise
-func UnpackInto(snapshotName, targetRoot string, flags uint) (bool, error) {
-	if (flags&OwnTargetDirectory) == OwnTargetDirectory && !isEmptyDir(targetRoot) {
-		return false, nil
-	}
+func UnpackInto(snapshotName, targetRoot string) error {
 	snap, err := os.Open(snapshotName)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer snap.Close()
-	return true, Untar(targetRoot, snap)
+	return Untar(targetRoot, snap)
 }
 
 // Untar extracts data from the given reader (providing data in tar.gz format) and unpacks it in the given directory.
@@ -91,6 +73,11 @@ func Untar(root string, r io.Reader) error {
 		target := filepath.Join(root, header.Name)
 		mode := os.FileMode(header.Mode)
 
+		cleanRoot := filepath.Clean(root) + string(os.PathSeparator)
+		if !strings.HasPrefix(filepath.Clean(target)+string(os.PathSeparator), cleanRoot) {
+			return fmt.Errorf("tar entry %q would escape destination directory", header.Name)
+		}
+
 		switch header.Typeflag {
 		case tar.TypeDir:
 			err = os.MkdirAll(target, mode)
@@ -112,6 +99,10 @@ func Untar(root string, r io.Reader) error {
 			dst.Close()
 
 		case tar.TypeSymlink:
+			resolvedLink := filepath.Join(filepath.Dir(target), header.Linkname)
+			if !strings.HasPrefix(filepath.Clean(resolvedLink)+string(os.PathSeparator), cleanRoot) {
+				return fmt.Errorf("symlink target %q would escape destination directory", header.Linkname)
+			}
 			err = os.Symlink(header.Linkname, target)
 			if err != nil {
 				return err
@@ -121,7 +112,7 @@ func Untar(root string, r io.Reader) error {
 }
 
 func isEmptyDir(name string) bool {
-	entries, err := ioutil.ReadDir(name)
+	entries, err := os.ReadDir(name)
 	if err != nil {
 		return false
 	}
