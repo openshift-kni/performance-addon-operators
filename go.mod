@@ -1,6 +1,6 @@
 module github.com/openshift-kni/performance-addon-operators
 
-go 1.17
+go 1.23
 
 require (
 	github.com/RHsyseng/operator-utils v0.0.0-20200213165520-1a022eb07a43
@@ -61,7 +61,7 @@ require (
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/fatih/color v1.12.0 // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
-	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/go-logr/zapr v1.2.0 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
@@ -114,7 +114,7 @@ require (
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
-	golang.org/x/sys v0.0.0-20211029165221-6e7872819dc8 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
