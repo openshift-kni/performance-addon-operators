@@ -1,4 +1,4 @@
-// Copyright 2020 The Prometheus Authors
+// Copyright The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,14 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !windows
+//go:build !windows
 
 package procfs
 
 import (
 	"os"
 
-	"github.com/prometheus/procfs/internal/util"
+	"github.com/prometheus/procfs/internal/parsers"
 )
 
 // KernelRandom contains information about to the kernel's random number generator.
@@ -48,7 +48,7 @@ func (fs FS) KernelRandom() (KernelRandom, error) {
 		"write_wakeup_threshold":  &random.WriteWakeupThreshold,
 		"read_wakeup_threshold":   &random.ReadWakeupThreshold,
 	} {
-		val, err := util.ReadUintFromFile(fs.proc.Path("sys", "kernel", "random", file))
+		val, err := parsers.ReadUintFromFile(fs.proc.Path("sys", "kernel", "random", file))
 		if os.IsNotExist(err) {
 			continue
 		}
