@@ -29,10 +29,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"sigs.k8s.io/structured-merge-diff/v6/value"
+
 	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/util/json"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"sigs.k8s.io/structured-merge-diff/v4/value"
 
 	"k8s.io/klog/v2"
 )
@@ -53,6 +54,7 @@ type fieldInfo struct {
 	name      string
 	nameValue reflect.Value
 	omitempty bool
+	omitzero  func(dv reflect.Value) bool
 }
 
 type fieldsCacheMap map[structField]*fieldInfo
@@ -231,13 +233,13 @@ func (c *fromUnstructuredContext) pushKey(key string) {
 
 }
 
-// FromUnstructuredWIthValidation converts an object from map[string]interface{} representation into a concrete type.
+// FromUnstructuredWithValidation converts an object from map[string]interface{} representation into a concrete type.
 // It uses encoding/json/Unmarshaler if object implements it or reflection if not.
 // It takes a validationDirective that indicates how to behave when it encounters unknown fields.
 func (c *unstructuredConverter) FromUnstructuredWithValidation(u map[string]interface{}, obj interface{}, returnUnknownFields bool) error {
 	t := reflect.TypeOf(obj)
 	value := reflect.ValueOf(obj)
-	if t.Kind() != reflect.Ptr || value.IsNil() {
+	if t.Kind() != reflect.Pointer || value.IsNil() {
 		return fmt.Errorf("FromUnstructured requires a non-nil pointer to an object, got %v", t)
 	}
 
@@ -249,9 +251,11 @@ func (c *unstructuredConverter) FromUnstructuredWithValidation(u map[string]inte
 		newObj := reflect.New(t.Elem()).Interface()
 		newErr := fromUnstructuredViaJSON(u, newObj)
 		if (err != nil) != (newErr != nil) {
+			//nolint:logcheck // Should not be reached.
 			klog.Fatalf("FromUnstructured unexpected error for %v: error: %v", u, err)
 		}
 		if err == nil && !c.comparison.DeepEqual(obj, newObj) {
+			//nolint:logcheck // Should not be reached.
 			klog.Fatalf("FromUnstructured mismatch\nobj1: %#v\nobj2: %#v", obj, newObj)
 		}
 	}
@@ -291,7 +295,7 @@ func fromUnstructured(sv, dv reflect.Value, ctx *fromUnstructuredContext) error 
 	st, dt := sv.Type(), dv.Type()
 
 	switch dt.Kind() {
-	case reflect.Map, reflect.Slice, reflect.Ptr, reflect.Struct, reflect.Interface:
+	case reflect.Map, reflect.Slice, reflect.Pointer, reflect.Struct, reflect.Interface:
 		// Those require non-trivial conversion.
 	default:
 		// This should handle all simple types.
@@ -353,7 +357,7 @@ func fromUnstructured(sv, dv reflect.Value, ctx *fromUnstructuredContext) error 
 		return mapFromUnstructured(sv, dv, ctx)
 	case reflect.Slice:
 		return sliceFromUnstructured(sv, dv, ctx)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return pointerFromUnstructured(sv, dv, ctx)
 	case reflect.Struct:
 		return structFromUnstructured(sv, dv, ctx)
@@ -374,21 +378,29 @@ func fieldInfoFromField(structType reflect.Type, field int) *fieldInfo {
 	// Cache miss - we need to compute the field name.
 	info := &fieldInfo{}
 	typeField := structType.Field(field)
-	jsonTag := typeField.Tag.Get("json")
-	if len(jsonTag) == 0 {
-		// Make the first character lowercase.
-		if typeField.Name == "" {
+	jsonTag, exists := typeField.Tag.Lookup("json")
+	if !exists || len(jsonTag) == 0 {
+		if !typeField.Anonymous {
+			// match stdlib behavior for naming fields that don't specify a json tag name
 			info.name = typeField.Name
-		} else {
-			info.name = strings.ToLower(typeField.Name[:1]) + typeField.Name[1:]
 		}
 	} else {
 		items := strings.Split(jsonTag, ",")
 		info.name = items[0]
+		if isInlinedFromTag(typeField, items[0], items[1:]) {
+			// match stdlib behavior when controlled by tag
+			info.name = ""
+		} else if len(info.name) == 0 && !typeField.Anonymous {
+			// match stdlib behavior for naming fields that don't specify a json tag name
+			info.name = typeField.Name
+		}
+
 		for i := range items {
-			if items[i] == "omitempty" {
+			if i > 0 && items[i] == "omitempty" {
 				info.omitempty = true
-				break
+			}
+			if i > 0 && items[i] == "omitzero" {
+				info.omitzero = value.OmitZeroFunc(typeField.Type)
 			}
 		}
 	}
@@ -465,7 +477,7 @@ func sliceFromUnstructured(sv, dv reflect.Value, ctx *fromUnstructuredContext) e
 			}
 			dv.SetBytes(data)
 		} else {
-			dv.Set(reflect.Zero(dt))
+			dv.Set(reflect.MakeSlice(dt, 0, 0))
 		}
 		return nil
 	}
@@ -496,13 +508,13 @@ func sliceFromUnstructured(sv, dv reflect.Value, ctx *fromUnstructuredContext) e
 func pointerFromUnstructured(sv, dv reflect.Value, ctx *fromUnstructuredContext) error {
 	st, dt := sv.Type(), dv.Type()
 
-	if st.Kind() == reflect.Ptr && sv.IsNil() {
+	if st.Kind() == reflect.Pointer && sv.IsNil() {
 		dv.Set(reflect.Zero(dt))
 		return nil
 	}
 	dv.Set(reflect.New(dt.Elem()))
 	switch st.Kind() {
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Pointer, reflect.Interface:
 		return fromUnstructured(sv.Elem(), dv.Elem(), ctx)
 	default:
 		return fromUnstructured(sv, dv.Elem(), ctx)
@@ -579,7 +591,7 @@ func (c *unstructuredConverter) ToUnstructured(obj interface{}) (map[string]inte
 	} else {
 		t := reflect.TypeOf(obj)
 		value := reflect.ValueOf(obj)
-		if t.Kind() != reflect.Ptr || value.IsNil() {
+		if t.Kind() != reflect.Pointer || value.IsNil() {
 			return nil, fmt.Errorf("ToUnstructured requires a non-nil pointer to an object, got %v", t)
 		}
 		u = map[string]interface{}{}
@@ -589,9 +601,11 @@ func (c *unstructuredConverter) ToUnstructured(obj interface{}) (map[string]inte
 		newUnstr := map[string]interface{}{}
 		newErr := toUnstructuredViaJSON(obj, &newUnstr)
 		if (err != nil) != (newErr != nil) {
+			//nolint:logcheck // Should not be reached.
 			klog.Fatalf("ToUnstructured unexpected error for %v: error: %v; newErr: %v", obj, err, newErr)
 		}
 		if err == nil && !c.comparison.DeepEqual(u, newUnstr) {
+			//nolint:logcheck // Should not be reached.
 			klog.Fatalf("ToUnstructured mismatch\nobj1: %#v\nobj2: %#v", u, newUnstr)
 		}
 	}
@@ -673,11 +687,11 @@ func toUnstructured(sv, dv reflect.Value) error {
 		dv.Set(reflect.ValueOf(sv.Int()))
 		return nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		uVal := sv.Uint()
-		if uVal > math.MaxInt64 {
-			return fmt.Errorf("unsigned value %d does not fit into int64 (overflow)", uVal)
+		val, err := uintToUnstructuredHelper(sv.Uint())
+		if err != nil {
+			return err
 		}
-		dv.Set(reflect.ValueOf(int64(uVal)))
+		dv.Set(reflect.ValueOf(val))
 		return nil
 	case reflect.Float32, reflect.Float64:
 		dv.Set(reflect.ValueOf(sv.Float()))
@@ -686,7 +700,7 @@ func toUnstructured(sv, dv reflect.Value) error {
 		return mapToUnstructured(sv, dv)
 	case reflect.Slice:
 		return sliceToUnstructured(sv, dv)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return pointerToUnstructured(sv, dv)
 	case reflect.Struct:
 		return structToUnstructured(sv, dv)
@@ -705,24 +719,13 @@ func mapToUnstructured(sv, dv reflect.Value) error {
 	}
 	if dt.Kind() == reflect.Interface && dv.NumMethod() == 0 {
 		if st.Key().Kind() == reflect.String {
-			switch st.Elem().Kind() {
-			// TODO It should be possible to reuse the slice for primitive types.
-			// However, it is panicing in the following form.
-			// case reflect.String, reflect.Bool,
-			// 	reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			// 	reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			// 	sv.Set(sv)
-			// 	return nil
-			default:
-				// We need to do a proper conversion.
-			}
+			dv.Set(reflect.MakeMap(mapStringInterfaceType))
+			dv = dv.Elem()
+			dt = dv.Type()
 		}
-		dv.Set(reflect.MakeMap(mapStringInterfaceType))
-		dv = dv.Elem()
-		dt = dv.Type()
 	}
 	if dt.Kind() != reflect.Map {
-		return fmt.Errorf("cannot convert struct to: %v", dt.Kind())
+		return fmt.Errorf("cannot convert map to: %v", dt.Kind())
 	}
 
 	if !st.Key().AssignableTo(dt.Key()) && !st.Key().ConvertibleTo(dt.Key()) {
@@ -763,20 +766,9 @@ func sliceToUnstructured(sv, dv reflect.Value) error {
 		return nil
 	}
 	if dt.Kind() == reflect.Interface && dv.NumMethod() == 0 {
-		switch st.Elem().Kind() {
-		// TODO It should be possible to reuse the slice for primitive types.
-		// However, it is panicing in the following form.
-		// case reflect.String, reflect.Bool,
-		// 	reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		// 	reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		// 	sv.Set(sv)
-		// 	return nil
-		default:
-			// We need to do a proper conversion.
-			dv.Set(reflect.MakeSlice(reflect.SliceOf(dt), sv.Len(), sv.Cap()))
-			dv = dv.Elem()
-			dt = dv.Type()
-		}
+		dv.Set(reflect.MakeSlice(reflect.SliceOf(dt), sv.Len(), sv.Cap()))
+		dv = dv.Elem()
+		dt = dv.Type()
 	}
 	if dt.Kind() != reflect.Slice {
 		return fmt.Errorf("cannot convert slice to: %v", dt.Kind())
@@ -797,7 +789,7 @@ func pointerToUnstructured(sv, dv reflect.Value) error {
 	return toUnstructured(sv.Elem(), dv)
 }
 
-func isZero(v reflect.Value) bool {
+func isEmpty(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.String:
 		return v.Len() == 0
@@ -812,7 +804,7 @@ func isZero(v reflect.Value) bool {
 	case reflect.Map, reflect.Slice:
 		// TODO: It seems that 0-len maps are ignored in it.
 		return v.IsNil() || v.Len() == 0
-	case reflect.Ptr, reflect.Interface:
+	case reflect.Pointer, reflect.Interface:
 		return v.IsNil()
 	}
 	return false
@@ -838,8 +830,12 @@ func structToUnstructured(sv, dv reflect.Value) error {
 			// This field should be skipped.
 			continue
 		}
-		if fieldInfo.omitempty && isZero(fv) {
+		if fieldInfo.omitempty && isEmpty(fv) {
 			// omitempty fields should be ignored.
+			continue
+		}
+		if fieldInfo.omitzero != nil && fieldInfo.omitzero(fv) {
+			// omitzero fields should be ignored
 			continue
 		}
 		if len(fieldInfo.name) == 0 {
@@ -857,7 +853,11 @@ func structToUnstructured(sv, dv reflect.Value) error {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			realMap[fieldInfo.name] = fv.Int()
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			realMap[fieldInfo.name] = fv.Uint()
+			val, err := uintToUnstructuredHelper(fv.Uint())
+			if err != nil {
+				return err
+			}
+			realMap[fieldInfo.name] = val
 		case reflect.Float32, reflect.Float64:
 			realMap[fieldInfo.name] = fv.Float()
 		default:
@@ -877,4 +877,11 @@ func interfaceToUnstructured(sv, dv reflect.Value) error {
 		return nil
 	}
 	return toUnstructured(sv.Elem(), dv)
+}
+
+func uintToUnstructuredHelper(uVal uint64) (int64, error) {
+	if uVal > math.MaxInt64 {
+		return 0, fmt.Errorf("unsigned value %d does not fit into int64 (overflow)", uVal)
+	}
+	return int64(uVal), nil
 }

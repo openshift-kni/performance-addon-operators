@@ -18,13 +18,31 @@ limitations under the License.
 
 package v1
 
-// RollingUpdateStatefulSetStrategyApplyConfiguration represents an declarative configuration of the RollingUpdateStatefulSetStrategy type for use
+import (
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
+)
+
+// RollingUpdateStatefulSetStrategyApplyConfiguration represents a declarative configuration of the RollingUpdateStatefulSetStrategy type for use
 // with apply.
+//
+// RollingUpdateStatefulSetStrategy is used to communicate parameter for RollingUpdateStatefulSetStrategyType.
 type RollingUpdateStatefulSetStrategyApplyConfiguration struct {
+	// Partition indicates the ordinal at which the StatefulSet should be partitioned
+	// for updates. During a rolling update, all pods from ordinal Replicas-1 to
+	// Partition are updated. All pods from ordinal Partition-1 to 0 remain untouched.
+	// This is helpful in being able to do a canary based deployment. The default value is 0.
 	Partition *int32 `json:"partition,omitempty"`
+	// The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+	// Absolute number is calculated from percentage by rounding up. This can not be 0.
+	// Defaults to 1. This field is beta-level and is enabled by default. The field applies to all pods in the range 0 to
+	// Replicas-1. That means if there is any unavailable pod in the range 0 to Replicas-1, it
+	// will be counted towards MaxUnavailable.
+	// This setting might not be effective for the OrderedReady podManagementPolicy. That policy ensures pods are created and become ready one at a time.
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 }
 
-// RollingUpdateStatefulSetStrategyApplyConfiguration constructs an declarative configuration of the RollingUpdateStatefulSetStrategy type for use with
+// RollingUpdateStatefulSetStrategyApplyConfiguration constructs a declarative configuration of the RollingUpdateStatefulSetStrategy type for use with
 // apply.
 func RollingUpdateStatefulSetStrategy() *RollingUpdateStatefulSetStrategyApplyConfiguration {
 	return &RollingUpdateStatefulSetStrategyApplyConfiguration{}
@@ -35,5 +53,13 @@ func RollingUpdateStatefulSetStrategy() *RollingUpdateStatefulSetStrategyApplyCo
 // If called multiple times, the Partition field is set to the value of the last call.
 func (b *RollingUpdateStatefulSetStrategyApplyConfiguration) WithPartition(value int32) *RollingUpdateStatefulSetStrategyApplyConfiguration {
 	b.Partition = &value
+	return b
+}
+
+// WithMaxUnavailable sets the MaxUnavailable field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the MaxUnavailable field is set to the value of the last call.
+func (b *RollingUpdateStatefulSetStrategyApplyConfiguration) WithMaxUnavailable(value intstr.IntOrString) *RollingUpdateStatefulSetStrategyApplyConfiguration {
+	b.MaxUnavailable = &value
 	return b
 }

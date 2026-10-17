@@ -45,7 +45,6 @@ func NewCodec(e Encoder, d Decoder) Codec {
 
 // Encode is a convenience wrapper for encoding to a []byte from an Encoder
 func Encode(e Encoder, obj Object) ([]byte, error) {
-	// TODO: reuse buffer
 	buf := &bytes.Buffer{}
 	if err := e.Encode(obj, buf); err != nil {
 		return nil, err
@@ -227,6 +226,7 @@ func identifier(e Encoder) Identifier {
 	}
 	identifier, err := json.Marshal(result)
 	if err != nil {
+		//nolint:logcheck // Should not be reached.
 		klog.Fatalf("Failed marshaling identifier for base64Serializer: %v", err)
 	}
 	return Identifier(identifier)
@@ -344,14 +344,15 @@ func NewMultiGroupVersioner(gv schema.GroupVersion, groupKinds ...schema.GroupKi
 // Incoming kinds that match the provided groupKinds are preferred.
 // Kind may be empty in the provided group kind, in which case any kind will match.
 // Examples:
-//   gv=mygroup/__internal, groupKinds=mygroup/Foo, anothergroup/Bar
-//   KindForGroupVersionKinds(yetanother/v1/Baz, anothergroup/v1/Bar) -> mygroup/__internal/Bar (matched preferred group/kind)
 //
-//   gv=mygroup/__internal, groupKinds=mygroup, anothergroup
-//   KindForGroupVersionKinds(yetanother/v1/Baz, anothergroup/v1/Bar) -> mygroup/__internal/Bar (matched preferred group)
+//	gv=mygroup/__internal, groupKinds=mygroup/Foo, anothergroup/Bar
+//	KindForGroupVersionKinds(yetanother/v1/Baz, anothergroup/v1/Bar) -> mygroup/__internal/Bar (matched preferred group/kind)
 //
-//   gv=mygroup/__internal, groupKinds=mygroup, anothergroup
-//   KindForGroupVersionKinds(yetanother/v1/Baz, yetanother/v1/Bar) -> mygroup/__internal/Baz (no preferred group/kind match, uses first kind in list)
+//	gv=mygroup/__internal, groupKinds=mygroup, anothergroup
+//	KindForGroupVersionKinds(yetanother/v1/Baz, anothergroup/v1/Bar) -> mygroup/__internal/Bar (matched preferred group)
+//
+//	gv=mygroup/__internal, groupKinds=mygroup, anothergroup
+//	KindForGroupVersionKinds(yetanother/v1/Baz, yetanother/v1/Bar) -> mygroup/__internal/Baz (no preferred group/kind match, uses first kind in list)
 func NewCoercingMultiGroupVersioner(gv schema.GroupVersion, groupKinds ...schema.GroupKind) GroupVersioner {
 	return multiGroupVersioner{target: gv, acceptedGroupKinds: groupKinds, coerce: true}
 }
@@ -390,6 +391,7 @@ func (v multiGroupVersioner) Identifier() string {
 	}
 	identifier, err := json.Marshal(result)
 	if err != nil {
+		//nolint:logcheck // Should not be reached.
 		klog.Fatalf("Failed marshaling Identifier for %#v: %v", v, err)
 	}
 	return string(identifier)

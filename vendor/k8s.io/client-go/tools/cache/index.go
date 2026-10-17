@@ -28,10 +28,10 @@ import (
 // Delete).
 //
 // There are three kinds of strings here:
-// 1. a storage key, as defined in the Store interface,
-// 2. a name of an index, and
-// 3. an "indexed value", which is produced by an IndexFunc and
-//    can be a field value or any other string computed from the object.
+//  1. a storage key, as defined in the Store interface,
+//  2. a name of an index, and
+//  3. an "indexed value", which is produced by an IndexFunc and
+//     can be a field value or any other string computed from the object.
 type Indexer interface {
 	Store
 	// Index returns the stored objects whose set of indexed values
@@ -47,11 +47,10 @@ type Indexer interface {
 	// ByIndex returns the stored objects whose set of indexed values
 	// for the named index includes the given indexed value
 	ByIndex(indexName, indexedValue string) ([]interface{}, error)
-	// GetIndexer return the indexers
+	// GetIndexers return the indexers
 	GetIndexers() Indexers
 
-	// AddIndexers adds more indexers to this store.  If you call this after you already have data
-	// in the store, the results are undefined.
+	// AddIndexers adds more indexers to this store. This supports adding indexes after the store already has items.
 	AddIndexers(newIndexers Indexers) error
 }
 
@@ -92,10 +91,44 @@ func MetaNamespaceIndexFunc(obj interface{}) ([]string, error) {
 }
 
 // Index maps the indexed value to a set of keys in the store that match on that value
-type Index map[string]sets.String
+type index map[string]sets.Set[string]
 
 // Indexers maps a name to an IndexFunc
 type Indexers map[string]IndexFunc
 
 // Indices maps a name to an Index
-type Indices map[string]Index
+type Indices map[string]index
+
+type TypedIndexers[T any] map[string]TypedIndexFunc[T]
+type TypedIndexFunc[T any] func(obj T) ([]string, error)
+type TypedIndexer[T any] interface {
+	Indexer
+
+	TypedIndex(indexName string, obj T) ([]T, error)
+	ByTypedIndex(indexName, indexedValue string) ([]T, error)
+	AddTypedIndexers(newIndexers TypedIndexers[T]) error
+}
+
+// TypedIndexersToIndexers wraps several indexer functions which expect objects
+// of a certain type so that they can be used in an [Indexer].
+// This is needed primarily for setting up [SharedIndexInformerOptions.Indexers].
+// When using one of the typed APIs for installing an indexer function
+// the conversion is done automatically.
+func TypedIndexersToIndexers[T any](indexers TypedIndexers[T]) Indexers {
+	untyped := make(Indexers, len(indexers))
+	for i, indexer := range indexers {
+		untyped[i] = TypedIndexerFuncToIndexerFunc(indexer)
+	}
+	return untyped
+}
+
+// TypedIndexersFuncToIndexerFunc wraps one indexer function which expect objects
+// of a certain type so that they can be used in an [Indexer].
+// This is needed primarily for setting up [SharedIndexInformerOptions.Indexers].
+// When using one of the typed APIs for installing an indexer function
+// the conversion is done automatically.
+func TypedIndexerFuncToIndexerFunc[T any](indexer TypedIndexFunc[T]) IndexFunc {
+	return func(obj any) ([]string, error) {
+		return indexer(obj.(T))
+	}
+}

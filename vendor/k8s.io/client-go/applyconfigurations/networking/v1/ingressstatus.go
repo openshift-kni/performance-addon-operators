@@ -18,17 +18,16 @@ limitations under the License.
 
 package v1
 
-import (
-	v1 "k8s.io/client-go/applyconfigurations/core/v1"
-)
-
-// IngressStatusApplyConfiguration represents an declarative configuration of the IngressStatus type for use
+// IngressStatusApplyConfiguration represents a declarative configuration of the IngressStatus type for use
 // with apply.
+//
+// IngressStatus describe the current state of the Ingress.
 type IngressStatusApplyConfiguration struct {
-	LoadBalancer *v1.LoadBalancerStatusApplyConfiguration `json:"loadBalancer,omitempty"`
+	// loadBalancer contains the current status of the load-balancer.
+	LoadBalancer *IngressLoadBalancerStatusApplyConfiguration `json:"loadBalancer,omitempty"`
 }
 
-// IngressStatusApplyConfiguration constructs an declarative configuration of the IngressStatus type for use with
+// IngressStatusApplyConfiguration constructs a declarative configuration of the IngressStatus type for use with
 // apply.
 func IngressStatus() *IngressStatusApplyConfiguration {
 	return &IngressStatusApplyConfiguration{}
@@ -37,7 +36,7 @@ func IngressStatus() *IngressStatusApplyConfiguration {
 // WithLoadBalancer sets the LoadBalancer field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the LoadBalancer field is set to the value of the last call.
-func (b *IngressStatusApplyConfiguration) WithLoadBalancer(value *v1.LoadBalancerStatusApplyConfiguration) *IngressStatusApplyConfiguration {
+func (b *IngressStatusApplyConfiguration) WithLoadBalancer(value *IngressLoadBalancerStatusApplyConfiguration) *IngressStatusApplyConfiguration {
 	b.LoadBalancer = value
 	return b
 }

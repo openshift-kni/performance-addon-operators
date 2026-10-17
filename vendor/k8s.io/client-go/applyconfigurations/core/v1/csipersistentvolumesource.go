@@ -18,21 +18,59 @@ limitations under the License.
 
 package v1
 
-// CSIPersistentVolumeSourceApplyConfiguration represents an declarative configuration of the CSIPersistentVolumeSource type for use
+// CSIPersistentVolumeSourceApplyConfiguration represents a declarative configuration of the CSIPersistentVolumeSource type for use
 // with apply.
+//
+// Represents storage that is managed by an external CSI volume driver
 type CSIPersistentVolumeSourceApplyConfiguration struct {
-	Driver                     *string                            `json:"driver,omitempty"`
-	VolumeHandle               *string                            `json:"volumeHandle,omitempty"`
-	ReadOnly                   *bool                              `json:"readOnly,omitempty"`
-	FSType                     *string                            `json:"fsType,omitempty"`
-	VolumeAttributes           map[string]string                  `json:"volumeAttributes,omitempty"`
+	// driver is the name of the driver to use for this volume.
+	// Required.
+	Driver *string `json:"driver,omitempty"`
+	// volumeHandle is the unique volume name returned by the CSI volume
+	// plugin’s CreateVolume to refer to the volume on all subsequent calls.
+	// Required.
+	VolumeHandle *string `json:"volumeHandle,omitempty"`
+	// readOnly value to pass to ControllerPublishVolumeRequest.
+	// Defaults to false (read/write).
+	ReadOnly *bool `json:"readOnly,omitempty"`
+	// fsType to mount. Must be a filesystem type supported by the host operating system.
+	// Ex. "ext4", "xfs", "ntfs".
+	FSType *string `json:"fsType,omitempty"`
+	// volumeAttributes of the volume to publish.
+	VolumeAttributes map[string]string `json:"volumeAttributes,omitempty"`
+	// controllerPublishSecretRef is a reference to the secret object containing
+	// sensitive information to pass to the CSI driver to complete the CSI
+	// ControllerPublishVolume and ControllerUnpublishVolume calls.
+	// This field is optional, and may be empty if no secret is required. If the
+	// secret object contains more than one secret, all secrets are passed.
 	ControllerPublishSecretRef *SecretReferenceApplyConfiguration `json:"controllerPublishSecretRef,omitempty"`
-	NodeStageSecretRef         *SecretReferenceApplyConfiguration `json:"nodeStageSecretRef,omitempty"`
-	NodePublishSecretRef       *SecretReferenceApplyConfiguration `json:"nodePublishSecretRef,omitempty"`
-	ControllerExpandSecretRef  *SecretReferenceApplyConfiguration `json:"controllerExpandSecretRef,omitempty"`
+	// nodeStageSecretRef is a reference to the secret object containing sensitive
+	// information to pass to the CSI driver to complete the CSI NodeStageVolume
+	// and NodeStageVolume and NodeUnstageVolume calls.
+	// This field is optional, and may be empty if no secret is required. If the
+	// secret object contains more than one secret, all secrets are passed.
+	NodeStageSecretRef *SecretReferenceApplyConfiguration `json:"nodeStageSecretRef,omitempty"`
+	// nodePublishSecretRef is a reference to the secret object containing
+	// sensitive information to pass to the CSI driver to complete the CSI
+	// NodePublishVolume and NodeUnpublishVolume calls.
+	// This field is optional, and may be empty if no secret is required. If the
+	// secret object contains more than one secret, all secrets are passed.
+	NodePublishSecretRef *SecretReferenceApplyConfiguration `json:"nodePublishSecretRef,omitempty"`
+	// controllerExpandSecretRef is a reference to the secret object containing
+	// sensitive information to pass to the CSI driver to complete the CSI
+	// ControllerExpandVolume call.
+	// This field is optional, and may be empty if no secret is required. If the
+	// secret object contains more than one secret, all secrets are passed.
+	ControllerExpandSecretRef *SecretReferenceApplyConfiguration `json:"controllerExpandSecretRef,omitempty"`
+	// nodeExpandSecretRef is a reference to the secret object containing
+	// sensitive information to pass to the CSI driver to complete the CSI
+	// NodeExpandVolume call.
+	// This field is optional, may be omitted if no secret is required. If the
+	// secret object contains more than one secret, all secrets are passed.
+	NodeExpandSecretRef *SecretReferenceApplyConfiguration `json:"nodeExpandSecretRef,omitempty"`
 }
 
-// CSIPersistentVolumeSourceApplyConfiguration constructs an declarative configuration of the CSIPersistentVolumeSource type for use with
+// CSIPersistentVolumeSourceApplyConfiguration constructs a declarative configuration of the CSIPersistentVolumeSource type for use with
 // apply.
 func CSIPersistentVolumeSource() *CSIPersistentVolumeSourceApplyConfiguration {
 	return &CSIPersistentVolumeSourceApplyConfiguration{}
@@ -113,5 +151,13 @@ func (b *CSIPersistentVolumeSourceApplyConfiguration) WithNodePublishSecretRef(v
 // If called multiple times, the ControllerExpandSecretRef field is set to the value of the last call.
 func (b *CSIPersistentVolumeSourceApplyConfiguration) WithControllerExpandSecretRef(value *SecretReferenceApplyConfiguration) *CSIPersistentVolumeSourceApplyConfiguration {
 	b.ControllerExpandSecretRef = value
+	return b
+}
+
+// WithNodeExpandSecretRef sets the NodeExpandSecretRef field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the NodeExpandSecretRef field is set to the value of the last call.
+func (b *CSIPersistentVolumeSourceApplyConfiguration) WithNodeExpandSecretRef(value *SecretReferenceApplyConfiguration) *CSIPersistentVolumeSourceApplyConfiguration {
+	b.NodeExpandSecretRef = value
 	return b
 }

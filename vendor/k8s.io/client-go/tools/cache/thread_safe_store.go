@@ -18,9 +18,14 @@ package cache
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
+	"time"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/util/sets"
+	clientgofeaturegate "k8s.io/client-go/features"
+	utiltrace "k8s.io/utils/trace"
 )
 
 // ThreadSafeStore is an interface that allows concurrent indexed
@@ -41,22 +46,210 @@ import (
 type ThreadSafeStore interface {
 	Add(key string, obj interface{})
 	Update(key string, obj interface{})
+	// Delete is equivalent to calling DeleteWithObject(key, nil) however it is
+	// not recommended to use this function as it will not update the resource
+	// version of the store, possibly causing it to be out of date.
 	Delete(key string)
+	DeleteWithObject(key string, obj interface{})
 	Get(key string) (item interface{}, exists bool)
 	List() []interface{}
 	ListKeys() []string
 	Replace(map[string]interface{}, string)
 	Index(indexName string, obj interface{}) ([]interface{}, error)
-	IndexKeys(indexName, indexKey string) ([]string, error)
+	IndexKeys(indexName, indexedValue string) ([]string, error)
+	Bookmark(rv string)
+	LastStoreSyncResourceVersion() string
 	ListIndexFuncValues(name string) []string
-	ByIndex(indexName, indexKey string) ([]interface{}, error)
+	ByIndex(indexName, indexedValue string) ([]interface{}, error)
 	GetIndexers() Indexers
 
-	// AddIndexers adds more indexers to this store.  If you call this after you already have data
-	// in the store, the results are undefined.
+	// AddIndexers adds more indexers to this store. This supports adding indexes after the store already has items.
 	AddIndexers(newIndexers Indexers) error
 	// Resync is a no-op and is deprecated
 	Resync() error
+}
+
+// ThreadSafeStoreWithTransaction is a store that can batch execute multiple transactions.
+type ThreadSafeStoreWithTransaction interface {
+	ThreadSafeStore
+	// Transaction allows performing multiple writes in one call.
+	Transaction(fns ...ThreadSafeStoreTransaction)
+}
+
+// ThreadSafeStoreTransaction embeds a Transaction and includes the specific Key identifying the affected object.
+type ThreadSafeStoreTransaction struct {
+	Transaction
+	Key string
+}
+
+type ThreadSafeStoreOption = func(*threadSafeMap)
+
+func WithThreadSafeStoreMetrics(identifier InformerNameAndResource, metricsProvider InformerMetricsProvider) ThreadSafeStoreOption {
+	return func(c *threadSafeMap) {
+		c.metrics = newStoreMetrics(identifier, metricsProvider)
+	}
+}
+
+// storeIndex implements the indexing functionality for Store interface
+type storeIndex struct {
+	// indexers maps a name to an IndexFunc
+	indexers Indexers
+	// indices maps a name to an Index
+	indices Indices
+}
+
+func (i *storeIndex) reset() {
+	i.indices = Indices{}
+}
+
+func (i *storeIndex) getKeysFromIndex(indexName string, obj interface{}) (sets.Set[string], error) {
+	indexFunc := i.indexers[indexName]
+	if indexFunc == nil {
+		return nil, fmt.Errorf("Index with name %s does not exist", indexName)
+	}
+
+	indexedValues, err := indexFunc(obj)
+	if err != nil {
+		return nil, err
+	}
+	index := i.indices[indexName]
+
+	var storeKeySet sets.Set[string]
+	if len(indexedValues) == 1 {
+		// In majority of cases, there is exactly one value matching.
+		// Optimize the most common path - deduping is not needed here.
+		storeKeySet = index[indexedValues[0]]
+	} else {
+		// Need to de-dupe the return list.
+		// Since multiple keys are allowed, this can happen.
+		storeKeySet = sets.Set[string]{}
+		for _, indexedValue := range indexedValues {
+			for key := range index[indexedValue] {
+				storeKeySet.Insert(key)
+			}
+		}
+	}
+
+	return storeKeySet, nil
+}
+
+func (i *storeIndex) getKeysByIndex(indexName, indexedValue string) (sets.Set[string], error) {
+	indexFunc := i.indexers[indexName]
+	if indexFunc == nil {
+		return nil, fmt.Errorf("Index with name %s does not exist", indexName)
+	}
+
+	index := i.indices[indexName]
+	return index[indexedValue], nil
+}
+
+func (i *storeIndex) getIndexValues(indexName string) []string {
+	index := i.indices[indexName]
+	names := make([]string, 0, len(index))
+	for key := range index {
+		names = append(names, key)
+	}
+	return names
+}
+
+func (i *storeIndex) addIndexers(newIndexers Indexers) error {
+	oldKeys := sets.KeySet(i.indexers)
+	newKeys := sets.KeySet(newIndexers)
+
+	if oldKeys.HasAny(sets.List(newKeys)...) {
+		return fmt.Errorf("indexer conflict: %v", oldKeys.Intersection(newKeys))
+	}
+
+	for k, v := range newIndexers {
+		i.indexers[k] = v
+	}
+	return nil
+}
+
+// updateSingleIndex modifies the objects location in the named index:
+// - for create you must provide only the newObj
+// - for update you must provide both the oldObj and the newObj
+// - for delete you must provide only the oldObj
+// updateSingleIndex must be called from a function that already has a lock on the cache
+func (i *storeIndex) updateSingleIndex(name string, oldObj interface{}, newObj interface{}, key string) {
+	var oldIndexValues, indexValues []string
+	indexFunc, ok := i.indexers[name]
+	if !ok {
+		// Should never happen. Caller is responsible for ensuring this exists, and should call with lock
+		// held to avoid any races.
+		panic(fmt.Errorf("indexer %q does not exist", name))
+	}
+	if oldObj != nil {
+		var err error
+		oldIndexValues, err = indexFunc(oldObj)
+		if err != nil {
+			panic(fmt.Errorf("unable to calculate an index entry for key %q on index %q: %v", key, name, err))
+		}
+	} else {
+		oldIndexValues = oldIndexValues[:0]
+	}
+
+	if newObj != nil {
+		var err error
+		indexValues, err = indexFunc(newObj)
+		if err != nil {
+			panic(fmt.Errorf("unable to calculate an index entry for key %q on index %q: %v", key, name, err))
+		}
+	} else {
+		indexValues = indexValues[:0]
+	}
+
+	idx := i.indices[name]
+	if idx == nil {
+		idx = index{}
+		i.indices[name] = idx
+	}
+
+	if len(indexValues) == 1 && len(oldIndexValues) == 1 && indexValues[0] == oldIndexValues[0] {
+		// We optimize for the most common case where indexFunc returns a single value which has not been changed
+		return
+	}
+
+	for _, value := range oldIndexValues {
+		i.deleteKeyFromIndex(key, value, idx)
+	}
+	for _, value := range indexValues {
+		i.addKeyToIndex(key, value, idx)
+	}
+}
+
+// updateIndices modifies the objects location in the managed indexes:
+// - for create you must provide only the newObj
+// - for update you must provide both the oldObj and the newObj
+// - for delete you must provide only the oldObj
+// updateIndices must be called from a function that already has a lock on the cache
+func (i *storeIndex) updateIndices(oldObj interface{}, newObj interface{}, key string) {
+	for name := range i.indexers {
+		i.updateSingleIndex(name, oldObj, newObj, key)
+	}
+}
+
+func (i *storeIndex) addKeyToIndex(key, indexValue string, index index) {
+	set := index[indexValue]
+	if set == nil {
+		set = sets.Set[string]{}
+		index[indexValue] = set
+	}
+	set.Insert(key)
+}
+
+func (i *storeIndex) deleteKeyFromIndex(key, indexValue string, index index) {
+	set := index[indexValue]
+	if set == nil {
+		return
+	}
+	set.Delete(key)
+	// If we don't delete the set when zero, indices with high cardinality
+	// short lived resources can cause memory to increase over time from
+	// unused empty sets. See `kubernetes/kubernetes/issues/84959`.
+	if len(set) == 0 {
+		delete(index, indexValue)
+	}
 }
 
 // threadSafeMap implements ThreadSafeStore
@@ -64,33 +257,101 @@ type threadSafeMap struct {
 	lock  sync.RWMutex
 	items map[string]interface{}
 
-	// indexers maps a name to an IndexFunc
-	indexers Indexers
-	// indices maps a name to an Index
-	indices Indices
+	// index implements the indexing functionality
+	index *storeIndex
+	rv    string
+
+	// metrics is used to expose metrics about the store
+	// and must be non-nil. If not provided, a noop implementation will be used.
+	metrics *storeMetrics
+}
+
+func (c *threadSafeMap) Transaction(txns ...ThreadSafeStoreTransaction) {
+	if len(txns) == 0 {
+		return
+	}
+	finalObj := txns[len(txns)-1].Object
+	rv, rvErr := rvFromObject(finalObj)
+	rvInt, parseErr := parseRVForMetricsWithTruncation(rv)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	trace := utiltrace.New("ThreadSafeMap Transaction Process",
+		utiltrace.Field{Key: "Size", Value: len(txns)},
+		utiltrace.Field{Key: "Reason", Value: "Slow batch process due to too many items"})
+	defer trace.LogIfLong(min(500*time.Millisecond*time.Duration(len(txns)), 5*time.Second))
+
+	for _, txn := range txns {
+		switch txn.Type {
+		case TransactionTypeAdd:
+			c.addLocked(txn.Key, txn.Object)
+		case TransactionTypeUpdate:
+			c.updateLocked(txn.Key, txn.Object)
+		case TransactionTypeDelete:
+			c.deleteLocked(txn.Key)
+		}
+	}
+	if rvErr == nil {
+		c.rv = rv
+		if parseErr == nil {
+			c.metrics.storeResourceVersion.Set(float64(rvInt))
+		}
+	}
 }
 
 func (c *threadSafeMap) Add(key string, obj interface{}) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	oldObject := c.items[key]
-	c.items[key] = obj
-	c.updateIndices(oldObject, obj, key)
+	c.Update(key, obj)
+}
+
+func (c *threadSafeMap) addLocked(key string, obj interface{}) {
+	c.updateLocked(key, obj)
 }
 
 func (c *threadSafeMap) Update(key string, obj interface{}) {
+	rv, rvErr := rvFromObject(obj)
+	rvInt, parseErr := parseRVForMetricsWithTruncation(rv)
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	c.updateLocked(key, obj)
+	if rvErr == nil {
+		c.rv = rv
+		if parseErr == nil {
+			c.metrics.storeResourceVersion.Set(float64(rvInt))
+		}
+	}
+}
+
+func (c *threadSafeMap) updateLocked(key string, obj interface{}) {
 	oldObject := c.items[key]
 	c.items[key] = obj
-	c.updateIndices(oldObject, obj, key)
+	c.index.updateIndices(oldObject, obj, key)
 }
 
 func (c *threadSafeMap) Delete(key string) {
+	c.DeleteWithObject(key, nil)
+}
+
+func (c *threadSafeMap) DeleteWithObject(key string, obj interface{}) {
+	var rv string
+	var rvInt int64
+	var rvErr, parseErr error
+	if obj != nil {
+		rv, rvErr = rvFromObject(obj)
+		rvInt, parseErr = parseRVForMetricsWithTruncation(rv)
+	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	c.deleteLocked(key)
+	if obj != nil && rvErr == nil {
+		c.rv = rv
+		if parseErr == nil {
+			c.metrics.storeResourceVersion.Set(float64(rvInt))
+		}
+	}
+}
+
+func (c *threadSafeMap) deleteLocked(key string) {
 	if obj, exists := c.items[key]; exists {
-		c.updateIndices(obj, nil, key)
+		c.index.updateIndices(obj, nil, key)
 		delete(c.items, key)
 	}
 }
@@ -125,15 +386,32 @@ func (c *threadSafeMap) ListKeys() []string {
 }
 
 func (c *threadSafeMap) Replace(items map[string]interface{}, resourceVersion string) {
+	var rvInt int64
+	var parseErr error
+	if resourceVersion != "" {
+		rvInt, parseErr = parseRVForMetricsWithTruncation(resourceVersion)
+	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.items = items
-
-	// rebuild any index
-	c.indices = Indices{}
-	for key, item := range c.items {
-		c.updateIndices(nil, item, key)
+	c.rv = resourceVersion
+	if parseErr == nil {
+		c.metrics.storeResourceVersion.Set(float64(rvInt))
 	}
+	// rebuild any index
+	c.index.reset()
+	for key, item := range c.items {
+		c.index.updateIndices(nil, item, key)
+	}
+}
+
+func rvFromObject(obj interface{}) (rv string, err error) {
+	meta, err := meta.Accessor(obj)
+	if err != nil {
+		return "", err
+	}
+	rv = meta.GetResourceVersion()
+	return rv, nil
 }
 
 // Index returns a list of items that match the given object on the index function.
@@ -142,31 +420,9 @@ func (c *threadSafeMap) Index(indexName string, obj interface{}) ([]interface{},
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	indexFunc := c.indexers[indexName]
-	if indexFunc == nil {
-		return nil, fmt.Errorf("Index with name %s does not exist", indexName)
-	}
-
-	indexedValues, err := indexFunc(obj)
+	storeKeySet, err := c.index.getKeysFromIndex(indexName, obj)
 	if err != nil {
 		return nil, err
-	}
-	index := c.indices[indexName]
-
-	var storeKeySet sets.String
-	if len(indexedValues) == 1 {
-		// In majority of cases, there is exactly one value matching.
-		// Optimize the most common path - deduping is not needed here.
-		storeKeySet = index[indexedValues[0]]
-	} else {
-		// Need to de-dupe the return list.
-		// Since multiple keys are allowed, this can happen.
-		storeKeySet = sets.String{}
-		for _, indexedValue := range indexedValues {
-			for key := range index[indexedValue] {
-				storeKeySet.Insert(key)
-			}
-		}
 	}
 
 	list := make([]interface{}, 0, storeKeySet.Len())
@@ -176,19 +432,41 @@ func (c *threadSafeMap) Index(indexName string, obj interface{}) ([]interface{},
 	return list, nil
 }
 
+// LastStoreSyncResourceVersion returns the latest resource version that the store has seen.
+func (c *threadSafeMap) LastStoreSyncResourceVersion() string {
+	// We cannot return the resource version if the AtomicFIFO feature gate is not enabled.
+	if !clientgofeaturegate.FeatureGates().Enabled(clientgofeaturegate.AtomicFIFO) {
+		return ""
+	}
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	return c.rv
+}
+
+// Bookmark sets the latest resource version that the store has seen.
+func (c *threadSafeMap) Bookmark(rv string) {
+	var rvInt int64
+	var parseErr error
+	if rv != "" {
+		rvInt, parseErr = parseRVForMetricsWithTruncation(rv)
+	}
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.rv = rv
+	if parseErr == nil {
+		c.metrics.storeResourceVersion.Set(float64(rvInt))
+	}
+}
+
 // ByIndex returns a list of the items whose indexed values in the given index include the given indexed value
 func (c *threadSafeMap) ByIndex(indexName, indexedValue string) ([]interface{}, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	indexFunc := c.indexers[indexName]
-	if indexFunc == nil {
-		return nil, fmt.Errorf("Index with name %s does not exist", indexName)
+	set, err := c.index.getKeysByIndex(indexName, indexedValue)
+	if err != nil {
+		return nil, err
 	}
-
-	index := c.indices[indexName]
-
-	set := index[indexedValue]
 	list := make([]interface{}, 0, set.Len())
 	for key := range set {
 		list = append(list, c.items[key])
@@ -203,125 +481,40 @@ func (c *threadSafeMap) IndexKeys(indexName, indexedValue string) ([]string, err
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	indexFunc := c.indexers[indexName]
-	if indexFunc == nil {
-		return nil, fmt.Errorf("Index with name %s does not exist", indexName)
+	set, err := c.index.getKeysByIndex(indexName, indexedValue)
+	if err != nil {
+		return nil, err
 	}
-
-	index := c.indices[indexName]
-
-	set := index[indexedValue]
-	return set.List(), nil
+	return sets.List(set), nil
 }
 
 func (c *threadSafeMap) ListIndexFuncValues(indexName string) []string {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	index := c.indices[indexName]
-	names := make([]string, 0, len(index))
-	for key := range index {
-		names = append(names, key)
-	}
-	return names
+	return c.index.getIndexValues(indexName)
 }
 
 func (c *threadSafeMap) GetIndexers() Indexers {
-	return c.indexers
+	return c.index.indexers
 }
 
 func (c *threadSafeMap) AddIndexers(newIndexers Indexers) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	if len(c.items) > 0 {
-		return fmt.Errorf("cannot add indexers to running index")
+	if err := c.index.addIndexers(newIndexers); err != nil {
+		return err
 	}
 
-	oldKeys := sets.StringKeySet(c.indexers)
-	newKeys := sets.StringKeySet(newIndexers)
-
-	if oldKeys.HasAny(newKeys.List()...) {
-		return fmt.Errorf("indexer conflict: %v", oldKeys.Intersection(newKeys))
+	// If there are already items, index them
+	for key, item := range c.items {
+		for name := range newIndexers {
+			c.index.updateSingleIndex(name, nil, item, key)
+		}
 	}
 
-	for k, v := range newIndexers {
-		c.indexers[k] = v
-	}
 	return nil
-}
-
-// updateIndices modifies the objects location in the managed indexes:
-// - for create you must provide only the newObj
-// - for update you must provide both the oldObj and the newObj
-// - for delete you must provide only the oldObj
-// updateIndices must be called from a function that already has a lock on the cache
-func (c *threadSafeMap) updateIndices(oldObj interface{}, newObj interface{}, key string) {
-	var oldIndexValues, indexValues []string
-	var err error
-	for name, indexFunc := range c.indexers {
-		if oldObj != nil {
-			oldIndexValues, err = indexFunc(oldObj)
-		} else {
-			oldIndexValues = oldIndexValues[:0]
-		}
-		if err != nil {
-			panic(fmt.Errorf("unable to calculate an index entry for key %q on index %q: %v", key, name, err))
-		}
-
-		if newObj != nil {
-			indexValues, err = indexFunc(newObj)
-		} else {
-			indexValues = indexValues[:0]
-		}
-		if err != nil {
-			panic(fmt.Errorf("unable to calculate an index entry for key %q on index %q: %v", key, name, err))
-		}
-
-		index := c.indices[name]
-		if index == nil {
-			index = Index{}
-			c.indices[name] = index
-		}
-
-		for _, value := range oldIndexValues {
-			// We optimize for the most common case where index returns a single value.
-			if len(indexValues) == 1 && value == indexValues[0] {
-				continue
-			}
-			c.deleteKeyFromIndex(key, value, index)
-		}
-		for _, value := range indexValues {
-			// We optimize for the most common case where index returns a single value.
-			if len(oldIndexValues) == 1 && value == oldIndexValues[0] {
-				continue
-			}
-			c.addKeyToIndex(key, value, index)
-		}
-	}
-}
-
-func (c *threadSafeMap) addKeyToIndex(key, indexValue string, index Index) {
-	set := index[indexValue]
-	if set == nil {
-		set = sets.String{}
-		index[indexValue] = set
-	}
-	set.Insert(key)
-}
-
-func (c *threadSafeMap) deleteKeyFromIndex(key, indexValue string, index Index) {
-	set := index[indexValue]
-	if set == nil {
-		return
-	}
-	set.Delete(key)
-	// If we don't delete the set when zero, indices with high cardinality
-	// short lived resources can cause memory to increase over time from
-	// unused empty sets. See `kubernetes/kubernetes/issues/84959`.
-	if len(set) == 0 {
-		delete(index, indexValue)
-	}
 }
 
 func (c *threadSafeMap) Resync() error {
@@ -329,11 +522,31 @@ func (c *threadSafeMap) Resync() error {
 	return nil
 }
 
-// NewThreadSafeStore creates a new instance of ThreadSafeStore.
-func NewThreadSafeStore(indexers Indexers, indices Indices) ThreadSafeStore {
-	return &threadSafeMap{
-		items:    map[string]interface{}{},
-		indexers: indexers,
-		indices:  indices,
+func NewThreadSafeStore(indexers Indexers, indices Indices, opts ...ThreadSafeStoreOption) ThreadSafeStore {
+	store := &threadSafeMap{
+		items: map[string]interface{}{},
+		index: &storeIndex{
+			indexers: indexers,
+			indices:  indices,
+		},
 	}
+	for _, opt := range opts {
+		opt(store)
+	}
+	if store.metrics == nil {
+		store.metrics = newStoreMetrics(InformerNameAndResource{}, noopInformerMetricsProvider{})
+	}
+	return store
+}
+
+func parseRVForMetricsWithTruncation(rv string) (int64, error) {
+	if rv == "" {
+		return 0, nil
+	}
+	// Truncate to last 15 digits to ensure metrics are always less than 2^53-1
+	// and avoid imprecise float64 representation.
+	if len(rv) > 15 {
+		rv = rv[len(rv)-15:]
+	}
+	return strconv.ParseInt(rv, 10, 64)
 }

@@ -33,13 +33,16 @@ import (
 // pod.  For more details, see
 // https://git.k8s.io/enhancements/keps/sig-node/585-runtime-class
 type RuntimeClass struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:""`
+
+	// metadata is the standard object metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	// Specification of the RuntimeClass
+	// spec represents specification of the RuntimeClass
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
+	// +required
 	Spec RuntimeClassSpec `json:"spec" protobuf:"bytes,2,name=spec"`
 }
 
@@ -48,7 +51,7 @@ type RuntimeClass struct {
 // Interface (CRI) implementation, as well as any other components that need to
 // understand how the pod will be run. The RuntimeClassSpec is immutable.
 type RuntimeClassSpec struct {
-	// RuntimeHandler specifies the underlying runtime and configuration that the
+	// runtimeHandler specifies the underlying runtime and configuration that the
 	// CRI implementation will use to handle pods of this class. The possible
 	// values are specific to the node & CRI configuration.  It is assumed that
 	// all handlers are available on every node, and handlers of the same name are
@@ -56,28 +59,32 @@ type RuntimeClassSpec struct {
 	// For example, a handler called "runc" might specify that the runc OCI
 	// runtime (using native Linux containers) will be used to run the containers
 	// in a pod.
-	// The RuntimeHandler must be lowercase, conform to the DNS Label (RFC 1123)
+	// The runtimeHandler must be lowercase, conform to the DNS Label (RFC 1123)
 	// requirements, and is immutable.
+	// +required
+	// +k8s:beta(since: "1.37")=+k8s:format="k8s-short-name"
+	// +k8s:beta(since: "1.37")=+k8s:immutable
+	// +k8s:beta(since: "1.37")=+k8s:required
 	RuntimeHandler string `json:"runtimeHandler" protobuf:"bytes,1,opt,name=runtimeHandler"`
 
-	// Overhead represents the resource overhead associated with running a pod for a
+	// overhead represents the resource overhead associated with running a pod for a
 	// given RuntimeClass. For more details, see
 	// https://git.k8s.io/enhancements/keps/sig-node/688-pod-overhead/README.md
-	// This field is beta-level as of Kubernetes v1.18, and is only honored by servers that enable the PodOverhead feature.
 	// +optional
 	Overhead *Overhead `json:"overhead,omitempty" protobuf:"bytes,2,opt,name=overhead"`
 
-	// Scheduling holds the scheduling constraints to ensure that pods running
+	// scheduling holds the scheduling constraints to ensure that pods running
 	// with this RuntimeClass are scheduled to nodes that support it.
 	// If scheduling is nil, this RuntimeClass is assumed to be supported by all
 	// nodes.
 	// +optional
+	// +k8s:alpha(since: "1.37")=+k8s:optional
 	Scheduling *Scheduling `json:"scheduling,omitempty" protobuf:"bytes,3,opt,name=scheduling"`
 }
 
 // Overhead structure represents the resource overhead associated with running a pod.
 type Overhead struct {
-	// PodFixed represents the fixed resource overhead associated with running a pod.
+	// podFixed represents the fixed resource overhead associated with running a pod.
 	// +optional
 	PodFixed corev1.ResourceList `json:"podFixed,omitempty" protobuf:"bytes,1,opt,name=podFixed,casttype=k8s.io/api/core/v1.ResourceList,castkey=k8s.io/api/core/v1.ResourceName,castvalue=k8s.io/apimachinery/pkg/api/resource.Quantity"`
 }
@@ -99,6 +106,7 @@ type Scheduling struct {
 	// tolerated by the pod and the RuntimeClass.
 	// +optional
 	// +listType=atomic
+	// +k8s:alpha(since: "1.37")=+k8s:optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty" protobuf:"bytes,2,rep,name=tolerations"`
 }
 
@@ -106,12 +114,13 @@ type Scheduling struct {
 
 // RuntimeClassList is a list of RuntimeClass objects.
 type RuntimeClassList struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:""`
+
 	// Standard list metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 
-	// Items is a list of schema objects.
+	// items is a list of schema objects.
 	Items []RuntimeClass `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
