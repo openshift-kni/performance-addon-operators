@@ -11,7 +11,7 @@ require (
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/google/go-cmp v0.5.6
 	github.com/jaypipes/ghw v0.8.1-0.20210605191321-eb162add542b
-	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.17.0
 	github.com/openshift-kni/debug-tools v0.1.8
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
