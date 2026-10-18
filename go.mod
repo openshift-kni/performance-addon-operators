@@ -1,6 +1,6 @@
 module github.com/openshift-kni/performance-addon-operators
 
-go 1.17
+go 1.21
 
 require (
 	github.com/RHsyseng/operator-utils v0.0.0-20200213165520-1a022eb07a43
@@ -86,7 +86,7 @@ require (
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/jaypipes/pcidb v0.6.0 // indirect
+	github.com/jaypipes/pcidb v1.1.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
@@ -94,7 +94,6 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/moby/sys/mountinfo v0.4.1 // indirect
@@ -186,4 +185,4 @@ replace (
 
 replace vbom.ml/util => github.com/fvbommel/util v0.0.0-20180919145318-efcd4e0f9787
 
-replace github.com/jaypipes/pcidb => github.com/jaypipes/pcidb v1.0.0
+replace github.com/jaypipes/pcidb => github.com/jaypipes/pcidb v1.1.1
