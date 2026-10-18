@@ -1,6 +1,6 @@
 module github.com/openshift-kni/performance-addon-operators
 
-go 1.17
+go 1.26.0
 
 require (
 	github.com/RHsyseng/operator-utils v0.0.0-20200213165520-1a022eb07a43
@@ -117,7 +117,7 @@ require (
 	golang.org/x/sys v0.0.0-20211029165221-6e7872819dc8 // indirect
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
+	golang.org/x/time v0.16.0 // indirect
 	golang.org/x/tools v0.1.6-0.20210820212750-d4cc65f0b2ff // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
