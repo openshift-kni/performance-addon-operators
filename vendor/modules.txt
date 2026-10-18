@@ -169,8 +169,8 @@ github.com/google/cadvisor/utils
 github.com/google/cadvisor/utils/cloudinfo
 github.com/google/cadvisor/utils/sysfs
 github.com/google/cadvisor/utils/sysinfo
-# github.com/google/go-cmp v0.5.6
-## explicit; go 1.8
+# github.com/google/go-cmp v0.6.0
+## explicit; go 1.13
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
@@ -402,12 +402,15 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-## explicit; go 1.17
+# golang.org/x/crypto v0.58.0
+## explicit; go 1.26.0
 golang.org/x/crypto/pkcs12
 golang.org/x/crypto/pkcs12/internal/rc2
-# golang.org/x/net v0.0.0-20211209124913-491a49abca63
-## explicit; go 1.17
+# golang.org/x/mod v0.42.0
+## explicit; go 1.26.0
+golang.org/x/mod/semver
+# golang.org/x/net v0.61.0
+## explicit; go 1.26.0
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/html
@@ -417,6 +420,8 @@ golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
+golang.org/x/net/internal/httpcommon
+golang.org/x/net/internal/httpsfv
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
 # golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
@@ -428,18 +433,20 @@ golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.0.0-20211029165221-6e7872819dc8
-## explicit; go 1.17
-golang.org/x/sys/internal/unsafeheader
+# golang.org/x/sync v0.24.0
+## explicit; go 1.26.0
+golang.org/x/sync/errgroup
+# golang.org/x/sys v0.49.0
+## explicit; go 1.26.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
-## explicit; go 1.17
+# golang.org/x/term v0.47.0
+## explicit; go 1.26.0
 golang.org/x/term
-# golang.org/x/text v0.3.7
-## explicit; go 1.17
+# golang.org/x/text v0.43.0
+## explicit; go 1.26.0
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
 golang.org/x/text/encoding/htmlindex
@@ -464,15 +471,27 @@ golang.org/x/text/width
 # golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 ## explicit
 golang.org/x/time/rate
-# golang.org/x/tools v0.1.6-0.20210820212750-d4cc65f0b2ff => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
-## explicit; go 1.11
+# golang.org/x/tools v0.52.0 => golang.org/x/tools v0.52.0
+## explicit; go 1.26.0
+golang.org/x/tools/go/ast/edge
+golang.org/x/tools/go/ast/inspector
 golang.org/x/tools/go/gcexportdata
-golang.org/x/tools/go/internal/gcimporter
-golang.org/x/tools/go/internal/packagesdriver
 golang.org/x/tools/go/packages
-golang.org/x/tools/internal/fastwalk
-golang.org/x/tools/internal/gopathwalk
-golang.org/x/tools/internal/semver
+golang.org/x/tools/go/types/objectpath
+golang.org/x/tools/internal/event
+golang.org/x/tools/internal/event/core
+golang.org/x/tools/internal/event/keys
+golang.org/x/tools/internal/event/label
+golang.org/x/tools/internal/gcimporter
+golang.org/x/tools/internal/gocommand
+golang.org/x/tools/internal/moremaps
+golang.org/x/tools/internal/packagesinternal
+golang.org/x/tools/internal/pkgbits
+golang.org/x/tools/internal/stdlib
+golang.org/x/tools/internal/typesinternal
+golang.org/x/tools/internal/versions
+# golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated
+## explicit; go 1.23.0
 # gomodules.xyz/jsonpatch/v2 v2.2.0
 ## explicit; go 1.12
 gomodules.xyz/jsonpatch/v2
@@ -985,6 +1004,6 @@ sigs.k8s.io/yaml
 # github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20211208213416-9b73bdcf5d00
 # github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.1-0.20210701174259-29813c845a4a
 # github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.18.1
-# golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
+# golang.org/x/tools => golang.org/x/tools v0.52.0
 # vbom.ml/util => github.com/fvbommel/util v0.0.0-20180919145318-efcd4e0f9787
 # github.com/jaypipes/pcidb => github.com/jaypipes/pcidb v1.0.0

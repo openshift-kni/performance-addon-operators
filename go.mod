@@ -1,6 +1,6 @@
 module github.com/openshift-kni/performance-addon-operators
 
-go 1.17
+go 1.26.0
 
 require (
 	github.com/RHsyseng/operator-utils v0.0.0-20200213165520-1a022eb07a43
@@ -9,7 +9,7 @@ require (
 	github.com/coreos/ignition v0.35.0
 	github.com/coreos/ignition/v2 v2.9.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
-	github.com/google/go-cmp v0.5.6
+	github.com/google/go-cmp v0.6.0
 	github.com/jaypipes/ghw v0.8.1-0.20210605191321-eb162add542b
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
@@ -111,14 +111,17 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
+	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
-	golang.org/x/sys v0.0.0-20211029165221-6e7872819dc8 // indirect
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/term v0.47.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
-	golang.org/x/tools v0.1.6-0.20210820212750-d4cc65f0b2ff // indirect
+	golang.org/x/tools v0.52.0 // indirect
+	golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20210831024726-fe130286e0e2 // indirect
@@ -181,7 +184,7 @@ replace (
 	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20211208213416-9b73bdcf5d00 // release-4.8
 	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.1-0.20210701174259-29813c845a4a // release-4.8
 	github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.18.1
-	golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
+	golang.org/x/tools => golang.org/x/tools v0.52.0
 )
 
 replace vbom.ml/util => github.com/fvbommel/util v0.0.0-20180919145318-efcd4e0f9787
