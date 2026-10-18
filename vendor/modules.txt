@@ -33,8 +33,8 @@ github.com/PuerkitoBio/urlesc
 # github.com/RHsyseng/operator-utils v0.0.0-20200213165520-1a022eb07a43
 ## explicit
 github.com/RHsyseng/operator-utils/pkg/validation
-# github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d
-## explicit
+# github.com/StackExchange/wmi v1.2.1
+## explicit; go 1.13
 github.com/StackExchange/wmi
 # github.com/asaskevich/govalidator v0.0.0-20200108200545-475eaeb16496
 ## explicit; go 1.12
@@ -101,7 +101,7 @@ github.com/go-logr/logr
 # github.com/go-logr/zapr v1.2.0
 ## explicit; go 1.16
 github.com/go-logr/zapr
-# github.com/go-ole/go-ole v1.2.4
+# github.com/go-ole/go-ole v1.2.5
 ## explicit; go 1.12
 github.com/go-ole/go-ole
 github.com/go-ole/go-ole/oleutil
