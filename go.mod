@@ -34,7 +34,7 @@ require (
 	k8s.io/kubernetes v0.23.3
 	k8s.io/utils v0.0.0-20211116205334-6203023598ed
 	kubevirt.io/qe-tools v0.1.6
-	sigs.k8s.io/controller-runtime v0.11.0
+	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/controller-tools v0.6.2
 )
 
@@ -166,7 +166,7 @@ replace (
 	k8s.io/mount-utils => k8s.io/mount-utils v0.23.3
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.23.3
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.23.3
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.11.0
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.6.2
 )
 
