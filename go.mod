@@ -15,7 +15,7 @@ require (
 	github.com/onsi/gomega v1.17.0
 	github.com/openshift-kni/debug-tools v0.1.8
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
-	github.com/openshift/cluster-node-tuning-operator v0.0.0-20200914165052-a39511828cf0
+	github.com/openshift/cluster-node-tuning-operator v0.0.0-20261019151203-6c11c1a5e1ff
 	github.com/openshift/custom-resource-status v0.0.0-20200602122900-c002fd1547ca
 	github.com/openshift/library-go v0.0.0-20211220195323-eca2c467c492
 	github.com/openshift/machine-config-operator v4.2.0-alpha.0.0.20190917115525-033375cbe820+incompatible
@@ -177,7 +177,7 @@ replace (
 	github.com/mtrmac/gpgme => github.com/mtrmac/gpgme v0.1.1
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20210610130314-a6ac319a7eed // release-4.8
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20210521082421-73d9475a9142 // release-4.8
-	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20210303185751-cbeeb4d9f3cc // release-4.9
+	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20261019151203-6c11c1a5e1ff // release-4.9
 	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20211208213416-9b73bdcf5d00 // release-4.8
 	github.com/openshift/machine-config-operator => github.com/openshift/machine-config-operator v0.0.1-0.20210701174259-29813c845a4a // release-4.8
 	github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.18.1
