@@ -26,7 +26,7 @@ type pbeCipher interface {
 	create(key []byte) (cipher.Block, error)
 	// deriveKey returns a key derived from the given password and salt.
 	deriveKey(salt, password []byte, iterations int) []byte
-	// deriveKey returns an IV derived from the given password and salt.
+	// deriveIV returns an IV derived from the given password and salt.
 	deriveIV(salt, password []byte, iterations int) []byte
 }
 
@@ -80,6 +80,10 @@ func pbDecrypterFor(algorithm pkix.AlgorithmIdentifier, password []byte) (cipher
 		return nil, 0, err
 	}
 
+	if params.Iterations < 0 || params.Iterations > maxIterations {
+		return nil, 0, NotImplementedError("iteration count is invalid or too high")
+	}
+
 	key := cipherType.deriveKey(params.Salt, password, params.Iterations)
 	iv := cipherType.deriveIV(params.Salt, password, params.Iterations)
 
@@ -117,7 +121,7 @@ func pbDecrypt(info decryptable, password []byte) (decrypted []byte, err error) 
 	}
 	ps := decrypted[len(decrypted)-psLen:]
 	decrypted = decrypted[:len(decrypted)-psLen]
-	if bytes.Compare(ps, bytes.Repeat([]byte{byte(psLen)}, psLen)) != 0 {
+	if !bytes.Equal(ps, bytes.Repeat([]byte{byte(psLen)}, psLen)) {
 		return nil, ErrDecryption
 	}
 
