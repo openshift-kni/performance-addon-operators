@@ -25,6 +25,7 @@ import (
 
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
+	authexec "k8s.io/client-go/plugin/pkg/client/auth/exec"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
@@ -204,8 +205,19 @@ func ConfirmUsable(config clientcmdapi.Config, passedContextName string) error {
 
 	if exists {
 		validationErrors = append(validationErrors, validateContext(contextName, *context, config)...)
-		validationErrors = append(validationErrors, validateAuthInfo(context.AuthInfo, *config.AuthInfos[context.AuthInfo])...)
-		validationErrors = append(validationErrors, validateClusterInfo(context.Cluster, *config.Clusters[context.Cluster])...)
+
+		// Default to empty users and clusters and let the validation function report an error.
+		authInfo := config.AuthInfos[context.AuthInfo]
+		if authInfo == nil {
+			authInfo = &clientcmdapi.AuthInfo{}
+		}
+		validationErrors = append(validationErrors, validateAuthInfo(context.AuthInfo, *authInfo)...)
+
+		cluster := config.Clusters[context.Cluster]
+		if cluster == nil {
+			cluster = &clientcmdapi.Cluster{}
+		}
+		validationErrors = append(validationErrors, validateClusterInfo(context.Cluster, *cluster)...)
 	}
 
 	return newErrConfigurationInvalid(validationErrors)
@@ -315,6 +327,10 @@ func validateAuthInfo(authInfoName string, authInfo clientcmdapi.AuthInfo) []err
 			// These are valid
 		default:
 			validationErrors = append(validationErrors, fmt.Errorf("invalid interactiveMode for %v: %q", authInfoName, authInfo.Exec.InteractiveMode))
+		}
+
+		if err := authexec.ValidatePluginPolicy(authInfo.Exec.PluginPolicy); err != nil {
+			validationErrors = append(validationErrors, fmt.Errorf("allowlist misconfiguration: %w", err))
 		}
 	}
 

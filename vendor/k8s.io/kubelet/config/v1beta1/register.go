@@ -39,6 +39,9 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&KubeletConfiguration{},
 		&SerializedNodeConfigSource{},
+		&CredentialProviderConfig{},
+		&ImagePullIntent{},
+		&ImagePulledRecord{},
 	)
 	return nil
 }

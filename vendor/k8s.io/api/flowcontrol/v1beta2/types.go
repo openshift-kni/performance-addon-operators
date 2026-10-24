@@ -77,7 +77,9 @@ const (
 	//   is a boolean false or has an invalid boolean representation
 	//   (if the cluster operator sets it to 'false' it will be stomped)
 	// - any changes to the spec made by the cluster operator will be
-	//   stomped.
+	//   stomped, except for changes to the `nominalConcurrencyShares`
+	//   and `lendablePercent` fields of the PriorityLevelConfiguration
+	//   named "exempt".
 	//
 	// The kube-apiserver will apply updates on the suggested configuration if:
 	// - the cluster operator has enabled auto-update by setting the annotation
@@ -105,18 +107,20 @@ const (
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:prerelease-lifecycle-gen:introduced=1.23
+// +k8s:prerelease-lifecycle-gen:replacement=flowcontrol.apiserver.k8s.io,v1beta3,FlowSchema
 
 // FlowSchema defines the schema of a group of flows. Note that a flow is made up of a set of inbound API requests with
 // similar attributes and is identified by a pair of strings: the name of the FlowSchema and a "flow distinguisher".
+// +k8s:supportsSubresource="/status"
 type FlowSchema struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:""`
 	// `metadata` is the standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	// `spec` is the specification of the desired behavior of a FlowSchema.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
-	// +optional
+	// +required
 	Spec FlowSchemaSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	// `status` is the current status of a FlowSchema.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
@@ -126,10 +130,11 @@ type FlowSchema struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:prerelease-lifecycle-gen:introduced=1.23
+// +k8s:prerelease-lifecycle-gen:replacement=flowcontrol.apiserver.k8s.io,v1beta3,FlowSchemaList
 
 // FlowSchemaList is a list of FlowSchema objects.
 type FlowSchemaList struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:""`
 	// `metadata` is the standard list metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
@@ -144,6 +149,7 @@ type FlowSchemaSpec struct {
 	// `priorityLevelConfiguration` should reference a PriorityLevelConfiguration in the cluster. If the reference cannot
 	// be resolved, the FlowSchema will be ignored and marked as invalid in its status.
 	// Required.
+	// +required
 	PriorityLevelConfiguration PriorityLevelConfigurationReference `json:"priorityLevelConfiguration" protobuf:"bytes,1,opt,name=priorityLevelConfiguration"`
 	// `matchingPrecedence` is used to choose among the FlowSchemas that match a given request. The chosen
 	// FlowSchema is among those with the numerically lowest (which we take to be logically highest)
@@ -185,6 +191,7 @@ type FlowDistinguisherMethod struct {
 	// `type` is the type of flow distinguisher method
 	// The supported types are "ByUser" and "ByNamespace".
 	// Required.
+	// +required
 	Type FlowDistinguisherMethodType `json:"type" protobuf:"bytes,1,opt,name=type"`
 }
 
@@ -192,6 +199,7 @@ type FlowDistinguisherMethod struct {
 type PriorityLevelConfigurationReference struct {
 	// `name` is the name of the priority level configuration being referenced
 	// Required.
+	// +required
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 }
 
@@ -205,6 +213,7 @@ type PolicyRulesWithSubjects struct {
 	// A slice that includes both the system:authenticated and system:unauthenticated user groups matches every request.
 	// +listType=atomic
 	// Required.
+	// +required
 	Subjects []Subject `json:"subjects" protobuf:"bytes,1,rep,name=subjects"`
 	// `resourceRules` is a slice of ResourcePolicyRules that identify matching requests according to their verb and the
 	// target resource.
@@ -225,6 +234,7 @@ type PolicyRulesWithSubjects struct {
 type Subject struct {
 	// `kind` indicates which one of the other fields is non-empty.
 	// Required
+	// +required
 	// +unionDiscriminator
 	Kind SubjectKind `json:"kind" protobuf:"bytes,1,opt,name=kind"`
 	// `user` matches based on username.
@@ -252,6 +262,7 @@ const (
 type UserSubject struct {
 	// `name` is the username that matches, or "*" to match all usernames.
 	// Required.
+	// +required
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 }
 
@@ -261,6 +272,7 @@ type GroupSubject struct {
 	// See https://github.com/kubernetes/apiserver/blob/master/pkg/authentication/user/user.go for some
 	// well-known group names.
 	// Required.
+	// +required
 	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 }
 
@@ -268,9 +280,11 @@ type GroupSubject struct {
 type ServiceAccountSubject struct {
 	// `namespace` is the namespace of matching ServiceAccount objects.
 	// Required.
+	// +required
 	Namespace string `json:"namespace" protobuf:"bytes,1,opt,name=namespace"`
 	// `name` is the name of matching ServiceAccount objects, or "*" to match regardless of name.
 	// Required.
+	// +required
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 }
 
@@ -288,12 +302,14 @@ type ResourcePolicyRule struct {
 	// "*" matches all verbs and, if present, must be the only entry.
 	// +listType=set
 	// Required.
+	// +required
 	Verbs []string `json:"verbs" protobuf:"bytes,1,rep,name=verbs"`
 
 	// `apiGroups` is a list of matching API groups and may not be empty.
 	// "*" matches all API groups and, if present, must be the only entry.
 	// +listType=set
 	// Required.
+	// +required
 	APIGroups []string `json:"apiGroups" protobuf:"bytes,2,rep,name=apiGroups"`
 
 	// `resources` is a list of matching resources (i.e., lowercase
@@ -302,6 +318,7 @@ type ResourcePolicyRule struct {
 	// "*" matches all resources and, if present, must be the only entry.
 	// Required.
 	// +listType=set
+	// +required
 	Resources []string `json:"resources" protobuf:"bytes,3,rep,name=resources"`
 
 	// `clusterScope` indicates whether to match requests that do not
@@ -333,6 +350,7 @@ type NonResourcePolicyRule struct {
 	// "*" matches all verbs. If it is present, it must be the only entry.
 	// +listType=set
 	// Required.
+	// +required
 	Verbs []string `json:"verbs" protobuf:"bytes,1,rep,name=verbs"`
 	// `nonResourceURLs` is a set of url prefixes that a user should have access to and may not be empty.
 	// For example:
@@ -344,6 +362,7 @@ type NonResourcePolicyRule struct {
 	// "*" matches all non-resource urls. if it is present, it must be the only entry.
 	// +listType=set
 	// Required.
+	// +required
 	NonResourceURLs []string `json:"nonResourceURLs" protobuf:"bytes,6,rep,name=nonResourceURLs"`
 }
 
@@ -360,16 +379,20 @@ type FlowSchemaStatus struct {
 type FlowSchemaCondition struct {
 	// `type` is the type of the condition.
 	// Required.
+	// +required
 	Type FlowSchemaConditionType `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
 	// `status` is the status of the condition.
-	// Can be True, False, Unknown.
-	// Required.
+	// Should be specified and set to one of True, False, Unknown.
+	// +optional
 	Status ConditionStatus `json:"status,omitempty" protobuf:"bytes,2,opt,name=status"`
 	// `lastTransitionTime` is the last time the condition transitioned from one status to another.
+	// +optional
 	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 	// `reason` is a unique, one-word, CamelCase reason for the condition's last transition.
+	// +optional
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 	// `message` is a human-readable message indicating details about last transition.
+	// +optional
 	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
 }
 
@@ -380,17 +403,19 @@ type FlowSchemaConditionType string
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:prerelease-lifecycle-gen:introduced=1.23
+// +k8s:prerelease-lifecycle-gen:replacement=flowcontrol.apiserver.k8s.io,v1beta3,PriorityLevelConfiguration
 
 // PriorityLevelConfiguration represents the configuration of a priority level.
+// +k8s:supportsSubresource="/status"
 type PriorityLevelConfiguration struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:""`
 	// `metadata` is the standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	// `spec` is the specification of the desired behavior of a "request-priority".
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
-	// +optional
+	// +required
 	Spec PriorityLevelConfigurationSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 	// `status` is the current status of a "request-priority".
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
@@ -400,10 +425,11 @@ type PriorityLevelConfiguration struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:prerelease-lifecycle-gen:introduced=1.23
+// +k8s:prerelease-lifecycle-gen:replacement=flowcontrol.apiserver.k8s.io,v1beta3,PriorityLevelConfigurationList
 
 // PriorityLevelConfigurationList is a list of PriorityLevelConfiguration objects.
 type PriorityLevelConfigurationList struct {
-	metav1.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:""`
 	// `metadata` is the standard object's metadata.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
@@ -424,13 +450,28 @@ type PriorityLevelConfigurationSpec struct {
 	// _are_ subject to limits and (b) some of the server's limited
 	// capacity is made available exclusively to this priority level.
 	// Required.
+	// +required
 	// +unionDiscriminator
+	// +k8s:beta(since: "1.37")=+k8s:required
+	// +k8s:beta(since: "1.37")=+k8s:modeDiscriminator
 	Type PriorityLevelEnablement `json:"type" protobuf:"bytes,1,opt,name=type"`
 
 	// `limited` specifies how requests are handled for a Limited priority level.
 	// This field must be non-empty if and only if `type` is `"Limited"`.
 	// +optional
+	// +k8s:beta(since: "1.37")=+k8s:optional
+	// +k8s:beta(since: "1.37")=+k8s:ifMode("Limited")=+k8s:required
 	Limited *LimitedPriorityLevelConfiguration `json:"limited,omitempty" protobuf:"bytes,2,opt,name=limited"`
+
+	// `exempt` specifies how requests are handled for an exempt priority level.
+	// This field MUST be empty if `type` is `"Limited"`.
+	// This field MAY be non-empty if `type` is `"Exempt"`.
+	// If empty and `type` is `"Exempt"` then the default values
+	// for `ExemptPriorityLevelConfiguration` apply.
+	// +optional
+	// +k8s:beta(since: "1.37")=+k8s:optional
+	// +k8s:beta(since: "1.37")=+k8s:ifMode("Exempt")=+k8s:optional
+	Exempt *ExemptPriorityLevelConfiguration `json:"exempt,omitempty" protobuf:"bytes,3,opt,name=exempt"`
 }
 
 // PriorityLevelEnablement indicates whether limits on execution are enabled for the priority level
@@ -447,12 +488,12 @@ const (
 
 // LimitedPriorityLevelConfiguration specifies how to handle requests that are subject to limits.
 // It addresses two issues:
-//  * How are requests for this priority level limited?
-//  * What should be done with requests that exceed the limit?
+//   - How are requests for this priority level limited?
+//   - What should be done with requests that exceed the limit?
 type LimitedPriorityLevelConfiguration struct {
 	// `assuredConcurrencyShares` (ACS) configures the execution
 	// limit, which is a limit on the number of requests of this
-	// priority level that may be exeucting at a given time.  ACS must
+	// priority level that may be executing at a given time.  ACS must
 	// be a positive number. The server's concurrency limit (SCL) is
 	// divided among the concurrency-controlled priority levels in
 	// proportion to their assured concurrency shares. This produces
@@ -469,7 +510,74 @@ type LimitedPriorityLevelConfiguration struct {
 	AssuredConcurrencyShares int32 `json:"assuredConcurrencyShares" protobuf:"varint,1,opt,name=assuredConcurrencyShares"`
 
 	// `limitResponse` indicates what to do with requests that can not be executed right now
+	// +required
 	LimitResponse LimitResponse `json:"limitResponse,omitempty" protobuf:"bytes,2,opt,name=limitResponse"`
+
+	// `lendablePercent` prescribes the fraction of the level's NominalCL that
+	// can be borrowed by other priority levels. The value of this
+	// field must be between 0 and 100, inclusive, and it defaults to 0.
+	// The number of seats that other levels can borrow from this level, known
+	// as this level's LendableConcurrencyLimit (LendableCL), is defined as follows.
+	//
+	// LendableCL(i) = round( NominalCL(i) * lendablePercent(i)/100.0 )
+	//
+	// +optional
+	LendablePercent *int32 `json:"lendablePercent,omitempty" protobuf:"varint,3,opt,name=lendablePercent"`
+
+	// `borrowingLimitPercent`, if present, configures a limit on how many
+	// seats this priority level can borrow from other priority levels.
+	// The limit is known as this level's BorrowingConcurrencyLimit
+	// (BorrowingCL) and is a limit on the total number of seats that this
+	// level may borrow at any one time.
+	// This field holds the ratio of that limit to the level's nominal
+	// concurrency limit. When this field is non-nil, it must hold a
+	// non-negative integer and the limit is calculated as follows.
+	//
+	// BorrowingCL(i) = round( NominalCL(i) * borrowingLimitPercent(i)/100.0 )
+	//
+	// The value of this field can be more than 100, implying that this
+	// priority level can borrow a number of seats that is greater than
+	// its own nominal concurrency limit (NominalCL).
+	// When this field is left `nil`, the limit is effectively infinite.
+	// +optional
+	BorrowingLimitPercent *int32 `json:"borrowingLimitPercent,omitempty" protobuf:"varint,4,opt,name=borrowingLimitPercent"`
+}
+
+// ExemptPriorityLevelConfiguration describes the configurable aspects
+// of the handling of exempt requests.
+// In the mandatory exempt configuration object the values in the fields
+// here can be modified by authorized users, unlike the rest of the `spec`.
+type ExemptPriorityLevelConfiguration struct {
+	// `nominalConcurrencyShares` (NCS) contributes to the computation of the
+	// NominalConcurrencyLimit (NominalCL) of this level.
+	// This is the number of execution seats nominally reserved for this priority level.
+	// This DOES NOT limit the dispatching from this priority level
+	// but affects the other priority levels through the borrowing mechanism.
+	// The server's concurrency limit (ServerCL) is divided among all the
+	// priority levels in proportion to their NCS values:
+	//
+	// NominalCL(i)  = ceil( ServerCL * NCS(i) / sum_ncs )
+	// sum_ncs = sum[priority level k] NCS(k)
+	//
+	// Bigger numbers mean a larger nominal concurrency limit,
+	// at the expense of every other priority level.
+	// This field has a default value of zero.
+	// +optional
+	NominalConcurrencyShares *int32 `json:"nominalConcurrencyShares,omitempty" protobuf:"varint,1,opt,name=nominalConcurrencyShares"`
+	// `lendablePercent` prescribes the fraction of the level's NominalCL that
+	// can be borrowed by other priority levels.  This value of this
+	// field must be between 0 and 100, inclusive, and it defaults to 0.
+	// The number of seats that other levels can borrow from this level, known
+	// as this level's LendableConcurrencyLimit (LendableCL), is defined as follows.
+	//
+	// LendableCL(i) = round( NominalCL(i) * lendablePercent(i)/100.0 )
+	//
+	// +optional
+	LendablePercent *int32 `json:"lendablePercent,omitempty" protobuf:"varint,2,opt,name=lendablePercent"`
+	// The `BorrowingCL` of an Exempt priority level is implicitly `ServerCL`.
+	// In other words, an exempt priority level
+	// has no meaningful limit on how much it borrows.
+	// There is no explicit representation of that here.
 }
 
 // LimitResponse defines how to handle requests that can not be executed right now.
@@ -482,12 +590,17 @@ type LimitResponse struct {
 	// "Reject" means that requests that can not be executed upon arrival
 	// are rejected.
 	// Required.
+	// +required
 	// +unionDiscriminator
+	// +k8s:beta(since: "1.37")=+k8s:required
+	// +k8s:beta(since: "1.37")=+k8s:modeDiscriminator
 	Type LimitResponseType `json:"type" protobuf:"bytes,1,opt,name=type"`
 
 	// `queuing` holds the configuration parameters for queuing.
 	// This field may be non-empty only if `type` is `"Queue"`.
 	// +optional
+	// +k8s:beta(since: "1.37")=+k8s:optional
+	// +k8s:beta(since: "1.37")=+k8s:ifMode("Queue")=+k8s:required
 	Queuing *QueuingConfiguration `json:"queuing,omitempty" protobuf:"bytes,2,opt,name=queuing"`
 }
 
@@ -552,16 +665,20 @@ type PriorityLevelConfigurationStatus struct {
 type PriorityLevelConfigurationCondition struct {
 	// `type` is the type of the condition.
 	// Required.
+	// +required
 	Type PriorityLevelConfigurationConditionType `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
 	// `status` is the status of the condition.
-	// Can be True, False, Unknown.
-	// Required.
+	// Should be specified and set to one of True, False, Unknown.
+	// +optional
 	Status ConditionStatus `json:"status,omitempty" protobuf:"bytes,2,opt,name=status"`
 	// `lastTransitionTime` is the last time the condition transitioned from one status to another.
+	// +optional
 	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 	// `reason` is a unique, one-word, CamelCase reason for the condition's last transition.
+	// +optional
 	Reason string `json:"reason,omitempty" protobuf:"bytes,4,opt,name=reason"`
 	// `message` is a human-readable message indicating details about last transition.
+	// +optional
 	Message string `json:"message,omitempty" protobuf:"bytes,5,opt,name=message"`
 }
 

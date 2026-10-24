@@ -59,8 +59,6 @@ type Object interface {
 	SetFinalizers(finalizers []string)
 	GetOwnerReferences() []OwnerReference
 	SetOwnerReferences([]OwnerReference)
-	GetClusterName() string
-	SetClusterName(clusterName string)
 	GetManagedFields() []ManagedFieldsEntry
 	SetManagedFields(managedFields []ManagedFieldsEntry)
 }
@@ -96,6 +94,13 @@ type ListInterface interface {
 	SetRemainingItemCount(c *int64)
 }
 
+// ShardedListInterface can be implemented by list types to indicate that they
+// represent a sharded subset of the full collection rather than the complete list.
+type ShardedListInterface interface {
+	GetShardInfo() *ShardInfo
+	SetShardInfo(*ShardInfo)
+}
+
 // Type exposes the type and APIVersion of versioned or internal API objects.
 // TODO: move this, and TypeMeta and ListMeta, to a different package
 type Type interface {
@@ -115,6 +120,8 @@ func (meta *ListMeta) GetContinue() string               { return meta.Continue 
 func (meta *ListMeta) SetContinue(c string)              { meta.Continue = c }
 func (meta *ListMeta) GetRemainingItemCount() *int64     { return meta.RemainingItemCount }
 func (meta *ListMeta) SetRemainingItemCount(c *int64)    { meta.RemainingItemCount = c }
+func (meta *ListMeta) GetShardInfo() *ShardInfo          { return meta.ShardInfo }
+func (meta *ListMeta) SetShardInfo(s *ShardInfo)         { meta.ShardInfo = s }
 
 func (obj *TypeMeta) GetObjectKind() schema.ObjectKind { return obj }
 
@@ -172,8 +179,6 @@ func (meta *ObjectMeta) GetOwnerReferences() []OwnerReference         { return m
 func (meta *ObjectMeta) SetOwnerReferences(references []OwnerReference) {
 	meta.OwnerReferences = references
 }
-func (meta *ObjectMeta) GetClusterName() string                 { return meta.ClusterName }
-func (meta *ObjectMeta) SetClusterName(clusterName string)      { meta.ClusterName = clusterName }
 func (meta *ObjectMeta) GetManagedFields() []ManagedFieldsEntry { return meta.ManagedFields }
 func (meta *ObjectMeta) SetManagedFields(managedFields []ManagedFieldsEntry) {
 	meta.ManagedFields = managedFields

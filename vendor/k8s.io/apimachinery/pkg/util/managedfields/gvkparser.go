@@ -22,7 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kube-openapi/pkg/schemaconv"
 	"k8s.io/kube-openapi/pkg/util/proto"
-	"sigs.k8s.io/structured-merge-diff/v4/typed"
+	smdschema "sigs.k8s.io/structured-merge-diff/v6/schema"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 )
 
 // groupVersionKindExtensionKey is the key used to lookup the
@@ -58,7 +59,7 @@ func NewGVKParser(models proto.Models, preserveUnknownFields bool) (*GvkParser, 
 	parser := GvkParser{
 		gvks: map[schema.GroupVersionKind]string{},
 	}
-	parser.parser = typed.Parser{Schema: *typeSchema}
+	parser.parser = typed.Parser{Schema: smdschema.Schema{Types: typeSchema.Types}}
 	for _, modelName := range models.ListModels() {
 		model := models.LookupModel(modelName)
 		if model == nil {

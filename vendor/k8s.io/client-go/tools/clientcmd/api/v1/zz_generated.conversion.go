@@ -229,8 +229,7 @@ func Convert_api_AuthInfo_To_v1_AuthInfo(in *api.AuthInfo, out *AuthInfo, s conv
 }
 
 func autoConvert_v1_AuthProviderConfig_To_api_AuthProviderConfig(in *AuthProviderConfig, out *api.AuthProviderConfig, s conversion.Scope) error {
-	out.Name = in.Name
-	out.Config = *(*map[string]string)(unsafe.Pointer(&in.Config))
+	*out = *(*api.AuthProviderConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -240,8 +239,7 @@ func Convert_v1_AuthProviderConfig_To_api_AuthProviderConfig(in *AuthProviderCon
 }
 
 func autoConvert_api_AuthProviderConfig_To_v1_AuthProviderConfig(in *api.AuthProviderConfig, out *AuthProviderConfig, s conversion.Scope) error {
-	out.Name = in.Name
-	out.Config = *(*map[string]string)(unsafe.Pointer(&in.Config))
+	*out = *(*AuthProviderConfig)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -257,6 +255,7 @@ func autoConvert_v1_Cluster_To_api_Cluster(in *Cluster, out *api.Cluster, s conv
 	out.CertificateAuthority = in.CertificateAuthority
 	out.CertificateAuthorityData = *(*[]byte)(unsafe.Pointer(&in.CertificateAuthorityData))
 	out.ProxyURL = in.ProxyURL
+	out.DisableCompression = in.DisableCompression
 	if err := Convert_Slice_v1_NamedExtension_To_Map_string_To_runtime_Object(&in.Extensions, &out.Extensions, s); err != nil {
 		return err
 	}
@@ -276,6 +275,7 @@ func autoConvert_api_Cluster_To_v1_Cluster(in *api.Cluster, out *Cluster, s conv
 	out.CertificateAuthority = in.CertificateAuthority
 	out.CertificateAuthorityData = *(*[]byte)(unsafe.Pointer(&in.CertificateAuthorityData))
 	out.ProxyURL = in.ProxyURL
+	out.DisableCompression = in.DisableCompression
 	if err := Convert_Map_string_To_runtime_Object_To_Slice_v1_NamedExtension(&in.Extensions, &out.Extensions, s); err != nil {
 		return err
 	}
@@ -399,6 +399,7 @@ func autoConvert_api_ExecConfig_To_v1_ExecConfig(in *api.ExecConfig, out *ExecCo
 	out.InteractiveMode = ExecInteractiveMode(in.InteractiveMode)
 	// INFO: in.StdinUnavailable opted out of conversion generation
 	// INFO: in.StdinUnavailableMessage opted out of conversion generation
+	// INFO: in.PluginPolicy opted out of conversion generation
 	return nil
 }
 
@@ -408,8 +409,7 @@ func Convert_api_ExecConfig_To_v1_ExecConfig(in *api.ExecConfig, out *ExecConfig
 }
 
 func autoConvert_v1_ExecEnvVar_To_api_ExecEnvVar(in *ExecEnvVar, out *api.ExecEnvVar, s conversion.Scope) error {
-	out.Name = in.Name
-	out.Value = in.Value
+	*out = *(*api.ExecEnvVar)(unsafe.Pointer(in))
 	return nil
 }
 
@@ -419,8 +419,7 @@ func Convert_v1_ExecEnvVar_To_api_ExecEnvVar(in *ExecEnvVar, out *api.ExecEnvVar
 }
 
 func autoConvert_api_ExecEnvVar_To_v1_ExecEnvVar(in *api.ExecEnvVar, out *ExecEnvVar, s conversion.Scope) error {
-	out.Name = in.Name
-	out.Value = in.Value
+	*out = *(*ExecEnvVar)(unsafe.Pointer(in))
 	return nil
 }
 

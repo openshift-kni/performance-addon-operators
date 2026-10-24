@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"k8s.io/klog/v2"
@@ -107,20 +107,18 @@ func (d *Desc) DeprecatedVersion() *semver.Version {
 
 }
 
-func (d *Desc) determineDeprecationStatus(version semver.Version) {
-	selfVersion := d.DeprecatedVersion()
-	if selfVersion == nil {
+func (d *Desc) determineDeprecationStatus(currentVersion semver.Version) {
+	deprecatedVersion := d.DeprecatedVersion()
+	if deprecatedVersion == nil {
 		return
 	}
 	d.markDeprecationOnce.Do(func() {
-		if selfVersion.LTE(version) {
-			d.isDeprecated = true
-		}
-		if ShouldShowHidden() {
-			klog.Warningf("Hidden metrics(%s) have been manually overridden, showing this very deprecated metric.", d.fqName)
-			return
-		}
-		if shouldHide(&version, selfVersion) {
+		d.isDeprecated = isDeprecated(currentVersion, *deprecatedVersion)
+		if shouldHide(d.stabilityLevel, &currentVersion, deprecatedVersion) {
+			if ShouldShowHidden() {
+				klog.Warningf("Hidden metrics(%s) have been manually overridden, showing this very deprecated metric.", d.fqName)
+				return
+			}
 			// TODO(RainbowMango): Remove this log temporarily. https://github.com/kubernetes/kubernetes/issues/85369
 			// klog.Warningf("This metric(%s) has been deprecated for more than one release, hiding.", d.fqName)
 			d.isHidden = true
@@ -218,8 +216,8 @@ func (d *Desc) initializeDeprecatedDesc() {
 // GetRawDesc will returns a new *Desc with original parameters provided to NewDesc().
 //
 // It will be useful in testing scenario that the same Desc be registered to different registry.
-//   1. Desc `D` is registered to registry 'A' in TestA (Note: `D` maybe created)
-//   2. Desc `D` is registered to registry 'B' in TestB (Note: since 'D' has been created once, thus will be ignored by registry 'B')
+//  1. Desc `D` is registered to registry 'A' in TestA (Note: `D` maybe created)
+//  2. Desc `D` is registered to registry 'B' in TestB (Note: since 'D' has been created once, thus will be ignored by registry 'B')
 func (d *Desc) GetRawDesc() *Desc {
 	return NewDesc(d.fqName, d.help, d.variableLabels, d.constLabels, d.stabilityLevel, d.deprecatedVersion)
 }
