@@ -17,7 +17,7 @@ WORKDIR /app
 COPY . .
 RUN make dist-gather-sysinfo
 
-FROM registry.redhat.io/ubi8/ubi-minimal:latest@sha256:2ea767876991dd9c213986be20e8d6352b9c27e310a4102a5150081daac176d2
+FROM registry.redhat.io/ubi8/ubi-minimal:latest@sha256:7c5f7ae1bcad8d2ebbc364bb8f62c76f50e5666062a65a5cc969d9d1e54ce0d8
 
 RUN microdnf install -y pciutils util-linux hostname tar rsync ethtool ; microdnf clean all
 
