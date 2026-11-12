@@ -6,7 +6,6 @@ package bidi
 
 import (
 	"fmt"
-	"log"
 )
 
 // This implementation is a port based on the reference implementation found at:
@@ -193,14 +192,14 @@ func (p *paragraph) run() {
 //
 // At the end of this function:
 //
-//  - The member variable matchingPDI is set to point to the index of the
-//    matching PDI character for each isolate initiator character. If there is
-//    no matching PDI, it is set to the length of the input text. For other
-//    characters, it is set to -1.
-//  - The member variable matchingIsolateInitiator is set to point to the
-//    index of the matching isolate initiator character for each PDI character.
-//    If there is no matching isolate initiator, or the character is not a PDI,
-//    it is set to -1.
+//   - The member variable matchingPDI is set to point to the index of the
+//     matching PDI character for each isolate initiator character. If there is
+//     no matching PDI, it is set to the length of the input text. For other
+//     characters, it is set to -1.
+//   - The member variable matchingIsolateInitiator is set to point to the
+//     index of the matching isolate initiator character for each PDI character.
+//     If there is no matching isolate initiator, or the character is not a PDI,
+//     it is set to -1.
 func (p *paragraph) determineMatchingIsolates() {
 	p.matchingPDI = make([]int, p.Len())
 	p.matchingIsolateInitiator = make([]int, p.Len())
@@ -209,26 +208,22 @@ func (p *paragraph) determineMatchingIsolates() {
 		p.matchingIsolateInitiator[i] = -1
 	}
 
+	var open []int
 	for i := range p.matchingPDI {
 		p.matchingPDI[i] = -1
 
-		if t := p.resultTypes[i]; t.in(LRI, RLI, FSI) {
-			depthCounter := 1
-			for j := i + 1; j < p.Len(); j++ {
-				if u := p.resultTypes[j]; u.in(LRI, RLI, FSI) {
-					depthCounter++
-				} else if u == PDI {
-					if depthCounter--; depthCounter == 0 {
-						p.matchingPDI[i] = j
-						p.matchingIsolateInitiator[j] = i
-						break
-					}
-				}
-			}
-			if p.matchingPDI[i] == -1 {
-				p.matchingPDI[i] = p.Len()
-			}
+		switch t := p.resultTypes[i]; {
+		case t.in(LRI, RLI, FSI):
+			open = append(open, i)
+		case t == PDI && len(open) > 0:
+			j := open[len(open)-1]
+			open = open[:len(open)-1]
+			p.matchingPDI[j] = i
+			p.matchingIsolateInitiator[i] = j
 		}
+	}
+	for _, i := range open {
+		p.matchingPDI[i] = p.Len()
 	}
 }
 
@@ -248,7 +243,7 @@ func (p *paragraph) determineParagraphEmbeddingLevel(start, end int) level {
 		} else if t.in(FSI, LRI, RLI) {
 			i = p.matchingPDI[i] // skip over to the matching PDI
 			if i > end {
-				log.Panic("assert (i <= end)")
+				panic("assert (i <= end)")
 			}
 		}
 	}
@@ -427,15 +422,8 @@ type isolatingRunSequence struct {
 
 func (i *isolatingRunSequence) Len() int { return len(i.indexes) }
 
-func maxLevel(a, b level) level {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // Rule X10, second bullet: Determine the start-of-sequence (sos) and end-of-sequence (eos) types,
-// 			 either L or R, for each isolating run sequence.
+// either L or R, for each isolating run sequence.
 func (p *paragraph) isolatingRunSequence(indexes []int) *isolatingRunSequence {
 	length := len(indexes)
 	types := make([]Class, length)
@@ -474,8 +462,8 @@ func (p *paragraph) isolatingRunSequence(indexes []int) *isolatingRunSequence {
 		indexes: indexes,
 		types:   types,
 		level:   level,
-		sos:     typeForLevel(maxLevel(prevLevel, level)),
-		eos:     typeForLevel(maxLevel(succLevel, level)),
+		sos:     typeForLevel(max(prevLevel, level)),
+		eos:     typeForLevel(max(succLevel, level)),
 	}
 }
 
@@ -495,25 +483,22 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 		if t == NSM {
 			s.types[i] = precedingCharacterType
 		} else {
-			if t.in(LRI, RLI, FSI, PDI) {
-				precedingCharacterType = ON
-			}
+			// if t.in(LRI, RLI, FSI, PDI) {
+			// 	precedingCharacterType = ON
+			// }
 			precedingCharacterType = t
 		}
 	}
 
 	// Rule W2.
 	// EN does not change at the start of the run, because sos != AL.
+	lastStrong := unknownClass
 	for i, t := range s.types {
-		if t == EN {
-			for j := i - 1; j >= 0; j-- {
-				if t := s.types[j]; t.in(L, R, AL) {
-					if t == AL {
-						s.types[i] = AN
-					}
-					break
-				}
-			}
+		switch {
+		case t.in(L, R, AL):
+			lastStrong = t
+		case t == EN && lastStrong == AL:
+			s.types[i] = AN
 		}
 	}
 
@@ -551,29 +536,30 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 	}
 
 	// Rule W5.
-	for i, t := range s.types {
-		if t == ET {
-			// locate end of sequence
-			runStart := i
-			runEnd := s.findRunLimit(runStart, ET)
-
-			// check values at ends of sequence
-			t := s.sos
-			if runStart > 0 {
-				t = s.types[runStart-1]
-			}
-			if t != EN {
-				t = s.eos
-				if runEnd < len(s.types) {
-					t = s.types[runEnd]
-				}
-			}
-			if t == EN {
-				setTypes(s.types[runStart:runEnd], EN)
-			}
-			// continue at end of sequence
-			i = runEnd
+	for i := 0; i < len(s.types); i++ {
+		if s.types[i] != ET {
+			continue
 		}
+		// locate end of sequence
+		runStart := i
+		runEnd := s.findRunLimit(runStart, ET)
+
+		// check values at ends of sequence
+		t := s.sos
+		if runStart > 0 {
+			t = s.types[runStart-1]
+		}
+		if t != EN {
+			t = s.eos
+			if runEnd < len(s.types) {
+				t = s.types[runEnd]
+			}
+		}
+		if t == EN {
+			setTypes(s.types[runStart:runEnd], EN)
+		}
+		// continue at end of sequence
+		i = runEnd
 	}
 
 	// Rule W6.
@@ -584,20 +570,13 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 	}
 
 	// Rule W7.
+	prevStrongType := s.sos
 	for i, t := range s.types {
-		if t == EN {
-			// set default if we reach start of run
-			prevStrongType := s.sos
-			for j := i - 1; j >= 0; j-- {
-				t = s.types[j]
-				if t == L || t == R { // AL's have been changed to R
-					prevStrongType = t
-					break
-				}
-			}
-			if prevStrongType == L {
-				s.types[i] = L
-			}
+		switch {
+		case t == L || t == R: // AL's have been changed to R
+			prevStrongType = t
+		case t == EN && prevStrongType == L:
+			s.types[i] = L
 		}
 	}
 }
@@ -736,7 +715,7 @@ loop:
 				continue loop
 			}
 		}
-		log.Panicf("invalid bidi code %v present in assertOnly at position %d", t, s.indexes[i])
+		panic(fmt.Errorf("invalid bidi code %v present in assertOnly at position %d", t, s.indexes[i]))
 	}
 }
 
@@ -905,7 +884,7 @@ func (p *paragraph) getLevels(linebreaks []int) []level {
 // Lines are concatenated from left to right. So for example, the fifth
 // character from the left on the third line is
 //
-// 		getReordering(linebreaks)[linebreaks[1] + 4]
+//	getReordering(linebreaks)[linebreaks[1] + 4]
 //
 // (linebreaks[1] is the position after the last character of the second
 // line, which is also the index of the first character on the third line,
