@@ -578,7 +578,7 @@ gopkg.in/tomb.v1
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
-# gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+# gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
 # howett.net/plist v0.0.0-20181124034731-591f970eefbb
@@ -842,9 +842,13 @@ k8s.io/component-base/version
 # k8s.io/klog v1.0.0
 ## explicit; go 1.12
 k8s.io/klog
-# k8s.io/klog/v2 v2.30.0
+# k8s.io/klog/v2 v2.60.1
 ## explicit; go 1.13
 k8s.io/klog/v2
+k8s.io/klog/v2/internal/buffer
+k8s.io/klog/v2/internal/clock
+k8s.io/klog/v2/internal/serialize
+k8s.io/klog/v2/internal/severity
 # k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65
 ## explicit; go 1.16
 k8s.io/kube-openapi/pkg/schemaconv
@@ -861,7 +865,7 @@ k8s.io/kubernetes/pkg/kubelet/apis/podresources
 k8s.io/kubernetes/pkg/kubelet/cm/cpuset
 k8s.io/kubernetes/pkg/kubelet/metrics
 k8s.io/kubernetes/pkg/kubelet/util
-# k8s.io/utils v0.0.0-20211116205334-6203023598ed
+# k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 ## explicit; go 1.12
 k8s.io/utils/buffer
 k8s.io/utils/clock
@@ -971,7 +975,7 @@ sigs.k8s.io/yaml
 # k8s.io/kubernetes => k8s.io/kubernetes v1.23.3
 # k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.23.3
 # k8s.io/metrics => k8s.io/metrics v0.23.3
-# k8s.io/mount-utils => k8s.io/mount-utils v0.23.3
+# k8s.io/mount-utils => k8s.io/mount-utils v0.24.17
 # k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.23.3
 # k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.23.3
 # sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.11.0
