@@ -11,7 +11,7 @@ RUN mkdir -p /usr/libexec/must-gather/performance-addon-operator && \
 RUN mkdir -p /etc/node-gather && \
     cp /must-gather/node-gather/* /etc/node-gather/
 
-FROM registry.redhat.io/openshift/golang-builder:golang-builder-v1.19-rhel8@sha256:9de5282b1ad80c0bc857b889c130a9018757f54200e35960ae343c052d535f13 AS paobuilder
+FROM registry.redhat.io/openshift/golang-builder:golang-builder-v1.19-rhel8@sha256:cdb6fe437dcbdab2f4d5faee06d67b39401f484d0234f9adcccbc5af37402cfb AS paobuilder
 
 WORKDIR /app
 COPY . .
