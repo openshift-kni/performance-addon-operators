@@ -184,6 +184,6 @@ replace (
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20191206213732-070c9d21b343
 )
 
-replace vbom.ml/util => github.com/fvbommel/util v0.0.0-20180919145318-efcd4e0f9787
+replace vbom.ml/util => github.com/fvbommel/util v0.0.3
 
 replace github.com/jaypipes/pcidb => github.com/jaypipes/pcidb v1.0.0
