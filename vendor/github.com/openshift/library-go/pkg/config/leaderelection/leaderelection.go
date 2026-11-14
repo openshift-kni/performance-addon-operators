@@ -2,7 +2,7 @@ package leaderelection
 
 import (
 	"fmt"
-	"io/ioutil"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -22,8 +22,17 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 )
 
-// ToConfigMapLeaderElection returns a leader election config that you just need to fill in the Callback for.  Don't forget the callbacks!
-func ToConfigMapLeaderElection(clientConfig *rest.Config, config configv1.LeaderElection, component, identity string) (leaderelection.LeaderElectionConfig, error) {
+// ToLeaderElectionWithLease returns a "leases" based leader
+// election config that you just need to fill in the Callback for.
+// NOTE: we had switched from "configmaps" to "configmapsleases"
+// to give an opportunity for the operators to migrate in a
+// backward compatible way. The final step in the migration is
+// switch to using Leases.
+// See https://github.com/kubernetes/kubernetes/issues/107454 for
+// details on how to migrate to "leases" leader election.
+//
+// Don't forget the callbacks!
+func ToLeaderElectionWithLease(clientConfig *rest.Config, config configv1.LeaderElection, component, identity string) (leaderelection.LeaderElectionConfig, error) {
 	kubeClient, err := kubernetes.NewForConfig(clientConfig)
 	if err != nil {
 		return leaderelection.LeaderElectionConfig{}, err
@@ -50,7 +59,7 @@ func ToConfigMapLeaderElection(clientConfig *rest.Config, config configv1.Leader
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.CoreV1().RESTClient()).Events("")})
 	eventRecorder := eventBroadcaster.NewRecorder(clientgoscheme.Scheme, corev1.EventSource{Component: component})
 	rl, err := resourcelock.New(
-		resourcelock.ConfigMapsResourceLock,
+		resourcelock.LeasesResourceLock,
 		config.Namespace,
 		config.Name,
 		kubeClient.CoreV1(),
@@ -107,12 +116,22 @@ func LeaderElectionDefaulting(config configv1.LeaderElection, defaultNamespace, 
 	if ret.RetryPeriod.Duration == 0 {
 		ret.RetryPeriod.Duration = 26 * time.Second
 	}
+
+	retryTimes := int(math.Floor(float64(ret.RenewDeadline.Duration / ret.RetryPeriod.Duration)))
+	klog.Infof("The leader election gives %v retries and allows for %v of clock skew. The kube-apiserver downtime tolerance is %vs. Worst non-graceful lease acquisition is %v. Worst graceful lease acquisition is %v.",
+		retryTimes,
+		ret.LeaseDuration.Duration-ret.RenewDeadline.Duration,
+		(retryTimes-1)*(int(ret.RetryPeriod.Duration.Seconds())),
+		ret.LeaseDuration.Duration+ret.RetryPeriod.Duration,
+		ret.RetryPeriod,
+	)
+
 	if len(ret.Namespace) == 0 {
 		if len(defaultNamespace) > 0 {
 			ret.Namespace = defaultNamespace
 		} else {
 			// Fall back to the namespace associated with the service account token, if available
-			if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+			if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
 				if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
 					ret.Namespace = ns
 				}
