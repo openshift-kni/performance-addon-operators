@@ -6,6 +6,7 @@ package language
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -58,7 +59,7 @@ func (c CanonType) Parse(s string) (t Tag, err error) {
 	if changed {
 		tt.RemakeString()
 	}
-	return makeTag(tt), err
+	return makeTag(tt), nil
 }
 
 // Compose creates a Tag from individual parts, which may be of type Tag, Base,
@@ -147,6 +148,7 @@ func update(b *language.Builder, part ...interface{}) (err error) {
 }
 
 var errInvalidWeight = errors.New("ParseAcceptLanguage: invalid weight")
+var errTagListTooLarge = errors.New("tag list exceeds max length")
 
 // ParseAcceptLanguage parses the contents of an Accept-Language header as
 // defined in http://www.ietf.org/rfc/rfc2616.txt and returns a list of Tags and
@@ -163,6 +165,12 @@ func ParseAcceptLanguage(s string) (tag []Tag, q []float32, err error) {
 			err = language.ErrSyntax
 		}
 	}()
+
+	// The BCP 47 scanner aliases '_' to '-' in scanner.init
+	// (internal/language/parse.go); the guard must count both.
+	if strings.Count(s, "-")+strings.Count(s, "_") > 1000 {
+		return nil, nil, errTagListTooLarge
+	}
 
 	var entry string
 	for s != "" {
@@ -201,7 +209,7 @@ func ParseAcceptLanguage(s string) (tag []Tag, q []float32, err error) {
 		tag = append(tag, t)
 		q = append(q, float32(w))
 	}
-	sortStable(&tagSort{tag, q})
+	sort.Stable(&tagSort{tag, q})
 	return tag, q, nil
 }
 

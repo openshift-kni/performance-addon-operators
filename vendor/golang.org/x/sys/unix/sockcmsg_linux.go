@@ -31,6 +31,9 @@ func ParseUnixCredentials(m *SocketControlMessage) (*Ucred, error) {
 	if m.Header.Type != SCM_CREDENTIALS {
 		return nil, EINVAL
 	}
+	if len(m.Data) < SizeofUcred {
+		return nil, EINVAL
+	}
 	ucred := *(*Ucred)(unsafe.Pointer(&m.Data[0]))
 	return &ucred, nil
 }
@@ -67,9 +70,7 @@ func ParseOrigDstAddr(m *SocketControlMessage) (Sockaddr, error) {
 		sa := new(SockaddrInet4)
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	case m.Header.Level == SOL_IPV6 && m.Header.Type == IPV6_ORIGDSTADDR:
@@ -78,9 +79,7 @@ func ParseOrigDstAddr(m *SocketControlMessage) (Sockaddr, error) {
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
 		sa.Port = int(p[0])<<8 + int(p[1])
 		sa.ZoneId = pp.Scope_id
-		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i]
-		}
+		sa.Addr = pp.Addr
 		return sa, nil
 
 	default:

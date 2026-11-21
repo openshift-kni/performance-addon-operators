@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || zos
 
 package unix
 
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // readInt returns the size-bytes unsigned integer in native byte order at offset off.
 func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
@@ -76,7 +78,10 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, 
 		if !ok {
 			break
 		}
-		if ino == 0 { // File absent in directory.
+		// Some filesystems on Linux (old XFS, FUSE) can return valid
+		// files with zero inodes. On other platforms, a zero inode
+		// indicates a file absent from the directory.
+		if ino == 0 && runtime.GOOS != "linux" {
 			continue
 		}
 		const namoff = uint64(unsafe.Offsetof(Dirent{}.Name))
