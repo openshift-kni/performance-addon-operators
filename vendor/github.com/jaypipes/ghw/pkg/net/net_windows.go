@@ -6,12 +6,13 @@
 package net
 
 import (
+	"context"
 	"strings"
 
-	"github.com/StackExchange/wmi"
+	"github.com/yusufpapurcu/wmi"
 )
 
-const wqlNetworkAdapter = "SELECT Description, DeviceID, Index, InterfaceIndex, MACAddress, Manufacturer, Name, NetConnectionID, ProductName, ServiceName  FROM Win32_NetworkAdapter"
+const wqlNetworkAdapter = "SELECT Description, DeviceID, Index, InterfaceIndex, MACAddress, Manufacturer, Name, NetConnectionID, ProductName, ServiceName, PhysicalAdapter FROM Win32_NetworkAdapter"
 
 type win32NetworkAdapter struct {
 	Description     *string
@@ -24,9 +25,10 @@ type win32NetworkAdapter struct {
 	NetConnectionID *string
 	ProductName     *string
 	ServiceName     *string
+	PhysicalAdapter *bool
 }
 
-func (i *Info) load() error {
+func (i *Info) load(ctx context.Context) error {
 	// Getting info from WMI
 	var win32NetDescriptions []win32NetworkAdapter
 	if err := wmi.Query(wqlNetworkAdapter, &win32NetDescriptions); err != nil {
@@ -44,10 +46,10 @@ func nics(win32NetDescriptions []win32NetworkAdapter) []*NIC {
 		nic := &NIC{
 			Name:         netDeviceName(nicDescription),
 			MacAddress:   *nicDescription.MACAddress,
-			IsVirtual:    false,
+			MACAddress:   *nicDescription.MACAddress,
+			IsVirtual:    netIsVirtual(nicDescription),
 			Capabilities: []*NICCapability{},
 		}
-		// Appenging NIC to NICs
 		nics = append(nics, nic)
 	}
 
@@ -62,4 +64,12 @@ func netDeviceName(description win32NetworkAdapter) string {
 		name = *description.Description
 	}
 	return name
+}
+
+func netIsVirtual(description win32NetworkAdapter) bool {
+	if description.PhysicalAdapter == nil {
+		return false
+	}
+
+	return !(*description.PhysicalAdapter)
 }
